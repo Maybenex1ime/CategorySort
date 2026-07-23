@@ -8,13 +8,15 @@
 
 ## Tóm tắt gameplay cần clone
 
-- Bàn chơi gồm các **kệ/slot** chứa các **memoji** thuộc nhiều **category** (cảm xúc, nghề nghiệp, con vật...).
-- Người chơi **kéo-thả** memoji giữa các kệ; đủ **3 memoji cùng category trên một kệ → clear** (match).
-- Thắng khi clear hết bàn; thua/kẹt khi hết chỗ trống mà không còn nước đi.
-- Độ khó tăng: nhiều category hơn, ít slot trống hơn, memoji "gài bẫy" (nhìn giống nhau khác category).
-- Chơi offline, single player, casual — session ngắn 1-3 phút/level.
+*(Rev 2 — chốt lại theo phân tích screenshot game gốc; nguồn chân lý chi tiết: `design/gdd/game-concept.md`)*
 
-*(Chi tiết mechanic chính xác sẽ được chốt ở giai đoạn Concept + Prototype — chơi thử game gốc để xác nhận luật match, số slot/kệ, có undo/booster không.)*
+- Bàn chơi là **lưới các chồng thẻ** (VD 5×4); chỉ thẻ trên cùng tương tác được, thẻ dưới bị ẩn.
+- Mỗi thẻ thuộc 1 **category**; item cùng category có art khác nhau (match bằng ngữ nghĩa).
+- **Collector**: thẻ gom theo category với **quota** (VD 8/12) — kéo thẻ đúng loại vào để đếm dần, đủ quota thì hoàn thành.
+- **Tray** 5 slot dưới đáy làm buffer đào chồng. **Move budget** giới hạn mỗi level.
+- Thắng: xong mọi collector. Thua: hết move hoặc kẹt (tray đầy, không còn nước hợp lệ).
+- Game gốc còn có blocker (khóa xích, băng, free-slot, deck) + booster + coins → **ngoài MVP**, để Tier 2/3.
+- Chơi offline, single player, casual — session ngắn 2-4 phút/level.
 
 ---
 
@@ -46,20 +48,20 @@ Skill dùng ngoài luồng khi cần: `unity-bug-root-cause` (khi có bug), `ccg
 ## Giai đoạn 1 — Concept (`ccgs-brainstorm`) (1 ngày)
 
 Vì đã có game gốc để tham chiếu, brainstorm chạy nhanh, tập trung vào:
-- **Elevator pitch**: "Solitaire sắp xếp emoji: kéo memoji về đúng nhóm, 3 cùng loại thì nổ — dễ học, càng chơi càng xoắn não."
+- **Elevator pitch**: "Solitaire dọn thẻ: đào các chồng thẻ, gom đủ chỉ tiêu từng nhóm — match bằng ý nghĩa, không phải bằng hình."
 - **Core verb**: *sort* (kéo-thả phân loại).
 - **Core loop 30s**: nhìn bàn → nhận diện category → kéo memoji → match nổ → mở khóa nước đi mới.
 - **Pillars** (đề xuất, chốt khi chạy skill):
   1. *Đọc nhanh, quyết định chậm* — nhận diện category tức thì, chiến thuật nằm ở thứ tự.
   2. *Juice là phần thưởng* — mỗi match phải "đã" (âm thanh, hiệu ứng).
-  3. *Kẹt là do mình* — thua vì quyết định sai, không phải vì may rủi.
+  3. *Canh bạc đọc được* — layout cố định, không RNG lúc chơi; rủi ro đào chồng luôn ước lượng được.
 - **MVP**: 1 mechanic match duy nhất, 20 level, không ads/IAP/meta.
 - **Scope tiers**: MVP → thêm booster/undo → polish phát hành.
 
 ## Giai đoạn 1b — Prototype vứt đi (1-2 ngày)
 
 Một scene duy nhất, art placeholder (emoji font hệ thống), hardcode 1 level:
-kéo-thả + luật match 3-cùng-category. Mục tiêu duy nhất: **xác nhận core loop vui**
+kéo-thả + đủ luật core (chồng thẻ, collector/quota, tray, move budget). Mục tiêu duy nhất: **xác nhận core loop vui**
 trước khi viết GDD. Code này không mang sang production.
 
 ## Giai đoạn 2 — Systems Design (`ccgs-map-systems` → `ccgs-design-system`) (2-3 ngày)
@@ -68,18 +70,21 @@ trước khi viết GDD. Code này không mang sang production.
 
 | Layer | System | Ghi chú |
 |-------|--------|---------|
-| Foundation | **Item/Category Database** | ScriptableObject: category, sprite, id |
-| Foundation | **Level Data** | ScriptableObject/JSON: bố cục kệ, memoji ban đầu |
+| Foundation | **Item/Category Database** | ScriptableObject: category, các art variant |
+| Foundation | **Level Data** | ScriptableObject/JSON: lưới chồng thẻ, collector + quota, move budget |
 | Foundation | **Save System** | PlayerPrefs/JSON: level đã qua, settings |
-| Core | **Board System** | Kệ, slot, trạng thái bàn chơi — plain C#, test được |
-| Core | **Match Rules** | Luật 3-cùng-category, phát hiện thắng/thua/kẹt — plain C# |
-| Core | **Drag & Drop Input** | MonoBehaviour adapter → gọi Board System |
+| Core | **Pile Board System** | Lưới chồng thẻ, lộ thẻ khi lấy, trạng thái thẻ (thiết kế mở cho blocker Tier 2) — plain C# |
+| Core | **Collector System** | Quota, nhận thẻ đúng category, hoàn thành — plain C# |
+| Core | **Tray System** | 5 slot buffer, luật chuyển thẻ, điều kiện kẹt — plain C# |
+| Core | **Turn & Win/Lose Rules** | Move budget, thắng/thua/kẹt — plain C# |
+| Core | **Drag & Drop Input** | MonoBehaviour adapter → gọi domain |
 | Feature | **Level Progression** | Mở khóa tuần tự, độ khó tăng dần |
-| Feature | **Difficulty/Level Generator** | Tay hoặc semi-procedural (quyết ở GDD) |
-| Presentation | **Game UI** | Menu, HUD level, màn thắng/thua, level select |
-| Presentation | **VFX & Audio (Juice)** | Match nổ, tween kéo thả, SFX |
-| Polish | **Tutorial** | 1-2 level đầu có hướng dẫn |
-| Polish | **Boosters/Undo** | Ngoài MVP |
+| Feature | **Level Solver/Validator** | Chạy trên domain thuần: xác minh level giải được + đo move tối thiểu → đặt budget |
+| Presentation | **Game UI** | Menu, HUD (moves, quota), màn thắng/thua, level select |
+| Presentation | **VFX & Audio (Juice)** | Thẻ bay vào collector, quota nhảy số, hoàn thành nổ, SFX |
+| Polish (Tier 2) | **Obstacles/Blockers** | Khóa xích, băng, free-slot, deck dự trữ — ngoài MVP |
+| Polish (Tier 2) | **Boosters** | Undo/hint/magnet — ngoài MVP |
+| Polish | **Tutorial** | 1-2 level đầu tự dạy bằng thiết kế |
 
 Viết GDD theo thứ tự dependency (Foundation → Core → ...), mỗi GDD xong chạy `ccgs-consistency-check` để bắt drift số liệu giữa các doc.
 
@@ -103,7 +108,7 @@ Các ADR then chốt cần chốt:
 
 Vòng lặp mỗi story: **`unity-tdd-workflow`** (test EditMode trước → code pass → wire MonoBehaviour) → **`ccgs-code-review`** + **`unity-clean-architecture-review`** → **`ccgs-story-done`**.
 
-- **Sprint 1 — Core chơi được**: Item DB, Level Data, Board System + Match Rules (TDD đầy đủ: match đúng category, phát hiện thắng, phát hiện kẹt, không match khác category), Drag & Drop, 3 level test. *Kết quả: chơi được 1 level từ đầu đến cuối, art placeholder.*
+- **Sprint 1 — Core chơi được**: Item DB, Level Data, Pile Board + Collector + Tray + Turn Rules (TDD đầy đủ: gom đúng/sai category, quota hoàn thành, lộ thẻ dưới, hết move, phát hiện kẹt), Drag & Drop, 3 level test. *Kết quả: chơi được 1 level từ đầu đến cuối, art placeholder.*
 - **Sprint 2 — Game hoàn chỉnh tối thiểu**: Level Progression, Save, UI flow (menu → level → thắng/thua → next), 20 level, difficulty curve tay.
 - **Sprint 3 — Juice & hoàn thiện**: VFX/SFX/tween, tutorial, polish cảm giác kéo-thả, playtest + sửa theo `unity-bug-root-cause`.
 

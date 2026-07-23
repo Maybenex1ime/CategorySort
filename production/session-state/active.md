@@ -1,7 +1,7 @@
 # Session State
 
-- **Task**: Giai đoạn 1 — Concept
-- **Status**: ✅ Game concept doc đã viết (`design/gdd/game-concept.md`, status Draft — chờ prototype xác nhận). Giai đoạn 0 đã commit (`a644bcd`, `337e07e`).
-- **Files**: `design/gdd/game-concept.md`
-- **Notes**: Review mode lean → các director gate (CD-PILLARS, TD-FEASIBILITY, PR-SCOPE) bỏ qua theo quy định skill. Luật chơi cốt lõi + pillars + MVP + scope tiers đã định nghĩa trong concept doc.
-- **Next**: Prototype vứt đi (1-2 ngày) để xác nhận core loop vui → chốt concept sang Approved → `/ccgs-map-systems`
+- **Task**: Giai đoạn 1 — Concept (Rev 2)
+- **Status**: ✅ Concept doc viết lại theo phân tích screenshot game gốc: mô hình **collector/quota + chồng thẻ + tray + move budget** (thay mô hình kệ-3 sai ở Rev 1). Development plan đã đồng bộ (systems index, sprint 1, prototype).
+- **Files**: `design/gdd/game-concept.md` (Rev 2, Draft), `docs/development-plan.md`
+- **Notes**: Các mục đánh dấu (?) trong luật (chi phí move, hành vi collector khi hoàn thành) cần chơi game gốc 30-60 phút để chốt. Blocker/booster/economy ghi nhận nhưng để Tier 2/3.
+- **Next**: Prototype research (chơi game gốc) → prototype vứt đi → chốt concept Approved → `/ccgs-map-systems`
