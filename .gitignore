@@ -30,3 +30,6 @@ sysinfo.txt
 
 # Scratch
 *.tmp
+
+# CCGS skill source repo (installed into .claude/skills)
+.claude/Claude-Cowork-Game-Studio/
