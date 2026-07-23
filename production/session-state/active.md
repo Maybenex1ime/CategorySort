@@ -1,7 +1,7 @@
 # Session State
 
-- **Task**: Giai đoạn 0 — Setup project
-- **Status**: ✅ HOÀN THÀNH — Unity 6000.3.8f1, template Universal 2D (URP), git init nhánh `main`
-- **Files**: Unity project tại root, `docs/development-plan.md`, `docs/engine-reference/unity/VERSION.md`, `production/review-mode.txt` (lean), `production/stage.txt` (Concept), `.gitignore`
-- **Notes**: Manifest có sẵn Input System 1.18, Test Framework 1.6, URP 17.3, uGUI/TMP. Chưa commit lần đầu.
-- **Next**: Giai đoạn 1 — chạy `/ccgs-brainstorm` (session mới) để viết `design/gdd/game-concept.md`, sau đó prototype
+- **Task**: Giai đoạn 1 — Concept
+- **Status**: ✅ Game concept doc đã viết (`design/gdd/game-concept.md`, status Draft — chờ prototype xác nhận). Giai đoạn 0 đã commit (`a644bcd`, `337e07e`).
+- **Files**: `design/gdd/game-concept.md`
+- **Notes**: Review mode lean → các director gate (CD-PILLARS, TD-FEASIBILITY, PR-SCOPE) bỏ qua theo quy định skill. Luật chơi cốt lõi + pillars + MVP + scope tiers đã định nghĩa trong concept doc.
+- **Next**: Prototype vứt đi (1-2 ngày) để xác nhận core loop vui → chốt concept sang Approved → `/ccgs-map-systems`
