@@ -5,6 +5,9 @@
 > Status: **Draft** — chốt sau khi prototype xác nhận core loop.
 > Rev 2 (2026-07-24): sửa lại toàn bộ luật cốt lõi theo phân tích screenshot game gốc
 > (mô hình collector/quota + chồng thẻ, thay cho mô hình kệ-3 sai ở Rev 1).
+> Rev 3 (2026-07-24): gộp còn 2 loại nước đi (gom / đảo sang slot trống — tray chỉ là
+> slot trống sẵn); collector nằm CỘT GIỮA cố định, deck collector góc phải trên lấp ô trống;
+> chốt mọi thao tác tốn 1 move.
 
 ## Core Identity
 
@@ -24,24 +27,28 @@
 
 *Xác nhận từ screenshot Level 72 của game gốc; mục đánh dấu (?) cần chơi thử để chốt trong bước prototype research.*
 
-- **Bàn chơi**: lưới các ô (VD 5×4), mỗi ô là một **chồng thẻ** (pile). Chỉ **thẻ trên cùng** của mỗi chồng tương tác được; lấy nó đi thì thẻ bên dưới lộ ra. Thẻ dưới chồng bị **ẩn** (chỉ thấy mép).
+- **Bàn chơi**: lưới các **slot**, mỗi slot chứa một **chồng thẻ** (pile) hoặc trống. Chỉ **thẻ trên cùng** của mỗi chồng tương tác được; lấy nó đi thì thẻ bên dưới lộ ra. Thẻ dưới chồng bị **ẩn** (chỉ thấy mép).
 - **Thẻ**: mỗi thẻ thuộc đúng **1 category** (VD: Abacus, Snake, Zero Heroes). Item cùng category có art khác nhau.
-- **Collector**: thẻ gom của một category với **quota** (VD 8/12). Kéo thẻ đúng category vào collector → đếm +1, thẻ biến mất. Đủ quota → collector hoàn thành và biến mất, lộ thẻ dưới nó (?). Tại một thời điểm có ~3 collector hoạt động trên bàn.
-- **Tray**: hàng 5 slot dưới đáy — buffer tạm. Kéo thẻ trên cùng bất kỳ xuống tray để đào sâu chồng; thẻ trong tray vẫn gom vào collector được khi đến lượt.
-- **Move budget**: mỗi level có số nước đi giới hạn (VD 160). Mỗi lần kéo thẻ tốn 1 move (?).
-- **Thắng**: hoàn thành mọi collector của level. **Thua**: hết move, hoặc kẹt (tray đầy + không còn nước đi hợp lệ).
-- **Deterministic layout**: bố cục chồng thẻ cố định theo level, không RNG lúc chơi — nhưng thông tin ẩn trong chồng khiến việc **đào là một canh bạc có tính toán**.
-- Độ khó điều khiển bằng: độ sâu chồng, số category đồng thời, quota, move budget, vị trí collector trong chồng, decoy (item dễ nhầm nhóm), và (ngoài MVP) blocker.
+- **Cột collector (cột giữa)**: cột giữa bàn CHỈ chứa các **ô collector** (~3 ô hoạt động (?); game gốc mở thêm ô bằng ads — Tier 3). Mỗi collector gom 1 category với **quota** (VD 8/12): kéo thẻ đúng category vào → đếm +1, thẻ biến mất. Đủ quota → ô được clear.
+- **Deck collector (góc phải trên)**: hàng chờ collector. Bất kỳ khi nào một ô collector trống (do clear, hoặc do mở thêm ô), thẻ collector kế tiếp từ deck **lấp vào ô trống** nếu deck còn thẻ (?: lấp ngay lập tức hay có delay/animation).
+- **Chỉ có 2 loại nước đi**:
+  1. Kéo thẻ trên cùng của chồng → **collector cùng category**: quota +1, thẻ biến mất.
+  2. Kéo thẻ trên cùng của chồng → **slot trống bất kỳ**. Khay 5 slot dưới đáy chỉ là các slot trống sẵn — cùng luật với slot lưới đã cạn thẻ. Thẻ nằm một mình trong slot chính là "thẻ trên cùng của chồng 1 thẻ" nên vẫn gom được như thường (không cần luật riêng cho tray).
+- **Move budget**: mỗi level có số nước đi giới hạn (VD 160). **Mọi thao tác đều tốn 1 move như nhau** (đã chốt) — kể cả **kéo thẻ vào collector sai category**: thẻ bật về chỗ cũ nhưng vẫn trừ 1 move (phạt thao tác sai).
+- **Cân bằng thẻ–quota**: mỗi level, số thẻ của từng category = quota collector category đó → tổng thẻ = tổng quota của mọi collector. Không có thẻ thừa/junk.
+- **Thắng**: deck hết + mọi ô collector được clear (nhờ cân bằng thẻ–quota, thắng đồng nghĩa **dọn sạch bàn**). **Thua**: hết move, hoặc kẹt (hết slot trống + không gom được thẻ nào).
+- **Deterministic layout**: bố cục chồng thẻ + thứ tự deck cố định theo level, không RNG lúc chơi — nhưng thông tin ẩn trong chồng khiến việc **đào là một canh bạc có tính toán**.
+- Độ khó điều khiển bằng: độ sâu chồng, số category đồng thời, quota, move budget, **thứ tự collector trong deck**, số ô collector, decoy (item dễ nhầm nhóm), và (ngoài MVP) blocker.
 
 ### Blocker & meta của game gốc (NGOÀI MVP — Tier 2/3)
 
-Ghi nhận để không thiết kế bít đường: thẻ khóa xích, thẻ băng (mở sau N lượt), slot "Free" mở dần, deck dự trữ, booster (hint/undo/magnet), tiền coins. MVP không có các thứ này nhưng kiến trúc Board/Card phải cho phép gắn **trạng thái thẻ** (locked/frozen/normal) về sau.
+Ghi nhận để không thiết kế bít đường: thẻ khóa xích, thẻ băng (mở sau N lượt), slot "Free" mở dần, **mở thêm ô collector bằng ads**, deck dự trữ, booster (hint/undo/magnet), tiền coins. MVP không có các thứ này nhưng kiến trúc Board/Card phải cho phép gắn **trạng thái thẻ** (locked/frozen/normal) và **số ô collector thay đổi** về sau.
 
 ## Core Loop
 
-**30 giây (moment-to-moment):** Quét các thẻ trên cùng → quyết định: gom thẳng vào collector / đưa xuống tray để đào / nhịn chờ collector đúng loại → thẻ mới lộ ra → chuỗi quyết định tiếp theo. Cảm giác đã đến từ: gom chuỗi liên tiếp + đào trúng thẻ đang cần.
+**30 giây (moment-to-moment):** Quét các thẻ trên cùng → quyết định: gom vào ô collector cột giữa / gửi sang slot trống để đào / nhịn chờ collector đúng loại lên từ deck → thẻ mới lộ ra → chuỗi quyết định tiếp theo. Cảm giác đã đến từ: gom chuỗi liên tiếp + đào trúng thẻ đang cần.
 
-**5 phút (level):** Mỗi level 2-4 phút. Căng thẳng tăng dần khi move budget cạn và tray đầy. Choices: đầu tư move vào đào chồng nào, giữ slot tray nào làm dự phòng.
+**5 phút (level):** Mỗi level 2-4 phút. Căng thẳng tăng dần khi move budget cạn và slot trống cạn dần. Choices: đầu tư move vào đào chồng nào, giữ slot trống nào làm dự phòng, canh thời điểm clear ô để collector kế tiếp lên từ deck.
 
 **Session (10-30 phút):** Chuỗi 3-10 level. Điểm dừng tự nhiên sau mỗi level. Hook quay lại: "level sau nhóm gì, bàn xếp kiểu gì?"
 
@@ -81,7 +88,7 @@ Ghi nhận để không thiết kế bít đường: thẻ khóa xích, thẻ b�
 - **Art pipeline**: emoji set nguồn mở (Twemoji CC-BY / OpenMoji CC BY-SA) cho toàn bộ thẻ → gần như **zero chi phí vẽ**. Ghi công theo license. Quyết định cuối ở bước art-bible.
 - **Content scope MVP**: 20 level tay, 8-10 category, mỗi category ≥6 art khác nhau (~60-80 sprite từ emoji set).
 - **MVP definition** (câu hỏi MVP trả lời: *core loop có vui không?*):
-  - Core mechanic đầy đủ: lưới chồng thẻ + collector/quota + tray 5 slot + move budget
+  - Core mechanic đầy đủ: lưới slot chồng thẻ + cột collector giữa + deck collector + khay 5 slot trống + move budget
   - Thắng/thua/kẹt đúng luật, save tiến độ, UI tối thiểu (menu → level → win/lose → next)
   - Juice cơ bản: tween kéo/bay vào collector + hiệu ứng hoàn thành quota + SFX
   - KHÔNG: blocker (khóa/băng/free-slot/deck), booster, coins, ads, IAP, tutorial phức tạp (level 1-2 tự dạy bằng thiết kế)
@@ -95,7 +102,7 @@ Ghi nhận để không thiết kế bít đường: thẻ khóa xích, thẻ b�
 | Risk | Loại | Mitigation |
 |------|------|------------|
 | Level tay + thông tin ẩn có thể tạo thế kẹt bất khả kháng hoặc move budget lệch | Design (lớn nhất) | **Level Solver** chạy trên domain thuần: xác minh mọi level giải được, đo số move tối thiểu → đặt budget = tối thiểu × hệ số |
-| Chi tiết mechanic chưa chắc (mỗi thao tác tốn 1 move? collector hoàn thành thì gì xuất hiện?) | Design | Chơi game gốc 30-60 phút trong bước prototype research, cập nhật các mục (?) của doc này |
+| Chi tiết mechanic chưa chắc (số ô collector? deck có lộ thứ tự không? lấp ô ngay hay có delay?) | Design | Chơi game gốc 30-60 phút trong bước prototype research, cập nhật các mục (?) của doc này |
 | Match-theo-ngữ-nghĩa gây nhầm lẫn ngoài ý muốn | Design | Category tay chọn, mỗi item thuộc đúng 1 category trong data; decoy là công cụ có chủ đích |
 | Logic kẹt/thua sai → người chơi mất ván oan | Technical | TDD EditMode toàn bộ luật (pillar 3 phụ thuộc trực tiếp) |
 | License emoji set | Legal | Twemoji/OpenMoji cho phép thương mại kèm ghi công; ghi rõ trong credits |
@@ -111,7 +118,7 @@ Ghi nhận để không thiết kế bít đường: thẻ khóa xích, thẻ b�
 
 ## Next Steps (theo pipeline)
 
-1. **Prototype research**: chơi game gốc 30-60 phút — chốt các mục (?) (chi phí move, hành vi collector, luật tray).
+1. **Prototype research**: chơi game gốc 30-60 phút — chốt các mục (?) (số ô collector, deck có lộ thứ tự không, lấp ô ngay hay delay, move budget điển hình).
 2. **Prototype vứt đi (1-2 ngày)**: 1 scene, luật đầy đủ, 1 level hardcode — xác nhận vui → chốt doc này sang Approved.
 3. `/ccgs-map-systems` — phân rã thành systems index.
 4. `/ccgs-design-system` từng system theo thứ tự dependency.

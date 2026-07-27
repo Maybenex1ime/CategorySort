@@ -8,13 +8,13 @@
 
 ## Tóm tắt gameplay cần clone
 
-*(Rev 2 — chốt lại theo phân tích screenshot game gốc; nguồn chân lý chi tiết: `design/gdd/game-concept.md`)*
+*(Rev 3 — nguồn chân lý chi tiết: `design/gdd/game-concept.md`)*
 
-- Bàn chơi là **lưới các chồng thẻ** (VD 5×4); chỉ thẻ trên cùng tương tác được, thẻ dưới bị ẩn.
+- Bàn chơi là **lưới slot chứa chồng thẻ**; chỉ thẻ trên cùng tương tác được, thẻ dưới bị ẩn.
 - Mỗi thẻ thuộc 1 **category**; item cùng category có art khác nhau (match bằng ngữ nghĩa).
-- **Collector**: thẻ gom theo category với **quota** (VD 8/12) — kéo thẻ đúng loại vào để đếm dần, đủ quota thì hoàn thành.
-- **Tray** 5 slot dưới đáy làm buffer đào chồng. **Move budget** giới hạn mỗi level.
-- Thắng: xong mọi collector. Thua: hết move hoặc kẹt (tray đầy, không còn nước hợp lệ).
+- **Cột giữa chỉ chứa collector** (~3 ô): mỗi ô gom 1 category với **quota**, đủ quota thì clear; **deck collector** góc phải trên lấp vào ô trống nếu còn thẻ.
+- **Chỉ 2 loại nước đi**, đều tốn 1 move: gom vào collector cùng loại, hoặc đảo thẻ sang **slot trống bất kỳ** (khay 5 slot dưới đáy = slot trống sẵn, cùng luật). Gom sai category: thẻ bật lại nhưng vẫn trừ 1 move (phạt). **Move budget** giới hạn mỗi level.
+- Cân bằng thẻ–quota: số thẻ mỗi category = quota collector category đó (không có thẻ thừa). Thắng: deck hết + mọi ô collector clear = dọn sạch bàn. Thua: hết move hoặc kẹt (hết slot trống, không gom được).
 - Game gốc còn có blocker (khóa xích, băng, free-slot, deck) + booster + coins → **ngoài MVP**, để Tier 2/3.
 - Chơi offline, single player, casual — session ngắn 2-4 phút/level.
 
@@ -71,15 +71,15 @@ trước khi viết GDD. Code này không mang sang production.
 | Layer | System | Ghi chú |
 |-------|--------|---------|
 | Foundation | **Item/Category Database** | ScriptableObject: category, các art variant |
-| Foundation | **Level Data** | ScriptableObject/JSON: lưới chồng thẻ, collector + quota, move budget |
+| Foundation | **Level Data** | ScriptableObject/JSON: lưới chồng thẻ, deck collector + quota, move budget |
 | Foundation | **Save System** | PlayerPrefs/JSON: level đã qua, settings |
 | Core | **Pile Board System** | Lưới chồng thẻ, lộ thẻ khi lấy, trạng thái thẻ (thiết kế mở cho blocker Tier 2) — plain C# |
-| Core | **Collector System** | Quota, nhận thẻ đúng category, hoàn thành — plain C# |
-| Core | **Tray System** | 5 slot buffer, luật chuyển thẻ, điều kiện kẹt — plain C# |
+| Core | **Collector System** | Cột ô collector + deck lấp ô trống, quota, hoàn thành — plain C# |
+| Core | **Slot System** | Slot trống (khay + lưới), luật đảo thẻ, điều kiện kẹt — plain C# |
 | Core | **Turn & Win/Lose Rules** | Move budget, thắng/thua/kẹt — plain C# |
 | Core | **Drag & Drop Input** | MonoBehaviour adapter → gọi domain |
 | Feature | **Level Progression** | Mở khóa tuần tự, độ khó tăng dần |
-| Feature | **Level Solver/Validator** | Chạy trên domain thuần: xác minh level giải được + đo move tối thiểu → đặt budget |
+| Feature | **Level Solver/Validator** | Chạy trên domain thuần: kiểm cân bằng thẻ–quota + xác minh level giải được + đo move tối thiểu → đặt budget |
 | Presentation | **Game UI** | Menu, HUD (moves, quota), màn thắng/thua, level select |
 | Presentation | **VFX & Audio (Juice)** | Thẻ bay vào collector, quota nhảy số, hoàn thành nổ, SFX |
 | Polish (Tier 2) | **Obstacles/Blockers** | Khóa xích, băng, free-slot, deck dự trữ — ngoài MVP |
@@ -108,7 +108,7 @@ Các ADR then chốt cần chốt:
 
 Vòng lặp mỗi story: **`unity-tdd-workflow`** (test EditMode trước → code pass → wire MonoBehaviour) → **`ccgs-code-review`** + **`unity-clean-architecture-review`** → **`ccgs-story-done`**.
 
-- **Sprint 1 — Core chơi được**: Item DB, Level Data, Pile Board + Collector + Tray + Turn Rules (TDD đầy đủ: gom đúng/sai category, quota hoàn thành, lộ thẻ dưới, hết move, phát hiện kẹt), Drag & Drop, 3 level test. *Kết quả: chơi được 1 level từ đầu đến cuối, art placeholder.*
+- **Sprint 1 — Core chơi được**: Item DB, Level Data, Pile Board + Collector/Deck + Slot + Turn Rules (TDD đầy đủ: gom đúng/sai category, quota hoàn thành + deck lấp ô, lộ thẻ dưới, đảo slot trống, hết move, phát hiện kẹt), Drag & Drop, 3 level test. *Kết quả: chơi được 1 level từ đầu đến cuối, art placeholder.*
 - **Sprint 2 — Game hoàn chỉnh tối thiểu**: Level Progression, Save, UI flow (menu → level → thắng/thua → next), 20 level, difficulty curve tay.
 - **Sprint 3 — Juice & hoàn thiện**: VFX/SFX/tween, tutorial, polish cảm giác kéo-thả, playtest + sửa theo `unity-bug-root-cause`.
 
