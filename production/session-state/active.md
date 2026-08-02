@@ -10,8 +10,8 @@ Dự án đã **pivot** khỏi *Category Sort* (collector/quota/move budget) san
 Core loop xác nhận bằng demo HTML chơi thử được; user duyệt "logic coregame này ổn".
 Mọi mô tả gameplay Rev 3 trở về trước đã hết hiệu lực.
 
-**Xong:** P-doc · P1a/P1b (domain + validate + solver + SelfCheck) · P2–P4 (view) · Level Editor · 3 level.
-**Chặn:** thiếu 9 file PNG — xem mục "Chặn" bên dưới.
+**Xong:** P-doc · P1a/P1b (domain + validate + solver + SelfCheck) · P2–P4 (view) · Level Editor · 3 level · 12 placeholder art.
+**Chặn:** không còn blocker kỹ thuật — chỉ chờ bấm Play nghiệm thu view + chơi thử.
 
 ## Luật chơi hiện hành
 
@@ -55,7 +55,7 @@ Chi tiết đầy đủ + 11 luật validate: `docs/wordstack-design-log.md` M�
 | `Assets/Prototype/Editor/LevelEditorWindow.cs` | Tool xếp level (`WordStack ▸ Level Editor`) |
 | `Assets/Prototype/PrototypeSelfCheckMain.cs` | Entry console (`#if !UNITY_5_3_OR_NEWER`) |
 | `Assets/Prototype/Resources/Levels/lv-00{1,2,3}.json` | 3 level |
-| `Assets/Prototype/Resources/Art/*.png` | 3 PNG **placeholder** (apple/banana/orange) — ghi đè bằng art thật |
+| `Assets/Prototype/Resources/Art/*.png` | **12 PNG placeholder có nhãn chữ** (ô màu 128×128 + tên item) — đủ cho mọi thẻ có `art`; ghi đè bằng art thật sau |
 
 Số liệu solver **trùng khít** giữa C# và `demo/check.mjs` (6/6/9/9 nước,
 31322/32318/96530/104202 nút) — cùng đường duyệt, cùng kết quả, tức port đúng hành vi,
@@ -63,19 +63,14 @@ không chỉ đúng kết quả. C# nhanh hơn ~13×.
 
 ## Chặn / cần quyết định
 
-**Thiếu 9 file art PNG.** SelfCheck dừng ở preflight và in đủ danh sách. Thả vào
-`Assets/Prototype/Resources/Art/`:
-
-```
-dog.png  cat.png  bear.png  car.png  airplane.png
-bicycle.png  guitar.png  piano.png  violin.png
-```
-
-Chưa có thì chỉ **lv-003** render được (bấm phím `3` trong game). Sáu thẻ
-`grape · rabbit · bus · drum` là **chỉ-chữ**, không cần art.
+*(Hết blocker art — 2026-08-02 đã sinh đủ 12 placeholder, SelfCheck console pass toàn bộ,
+số liệu solver khớp tham chiếu.)*
 
 **`PrototypeView.cs` chưa ai nhìn thấy chạy** — compile sạch và Unity đã nhận, nhưng render,
-kéo thả, nhịp cascade phải bấm Play mới nghiệm thu được, mà bấm Play cần art.
+kéo thả, nhịp cascade phải bấm Play mới nghiệm thu được. Giờ Play được cả 3 level (phím 1/2/3).
+Lưu ý: lần mở Unity kế tiếp sẽ sinh 9 file `.meta` mới cho art — commit chúng để giữ GUID ổn định.
+
+**Nguồn art thật + license** vẫn chưa chốt (đề xuất trong concept: Twemoji/OpenMoji, cần duyệt).
 
 Unity `6000.3.8f1` khớp `ProjectVersion.txt`.
 
