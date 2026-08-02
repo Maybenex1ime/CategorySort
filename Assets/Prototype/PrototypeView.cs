@@ -1,104 +1,146 @@
 // ============================================================================
 // THROWAWAY PROTOTYPE — view MonoBehaviour. KHÔNG mang sang production.
-// Tự bootstrap khi bấm Play (mọi scene). Art: emoji font hệ thống + tên item.
-// Kéo-thả: chuột (Input System — project để activeInputHandler=InputSystem only).
-// Layout Rev 3: 4 cột slot quanh CỘT GIỮA collector; deck góc phải trên;
-// hàng khay dưới đáy = 5 slot trống thường (cùng luật với slot lưới trống).
+// Tự bootstrap khi bấm Play (mọi scene), vẽ hoàn toàn bằng code.
 //
-// Game feel kiểu Balatro (tham chiếu D:\Balatro-Feel CardVisual.cs, tự viết
-// lerp thay DOTween): ghost lerp đuổi cursor + xoay Z theo độ trễ chuyển động
-// + tilt lắc sin/cos + scale pop + shadow; thẻ bay vào collector, snap-back
-// khi thả hụt, punch collector khi ăn thẻ, hover phồng nhẹ.
+// Hành vi tham chiếu: demo/wordstack-clear-demo.html. Lệch chỗ nào là bug chỗ đó.
+// Luật nằm hết ở PrototypeDomain.cs — file này chỉ vẽ, bắt input, và tạo nhịp cascade.
+//
+// Game feel kiểu Balatro (tham chiếu D:\Balatro-Feel CardVisual.cs, tự viết lerp thay
+// DOTween): ghost lerp đuổi cursor + xoay Z theo độ trễ chuyển động + tilt lắc sin/cos
+// + scale pop + shadow; thẻ bay về chỗ cũ khi thả hụt, hộp rung khi từ chối, hover phồng nhẹ.
 // ============================================================================
 using System;
+using System.Collections;
 using System.Collections.Generic;
+using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 
-namespace CategorySort.Prototype
+namespace WordStack.Prototype
 {
     public class PrototypeView : MonoBehaviour
     {
-        // Layout (world units)
-        const float CardW = 1f, CardH = 1.4f;
-        const float CellW = 1.5f, CellH = 2.05f;
-        const int GridCols = 4; // 4 cột slot (2 trái + 2 phải), cột giữa dành cho collector
-        const int GridRows = 3;
+        // ---- Layout (world units) ----
+        const float BoxSize = 1.6f;
+        const float BoxBorder = 0.08f;
+        const float BoxPad = 0.09f;
+        const float SlotGap = 0.08f;
+        const float PeekStep = 0.10f;          // mỗi lớp hộp ẩn tụt xuống bao nhiêu
+        const int PeekMax = 3;
+        static float SlotSize { get { return (BoxSize - 2 * BoxPad - SlotGap) / 2f; } }
+        static float PitchX { get { return BoxSize + 0.28f; } }
+        static float PitchY { get { return BoxSize + 0.62f; } }   // chừa chỗ cho lớp lấp ló
 
-        // Feel (chuyển từ tham số CardVisual.cs sang world-unit)
-        const float FollowSpeed = 25f;   // ghost đuổi cursor
-        const float RotAmount = 70f;     // độ trễ ngang (world unit) → độ xoay Z
+        // ---- Feel ----
+        const float FollowSpeed = 25f;
+        const float RotAmount = 70f;
         const float RotSpeed = 20f;
-        const float AutoTilt = 7f;       // biên độ lắc sin/cos khi cầm thẻ
+        const float AutoTilt = 7f;
         const float TiltSpeed = 12f;
         const float DragScale = 1.15f;
         const float HoverScale = 1.07f;
-        const float FlyDur = 0.16f;      // thẻ bay vào collector / snap-back
+        const float FlyDur = 0.16f;
+        const float ClearDur = 0.26f;
+        const float ClearStagger = 0.04f;
+        const float CascadeGap = 0.35f;        // nhịp giữa hai bước cascade (§R6)
 
-        static readonly Color[] CatColor =
+        // ---- Bảng màu (GDD §9.1) ----
+        static readonly Color Bg = Hex(0x3A2E5F);
+        static readonly Color HeaderCol = Hex(0x6A5BA5);
+        static readonly Color BoxBg = Hex(0x6B5CA8);
+        static readonly Color BoxEdge = Hex(0xA5A5A5);
+        static readonly Color BoxEdgeBottom = Hex(0x8B8B8B);
+        static readonly Color PeekBg = Hex(0x544593);
+        static readonly Color TileBg = Hex(0xDEDEDE);
+        static readonly Color Ink = Hex(0x111111);
+        // Palette gợi ý nhóm — domain trả index vào mảng này (§7.1)
+        static readonly Color[] Palette =
         {
-            new Color(0.85f, 0.25f, 0.25f), // Trái cây
-            new Color(0.45f, 0.65f, 0.30f), // Động vật
-            new Color(0.25f, 0.45f, 0.85f), // Xe cộ
-            new Color(0.90f, 0.60f, 0.15f), // Mặt cười
+            Hex(0xF4B740), Hex(0x5BC98C), Hex(0xEF7C8E),
+            Hex(0x4FA8E8), Hex(0xB48CE8), Hex(0xE88C4F),
         };
-        static readonly Color Gold = new Color(1f, 0.84f, 0.35f);
-        static readonly Color Wood = new Color(0.42f, 0.30f, 0.20f);
 
         Game g;
+        List<string> levelJsons = new List<string>();
+        int levelIndex;
+
         Transform root;
         Sprite white;
-        Font emojiFont, labelFont;
+        Font labelFont;
         Camera cam;
+        readonly Dictionary<string, Sprite> artCache = new Dictionary<string, Sprite>();
 
-        enum ZoneKind { SlotTop, EmptySlot, CollectorCell }
-        struct Zone { public Rect Rect; public ZoneKind Kind; public int Index; }
+        enum ZoneKind { Tile, Stack }
+        struct Zone { public Rect Rect; public ZoneKind Kind; public int Stack; public string Uid; }
         readonly List<Zone> zones = new List<Zone>();
-        readonly Dictionary<int, GameObject> slotCards = new Dictionary<int, GameObject>();
-        readonly Dictionary<int, GameObject> cellCards = new Dictionary<int, GameObject>();
+        readonly Dictionary<string, GameObject> tileGo = new Dictionary<string, GameObject>();
+        readonly Dictionary<int, GameObject> boxGo = new Dictionary<int, GameObject>();
 
         GameObject ghost;
         Transform ghostTilt;
         Vector3 moveDelta, rotDelta;
-        int dragSlot = -1;
+        int dragFrom = -1;
+        string dragUid;
         GameObject hoverGo;
+        int highlightStack = -1;
+        bool locked;
 
         class FlyAnim
         {
             public GameObject Go;
             public Vector3 From, To;
             public float T;
-            public bool Shrink;
-            public GameObject Reveal;    // thẻ thật đang ẩn, hiện lại khi bay xong
-            public GameObject PunchOnEnd;
+            public GameObject Reveal;
         }
         readonly List<FlyAnim> flies = new List<FlyAnim>();
-        GameObject punchGo;
-        float punchT = 1f;
+        GameObject shakeGo;
+        float shakeT = 1f;
+        Vector3 shakeHome;
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void Boot() => new GameObject("CategorySortPrototype").AddComponent<PrototypeView>();
+        static void Boot() { new GameObject("WordStackPrototype").AddComponent<PrototypeView>(); }
+
+        // ---------------------------------------------------------------- boot
 
         void Awake()
         {
-#if UNITY_EDITOR
-            try { SelfCheck.Run(Debug.Log); } catch (Exception e) { Debug.LogError("SelfCheck FAIL: " + e.Message); }
-#endif
             var tex = new Texture2D(1, 1);
             tex.SetPixel(0, 0, Color.white);
             tex.Apply();
             white = Sprite.Create(tex, new Rect(0, 0, 1, 1), new Vector2(0.5f, 0.5f), 1f);
-            emojiFont = OsFont("Segoe UI Emoji", "Apple Color Emoji", "Noto Color Emoji");
             labelFont = OsFont("Segoe UI", "Arial");
 
             cam = Camera.main;
-            if (cam == null) { cam = new GameObject("Camera").AddComponent<Camera>(); cam.tag = "MainCamera"; }
+            if (cam == null)
+            {
+                cam = new GameObject("Camera").AddComponent<Camera>();
+                cam.tag = "MainCamera";
+            }
             cam.orthographic = true;
-            cam.backgroundColor = Wood;
+            cam.backgroundColor = Bg;
             cam.clearFlags = CameraClearFlags.SolidColor;
             cam.transform.position = new Vector3(0, 0, -10);
 
-            NewGame();
+            foreach (var ta in Resources.LoadAll<TextAsset>("Levels").OrderBy(t => t.name, StringComparer.Ordinal))
+                levelJsons.Add(ta.text);
+
+#if UNITY_EDITOR
+            // Cùng bộ assert với ./selfcheck.sh — chạy luôn lúc Play để bắt drift sớm.
+            try { SelfCheck.Run(Debug.Log, levelJsons, HasArt); }
+            catch (Exception e) { Debug.LogError("SelfCheck FAIL: " + e.Message); }
+#endif
+            Load(0);
+        }
+
+        bool HasArt(string key) { return LoadArt(key) != null; }
+
+        Sprite LoadArt(string key)
+        {
+            Sprite s;
+            if (artCache.TryGetValue(key, out s)) return s;
+            s = Resources.Load<Sprite>("Art/" + key);
+            artCache[key] = s;
+            return s;
         }
 
         static Font OsFont(params string[] names)
@@ -111,141 +153,258 @@ namespace CategorySort.Prototype
             return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         }
 
-        void NewGame()
+        void Load(int i)
         {
-            g = Game.Level1();
+            StopAllCoroutines();
+            ClearTransients();
+            locked = false;
+            if (levelJsons.Count == 0)
+            {
+                Fatal("Không thấy level nào trong Assets/Prototype/Resources/Levels/");
+                return;
+            }
+            levelIndex = ((i % levelJsons.Count) + levelJsons.Count) % levelJsons.Count;
+            try
+            {
+                var lv = LevelData.Parse(levelJsons[levelIndex]);
+                lv.Validate(HasArt);
+                g = Game.Build(lv);
+            }
+            catch (Exception e)
+            {
+                g = null;
+                Fatal("Level không hợp lệ — " + e.Message);
+                return;
+            }
             Rebuild();
+            StartCoroutine(Settle());          // hộp nạp sẵn nhóm đủ phải nổ ngay lúc load
         }
 
-        // ---------------------------------------------------------------- input
+        void Fatal(string msg)
+        {
+            Debug.LogError(msg);
+            if (root != null) Destroy(root.gameObject);
+            root = new GameObject("Board").transform;
+            root.SetParent(transform, false);
+            zones.Clear();
+            Label(root, Vector2.zero, msg, 0.55f, Color.white, 10, 14f);
+            cam.orthographicSize = 5f;
+            cam.transform.position = new Vector3(0, 0, -10);
+        }
+
+        // --------------------------------------------------------------- input
 
         void Update()
         {
-            var m = Mouse.current;
-            if (m == null) return;
+            var p = Pointer.current;
+            if (p == null || g == null) return;
             float dt = Time.deltaTime;
-            var wp = cam.ScreenToWorldPoint(m.position.ReadValue());
-            var p = new Vector2(wp.x, wp.y);
+            var wp = cam.ScreenToWorldPoint(p.position.ReadValue());
+            var pt = new Vector2(wp.x, wp.y);
 
-            if (m.leftButton.wasPressedThisFrame)
+            HandleKeys();
+
+            if (g.Status != GameStatus.Playing)
             {
-                if (g.Status != GameStatus.Playing) { NewGame(); return; }
+                if (p.press.wasPressedThisFrame)
+                    Load(g.Status == GameStatus.Won ? levelIndex + 1 : levelIndex);
+                AnimateTransients(dt);
+                return;
+            }
+
+            if (locked) { AnimateTransients(dt); return; }
+
+            if (p.press.wasPressedThisFrame && ghost == null)
+            {
                 foreach (var z in zones)
                 {
-                    if (z.Kind != ZoneKind.SlotTop || !z.Rect.Contains(p)) continue;
-                    dragSlot = z.Index;
-                    BuildGhost(g.Top(z.Index), p);
-                    if (slotCards.TryGetValue(z.Index, out var src) && src != null)
-                        src.transform.localScale = Vector3.zero; // thẻ "được nhấc lên"
+                    if (z.Kind != ZoneKind.Tile || !z.Rect.Contains(pt)) continue;
+                    dragFrom = z.Stack;
+                    dragUid = z.Uid;
+                    BuildGhost(FindTile(z.Uid), pt);
+                    GameObject go;
+                    if (tileGo.TryGetValue(z.Uid, out go) && go != null)
+                        go.transform.localScale = Vector3.zero;   // thẻ "được nhấc lên"
                     break;
                 }
             }
-            else if (ghost != null && m.leftButton.isPressed)
+            else if (ghost != null && p.press.isPressed)
             {
-                // SmoothFollow + FollowRotation + CardTilt (công thức CardVisual.cs)
-                var target = new Vector3(p.x, p.y, 0);
-                ghost.transform.position = Vector3.Lerp(ghost.transform.position, target, FollowSpeed * dt);
-                var movement = ghost.transform.position - target;
-                moveDelta = Vector3.Lerp(moveDelta, movement, 25f * dt);
-                rotDelta = Vector3.Lerp(rotDelta, moveDelta * RotAmount, RotSpeed * dt);
-                ghost.transform.eulerAngles = new Vector3(0, 0, Mathf.Clamp(rotDelta.x, -40f, 40f));
-
-                float sine = Mathf.Sin(Time.time * 2f) * AutoTilt;
-                float cosine = Mathf.Cos(Time.time * 2f) * AutoTilt;
-                var e = ghostTilt.localEulerAngles;
-                ghostTilt.localEulerAngles = new Vector3(
-                    Mathf.LerpAngle(e.x, sine, TiltSpeed * dt),
-                    Mathf.LerpAngle(e.y, cosine, TiltSpeed * dt), 0);
-
-                float s = Mathf.Lerp(ghost.transform.localScale.x, DragScale, 10f * dt);
-                ghost.transform.localScale = new Vector3(s, s, 1);
+                DragGhost(pt, dt);
+                Highlight(TargetStack(pt));
             }
-            // ghost còn mà nút không còn giữ (kể cả release cùng frame với press,
-            // hoặc mất focus giữa lúc kéo) → xử lý thả + dọn ghost.
             else if (ghost != null)
             {
-                var dropPos = ghost.transform.position;
-                Destroy(ghost);
-                ghost = null;
-                int src = dragSlot;
-                dragSlot = -1;
-                var entry = g.Top(src);
-                bool success = false;
-                int hitCell = -1, hitSlot = -1;
-                foreach (var z in zones)
-                {
-                    if (!z.Rect.Contains(p)) continue;
-                    // Thả trúng zone nào là chốt thao tác ở đó — kể cả gom sai
-                    // category (Collect trả false nhưng vẫn trừ move phạt).
-                    if (z.Kind == ZoneKind.CollectorCell) { success = g.Collect(src, z.Index); hitCell = z.Index; break; }
-                    if (z.Kind == ZoneKind.EmptySlot) { success = g.MoveToSlot(src, z.Index); hitSlot = z.Index; break; }
-                }
-                Rebuild();
-                if (g.Status == GameStatus.Playing && entry != null)
-                {
-                    if (success && hitCell >= 0)
-                        SpawnFly(entry, dropPos, CellPos(hitCell), shrink: true,
-                            punch: cellCards.TryGetValue(hitCell, out var cgo) ? cgo : null);
-                    else if (success && hitSlot >= 0)
-                        SpawnFly(entry, dropPos, SlotPos(hitSlot), reveal: HideCard(hitSlot));
-                    else
-                        SpawnFly(entry, dropPos, SlotPos(src), reveal: HideCard(src)); // snap-back
-                }
+                Drop(pt);
             }
             else
             {
-                // Hover: thẻ dưới cursor phồng nhẹ (scaleOnHover của CardVisual.cs)
-                GameObject h = null;
-                foreach (var z in zones)
-                    if (z.Kind == ZoneKind.SlotTop && z.Rect.Contains(p) && slotCards.TryGetValue(z.Index, out var go))
-                    { h = go; break; }
-                if (h != hoverGo && hoverGo != null && !IsRevealPending(hoverGo))
-                    hoverGo.transform.localScale = Vector3.one;
-                hoverGo = h;
-                if (hoverGo != null && !IsRevealPending(hoverGo))
-                {
-                    float s = Mathf.Lerp(hoverGo.transform.localScale.x, HoverScale, 12f * dt);
-                    hoverGo.transform.localScale = new Vector3(s, s, 1);
-                }
+                Hover(pt, dt);
             }
 
             AnimateTransients(dt);
         }
 
+        void HandleKeys()
+        {
+            var k = Keyboard.current;
+            if (k == null) return;
+            if (k.rKey.wasPressedThisFrame) { Load(levelIndex); return; }
+            if (k.nKey.wasPressedThisFrame) { Load(levelIndex + 1); return; }
+            for (int i = 0; i < Math.Min(9, levelJsons.Count); i++)
+                if (k[Key.Digit1 + i].wasPressedThisFrame) { Load(i); return; }
+        }
+
+        Tile FindTile(string uid)
+        {
+            foreach (var st in g.Stacks)
+                foreach (var t in st.Boxes[0].Slots)
+                    if (t != null && t.Uid == uid) return t;
+            return null;
+        }
+
+        int TargetStack(Vector2 pt)
+        {
+            foreach (var z in zones)
+            {
+                if (z.Kind != ZoneKind.Stack || !z.Rect.Contains(pt)) continue;
+                if (z.Stack == dragFrom) return -1;
+                return Game.FreeCount(g.TopBox(z.Stack)) > 0 ? z.Stack : -1;
+            }
+            return -1;
+        }
+
+        void Drop(Vector2 pt)
+        {
+            var dropPos = ghost.transform.position;
+            Destroy(ghost);
+            ghost = null;
+            Highlight(-1);
+            int from = dragFrom, to = -1;
+            string uid = dragUid;
+            dragFrom = -1;
+            dragUid = null;
+            var tile = FindTile(uid);
+
+            foreach (var z in zones)
+                if (z.Kind == ZoneKind.Stack && z.Rect.Contains(pt)) { to = z.Stack; break; }
+
+            // Thả ra ngoài, hoặc về chính stack cũ = huỷ thao tác (§R1).
+            if (to < 0 || to == from)
+            {
+                SnapBack(tile, dropPos, from, uid);
+                return;
+            }
+            if (!g.MoveTile(from, uid, to))
+            {
+                Shake(to);                                  // box đích đầy (§E1)
+                SnapBack(tile, dropPos, from, uid);
+                return;
+            }
+            Rebuild();
+            StartCoroutine(Settle());
+        }
+
+        void SnapBack(Tile tile, Vector3 from, int stack, string uid)
+        {
+            GameObject go;
+            if (tileGo.TryGetValue(uid, out go) && go != null && tile != null)
+            {
+                go.transform.localScale = Vector3.zero;
+                SpawnFly(tile, from, go.transform.position, go);
+            }
+        }
+
         // ------------------------------------------------------- feel helpers
 
-        void BuildGhost(Entry e, Vector2 p)
+        void DragGhost(Vector2 pt, float dt)
+        {
+            var target = new Vector3(pt.x, pt.y, 0);
+            ghost.transform.position = Vector3.Lerp(ghost.transform.position, target, FollowSpeed * dt);
+            var movement = ghost.transform.position - target;
+            moveDelta = Vector3.Lerp(moveDelta, movement, 25f * dt);
+            rotDelta = Vector3.Lerp(rotDelta, moveDelta * RotAmount, RotSpeed * dt);
+            ghost.transform.eulerAngles = new Vector3(0, 0, Mathf.Clamp(rotDelta.x, -40f, 40f));
+
+            float sine = Mathf.Sin(Time.time * 2f) * AutoTilt;
+            float cosine = Mathf.Cos(Time.time * 2f) * AutoTilt;
+            var e = ghostTilt.localEulerAngles;
+            ghostTilt.localEulerAngles = new Vector3(
+                Mathf.LerpAngle(e.x, sine, TiltSpeed * dt),
+                Mathf.LerpAngle(e.y, cosine, TiltSpeed * dt), 0);
+
+            float s = Mathf.Lerp(ghost.transform.localScale.x, DragScale, 10f * dt);
+            ghost.transform.localScale = new Vector3(s, s, 1);
+        }
+
+        void BuildGhost(Tile t, Vector2 pt)
         {
             ghost = new GameObject("Ghost");
             ghost.transform.SetParent(transform, false);
-            ghost.transform.position = new Vector3(p.x, p.y, 0);
+            ghost.transform.position = new Vector3(pt.x, pt.y, 0);
             ghostTilt = new GameObject("Tilt").transform;
             ghostTilt.SetParent(ghost.transform, false);
-            Quad(ghostTilt, new Vector2(0.14f, -0.18f), new Vector2(CardW + 0.1f, CardH + 0.1f),
-                new Color(0, 0, 0, 0.35f), 98); // shadow tách lớp
-            BuildCard(ghostTilt, e, p, 100, 1f);
+            Quad(ghostTilt, new Vector2(0.05f, -0.06f), Vector2.one * (SlotSize + 0.06f),
+                 new Color(0, 0, 0, 0.35f), 98);
+            BuildTile(ghostTilt, t, Vector2.zero, TileBg, 100);
             moveDelta = Vector3.zero;
             rotDelta = Vector3.zero;
         }
 
-        GameObject HideCard(int slot)
+        void Hover(Vector2 pt, float dt)
         {
-            if (!slotCards.TryGetValue(slot, out var go) || go == null) return null;
-            go.transform.localScale = Vector3.zero;
-            return go;
+            GameObject h = null;
+            foreach (var z in zones)
+            {
+                if (z.Kind != ZoneKind.Tile || !z.Rect.Contains(pt)) continue;
+                tileGo.TryGetValue(z.Uid, out h);
+                break;
+            }
+            if (h != hoverGo && hoverGo != null && !IsRevealPending(hoverGo))
+                hoverGo.transform.localScale = Vector3.one;
+            hoverGo = h;
+            if (hoverGo != null && !IsRevealPending(hoverGo))
+            {
+                float s = Mathf.Lerp(hoverGo.transform.localScale.x, HoverScale, 12f * dt);
+                hoverGo.transform.localScale = new Vector3(s, s, 1);
+            }
         }
 
-        void SpawnFly(Entry e, Vector3 from, Vector2 to, bool shrink = false,
-            GameObject reveal = null, GameObject punch = null)
+        void Highlight(int stack)
         {
-            var go = BuildCard(transform, e, from, 90, 1f);
-            flies.Add(new FlyAnim { Go = go, From = from, To = new Vector3(to.x, to.y, 0), Shrink = shrink, Reveal = reveal, PunchOnEnd = punch });
+            if (stack == highlightStack) return;
+            highlightStack = stack;
+            for (int s = 0; s < g.Stacks.Count; s++)
+            {
+                GameObject go;
+                if (!boxGo.TryGetValue(s, out go) || go == null) continue;
+                var edge = go.transform.GetChild(0).GetComponent<SpriteRenderer>();
+                edge.color = s == stack ? Color.white
+                          : (g.TopBox(s).IsBottom ? BoxEdgeBottom : BoxEdge);
+            }
+        }
+
+        void Shake(int stack)
+        {
+            GameObject go;
+            if (!boxGo.TryGetValue(stack, out go) || go == null) return;
+            shakeGo = go;
+            shakeHome = go.transform.position;
+            shakeT = 0f;
+        }
+
+        void SpawnFly(Tile t, Vector3 from, Vector3 to, GameObject reveal)
+        {
+            var go = new GameObject("Fly");
+            go.transform.SetParent(transform, false);
+            go.transform.position = from;
+            BuildTile(go.transform, t, Vector2.zero, TileBg, 90);
+            flies.Add(new FlyAnim { Go = go, From = from, To = to, Reveal = reveal });
         }
 
         bool IsRevealPending(GameObject go)
         {
-            foreach (var f in flies)
-                if (f.Reveal == go) return true;
+            foreach (var f in flies) if (f.Reveal == go) return true;
             return false;
         }
 
@@ -255,168 +414,259 @@ namespace CategorySort.Prototype
             {
                 var f = flies[i];
                 f.T += dt / FlyDur;
-                float e = 1f - Mathf.Pow(1f - Mathf.Clamp01(f.T), 3f); // ease-out cubic
-                if (f.Go != null)
-                {
-                    f.Go.transform.position = Vector3.Lerp(f.From, f.To, e);
-                    if (f.Shrink)
-                    {
-                        float s = Mathf.Lerp(1f, 0.45f, e);
-                        f.Go.transform.localScale = new Vector3(s, s, 1);
-                    }
-                }
+                float e = 1f - Mathf.Pow(1f - Mathf.Clamp01(f.T), 3f);   // ease-out cubic
+                if (f.Go != null) f.Go.transform.position = Vector3.Lerp(f.From, f.To, e);
                 if (f.T < 1f) continue;
                 if (f.Go != null) Destroy(f.Go);
                 if (f.Reveal != null) f.Reveal.transform.localScale = Vector3.one;
-                if (f.PunchOnEnd != null) { punchGo = f.PunchOnEnd; punchT = 0f; }
                 flies.RemoveAt(i);
             }
 
-            if (punchGo != null)
+            if (shakeGo != null)
             {
-                punchT += dt / 0.18f;
-                if (punchT >= 1f)
+                shakeT += dt / 0.22f;
+                if (shakeT >= 1f)
                 {
-                    punchGo.transform.localScale = Vector3.one;
-                    punchGo = null;
+                    shakeGo.transform.position = shakeHome;
+                    shakeGo = null;
                 }
                 else
                 {
-                    float s = 1f + 0.25f * Mathf.Sin(punchT * Mathf.PI); // punch lên rồi hạ
-                    punchGo.transform.localScale = new Vector3(s, s, 1);
+                    float x = Mathf.Sin(shakeT * Mathf.PI * 3f) * 0.12f * (1f - shakeT);
+                    shakeGo.transform.position = shakeHome + new Vector3(x, 0, 0);
                 }
             }
         }
 
         void ClearTransients()
         {
-            foreach (var f in flies)
-                if (f.Go != null) Destroy(f.Go);
+            foreach (var f in flies) if (f.Go != null) Destroy(f.Go);
             flies.Clear();
-            punchGo = null;
+            if (ghost != null) { Destroy(ghost); ghost = null; }
+            shakeGo = null;
             hoverGo = null;
+            highlightStack = -1;
+            dragFrom = -1;
+            dragUid = null;
+        }
+
+        // ------------------------------------------------------------ cascade
+        // Domain mutate từng bước; view animate trên GameObject của lần Rebuild TRƯỚC
+        // đó rồi mới dựng lại. Khoá input tới khi bàn đứng yên (§E11).
+
+        IEnumerator Settle()
+        {
+            locked = true;
+            for (;;)
+            {
+                var ev = g.SettleStep(Rules.RemoveEmptyNonBottomBox);
+                if (ev.Kind == SettleKind.None) break;
+
+                if (ev.Kind == SettleKind.Clear)
+                {
+                    float dur = ClearDur + ev.DoomedUids.Length * ClearStagger;
+                    float t = 0f;
+                    while (t < dur)
+                    {
+                        t += Time.deltaTime;
+                        for (int i = 0; i < ev.DoomedUids.Length; i++)
+                        {
+                            GameObject go;
+                            if (!tileGo.TryGetValue(ev.DoomedUids[i], out go) || go == null) continue;
+                            float k = Mathf.Clamp01((t - i * ClearStagger) / ClearDur);
+                            go.transform.localScale = Vector3.one * (1f - k);
+                        }
+                        AnimateTransients(Time.deltaTime);
+                        yield return null;
+                    }
+                }
+                else                                            // RemoveBox
+                {
+                    GameObject go;
+                    if (boxGo.TryGetValue(ev.Stack, out go) && go != null)
+                    {
+                        float t = 0f;
+                        while (t < ClearDur)
+                        {
+                            t += Time.deltaTime;
+                            float k = Mathf.Clamp01(t / ClearDur);
+                            go.transform.localScale = Vector3.one * Mathf.Lerp(1f, 0.9f, k);
+                            yield return null;
+                        }
+                    }
+                }
+
+                Rebuild();
+                yield return new WaitForSeconds(CascadeGap);
+            }
+            Rebuild();
+            locked = false;
         }
 
         // ------------------------------------------------------------- drawing
 
-        // Slot lưới i (0..11): 4 cột quanh cột giữa. Slot khay (12..16): hàng dưới đáy.
-        Vector2 SlotPos(int i)
+        Vector2 StackWorldPos(Stack st)
         {
-            if (i < Knobs.BoardSlots)
-            {
-                int c = i % GridCols, r = i / GridCols;
-                float x = (c < GridCols / 2 ? c - GridCols / 2 : c - GridCols / 2 + 1) * CellW;
-                return new Vector2(x, ((GridRows - 1) / 2f - r) * CellH);
-            }
-            int s = i - Knobs.BoardSlots;
-            return new Vector2((s - (Knobs.TraySlots - 1) / 2f) * 1.25f, -(GridRows * CellH) / 2 - 1.15f);
+            // data y đi XUỐNG (cùng chiều đọc slot), Unity y đi LÊN → đảo dấu.
+            return new Vector2((float)st.X * PitchX, -(float)st.Y * PitchY);
         }
 
-        Vector2 CellPos(int c) => new Vector2(0, ((GridRows - 1) / 2f - c) * CellH);
+        Vector2 SlotWorldPos(Vector2 boxPos, int slot)
+        {
+            int c = slot % 2, r = slot / 2;
+            float step = SlotSize + SlotGap;
+            return boxPos + new Vector2((c - 0.5f) * step, (0.5f - r) * step);
+        }
 
         void Rebuild()
         {
-            ClearTransients();
+            ClearTransientsKeepGhost();
             if (root != null) Destroy(root.gameObject);
             root = new GameObject("Board").transform;
             root.SetParent(transform, false);
             zones.Clear();
-            slotCards.Clear();
-            cellCards.Clear();
+            tileGo.Clear();
+            boxGo.Clear();
+            if (g == null) return;
 
-            float boardH = GridRows * CellH;
-
-            // Nền hàng khay
-            var trayCenter = new Vector2(0, -boardH / 2 - 1.15f);
-            Quad(root, trayCenter, new Vector2(Knobs.TraySlots * 1.25f + 0.2f, 1.7f), new Color(0, 0, 0, 0.30f), -6);
-
-            // Slots (lưới + khay, cùng luật)
-            for (int i = 0; i < g.Slots.Count; i++)
+            for (int s = 0; s < g.Stacks.Count; s++)
             {
-                var pos = SlotPos(i);
-                var top = g.Top(i);
-                if (top == null)
+                var st = g.Stacks[s];
+                var pos = StackWorldPos(st);
+
+                // lớp hộp ẩn: TỤT XUỐNG để hở mép dưới, lớp sâu vẽ trước nên nằm sau
+                int hidden = st.Boxes.Count - 1;
+                for (int d = Mathf.Min(hidden, PeekMax); d >= 1; d--)
                 {
-                    Quad(root, pos, new Vector2(CardW, CardH), new Color(1, 1, 1, 0.13f), -4);
-                    zones.Add(new Zone { Rect = RectAt(pos, new Vector2(CardW, CardH)), Kind = ZoneKind.EmptySlot, Index = i });
-                    continue;
+                    var pp = pos + new Vector2(0, -PeekStep * d);
+                    Quad(root, pp, Vector2.one * (BoxSize + BoxBorder * 2), BoxEdge, -10 - d);
+                    Quad(root, pp, Vector2.one * BoxSize, PeekBg, -9 - d);
                 }
-                int buried = g.Slots[i].Count - 1;
-                for (int b = Mathf.Min(buried, 3); b >= 1; b--)
-                    Quad(root, pos + new Vector2(0, -0.13f * b), new Vector2(CardW, CardH),
-                        new Color(0.55f, 0.5f, 0.45f), -b);
-                if (buried > 0)
-                    Label(root, pos + new Vector2(0, -CardH / 2 - 0.22f), "+" + buried, 0.55f,
-                        new Color(1, 1, 1, 0.7f), 5);
-                slotCards[i] = BuildCard(root, top, pos, 1, 1f);
-                zones.Add(new Zone { Rect = RectAt(pos, new Vector2(CardW, CardH)), Kind = ZoneKind.SlotTop, Index = i });
-            }
+                if (hidden > PeekMax)
+                    Label(root, pos + new Vector2(0, -BoxSize / 2 - PeekStep * PeekMax - 0.18f),
+                          "+" + hidden, 0.4f, new Color(1, 1, 1, 0.7f), 5, 6f);
 
-            // Cột giữa: các ô collector
-            for (int c = 0; c < g.Cells.Length; c++)
-            {
-                var pos = CellPos(c);
-                if (g.Cells[c] == null)
+                var box = g.TopBox(s);
+                var bo = new GameObject("Box" + s);
+                bo.transform.SetParent(root, false);
+                bo.transform.position = new Vector3(pos.x, pos.y, 0);
+                boxGo[s] = bo;
+                // child 0 = viền (Highlight đổi màu chính nó)
+                Quad(bo.transform, Vector2.zero, Vector2.one * (BoxSize + BoxBorder * 2),
+                     box.IsBottom ? BoxEdgeBottom : BoxEdge, 0);
+                Quad(bo.transform, Vector2.zero, Vector2.one * BoxSize, BoxBg, 1);
+
+                var colors = Game.BoxColorIndices(box);
+                for (int i = 0; i < box.Slots.Length; i++)
                 {
-                    Quad(root, pos, new Vector2(CardW + 0.1f, CardH + 0.1f), new Color(0, 0, 0, 0.25f), 0);
-                    continue;
+                    var sp = SlotWorldPos(Vector2.zero, i);
+                    Quad(bo.transform, sp, Vector2.one * SlotSize, new Color(0, 0, 0, 0.14f), 2);
+                    var t = box.Slots[i];
+                    if (t == null) continue;
+                    int ci;
+                    var bg = colors.TryGetValue(t.Uid, out ci) ? Palette[ci] : TileBg;
+                    tileGo[t.Uid] = BuildTile(bo.transform, t, sp, bg, 3);
+                    zones.Add(new Zone
+                    {
+                        Rect = RectAt(pos + sp, Vector2.one * SlotSize),
+                        Kind = ZoneKind.Tile, Stack = s, Uid = t.Uid
+                    });
                 }
-                cellCards[c] = BuildCard(root, g.Cells[c], pos, 1, 1f);
-                zones.Add(new Zone { Rect = RectAt(pos, new Vector2(CardW, CardH)), Kind = ZoneKind.CollectorCell, Index = c });
+                zones.Add(new Zone
+                {
+                    Rect = RectAt(pos, Vector2.one * BoxSize),
+                    Kind = ZoneKind.Stack, Stack = s
+                });
             }
 
-            // Deck collector — góc phải trên
-            var deckPos = new Vector2((GridCols / 2 + 1) * CellW, boardH / 2 + 1.0f);
-            if (g.Deck.Count > 0)
-            {
-                Quad(root, deckPos + new Vector2(0.07f, -0.07f), new Vector2(CardW * 0.8f, CardH * 0.8f), new Color(0.75f, 0.6f, 0.2f), 0);
-                Quad(root, deckPos, new Vector2(CardW * 0.8f, CardH * 0.8f), Gold, 1);
-                Label(root, deckPos, "?", 1.0f, new Color(0.35f, 0.22f, 0f), 2);
-                Label(root, deckPos + new Vector2(0, -CardH * 0.8f / 2 - 0.25f), "Deck ×" + g.Deck.Count, 0.5f, Color.white, 2);
-            }
-
-            // HUD
-            Label(root, new Vector2(0, boardH / 2 + 1.0f), "Nước còn: " + g.MovesLeft, 1.1f, Color.white, 5);
-            Label(root, new Vector2(0, trayCenter.y - 1.2f), "Kéo thẻ vào ô gom cùng loại (cột giữa), hoặc sang slot trống bất kỳ", 0.5f,
-                new Color(1, 1, 1, 0.55f), 5);
-
-            if (g.Status != GameStatus.Playing)
-            {
-                Quad(root, Vector2.zero, new Vector2(40, 40), new Color(0, 0, 0, 0.65f), 50);
-                string msg = g.Status == GameStatus.Won
-                    ? "THẮNG!"
-                    : g.LoseReason == LoseReason.OutOfMoves ? "THUA — hết nước đi" : "THUA — kẹt bàn";
-                Label(root, new Vector2(0, 0.5f), msg, 1.6f, Color.white, 51);
-                Label(root, new Vector2(0, -0.7f), "Bấm chuột để chơi lại", 0.7f, new Color(1, 1, 1, 0.8f), 51);
-            }
-
-            // Camera fit
-            float halfH = boardH / 2 + 3.2f;
-            float halfW = (GridCols / 2 + 1.5f) * CellW + 0.5f;
-            cam.orthographicSize = Mathf.Max(halfH, halfW / cam.aspect);
+            DrawHud();
+            FitCamera();
         }
 
-        GameObject BuildCard(Transform parent, Entry e, Vector2 pos, int order, float alpha)
+        void ClearTransientsKeepGhost()
         {
-            var go = new GameObject("Card");
-            go.transform.SetParent(parent, false);
-            go.transform.position = new Vector3(pos.x, pos.y, 0);
-            var bg = e.IsCollector ? Gold : Color.white;
-            bg.a = alpha;
-            var frame = CatColor[(int)e.Cat];
-            Quad(go.transform, Vector2.zero, new Vector2(CardW + 0.1f, CardH + 0.1f), frame, order);
-            Quad(go.transform, Vector2.zero, new Vector2(CardW, CardH), bg, order + 1);
+            foreach (var f in flies) if (f.Go != null) Destroy(f.Go);
+            flies.Clear();
+            shakeGo = null;
+            hoverGo = null;
+            highlightStack = -1;
+        }
 
-            if (e.IsCollector)
+        void DrawHud()
+        {
+            float minY = g.Stacks.Min(s => (float)s.Y), maxY = g.Stacks.Max(s => (float)s.Y);
+            float minX = g.Stacks.Min(s => (float)s.X), maxX = g.Stacks.Max(s => (float)s.X);
+            float top = -minY * PitchY + BoxSize / 2f;
+            float bottom = -maxY * PitchY - BoxSize / 2f;
+            float cx = (minX + maxX) / 2f * PitchX;
+            float width = (maxX - minX) * PitchX + BoxSize;
+
+            Quad(root, new Vector2(cx, top + 0.72f), new Vector2(width, 0.86f), HeaderCol, 5);
+            Label(root, new Vector2(cx, top + 0.72f),
+                  g.Title + "   ·   " + g.Cleared + "/" + g.TotalGroups + " groups   ·   " + g.Moves + " moves",
+                  0.42f, Color.white, 6, width - 0.3f);
+            Label(root, new Vector2(cx, bottom - 0.45f),
+                  "Drag a tile onto another stack   ·   R restart   ·   N next level",
+                  0.34f, new Color(1, 1, 1, 0.55f), 6, width);
+
+            if (g.Status == GameStatus.Won)
             {
-                Label(go.transform, new Vector2(0, 0.38f), Art.Emoji[(int)e.Cat][0], 0.8f, Color.black, order + 2, emojiFont);
-                Label(go.transform, new Vector2(0, -0.05f), e.Progress + "/" + e.Quota, 0.85f, new Color(0.25f, 0.15f, 0f), order + 2);
-                Label(go.transform, new Vector2(0, -0.45f), Art.CatName[(int)e.Cat], 0.42f, new Color(0.25f, 0.15f, 0f), order + 2);
+                Quad(root, new Vector2(cx, 0), new Vector2(60, 60), new Color(0.08f, 0.05f, 0.16f, 0.82f), 50);
+                Label(root, new Vector2(cx, 0.45f), "Complete!", 1.1f, Color.white, 51, 12f);
+                Label(root, new Vector2(cx, -0.6f), "click / N for next level", 0.45f,
+                      new Color(1, 1, 1, 0.8f), 51, 12f);
             }
-            else
+            else if (g.Status == GameStatus.Stuck)
             {
-                Label(go.transform, new Vector2(0, 0.12f), Art.Emoji[(int)e.Cat][e.Variant], 1.05f, Color.black, order + 2, emojiFont);
-                Label(go.transform, new Vector2(0, -0.48f), Art.ItemName[(int)e.Cat][e.Variant], 0.42f, new Color(0.2f, 0.2f, 0.2f), order + 2);
+                Quad(root, new Vector2(cx, bottom - 1.15f), new Vector2(width * 0.9f, 0.7f),
+                     new Color(0.11f, 0.09f, 0.2f, 0.95f), 50);
+                Label(root, new Vector2(cx, bottom - 1.15f), "No moves left — click or press R to restart",
+                      0.4f, Color.white, 51, width * 0.85f);
+            }
+        }
+
+        void FitCamera()
+        {
+            float minX = g.Stacks.Min(s => (float)s.X), maxX = g.Stacks.Max(s => (float)s.X);
+            float minY = g.Stacks.Min(s => (float)s.Y), maxY = g.Stacks.Max(s => (float)s.Y);
+            float cx = (minX + maxX) / 2f * PitchX;
+            float cy = -(minY + maxY) / 2f * PitchY;
+            float halfW = (maxX - minX) / 2f * PitchX + BoxSize / 2f + 0.4f;
+            float halfH = (maxY - minY) / 2f * PitchY + BoxSize / 2f + 1.5f;   // chừa HUD trên + gợi ý dưới
+            cam.transform.position = new Vector3(cx, cy, -10);
+            cam.orthographicSize = Mathf.Max(halfH, halfW / Mathf.Max(cam.aspect, 0.01f));
+        }
+
+        // Ba trường hợp như demo: chỉ ảnh / chỉ chữ / cả hai.
+        GameObject BuildTile(Transform parent, Tile t, Vector2 pos, Color bg, int order)
+        {
+            var go = new GameObject("Tile");
+            go.transform.SetParent(parent, false);
+            go.transform.localPosition = new Vector3(pos.x, pos.y, 0);
+            Quad(go.transform, Vector2.zero, Vector2.one * SlotSize, bg, order);
+            if (t == null) return go;
+
+            var art = t.Art != null ? LoadArt(t.Art) : null;
+            bool both = art != null && t.Text != null;
+
+            if (art != null)
+            {
+                float target = SlotSize * (both ? 0.46f : 0.72f);
+                var sg = new GameObject("Art");
+                sg.transform.SetParent(go.transform, false);
+                sg.transform.localPosition = new Vector3(0, both ? SlotSize * 0.14f : 0f, 0);
+                var sr = sg.AddComponent<SpriteRenderer>();
+                sr.sprite = art;
+                sr.sortingOrder = order + 1;
+                var b = art.bounds.size;
+                float k = target / Mathf.Max(Mathf.Max(b.x, b.y), 0.0001f);
+                sg.transform.localScale = new Vector3(k, k, 1);
+            }
+            if (t.Text != null)
+            {
+                float y = both ? -SlotSize * 0.26f : 0f;
+                float size = both ? 0.30f : 0.36f;
+                Label(go.transform, new Vector2(0, y), t.Text, size, Ink, order + 1, SlotSize * 0.92f);
             }
             return go;
         }
@@ -433,24 +683,43 @@ namespace CategorySort.Prototype
             sr.sortingOrder = order;
         }
 
-        void Label(Transform parent, Vector2 pos, string text, float size, Color color, int order, Font font = null)
+        // maxWidth: co chữ theo bề rộng cho phép + xuống dòng ở khoảng trắng (§E10).
+        void Label(Transform parent, Vector2 pos, string text, float size, Color color,
+                   int order, float maxWidth)
         {
             var go = new GameObject("Label");
             go.transform.SetParent(parent, false);
             go.transform.localPosition = new Vector3(pos.x, pos.y, 0);
             var tm = go.AddComponent<TextMesh>();
+
+            string longest = text;
+            if (text.Contains(" "))
+            {
+                var words = text.Split(' ');
+                longest = words.OrderByDescending(w => w.Length).First();
+                if (words.Length > 1 && text.Length * 0.5f * size * 0.021f * 64f > maxWidth)
+                    text = string.Join("\n", words);
+            }
+            // ~0.55 em/ký tự với font sans mặc định — đủ để chữ dài không tràn khung.
+            float fit = maxWidth / Mathf.Max(longest.Length * 0.55f, 1f);
+            float chosen = Mathf.Min(size, fit / (0.021f * 64f));
+
             tm.text = text;
-            tm.font = font != null ? font : labelFont;
+            tm.font = labelFont;
             tm.fontSize = 64;
-            tm.characterSize = 0.021f * size;
+            tm.characterSize = 0.021f * chosen;
             tm.anchor = TextAnchor.MiddleCenter;
             tm.alignment = TextAlignment.Center;
             tm.color = color;
-            var mr = go.GetComponent<MeshRenderer>();
-            mr.material = tm.font.material;
-            mr.sortingOrder = order;
+            go.GetComponent<MeshRenderer>().material = tm.font.material;
+            go.GetComponent<MeshRenderer>().sortingOrder = order;
         }
 
-        static Rect RectAt(Vector2 center, Vector2 size) => new Rect(center - size / 2, size);
+        static Rect RectAt(Vector2 center, Vector2 size) { return new Rect(center - size / 2f, size); }
+
+        static Color Hex(int rgb)
+        {
+            return new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
+        }
     }
 }
