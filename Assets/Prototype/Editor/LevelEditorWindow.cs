@@ -25,11 +25,28 @@ namespace WordStack.Prototype
 {
     // ---- Bản dựng để Unity tự vẽ Inspector. Sprite là object field thật nên
     // ---- kéo-thả từ Project Window hoạt động sẵn, không phải viết GUI riêng.
-    // artKey giữ chuỗi gốc trong JSON. Nếu file ảnh chưa có (hoặc bị đổi tên), Sprite sẽ
-    // null — lúc đó artKey là thứ được ghi lại, nên mở-rồi-lưu KHÔNG làm mất key.
-    // Kéo Sprite vào thì Sprite thắng, vì đó là thao tác tường minh của người dùng.
-    [Serializable] public class EGroup { public string id; public string text; public string artKey; public Sprite art; }
-    [Serializable] public class ECard  { public string id; public string group; public string text; public string artKey; public Sprite art; }
+    // Ô chỉ-đọc: hiện giá trị nhưng không cho sửa.
+    public class ReadOnlyAttribute : PropertyAttribute { }
+
+    [CustomPropertyDrawer(typeof(ReadOnlyAttribute))]
+    public class ReadOnlyDrawer : PropertyDrawer
+    {
+        public override void OnGUI(Rect r, SerializedProperty p, GUIContent label)
+        {
+            using (new EditorGUI.DisabledScope(true)) EditorGUI.PropertyField(r, p, label, true);
+        }
+        public override float GetPropertyHeight(SerializedProperty p, GUIContent label)
+        {
+            return EditorGUI.GetPropertyHeight(p, label, true);
+        }
+    }
+
+    // artKey là chuỗi thật sự được ghi xuống JSON. Nó bám theo Sprite (SyncArtKeys đồng bộ
+    // mỗi lần vẽ), và chỉ đứng độc lập trong đúng một trường hợp: mở file mà chưa có ảnh —
+    // lúc đó Sprite null nhưng key gốc vẫn được giữ, nên mở-rồi-lưu không xoá mất key.
+    // Read-only vì nó là hệ quả của Art, không phải thứ để gõ tay.
+    [Serializable] public class EGroup { public string id; public string text; [ReadOnly] public string artKey; public Sprite art; }
+    [Serializable] public class ECard  { public string id; public string group; public string text; [ReadOnly] public string artKey; public Sprite art; }
     [Serializable] public class EBox   { public string[] slots = new string[Rules.BoxCapacity]; }
     [Serializable] public class EStack { public Vector2 pos; public List<EBox> boxes = new List<EBox>(); }
 
@@ -76,6 +93,15 @@ namespace WordStack.Prototype
             so = new SerializedObject(proxy);
         }
 
+        // Gán Sprite thì key phải đổi theo ngay, nếu không ô read-only sẽ hiện giá trị cũ.
+        // Gỡ Sprite ra thì giữ nguyên key — đó là ca "chưa có file ảnh" mà artKey tồn tại để phục vụ.
+        void SyncArtKeys()
+        {
+            var ignore = new List<string>();
+            foreach (var g in proxy.groups) { var k = KeyOf(g.art, "", ignore); if (k != null) g.artKey = k; }
+            foreach (var c in proxy.cards) { var k = KeyOf(c.art, "", ignore); if (k != null) c.artKey = k; }
+        }
+
         // ------------------------------------------------------------------ GUI
 
         void OnGUI()
@@ -83,6 +109,7 @@ namespace WordStack.Prototype
             DrawToolbar();
 
             if (proxy == null) return;
+            SyncArtKeys();
             so.Update();
 
             scroll = EditorGUILayout.BeginScrollView(scroll);

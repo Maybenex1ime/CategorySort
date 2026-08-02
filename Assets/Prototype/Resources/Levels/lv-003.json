@@ -1,0 +1,31 @@
+{
+  "id": "lv-003",
+  "title": "Smallest",
+  "note": "Level nho nhat chay duoc: 1 nhom, 4 the, 3 stack. Keo ca 4 vao hop trong -> CLEAR -> thang.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["apple","banana",null,null] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["grape","orange",null,null] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": [null,null,null,null] }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"fruit", "text":"Fruit" }
+    ],
+    "cards": [
+      { "id":"apple", "group":"fruit", "text":"Apple", "art":"apple" },
+      { "id":"banana", "group":"fruit", "art":"banana" },
+      { "id":"grape", "group":"fruit", "text":"Grape" },
+      { "id":"orange", "group":"fruit", "text":"Orange", "art":"orange" }
+    ]
+  }
+}
