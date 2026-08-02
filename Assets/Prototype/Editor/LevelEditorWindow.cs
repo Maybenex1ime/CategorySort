@@ -45,8 +45,19 @@ namespace WordStack.Prototype
     // mỗi lần vẽ), và chỉ đứng độc lập trong đúng một trường hợp: mở file mà chưa có ảnh —
     // lúc đó Sprite null nhưng key gốc vẫn được giữ, nên mở-rồi-lưu không xoá mất key.
     // Read-only vì nó là hệ quả của Art, không phải thứ để gõ tay.
-    [Serializable] public class EGroup { public string id; public string text; [ReadOnly] public string artKey; public Sprite art; }
-    [Serializable] public class ECard  { public string id; public string group; public string text; [ReadOnly] public string artKey; public Sprite art; }
+    [Serializable] public class ECard  { public string id; public string text; [ReadOnly] public string artKey; public Sprite art; }
+
+    // Card lồng trong group: một thẻ thuộc đúng một nhóm, và không còn field "group" để
+    // gõ sai. Mở một nhóm ra là thấy luôn 4 thẻ của nó.
+    [Serializable] public class EGroup
+    {
+        public string id;
+        public string text;
+        [ReadOnly] public string artKey;
+        public Sprite art;
+        public List<ECard> cards = new List<ECard>();
+    }
+
     [Serializable] public class EBox   { public string[] slots = new string[Rules.BoxCapacity]; }
     [Serializable] public class EStack { public Vector2 pos; public List<EBox> boxes = new List<EBox>(); }
 
@@ -57,7 +68,6 @@ namespace WordStack.Prototype
         [TextArea(2, 4)] public string note;
         public List<EStack> stacks = new List<EStack>();
         public List<EGroup> groups = new List<EGroup>();
-        public List<ECard> cards = new List<ECard>();
     }
 
     public class LevelEditorWindow : EditorWindow
@@ -98,8 +108,16 @@ namespace WordStack.Prototype
         void SyncArtKeys()
         {
             var ignore = new List<string>();
-            foreach (var g in proxy.groups) { var k = KeyOf(g.art, "", ignore); if (k != null) g.artKey = k; }
-            foreach (var c in proxy.cards) { var k = KeyOf(c.art, "", ignore); if (k != null) c.artKey = k; }
+            foreach (var g in proxy.groups)
+            {
+                var gk = KeyOf(g.art, "", ignore);
+                if (gk != null) g.artKey = gk;
+                foreach (var c in g.cards)
+                {
+                    var ck = KeyOf(c.art, "", ignore);
+                    if (ck != null) c.artKey = ck;
+                }
+            }
         }
 
         // ------------------------------------------------------------------ GUI
@@ -172,8 +190,9 @@ namespace WordStack.Prototype
                 var lv = LevelData.Parse(File.ReadAllText(abs));
                 FromLevelData(lv);
                 path = ToProjectPath(abs);
-                int missing = proxy.cards.Count(c => c.art == null && HasArtKey(lv, c.id));
-                Say(true, "Đã mở " + Path.GetFileName(abs) + " — " + proxy.cards.Count + " thẻ, " +
+                var all = proxy.groups.SelectMany(g => g.cards).ToList();
+                int missing = all.Count(c => c.art == null && !string.IsNullOrEmpty(c.artKey));
+                Say(true, "Đã mở " + Path.GetFileName(abs) + " — " + all.Count + " thẻ, " +
                           proxy.groups.Count + " nhóm, " + proxy.stacks.Count + " stack" +
                           (missing > 0 ? "  ·  " + missing + " thẻ không tìm thấy ảnh trong " + ArtRoot : ""));
             }
@@ -181,12 +200,6 @@ namespace WordStack.Prototype
             {
                 Say(false, "Không đọc được file: " + e.Message);
             }
-        }
-
-        static bool HasArtKey(LevelData lv, string cardId)
-        {
-            var c = lv.Cards.FirstOrDefault(x => x.Id == cardId);
-            return c != null && !string.IsNullOrEmpty(c.Art);
         }
 
         void SaveAs()
@@ -201,8 +214,11 @@ namespace WordStack.Prototype
         {
             // 1. Sprite → key, chặn ngay nếu nằm ngoài ArtRoot (runtime sẽ không load được).
             var bad = new List<string>();
-            foreach (var g in proxy.groups) KeyOf(g.art, "group " + g.id, bad);
-            foreach (var c in proxy.cards) KeyOf(c.art, "card " + c.id, bad);
+            foreach (var g in proxy.groups)
+            {
+                KeyOf(g.art, "group " + g.id, bad);
+                foreach (var c in g.cards) KeyOf(c.art, "card " + c.id, bad);
+            }
             if (bad.Count > 0)
             {
                 Say(false, "Không lưu được — ảnh phải nằm trong " + ArtRoot + ":\n• " +
@@ -293,9 +309,12 @@ namespace WordStack.Prototype
             proxy.note = lv.Note;
 
             foreach (var g in lv.Groups)
-                proxy.groups.Add(new EGroup { id = g.Id, text = g.Text, artKey = g.Art, art = ResolveArt(g.Art) });
-            foreach (var c in lv.Cards)
-                proxy.cards.Add(new ECard { id = c.Id, group = c.Group, text = c.Text, artKey = c.Art, art = ResolveArt(c.Art) });
+            {
+                var eg = new EGroup { id = g.Id, text = g.Text, artKey = g.Art, art = ResolveArt(g.Art) };
+                foreach (var c in g.Cards)
+                    eg.cards.Add(new ECard { id = c.Id, text = c.Text, artKey = c.Art, art = ResolveArt(c.Art) });
+                proxy.groups.Add(eg);
+            }
             foreach (var s in lv.Stacks)
             {
                 var es = new EStack { pos = new Vector2((float)s.Pos[0], (float)s.Pos[1]) };
@@ -349,17 +368,17 @@ namespace WordStack.Prototype
                 if (!string.IsNullOrEmpty(g.text)) sb.Append(", \"text\":").Append(Str(g.text));
                 var gk = KeyOf(g.art, "", bad) ?? NullIfEmpty(g.artKey);
                 if (gk != null) sb.Append(", \"art\":").Append(Str(gk));
-                sb.Append(" }").Append(i < proxy.groups.Count - 1 ? ",\n" : "\n");
-            }
-            sb.Append("    ],\n    \"cards\": [\n");
-            for (int i = 0; i < proxy.cards.Count; i++)
-            {
-                var c = proxy.cards[i];
-                sb.Append("      { \"id\":").Append(Str(c.id)).Append(", \"group\":").Append(Str(c.group));
-                if (!string.IsNullOrEmpty(c.text)) sb.Append(", \"text\":").Append(Str(c.text));
-                var ck = KeyOf(c.art, "", bad) ?? NullIfEmpty(c.artKey);
-                if (ck != null) sb.Append(", \"art\":").Append(Str(ck));
-                sb.Append(" }").Append(i < proxy.cards.Count - 1 ? ",\n" : "\n");
+                sb.Append(", \"cards\": [\n");
+                for (int k = 0; k < g.cards.Count; k++)
+                {
+                    var c = g.cards[k];
+                    sb.Append("          { \"id\":").Append(Str(c.id));
+                    if (!string.IsNullOrEmpty(c.text)) sb.Append(", \"text\":").Append(Str(c.text));
+                    var ck = KeyOf(c.art, "", bad) ?? NullIfEmpty(c.artKey);
+                    if (ck != null) sb.Append(", \"art\":").Append(Str(ck));
+                    sb.Append(" }").Append(k < g.cards.Count - 1 ? ",\n" : "\n");
+                }
+                sb.Append("      ]}").Append(i < proxy.groups.Count - 1 ? ",\n" : "\n");
             }
             sb.Append("    ]\n  }\n}\n");
             return sb.ToString();

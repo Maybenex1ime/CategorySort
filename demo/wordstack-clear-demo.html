@@ -143,25 +143,24 @@
 
   "meaning": {
     "groups": [
-      { "id":"fruit",   "text":"Fruit"   },
-      { "id":"animal",  "text":"Animal"  },
-      { "id":"vehicle", "text":"Vehicle" }
-    ],
-    "cards": [
-      { "id":"apple",    "group":"fruit",   "text":"Apple",    "art":"apple"    },
-      { "id":"banana",   "group":"fruit",                      "art":"banana"   },
-      { "id":"grape",    "group":"fruit",   "text":"Grape"                      },
-      { "id":"orange",   "group":"fruit",   "text":"Orange",   "art":"orange"   },
-
-      { "id":"dog",      "group":"animal",  "text":"Dog",      "art":"dog"      },
-      { "id":"cat",      "group":"animal",                     "art":"cat"      },
-      { "id":"rabbit",   "group":"animal",  "text":"Rabbit"                     },
-      { "id":"bear",     "group":"animal",  "text":"Bear",     "art":"bear"     },
-
-      { "id":"car",      "group":"vehicle",                    "art":"car"      },
-      { "id":"bus",      "group":"vehicle", "text":"Bus"                        },
-      { "id":"airplane", "group":"vehicle", "text":"Airplane", "art":"airplane" },
-      { "id":"bicycle",  "group":"vehicle",                    "art":"bicycle"  }
+      { "id":"fruit", "text":"Fruit", "cards": [
+          { "id":"apple",  "text":"Apple",  "art":"apple"  },
+          { "id":"banana",                  "art":"banana" },
+          { "id":"grape",  "text":"Grape"                  },
+          { "id":"orange", "text":"Orange", "art":"orange" }
+      ]},
+      { "id":"animal", "text":"Animal", "cards": [
+          { "id":"dog",    "text":"Dog",    "art":"dog"    },
+          { "id":"cat",                     "art":"cat"    },
+          { "id":"rabbit", "text":"Rabbit"                 },
+          { "id":"bear",   "text":"Bear",   "art":"bear"   }
+      ]},
+      { "id":"vehicle", "text":"Vehicle", "cards": [
+          { "id":"car",                        "art":"car"      },
+          { "id":"bus",      "text":"Bus"                       },
+          { "id":"airplane", "text":"Airplane", "art":"airplane" },
+          { "id":"bicycle",                    "art":"bicycle"  }
+      ]}
     ]
   }
 },
@@ -191,31 +190,30 @@
 
   "meaning": {
     "groups": [
-      { "id":"fruit",   "text":"Fruit"   },
-      { "id":"animal",  "text":"Animal"  },
-      { "id":"vehicle", "text":"Vehicle" },
-      { "id":"music",   "text":"Music"   }
-    ],
-    "cards": [
-      { "id":"apple",    "group":"fruit",   "text":"Apple",    "art":"apple"    },
-      { "id":"banana",   "group":"fruit",                      "art":"banana"   },
-      { "id":"grape",    "group":"fruit",   "text":"Grape"                      },
-      { "id":"orange",   "group":"fruit",   "text":"Orange",   "art":"orange"   },
-
-      { "id":"dog",      "group":"animal",  "text":"Dog",      "art":"dog"      },
-      { "id":"cat",      "group":"animal",                     "art":"cat"      },
-      { "id":"rabbit",   "group":"animal",  "text":"Rabbit"                     },
-      { "id":"bear",     "group":"animal",  "text":"Bear",     "art":"bear"     },
-
-      { "id":"car",      "group":"vehicle",                    "art":"car"      },
-      { "id":"bus",      "group":"vehicle", "text":"Bus"                        },
-      { "id":"airplane", "group":"vehicle", "text":"Airplane", "art":"airplane" },
-      { "id":"bicycle",  "group":"vehicle",                    "art":"bicycle"  },
-
-      { "id":"guitar",   "group":"music",                      "art":"guitar"   },
-      { "id":"piano",    "group":"music",   "text":"Piano",    "art":"piano"    },
-      { "id":"drum",     "group":"music",   "text":"Drum"                       },
-      { "id":"violin",   "group":"music",   "text":"Violin",   "art":"violin"   }
+      { "id":"fruit", "text":"Fruit", "cards": [
+          { "id":"apple",  "text":"Apple",  "art":"apple"  },
+          { "id":"banana",                  "art":"banana" },
+          { "id":"grape",  "text":"Grape"                  },
+          { "id":"orange", "text":"Orange", "art":"orange" }
+      ]},
+      { "id":"animal", "text":"Animal", "cards": [
+          { "id":"dog",    "text":"Dog",    "art":"dog"    },
+          { "id":"cat",                     "art":"cat"    },
+          { "id":"rabbit", "text":"Rabbit"                 },
+          { "id":"bear",   "text":"Bear",   "art":"bear"   }
+      ]},
+      { "id":"vehicle", "text":"Vehicle", "cards": [
+          { "id":"car",                        "art":"car"      },
+          { "id":"bus",      "text":"Bus"                       },
+          { "id":"airplane", "text":"Airplane", "art":"airplane" },
+          { "id":"bicycle",                    "art":"bicycle"  }
+      ]},
+      { "id":"music", "text":"Music", "cards": [
+          { "id":"guitar",                   "art":"guitar" },
+          { "id":"piano",  "text":"Piano",   "art":"piano"  },
+          { "id":"drum",   "text":"Drum"                    },
+          { "id":"violin", "text":"Violin",  "art":"violin" }
+      ]}
     ]
   }
 }
@@ -250,28 +248,37 @@ function validate(lv){
   const die = m => { throw new Error(`[${lv.id}] ${m}`); };
   if(!lv.layout || !lv.meaning) die('thiếu "layout" hoặc "meaning"');
 
-  const groups = lv.meaning.groups || [], cards = lv.meaning.cards || [];
-  const gid = new Set(), cid = new Set();
+  const groups = lv.meaning.groups || [];
+  const cards = groups.flatMap(g => g.cards || []);
+  const gid = new Set(), cid = new Set(), artOwner = new Map();
 
+  // Card lồng trong group nên KHÔNG còn phải kiểm "card trỏ group không tồn tại"
+  // và "một card thuộc hai group" — cấu trúc đã loại trừ cả hai.
   for(const g of groups){
     if(!g.id) die('group thiếu id');
     if(gid.has(g.id)) die(`group id trùng: ${g.id}`);
     gid.add(g.id);
     if(!g.text && !g.art) die(`group "${g.id}" phải có text hoặc art`);
     if(g.group) die(`group "${g.id}" có nhóm cha → COLLAPSE, bản demo này chỉ hỗ trợ CLEAR`);
+    const n = (g.cards || []).length;
+    if(n !== GROUP_SIZE) die(`group "${g.id}" có ${n} thẻ, phải đúng ${GROUP_SIZE}`);
+    if(g.art){
+      if(!ART[g.art]) die(`group "${g.id}" trỏ art "${g.art}" không tồn tại`);
+      if(artOwner.has(g.art)) die(`art "${g.art}" dùng cho cả ${artOwner.get(g.art)} và group "${g.id}"`);
+      artOwner.set(g.art, `group "${g.id}"`);
+    }
   }
-  for(const c of cards){
-    if(!c.id) die('card thiếu id');
+  for(const g of groups) for(const c of g.cards){
+    if(!c.id) die(`group "${g.id}" có thẻ thiếu id`);
     if(cid.has(c.id)) die(`card id trùng: ${c.id}`);
     if(gid.has(c.id)) die(`id "${c.id}" dùng cho cả card lẫn group`);
     cid.add(c.id);
     if(!c.text && !c.art) die(`card "${c.id}" phải có text hoặc art`);
-    if(c.art && !ART[c.art]) die(`card "${c.id}" trỏ art "${c.art}" không tồn tại`);
-    if(!c.group || !gid.has(c.group)) die(`card "${c.id}" trỏ group "${c.group}" không tồn tại`);
-  }
-  for(const g of groups){
-    const n = cards.filter(c => c.group === g.id).length;
-    if(n !== GROUP_SIZE) die(`group "${g.id}" có ${n} thành viên, phải đúng ${GROUP_SIZE}`);
+    if(!c.art) continue;
+    if(!ART[c.art]) die(`card "${c.id}" trỏ art "${c.art}" không tồn tại`);
+    // Mỗi ảnh thuộc về đúng một thẻ — hai thẻ chung ảnh là kéo nhầm asset.
+    if(artOwner.has(c.art)) die(`art "${c.art}" dùng cho cả ${artOwner.get(c.art)} và card "${c.id}"`);
+    artOwner.set(c.art, `card "${c.id}"`);
   }
   // "text và ảnh ngang vai" là thuộc tính của level, không chỉ của schema
   if(!cards.some(c => c.art && !c.text)) die('level không có thẻ nào chỉ-ảnh');
@@ -296,7 +303,7 @@ function validate(lv){
       for(const id of box.slots){
         if(id === null) continue;
         if(gid.has(id)) die(`"${id}" là group, không được đặt sẵn trên bàn`);
-        if(!cid.has(id)) die(`"${id}" trong layout không có trong meaning.cards`);
+        if(!cid.has(id)) die(`"${id}" trong layout không phải id của thẻ nào`);
         if(seen.has(id)) die(`card "${id}" xuất hiện nhiều lần trên bàn`);
         seen.set(id, true);
       }
@@ -309,7 +316,9 @@ function validate(lv){
 // ── Build state ──────────────────────────────────────────────────────────────
 let uidSeq = 0;
 function build(lv){
-  const card = Object.fromEntries(lv.meaning.cards.map(c => [c.id, c]));
+  const card = {};
+  for(const g of lv.meaning.groups)
+    for(const c of g.cards) card[c.id] = { ...c, group: g.id };
   return {
     id: lv.id, title: lv.title,
     groups: lv.meaning.groups,

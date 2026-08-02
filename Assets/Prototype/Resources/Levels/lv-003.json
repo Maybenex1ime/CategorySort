@@ -1,7 +1,7 @@
 {
   "id": "lv-003",
   "title": "Smallest",
-  "note": "Level nho nhat chay duoc: 1 nhom, 4 the, 3 stack. Keo ca 4 vao hop trong -> CLEAR -> thang.",
+  "note": "Level nho nhat chay duoc: 1 nhom, 4 the, 3 stack. Keo grape + orange sang hop trai -> du 4 Fruit -> CLEAR -> thang trong 2 nuoc.",
 
   "layout": {
     "stacks": [
@@ -19,13 +19,12 @@
 
   "meaning": {
     "groups": [
-      { "id":"fruit", "text":"Fruit" }
-    ],
-    "cards": [
-      { "id":"apple", "group":"fruit", "text":"Apple", "art":"apple" },
-      { "id":"banana", "group":"fruit", "art":"banana" },
-      { "id":"grape", "group":"fruit", "text":"Grape" },
-      { "id":"orange", "group":"fruit", "text":"Orange", "art":"orange" }
+      { "id":"fruit", "text":"Fruit", "cards": [
+          { "id":"apple",  "text":"Apple",  "art":"apple"  },
+          { "id":"banana",                  "art":"banana" },
+          { "id":"grape",  "text":"Grape"                  },
+          { "id":"orange", "text":"Orange", "art":"orange" }
+      ]}
     ]
   }
 }

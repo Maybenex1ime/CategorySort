@@ -206,8 +206,18 @@ namespace WordStack.Prototype
     }
 
     // ------------------------------------------------------- tầng khai báo
-    public class CardDef  { public string Id, Group, Text, Art; }
-    public class GroupDef { public string Id, ParentId, Text, Art; }
+    public class CardDef  { public string Id, Text, Art; }
+
+    // Card nằm LỒNG trong group của nó. Nhờ vậy hai luật thành bất khả vi phạm về cấu
+    // trúc thay vì phải kiểm bằng validate: một card thuộc đúng một group, và không có
+    // field "group" nào để trỏ sai. ParentId (quan hệ nhóm-cha, tức COLLAPSE) vẫn là
+    // field riêng — nhét nhóm con vào Cards sẽ làm mảng đó thành hỗn hợp hai kiểu.
+    public class GroupDef
+    {
+        public string Id, ParentId, Text, Art;
+        public List<CardDef> Cards = new List<CardDef>();
+    }
+
     public class BoxDef   { public string[] Slots; }
     public class StackDef { public double[] Pos; public List<BoxDef> Boxes = new List<BoxDef>(); }
 
@@ -215,8 +225,12 @@ namespace WordStack.Prototype
     {
         public string Id, Title, Note;
         public List<GroupDef> Groups = new List<GroupDef>();
-        public List<CardDef> Cards = new List<CardDef>();
         public List<StackDef> Stacks = new List<StackDef>();
+
+        public IEnumerable<CardDef> AllCards()
+        {
+            foreach (var g in Groups) foreach (var c in g.Cards) yield return c;
+        }
 
         public static LevelData Parse(string json)
         {
@@ -232,24 +246,26 @@ namespace WordStack.Prototype
             foreach (var o in Json.AsArr(Json.Get(meaning, "groups"), "meaning.groups"))
             {
                 var d = Json.AsObj(o, "meaning.groups[]");
-                lv.Groups.Add(new GroupDef
+                var g = new GroupDef
                 {
                     Id = Json.AsStr(Json.Get(d, "id"), "group.id"),
                     ParentId = Json.AsStr(Json.Get(d, "group"), "group.group"),
                     Text = Json.AsStr(Json.Get(d, "text"), "group.text"),
                     Art = Json.AsStr(Json.Get(d, "art"), "group.art"),
-                });
-            }
-            foreach (var o in Json.AsArr(Json.Get(meaning, "cards"), "meaning.cards"))
-            {
-                var d = Json.AsObj(o, "meaning.cards[]");
-                lv.Cards.Add(new CardDef
-                {
-                    Id = Json.AsStr(Json.Get(d, "id"), "card.id"),
-                    Group = Json.AsStr(Json.Get(d, "group"), "card.group"),
-                    Text = Json.AsStr(Json.Get(d, "text"), "card.text"),
-                    Art = Json.AsStr(Json.Get(d, "art"), "card.art"),
-                });
+                };
+                var cards = Json.Get(d, "cards");
+                if (cards != null)
+                    foreach (var co in Json.AsArr(cards, "group.cards"))
+                    {
+                        var cd = Json.AsObj(co, "group.cards[]");
+                        g.Cards.Add(new CardDef
+                        {
+                            Id = Json.AsStr(Json.Get(cd, "id"), "card.id"),
+                            Text = Json.AsStr(Json.Get(cd, "text"), "card.text"),
+                            Art = Json.AsStr(Json.Get(cd, "art"), "card.art"),
+                        });
+                    }
+                lv.Groups.Add(g);
             }
 
             var layout = Json.AsObj(Json.Get(root, "layout"), "layout");
@@ -280,7 +296,12 @@ namespace WordStack.Prototype
         {
             Action<string> die = m => { throw new Exception("[" + (Id ?? "?") + "] " + m); };
 
+            // Card lồng trong group nên KHÔNG còn phải kiểm "card trỏ group không tồn tại"
+            // và "một card thuộc hai group" — cấu trúc đã loại trừ cả hai.
             var gids = new HashSet<string>();
+            var cids = new HashSet<string>();
+            var artOwner = new Dictionary<string, string>();   // art key → ai đang dùng
+
             foreach (var g in Groups)
             {
                 if (string.IsNullOrEmpty(g.Id)) die("group thiếu id");
@@ -288,31 +309,35 @@ namespace WordStack.Prototype
                 if (g.Text == null && g.Art == null) die("group \"" + g.Id + "\" phải có text hoặc art");
                 if (g.ParentId != null)
                     die("group \"" + g.Id + "\" có nhóm cha → COLLAPSE, phạm vi này chỉ hỗ trợ CLEAR");
-            }
-
-            var cids = new HashSet<string>();
-            foreach (var c in Cards)
-            {
-                if (string.IsNullOrEmpty(c.Id)) die("card thiếu id");
-                if (gids.Contains(c.Id)) die("id \"" + c.Id + "\" dùng cho cả card lẫn group");
-                if (!cids.Add(c.Id)) die("card id trùng: " + c.Id);
-                if (c.Text == null && c.Art == null) die("card \"" + c.Id + "\" phải có text hoặc art");
-                if (c.Art != null && !hasArt(c.Art))
-                    die("card \"" + c.Id + "\" trỏ art \"" + c.Art + "\" không tồn tại");
-                if (c.Group == null || !gids.Contains(c.Group))
-                    die("card \"" + c.Id + "\" trỏ group \"" + (c.Group ?? "<trống>") + "\" không tồn tại");
+                if (g.Cards.Count != Rules.GroupSize)
+                    die("group \"" + g.Id + "\" có " + g.Cards.Count + " thẻ, phải đúng " + Rules.GroupSize);
+                if (g.Art != null)
+                {
+                    if (!hasArt(g.Art)) die("group \"" + g.Id + "\" trỏ art \"" + g.Art + "\" không tồn tại");
+                    if (artOwner.ContainsKey(g.Art))
+                        die("art \"" + g.Art + "\" dùng cho cả " + artOwner[g.Art] + " và group \"" + g.Id + "\"");
+                    artOwner[g.Art] = "group \"" + g.Id + "\"";
+                }
             }
 
             foreach (var g in Groups)
-            {
-                int n = Cards.Count(c => c.Group == g.Id);
-                if (n != Rules.GroupSize)
-                    die("group \"" + g.Id + "\" có " + n + " thành viên, phải đúng " + Rules.GroupSize);
-            }
+                foreach (var c in g.Cards)
+                {
+                    if (string.IsNullOrEmpty(c.Id)) die("group \"" + g.Id + "\" có thẻ thiếu id");
+                    if (gids.Contains(c.Id)) die("id \"" + c.Id + "\" dùng cho cả card lẫn group");
+                    if (!cids.Add(c.Id)) die("card id trùng: " + c.Id);
+                    if (c.Text == null && c.Art == null) die("card \"" + c.Id + "\" phải có text hoặc art");
+                    if (c.Art == null) continue;
+                    if (!hasArt(c.Art)) die("card \"" + c.Id + "\" trỏ art \"" + c.Art + "\" không tồn tại");
+                    // Mỗi ảnh thuộc về đúng một thẻ — hai thẻ chung ảnh là kéo nhầm asset.
+                    if (artOwner.ContainsKey(c.Art))
+                        die("art \"" + c.Art + "\" dùng cho cả " + artOwner[c.Art] + " và card \"" + c.Id + "\"");
+                    artOwner[c.Art] = "card \"" + c.Id + "\"";
+                }
 
             // "text và ảnh ngang vai" là thuộc tính của level, không chỉ của schema.
-            if (!Cards.Any(c => c.Art != null && c.Text == null)) die("level không có thẻ nào chỉ-ảnh");
-            if (!Cards.Any(c => c.Text != null && c.Art == null)) die("level không có thẻ nào chỉ-chữ");
+            if (!AllCards().Any(c => c.Art != null && c.Text == null)) die("level không có thẻ nào chỉ-ảnh");
+            if (!AllCards().Any(c => c.Text != null && c.Art == null)) die("level không có thẻ nào chỉ-chữ");
 
             if (Stacks.Count == 0) die("layout không có stack nào");
             var seen = new HashSet<string>();
@@ -337,12 +362,12 @@ namespace WordStack.Prototype
                     {
                         if (id == null) continue;
                         if (gids.Contains(id)) die("\"" + id + "\" là group, không được đặt sẵn trên bàn");
-                        if (!cids.Contains(id)) die("\"" + id + "\" trong layout không có trong meaning.cards");
+                        if (!cids.Contains(id)) die("\"" + id + "\" trong layout không phải id của thẻ nào");
                         if (!seen.Add(id)) die("card \"" + id + "\" xuất hiện nhiều lần trên bàn");
                     }
                 }
             }
-            foreach (var c in Cards)
+            foreach (var c in AllCards())
                 if (!seen.Contains(c.Id)) die("card \"" + c.Id + "\" không có mặt trên bàn");
 
             // Chưa cần kiểm cycle trong chuỗi group: ParentId đã bị chặn ở trên.
@@ -351,8 +376,11 @@ namespace WordStack.Prototype
 
         public IEnumerable<string> ArtKeys()
         {
-            foreach (var c in Cards) if (c.Art != null) yield return c.Art;
-            foreach (var g in Groups) if (g.Art != null) yield return g.Art;
+            foreach (var g in Groups)
+            {
+                if (g.Art != null) yield return g.Art;
+                foreach (var c in g.Cards) if (c.Art != null) yield return c.Art;
+            }
         }
     }
 
@@ -409,7 +437,11 @@ namespace WordStack.Prototype
 
         public static Game Build(LevelData lv)
         {
-            var card = lv.Cards.ToDictionary(c => c.Id);
+            var card = new Dictionary<string, CardDef>();
+            var ownerGroup = new Dictionary<string, string>();
+            foreach (var grp in lv.Groups)
+                foreach (var c in grp.Cards) { card[c.Id] = c; ownerGroup[c.Id] = grp.Id; }
+
             var g = new Game { LevelId = lv.Id, Title = lv.Title, TotalGroups = lv.Groups.Count };
             foreach (var sd in lv.Stacks)
             {
@@ -425,7 +457,7 @@ namespace WordStack.Prototype
                         box.Slots[i] = new Tile
                         {
                             Uid = "t" + (++g.uidSeq),
-                            CardId = c.Id, GroupId = c.Group, Text = c.Text, Art = c.Art
+                            CardId = c.Id, GroupId = ownerGroup[c.Id], Text = c.Text, Art = c.Art
                         };
                     }
                     st.Boxes.Add(box);
@@ -717,26 +749,39 @@ namespace WordStack.Prototype
             };
 
             // ---- 1. Validate bắt được level hỏng ----
-            Action<Action<LevelData>, string> broken = (mutate, label) =>
+            Action<Action<LevelData>, string, Predicate<string>> brokenAs = (mutate, label, art) =>
             {
                 var lv = fresh(0);
                 mutate(lv);
                 bool threw = false;
-                try { lv.Validate(hasArt); } catch { threw = true; }
+                try { lv.Validate(art); } catch { threw = true; }
                 Ok(threw, "validate phải ném lỗi: " + label);
             };
+            Action<Action<LevelData>, string> broken = (mutate, label) => brokenAs(mutate, label, hasArt);
+
             broken(l => l.Stacks[0].Boxes[0].Slots[3] = "apple", "card trùng trên bàn");
             broken(l => l.Stacks[0].Boxes[0].Slots[0] = null, "card thiếu trên bàn");
             broken(l => l.Stacks[0].Boxes[0].Slots[0] = "fruit", "đặt group lên bàn");
-            broken(l => l.Cards.RemoveAt(l.Cards.Count - 1), "group thiếu thành viên");
-            broken(l => l.Groups[0].ParentId = "animal", "group có cha (COLLAPSE)");
-            broken(l => l.Cards.First(c => c.Art == null).Text = null, "card không có text lẫn art");
-            broken(l => l.Cards.ForEach(c => c.Text = c.Text ?? c.Id), "level không còn thẻ chỉ-ảnh");
-            broken(l => l.Cards.ForEach(c => c.Art = c.Art ?? l.Cards.First(x => x.Art != null).Art),
-                   "level không còn thẻ chỉ-chữ");
+            broken(l => l.Groups[0].Cards.RemoveAt(0), "group thiếu thành viên");
+            broken(l => l.Groups[0].ParentId = l.Groups[1].Id, "group có cha (COLLAPSE)");
+            broken(l => l.AllCards().First(c => c.Art == null).Text = null, "card không có text lẫn art");
+            broken(l => { foreach (var c in l.AllCards()) c.Text = c.Text ?? c.Id; },
+                   "level không còn thẻ chỉ-ảnh");
+            broken(l =>
+            {
+                var withArt = l.AllCards().Where(c => c.Art != null).ToList();
+                withArt[1].Art = withArt[0].Art;
+            }, "hai thẻ dùng chung một ảnh");
+            // Mọi thẻ đều có art → không còn thẻ chỉ-chữ. Phải cấp key GIẢ và DUY NHẤT cho
+            // từng thẻ, nếu không luật "trùng ảnh" sẽ bắn trước và test này kiểm nhầm thứ.
+            brokenAs(l =>
+            {
+                int i = 0;
+                foreach (var c in l.AllCards()) if (c.Art == null) c.Art = "fake-" + (i++);
+            }, "level không còn thẻ chỉ-chữ", _ => true);
             broken(l => l.Stacks[1].Pos = l.Stacks[0].Pos, "hai stack trùng pos");
             broken(l => l.Stacks[0].Boxes[0].Slots = new string[3], "box không đủ 4 slot");
-            broken(l => l.Cards[0].Art = "khong-ton-tai", "art trỏ file không có");
+            broken(l => l.Groups[0].Cards[0].Art = "khong-ton-tai", "art trỏ file không có");
             broken(l => l.Stacks.First(s => s.Boxes.Count > 1).Boxes
                          .Insert(0, new BoxDef { Slots = new string[Rules.BoxCapacity] }),
                    "box rỗng không phải box đáy");

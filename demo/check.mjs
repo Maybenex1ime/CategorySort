@@ -109,16 +109,28 @@ const broken = (mutate, label) => {
   try { validate(lv); } catch { threw = true; }
   ok(threw, `validate phải ném lỗi: ${label}`);
 };
+const allCards = l => l.meaning.groups.flatMap(g => g.cards);
+
 broken(l => l.layout.stacks[0].boxes[0].slots[3] = 'apple', 'card trùng trên bàn');
 broken(l => l.layout.stacks[0].boxes[0].slots[0] = null, 'card thiếu trên bàn');
 broken(l => l.layout.stacks[0].boxes[0].slots[0] = 'fruit', 'đặt group lên bàn');
-broken(l => l.meaning.cards.pop(), 'group thiếu thành viên');
+broken(l => l.meaning.groups[0].cards.pop(), 'group thiếu thành viên');
 broken(l => l.meaning.groups[0].group = 'animal', 'group có cha (COLLAPSE)');
-broken(l => delete l.meaning.cards[2].text, 'card không có text lẫn art');
-broken(l => l.meaning.cards.forEach(c => c.text = c.text || c.id), 'level không còn thẻ chỉ-ảnh');
+broken(l => delete l.meaning.groups[0].cards[2].text, 'card không có text lẫn art');
+broken(l => allCards(l).forEach(c => c.text = c.text || c.id), 'level không còn thẻ chỉ-ảnh');
+broken(l => {
+  const withArt = allCards(l).filter(c => c.art);
+  withArt[1].art = withArt[0].art;
+}, 'hai thẻ dùng chung một ảnh');
+// Mọi thẻ đều có art → không còn thẻ chỉ-chữ. Phải cấp key GIẢ và DUY NHẤT cho từng thẻ
+// (và khai vào bảng ART), nếu không luật "trùng ảnh" sẽ bắn trước và test này kiểm nhầm thứ.
+broken(l => {
+  let i = 0;
+  for (const c of allCards(l)) if (!c.art) { c.art = `fake-${i++}`; engine.ART[c.art] = '?'; }
+}, 'level không còn thẻ chỉ-chữ');
 broken(l => l.layout.stacks[1].pos = [0, 0], 'hai stack trùng pos');
 broken(l => l.layout.stacks[0].boxes[0].slots.pop(), 'box không đủ 4 slot');
-broken(l => l.meaning.cards[0].art = 'khong-ton-tai', 'art trỏ file không có');
+broken(l => allCards(l)[0].art = 'khong-ton-tai', 'art trỏ file không có');
 LEVELS.forEach((l, i) => { try { validate(l); } catch (e) { failed++; console.error('FAIL — level', i, e.message); } });
 
 // ── 2. Luật nước đi ─────────────────────────────────────────────────────────
