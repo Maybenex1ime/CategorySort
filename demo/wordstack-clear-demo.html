@@ -44,7 +44,9 @@
   .stack{position:absolute; width:var(--box); height:var(--box);
     left:calc(var(--pitch) * var(--x)); top:calc(var(--vpitch) * var(--y));}
 
-  .peek{position:absolute; inset:0; top:calc(6px * var(--d)); border-radius:16px;
+  /* Lớp báo độ sâu: phải TỤT XUỐNG để hở mép dưới, không phải co lại.
+     Dùng transform chứ không phải top — `inset:0` đã ghim bottom, đặt top chỉ làm nó thấp đi. */
+  .peek{position:absolute; inset:0; transform:translateY(calc(7px * var(--d))); border-radius:16px;
     background:#544593; border:8px solid #8d8d8d; opacity:.9;}
 
   .box{position:absolute; inset:0; background:var(--boxbg);
@@ -121,17 +123,20 @@
   "id": "lv-001",
   "title": "Warm-up",
 
+  "note": "Nuoc 1-2: keo grape + orange sang hop trai tren -> du 4 Fruit -> CLEAR -> hop bien mat, lo hop duoi. Day dung vong lap loi ngay tu nuoc dau.",
+
   "layout": {
     "stacks": [
       { "pos": [0,0], "boxes": [
-          { "slots": ["apple","dog","car",null] },
-          { "slots": ["banana","cat","bus","grape"] }
+          { "slots": ["apple","banana",null,null] },
+          { "slots": ["rabbit","bear","airplane","bicycle"] }
       ]},
       { "pos": [1,0], "boxes": [
-          { "slots": ["rabbit","airplane",null,null] },
-          { "slots": ["bear","bicycle","orange",null] }
+          { "slots": ["grape","orange","dog","cat"] }
       ]},
-      { "pos": [0,1], "boxes": [ { "slots": [null,null,null,null] } ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["car","bus",null,null] }
+      ]},
       { "pos": [1,1], "boxes": [ { "slots": [null,null,null,null] } ]}
     ]
   },
@@ -164,22 +169,23 @@
   "id": "lv-002",
   "title": "Four groups",
 
+  "note": "Hai hop an, moi hop mo bang mot CLEAR rieng: Fruit mo hop trai, Animal mo hop phai. Vehicle + Music nam trong hai hop an do, gom not o hai hop trong cuoi.",
+
   "layout": {
     "stacks": [
       { "pos": [0,0], "boxes": [
-          { "slots": ["apple","dog","guitar",null] },
-          { "slots": ["banana","cat","car","piano"] }
+          { "slots": ["apple","banana",null,null] },
+          { "slots": ["car","bus","guitar","piano"] }
       ]},
       { "pos": [1,0], "boxes": [
-          { "slots": ["rabbit","airplane","drum",null] },
-          { "slots": ["bear","bicycle","orange","bus"] }
+          { "slots": ["dog","cat",null,null] },
+          { "slots": ["airplane","bicycle","drum","violin"] }
       ]},
-      { "pos": [2,0], "boxes": [
-          { "slots": ["violin","grape",null,null] }
+      { "pos": [0,1], "boxes": [
+          { "slots": ["grape","orange","rabbit","bear"] }
       ]},
-      { "pos": [0,1], "boxes": [ { "slots": [null,null,null,null] } ]},
       { "pos": [1,1], "boxes": [ { "slots": [null,null,null,null] } ]},
-      { "pos": [2,1], "boxes": [ { "slots": [null,null,null,null] } ]}
+      { "pos": [0,2], "boxes": [ { "slots": [null,null,null,null] } ]}
     ]
   },
 

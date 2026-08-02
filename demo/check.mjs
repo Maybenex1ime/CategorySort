@@ -21,7 +21,9 @@ let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error('FAIL —', msg); } };
 
 // Mirror của settle(), bỏ phần animation.
-function resolve(st) {
+// drain=true  → hộp rỗng biến mất bất kể rỗng vì đâu (REMOVE_EMPTY_NONBOTTOM_BOX)
+// drain=false → đọc chặt §7: chỉ CLEAR mới xoá hộp
+function resolve(st, drain = engine.REMOVE_EMPTY_NONBOTTOM_BOX) {
   for (;;) {
     const hit = findCompletedGroup(st);
     if (hit) {
@@ -32,15 +34,17 @@ function resolve(st) {
       if (isEmpty(box) && !box.isBottom) st.stacks[hit.s].boxes.shift();
       continue;
     }
-    const s = findRemovableBox(st);
-    if (s >= 0) { st.stacks[s].boxes.shift(); continue; }
+    if (drain) {
+      const s = findRemovableBox(st);
+      if (s >= 0) { st.stacks[s].boxes.shift(); continue; }
+    }
     break;
   }
   st.status = checkStatus(st);
   return st;
 }
 
-const load = i => resolve(build(validate(LEVELS[i])));
+const load = (i, drain) => resolve(build(validate(LEVELS[i])), drain);
 
 // Vị trí slot không đổi luật → sort nội dung top box. Stack cũng hoán vị được → sort.
 const encode = st => st.stacks.map(k => k.boxes.map((b, i) =>
@@ -61,8 +65,8 @@ function score(st) {
 
 // Beam search: bộ nhớ có trần, đủ để chứng minh level giải được.
 // Không tìm ra ≠ chắc chắn vô nghiệm — nới BEAM nếu nghi ngờ.
-function solve(levelIdx, beam = 600, maxDepth = 250) {
-  let layer = [load(levelIdx)], nodes = 0, bestCleared = -1, stale = 0;
+function solve(levelIdx, drain, beam = 600, maxDepth = 250) {
+  let layer = [load(levelIdx, drain)], nodes = 0, bestCleared = -1, stale = 0;
   for (let d = 0; d < maxDepth; d++) {
     const next = [], seen = new Set();
     for (const cur of layer) {
@@ -75,7 +79,7 @@ function solve(levelIdx, beam = 600, maxDepth = 250) {
             if (to === from || freeCount(topBox(cur.stacks[to])) === 0) continue;
             const n = structuredClone(cur);
             if (!moveTile(n, from, t.uid, to)) continue;
-            resolve(n);
+            resolve(n, drain);
             nodes++;
             if (n.status === 'won') return { ok: true, depth: d + 1, nodes };
             if (n.status === 'stuck') continue;
@@ -122,16 +126,21 @@ LEVELS.forEach((l, i) => { try { validate(l); } catch (e) { failed++; console.er
   const st = load(0);
   const src = topBox(st.stacks[0]), uid = src.slots.find(Boolean).uid;
   ok(!moveTile(st, 0, uid, 0), 'thả về chính stack cũ phải bị từ chối');
-  ok(moveTile(st, 0, uid, 2), 'thả sang stack khác còn chỗ phải được');
-  ok(topBox(st.stacks[2]).slots[0] && !topBox(st.stacks[2]).slots[1],
-     'thẻ phải vào slot trống ĐẦU TIÊN');
+  // Chọn đích đã có thẻ sẵn + còn chỗ, để chứng minh thẻ vào slot trống ĐẦU TIÊN
+  // chứ không phải slot 0.
+  const di = st.stacks.findIndex((k, i) =>
+    i !== 0 && topBox(k).slots.some(Boolean) && freeCount(topBox(k)) > 0);
+  ok(di > 0, 'level phải có ít nhất 1 stack đích vừa có thẻ vừa còn chỗ');
+  const dst = topBox(st.stacks[di]), j = dst.slots.indexOf(null);
+  ok(moveTile(st, 0, uid, di), 'thả sang stack khác còn chỗ phải được');
+  ok(dst.slots[j] && dst.slots[j].uid === uid, `thẻ phải vào slot trống ĐẦU TIÊN (slot ${j})`);
   const buried = st.stacks[0].boxes[1].slots.find(Boolean).uid;
   ok(!moveTile(st, 0, buried, 3), 'không kéo được thẻ trong box bị che');
 
   const full = load(0);
-  const dst = topBox(full.stacks[1]);
-  dst.slots[2] = { uid: 'x1', cardId: 'z', groupId: 'zz' };
-  dst.slots[3] = { uid: 'x2', cardId: 'z', groupId: 'zz' };
+  const jammed = topBox(full.stacks[1]);
+  jammed.slots[2] = { uid: 'x1', cardId: 'z', groupId: 'zz' };
+  jammed.slots[3] = { uid: 'x2', cardId: 'z', groupId: 'zz' };
   const before = encode(full);
   ok(!moveTile(full, 0, topBox(full.stacks[0]).slots.find(Boolean).uid, 1),
      'thả vào box đầy phải bị từ chối');
@@ -184,12 +193,18 @@ LEVELS.forEach((l, i) => { try { validate(l); } catch (e) { failed++; console.er
   ok(checkStatus(jam) === 'stuck', 'mọi top box đầy, không nhóm nào đủ → stuck');
 }
 
-// ── 6. Mọi level giải được ──────────────────────────────────────────────────
+// ── 6. Mọi level giải được, ở CẢ HAI cách đọc luật xoá hộp ──────────────────
+// Bắt buộc phải giải được ở chế độ CHẶT: mọi hộp ẩn chỉ mở bằng một CLEAR dùng
+// thẻ đang với tới được. Level chỉ giải được ở chế độ rộng nghĩa là nó bắt người
+// chơi tự mò ra luật "kéo rỗng hộp thì hộp biến mất" — không dạy đúng vòng lặp lõi.
 LEVELS.forEach((lv, i) => {
-  const t = Date.now();
-  const r = solve(i);
-  ok(r.ok, `level ${lv.id} phải giải được (${r.why || ''})`);
-  if (r.ok) console.log(`  ${lv.id} — giải được trong ${r.depth} nước (${r.nodes} nút, ${Date.now() - t}ms)`);
+  for (const drain of [false, true]) {
+    const t = Date.now();
+    const r = solve(i, drain);
+    const mode = drain ? 'rộng ' : 'chặt ';
+    ok(r.ok, `level ${lv.id} phải giải được ở chế độ ${mode.trim()} (${r.why || ''})`);
+    if (r.ok) console.log(`  ${lv.id} ${mode}— ${r.depth} nước (${r.nodes} nút, ${Date.now() - t}ms)`);
+  }
 });
 
 console.log(failed ? `\n${failed} CHECK HỎNG` : '\nOK — mọi check pass');
