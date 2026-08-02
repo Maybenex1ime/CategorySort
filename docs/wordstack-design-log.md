@@ -153,69 +153,67 @@ Xem Mục 5.
 
 ## 3. Schema level — bản chốt
 
+> Cập nhật 2026-08-02 (bước [14]): bảng `meaning.cards` phẳng đã **gộp vào**
+> `meaning.groups[].cards`. Mục này là bản hiện hành.
+
 ```jsonc
 {
-  "id": "lv-002",
-  "title": "City",
+  "id": "lv-001",
+  "title": "Warm-up",
+  "note": "Free text cho người viết level. Engine bỏ qua.",
 
   // LAYOUT — thẻ nào nằm ở đâu. Không nói gì về ý nghĩa.
   "layout": {
     "stacks": [
-      { "pos": [0.5, 0], "boxes": [
-          { "slots": ["doctor",  "airplane",   "backpack",  null] },
-          { "slots": ["nurse",   "ticket",     "theater",   "student"] }
+      { "pos": [0,0], "boxes": [
+          { "slots": ["apple","banana",null,null] },
+          { "slots": ["rabbit","bear","airplane","bicycle"] }
       ]},
-      { "pos": [0, 1], "boxes": [
-          { "slots": ["patient", "teacher",    null,        null] },
-          { "slots": ["pilot",   "blackboard", "passenger", "ambulance"] }
+      { "pos": [1,0], "boxes": [
+          { "slots": ["grape","orange","dog","cat"] }
       ]},
-      { "pos": [1, 1], "boxes": [
-          { "slots": [null, null, null, null] }
-      ]}
+      { "pos": [0,1], "boxes": [ { "slots": [null,null,null,null] } ]}
     ]
   },
 
   // MEANING — thẻ thuộc nhóm nào, và hiện ra bằng gì. Không nói gì về vị trí.
   "meaning": {
     "groups": [
-      { "id": "hospital",  "group": "buildings", "text": "Hospital" },
-      { "id": "school",    "group": "buildings", "text": "School" },
-      { "id": "airport",   "group": "buildings", "text": "Airport" },
-      { "id": "buildings",                       "text": "Buildings" }
-    ],
-    "cards": [
-      { "id": "doctor",    "group": "hospital",  "text": "Doctor", "art": "doctor" },
-      { "id": "nurse",     "group": "hospital",  "text": "Nurse" },
-      { "id": "ambulance", "group": "hospital",                    "art": "ambulance" },
-      { "id": "patient",   "group": "hospital",  "text": "Patient","art": "patient" },
-      // ...
-      { "id": "theater",   "group": "buildings", "text": "Theater","art": "theater" }
+      { "id":"fruit", "text":"Fruit", "cards": [
+          { "id":"apple",  "text":"Apple",  "art":"apple"  },
+          { "id":"banana",                  "art":"banana" },   // chỉ ảnh
+          { "id":"grape",  "text":"Grape"                  },   // chỉ chữ
+          { "id":"orange", "text":"Orange", "art":"orange" }
+      ]}
+      // ... mỗi nhóm đúng 4 thẻ
     ]
   }
 }
 ```
 
+Quan hệ nhóm-cha (COLLAPSE, ngoài phạm vi hiện tại) là field `"group"` trên **chính entry
+nhóm** — không nhét nhóm con vào mảng `cards`, để mảng đó luôn thuần một kiểu.
+
 ### Ánh xạ sang luật GDD
 
 | Luật GDD | Trong schema này |
 |---|---|
-| `groupId` suy từ label (§6.2 quy ước 2) | Cấu trúc: field `group` trên entry. Không tra chuỗi |
+| `groupId` suy từ label (§6.2 quy ước 2) | Cấu trúc: card nằm lồng trong group của nó |
 | CLEAR vs COLLAPSE (`G.name ∈ G'.words`) | COLLAPSE ⟺ group có field `group` |
-| Tên nhóm không đặt sẵn trên bàn (quy ước 3) | `slots` chỉ được chứa id thuộc `cards` |
+| Tên nhóm không đặt sẵn trên bàn (quy ước 3) | `slots` chỉ được chứa card id |
 | Topic tile nhãn `G.name` (R4) | Topic tile lấy `text`/`art` của chính group |
-| Mỗi group đúng 4 từ (§3) | Đếm entry có `group == X` bằng 4 |
+| Mỗi group đúng 4 từ (§3) | `cards` đúng 4 phần tử |
 
 ### Validate
 
 | Luật | Vi phạm ví dụ |
 |---|---|
-| mỗi entry có ≥1 trong `text`/`art` | `{"id":"nurse","group":"hospital"}` trơn |
-| `id` không trùng trên toàn `cards` ∪ `groups` | có card `theater` và group `theater` |
-| mọi `group` giải được về 1 id trong `meaning.groups` | `"group": "hosptial"` |
-| mỗi nhóm đúng 4 thành viên | `hospital` chỉ 3 thẻ |
-| `slots` chỉ chứa id thuộc `cards`, hoặc `null` | đặt sẵn `hospital` lên bàn |
+| mỗi entry có ≥1 trong `text`/`art` | `{"id":"grape"}` trơn |
+| `id` không trùng trên toàn bộ card ∪ group | có card `fruit` và group `fruit` |
+| mỗi nhóm đúng 4 thẻ | `fruit` chỉ 3 thẻ |
+| **mỗi art key thuộc đúng một thẻ hoặc nhóm** | hai thẻ cùng `"art":"apple"` → kéo nhầm asset |
+| `slots` chỉ chứa card id, hoặc `null` | đặt sẵn `fruit` (một group) lên bàn |
 | mỗi card xuất hiện đúng 1 lần trong `layout` | thiếu, hoặc trùng |
-| không cycle theo chuỗi `group` | `a.group=b`, `b.group=a` → cascade vô hạn |
 | mỗi box đúng 4 `slots` | box khai 3 ô |
 | box rỗng phải là box đáy | box rỗng ở giữa → box dưới không bao giờ với tới |
 | mọi stack có `pos`, không hai stack trùng `pos` | hai hộp chồng lên nhau |
@@ -224,13 +222,17 @@ Xem Mục 5.
 
 > **Nhiều nhóm gốc là hợp lệ** — xem Mục 6(a).
 
+Hai luật **biến mất** khi gộp cards vào groups, vì cấu trúc đã loại trừ: *card trỏ group không
+tồn tại* và *một card thuộc hai group*. Luật **cycle theo chuỗi `group`** tạm chưa cần vì
+`ParentId` đang bị chặn hẳn — thêm lại khi COLLAPSE vào.
+
 ### Ánh xạ sang domain
 
 ```
-meaning.cards[].group     →  Tile.GroupId
-meaning.cards[].text/art  →  Tile.Text / Tile.Art     (≥1 non-null, bất biến)
-meaning.groups[].group    →  Group.ParentId           (null = nhóm gốc = CLEAR)
-meaning.groups[].text/art →  Group.Text / Group.Art   (dùng cho topic tile)
+groups[] chứa card nào       →  Tile.GroupId
+groups[].cards[].text/art    →  Tile.Text / Tile.Art     (≥1 non-null, bất biến)
+meaning.groups[].group       →  Group.ParentId           (null = nhóm gốc = CLEAR)
+meaning.groups[].text/art    →  Group.Text / Group.Art   (dùng cho topic tile)
 layout...slots[]          →  Stack/Box/Tile.Uid       (Uid cấp lúc load, cho animation)
 layout.stacks[].pos       →  Stack.Pos                (dữ liệu câm, domain không đọc)
 ```
@@ -342,19 +344,105 @@ Giả định mặc định đề nghị, để không chặn tiến độ:
 
 ---
 
-## 8. Trạng thái & việc tiếp theo
+## 8. Timeline, phần 2 — port sang Unity
 
-**Đã xong:** demo HTML + check (commit `827ba9f`).
+### [10] Kế hoạch port (Fable) + P-doc/P1a/P1b — commit `9328f1e`
 
-**Chưa chạy:** toàn bộ plan cho Unity — `Assets/` và các doc chưa bị đụng gì.
+Fable soạn plan; Opus thực thi. Giữ đúng 3 file `.cs`, không thêm file code, không thêm package.
 
-1. **P-doc** — copy GDD vào `design/gdd/`; viết lại `design/gdd/game-concept.md` (Rev 4) gồm mục
-   "Sai lệch so với GDD §6.2"; viết lại `docs/development-plan.md`; cập nhật
-   `production/session-state/active.md`.
-2. **P0** — model + mini JSON reader + validate + `Resources/Levels/*.json` + render tĩnh.
-3. **P1 → P5** theo bảng phase ở Mục 2[1].
+Ràng buộc cứng: `PrototypeDomain.cs` **không import UnityEngine**, để `SelfCheck` chạy được
+ngoài Editor. Hai hệ quả thiết kế trực tiếp từ đó:
 
-**Cần người dùng chuẩn bị:** art PNG. Chưa có thì level chạy toàn chữ được, nhưng assert
-"≥1 thẻ ảnh-trần" sẽ đỏ — chọn bật assert từ P0 hay hoãn sang P4.
+- `BoxColorIndices` trả **index** palette, không trả `Color` — màu hex sống ở view.
+- `Validate` nhận `Predicate<string> hasArt` do host cấp, thay vì tự gọi `Resources.Load`.
+  Unity truyền `Resources.Load`, console truyền `File.Exists`.
 
-**Cần chốt:** Undo có quay lại bản Unity không (kéo theo quyết định Q2).
+Parser: **mini JSON reader thuần C# ~150 dòng**. Không `JsonUtility` (nằm trong UnityEngine →
+phá ràng buộc trên, lại không đọc được `null` trong mảng), không Newtonsoft (không có trong
+`manifest.json` — đã kiểm).
+
+`selfcheck.sh`: build bằng Roslyn đi kèm Unity Hub, không cần .NET SDK, ~3 giây. Né hai bẫy môi
+trường đã gặp: đường dẫn Unity có dấu cách nên `-r` **phải** đi qua response file; và build vào
+`%TEMP%` của user bị Application Control policy chặn thực thi → build vào `Temp/` của repo.
+
+**Bằng chứng port đúng:** số nước giải *và* số nút beam search trùng khít bản JS
+(6/6/9/9 nước, 31322/32318/96530/104202 nút). Cùng đường duyệt trên cùng cây trạng thái, không
+chỉ cùng kết quả. C# nhanh hơn ~13×.
+
+### [11] MCP Unity + worktree — không commit
+
+`/mcp` không thấy tool. Truy ra: `unity-mcp` khai ở user scope, relay đang chạy, nhưng bridge
+đăng ký cho **repo chính** (`D:\CategorySort`, đang ở `main` = prototype Category Sort cũ), không
+phải worktree. Mở Unity thứ hai trỏ vào worktree; bridge vẫn không lên vì package
+`com.unity.ai.assistant` (thứ cung cấp bridge) chỉ nằm trong working tree của repo chính và
+**chưa commit**. Thêm dòng đó vào `Packages/manifest.json` của worktree → bridge lên.
+
+Giữ `manifest.json` **uncommitted** cho giống repo chính. Đây là tooling, không phải dependency
+của game.
+
+### [12] View + Level Editor — commit `89769b3`
+
+`PrototypeView.cs` viết lại theo luật WordStack. Bốn quyết định riêng của Unity:
+
+- Cascade dùng **coroutine**, không state machine trong `Update()` — bản dịch 1-1 của
+  `async settle()` + `sleep`. Domain expose `SettleStep(drain)` trả một event mỗi lần gọi.
+- Giữ **Rebuild kiểu destroy-hết-dựng-lại** (demo cũng xoá sạch DOM). Animation chạy trên
+  GameObject của lần Rebuild trước; `SettleStep` trả `DoomedUids` để tra.
+- Zone kéo-thả: `Tile` (nguồn, từng thẻ trong top box) và `Stack` (đích, nguyên top box).
+- `pos` → world: **đảo dấu y** (data y xuống, Unity y lên); camera fit từ bbox các `pos`,
+  bỏ hằng `GridCols`/`GridRows`.
+
+Level Editor (`WordStack ▸ Level Editor`): proxy `ScriptableObject` tạm + `SerializedObject` +
+`PropertyField` → kéo-thả object field, foldout, list +/- là đồ Unity cho sẵn, không viết GUI riêng.
+
+Một lỗi **mất dữ liệu âm thầm** suýt lọt: mở level lúc thiếu PNG → mọi `Sprite` null → Save là
+xoá sạch key art khỏi file. Vá bằng `artKey` giữ chuỗi gốc song song. Kiểm trong Editor thật:
+lv-001 giữ 9/9 key, lv-002 giữ 12/12 dù chưa có PNG nào.
+
+### [13] `Art Key` read-only + level nhỏ nhất — commit `3c4f8d8`
+
+Khoá `artKey` bằng `ReadOnlyAttribute` + drawer. Khoá xong lộ ngay lỗi thứ hai: `artKey` cũ chỉ
+set lúc mở file, nên kéo Sprite mới vào thì ô read-only hiện giá trị cũ — mà ô read-only nói sai
+còn tệ hơn ô sửa được. Thêm `SyncArtKeys()` chạy mỗi lần vẽ.
+
+`lv-003 "Smallest"`: 1 nhóm, 4 thẻ, 3 stack, thắng trong 2 nước. Dựng qua **đúng đường Save của
+tool** nên cũng là bằng chứng đường `Sprite → key` chạy đầu-cuối.
+
+### [14] Gộp Cards vào Groups + luật không trùng sprite — commit `a9d8137`
+
+Người dùng chỉ ra: một card thuộc đúng một group, một group đúng 4 card, không có card/sprite
+dùng chung. Vậy `meaning.cards` phẳng nên gộp vào `meaning.groups[].cards`.
+
+Đúng — và điểm được nhất là **hai luật rời khỏi validate** vì cấu trúc đã loại trừ chúng. `ParentId`
+vẫn giữ là field riêng trên group; nhét nhóm con vào mảng `cards` sẽ làm mảng đó thành hỗn hợp
+hai kiểu, đúng cái đã bỏ ở bước [6].
+
+Thêm luật **mỗi art key thuộc đúng một thẻ hoặc nhóm**. Nó kéo theo một chỗ không nhìn kỹ thì
+không thấy: test cũ *"level không còn thẻ chỉ-chữ"* tạo điều kiện bằng cách gán chung một ảnh cho
+mọi thẻ — giờ luật trùng-sprite bắn trước, test vẫn xanh nhưng **đang kiểm nhầm thứ**. Đổi sang
+cấp key giả duy nhất cho từng thẻ.
+
+Demo **migrate luôn** (không đóng băng) để repo chỉ có một schema. Bằng chứng không đổi hành vi:
+số nút beam search trùng khít bản trước migrate ở cả JS lẫn C#.
+
+---
+
+## 9. Trạng thái & việc tiếp theo
+
+**Đã xong:** demo HTML + check · domain + validate + solver + SelfCheck · `selfcheck.sh` ·
+view (P2–P4) · Level Editor · 3 level · doc pivot (`game-concept.md` Rev 4,
+`development-plan.md`, `active.md`).
+
+**Chặn:** thiếu **9 PNG** cho lv-001/lv-002 (`dog cat bear car airplane bicycle guitar piano
+violin`). Chưa có thì `./selfcheck.sh` dừng ở preflight và chỉ `lv-003` render được — bấm phím
+`3` trong game. Ba PNG của lv-003 là **placeholder** ô màu, ghi đè bằng art thật là xong.
+
+**Chưa ai nhìn thấy chạy:** `PrototypeView.cs` compile sạch và Unity đã nhận, nhưng render, kéo
+thả, nhịp cascade thì phải bấm Play mới biết đúng sai — mà bấm Play cần art.
+
+**Còn treo:**
+
+- `Rules.RemoveEmptyNonBottomBox` đang `true`. Cả 3 level chạy được ở **cả hai** chế độ nên đây
+  là lựa chọn tự do, không bị data ép. Cân nhắc đảo về `false` (đọc chặt §7) nếu Undo quay lại.
+- Nguồn art thật + license.
+- COLLAPSE, Undo, Hint — schema đã chừa đường (`group.group`), validate đang chặn.
