@@ -1,0 +1,53 @@
+{
+  "id": "lv-002",
+  "title": "Four groups",
+  "note": "Hai hop an, moi hop mo bang mot CLEAR rieng: Fruit mo hop trai, Animal mo hop phai. Vehicle + Music nam trong hai hop an do, gom not o hai hop trong cuoi.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["apple","banana",null,null] },
+          { "slots": ["car","bus","guitar","piano"] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["dog","cat",null,null] },
+          { "slots": ["airplane","bicycle","drum","violin"] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["grape","orange","rabbit","bear"] }
+      ]},
+      { "pos": [1,1], "boxes": [ { "slots": [null,null,null,null] } ]},
+      { "pos": [0,2], "boxes": [ { "slots": [null,null,null,null] } ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"fruit",   "text":"Fruit"   },
+      { "id":"animal",  "text":"Animal"  },
+      { "id":"vehicle", "text":"Vehicle" },
+      { "id":"music",   "text":"Music"   }
+    ],
+    "cards": [
+      { "id":"apple",    "group":"fruit",   "text":"Apple",    "art":"apple"    },
+      { "id":"banana",   "group":"fruit",                      "art":"banana"   },
+      { "id":"grape",    "group":"fruit",   "text":"Grape"                      },
+      { "id":"orange",   "group":"fruit",   "text":"Orange",   "art":"orange"   },
+
+      { "id":"dog",      "group":"animal",  "text":"Dog",      "art":"dog"      },
+      { "id":"cat",      "group":"animal",                     "art":"cat"      },
+      { "id":"rabbit",   "group":"animal",  "text":"Rabbit"                     },
+      { "id":"bear",     "group":"animal",  "text":"Bear",     "art":"bear"     },
+
+      { "id":"car",      "group":"vehicle",                    "art":"car"      },
+      { "id":"bus",      "group":"vehicle", "text":"Bus"                        },
+      { "id":"airplane", "group":"vehicle", "text":"Airplane", "art":"airplane" },
+      { "id":"bicycle",  "group":"vehicle",                    "art":"bicycle"  },
+
+      { "id":"guitar",   "group":"music",                      "art":"guitar"   },
+      { "id":"piano",    "group":"music",   "text":"Piano",    "art":"piano"    },
+      { "id":"drum",     "group":"music",   "text":"Drum"                       },
+      { "id":"violin",   "group":"music",   "text":"Violin",   "art":"violin"   }
+    ]
+  }
+}

@@ -1,124 +1,126 @@
-# Game Concept — Category Sort (clone)
+# Game Concept — WordStack
 
-> Nguồn tham chiếu: *Category Sort* (Lion Studios Plus, Google Play).
-> Đây là project clone phục vụ học + xây dựng game hoàn chỉnh theo pipeline CCGS.
-> Status: **Draft** — chốt sau khi prototype xác nhận core loop.
-> Rev 2 (2026-07-24): sửa lại toàn bộ luật cốt lõi theo phân tích screenshot game gốc
-> (mô hình collector/quota + chồng thẻ, thay cho mô hình kệ-3 sai ở Rev 1).
-> Rev 3 (2026-07-24): gộp còn 2 loại nước đi (gom / đảo sang slot trống — tray chỉ là
-> slot trống sẵn); collector nằm CỘT GIỮA cố định, deck collector góc phải trên lấp ô trống;
-> chốt mọi thao tác tốn 1 move.
+> Nguồn luật gốc: `GDD_WordStack.md` (bản 0.1, 2026-07-29).
+> Status: **Draft** — core loop đã xác nhận bằng demo HTML chơi thử được (`demo/`), đang port sang Unity.
+> Rev 4 (2026-08-02): **pivot khỏi Category Sort**. Toàn bộ luật cũ (chồng thẻ + cột collector +
+> quota + move budget) bị thay bằng luật WordStack (hộp 4 slot xếp chồng + gom nhóm 4 thẻ).
+> Rev 1-3 mô tả game khác, xem lịch sử git nếu cần.
 
 ## Core Identity
 
 | Trường | Giá trị |
 |--------|---------|
-| Working title | Category Sort |
-| Elevator pitch | Solitaire dọn thẻ: đào các chồng thẻ, gom đủ chỉ tiêu từng nhóm — match bằng **ý nghĩa**, không phải bằng hình. |
+| Working title | WordStack |
+| Elevator pitch | Kéo thẻ giữa những chiếc hộp xếp chồng, gom đủ 4 thẻ cùng chủ đề vào một hộp để chúng biến mất — hộp trống lùi ra, hộp bên dưới lộ ra. |
 | Core verb | **Sort** (kéo-thả phân loại) |
-| Core fantasy | "Tôi nhìn ra trật tự trong đống hỗn loạn" — thỏa mãn của việc dọn dẹp hoàn hảo |
-| Unique hook | Như triple-match, **AND ALSO** item cùng nhóm trông *khác nhau* — nhận diện bằng ngữ nghĩa (3 con rắn khác màu đều là "Snake") |
+| Core fantasy | "Tôi nhìn ra trật tự trong đống hỗn loạn" |
+| Unique hook | Match bằng **ý nghĩa**, và mỗi thẻ có thể là **chữ hoặc hình** — người chơi phải nhận ra chữ "Doctor" và *ảnh* xe cứu thương cùng thuộc một nhóm |
 | Primary MDA aesthetic | Challenge (chính), Submission/thư giãn (phụ) |
-| Estimated scope | Small-Medium (~3-4 tuần MVP, solo + AI) |
 | Platform | Mobile Android (portrait) — dev/test trên Unity Editor & Windows build |
 | Engine | Unity 6000.3.8f1 (pinned — xem `docs/engine-reference/unity/VERSION.md`) |
 
-## Luật chơi cốt lõi (nguồn chân lý cho mọi GDD sau)
+## Luật chơi cốt lõi
 
-*Xác nhận từ screenshot Level 72 của game gốc; mục đánh dấu (?) cần chơi thử để chốt trong bước prototype research.*
+*Nguồn chân lý là hành vi của `demo/wordstack-clear-demo.html` — bản đã chơi thử và duyệt.
+Mỗi luật dưới đây có assert tương ứng trong `demo/check.mjs` và trong `SelfCheck` của prototype Unity.*
 
-- **Bàn chơi**: lưới các **slot**, mỗi slot chứa một **chồng thẻ** (pile) hoặc trống. Chỉ **thẻ trên cùng** của mỗi chồng tương tác được; lấy nó đi thì thẻ bên dưới lộ ra. Thẻ dưới chồng bị **ẩn** (chỉ thấy mép).
-- **Thẻ**: mỗi thẻ thuộc đúng **1 category** (VD: Abacus, Snake, Zero Heroes). Item cùng category có art khác nhau.
-- **Cột collector (cột giữa)**: cột giữa bàn CHỈ chứa các **ô collector** (~3 ô hoạt động (?); game gốc mở thêm ô bằng ads — Tier 3). Mỗi collector gom 1 category với **quota** (VD 8/12): kéo thẻ đúng category vào → đếm +1, thẻ biến mất. Đủ quota → ô được clear.
-- **Deck collector (góc phải trên)**: hàng chờ collector. Bất kỳ khi nào một ô collector trống (do clear, hoặc do mở thêm ô), thẻ collector kế tiếp từ deck **lấp vào ô trống** nếu deck còn thẻ (?: lấp ngay lập tức hay có delay/animation).
-- **Chỉ có 2 loại nước đi**:
-  1. Kéo thẻ trên cùng của chồng → **collector cùng category**: quota +1, thẻ biến mất.
-  2. Kéo thẻ trên cùng của chồng → **slot trống bất kỳ**. Khay 5 slot dưới đáy chỉ là các slot trống sẵn — cùng luật với slot lưới đã cạn thẻ. Thẻ nằm một mình trong slot chính là "thẻ trên cùng của chồng 1 thẻ" nên vẫn gom được như thường (không cần luật riêng cho tray).
-- **Move budget**: mỗi level có số nước đi giới hạn (VD 160). **Mọi thao tác đều tốn 1 move như nhau** (đã chốt) — kể cả **kéo thẻ vào collector sai category**: thẻ bật về chỗ cũ nhưng vẫn trừ 1 move (phạt thao tác sai).
-- **Cân bằng thẻ–quota**: mỗi level, số thẻ của từng category = quota collector category đó → tổng thẻ = tổng quota của mọi collector. Không có thẻ thừa/junk.
-- **Thắng**: deck hết + mọi ô collector được clear (nhờ cân bằng thẻ–quota, thắng đồng nghĩa **dọn sạch bàn**). **Thua**: hết move, hoặc kẹt (hết slot trống + không gom được thẻ nào).
-- **Deterministic layout**: bố cục chồng thẻ + thứ tự deck cố định theo level, không RNG lúc chơi — nhưng thông tin ẩn trong chồng khiến việc **đào là một canh bạc có tính toán**.
-- Độ khó điều khiển bằng: độ sâu chồng, số category đồng thời, quota, move budget, **thứ tự collector trong deck**, số ô collector, decoy (item dễ nhầm nhóm), và (ngoài MVP) blocker.
+**Cấu trúc bàn chơi**
 
-### Blocker & meta của game gốc (NGOÀI MVP — Tier 2/3)
+- **Tile** = 1 thẻ, thuộc đúng 1 **group**. Hiện ra bằng **chữ, hình, hoặc cả hai**.
+- **Slot** = 1 chỗ trong hộp, chứa tối đa 1 thẻ.
+- **Box** (hộp) = `BoxCapacity` slot, mặc định **4**, xếp lưới 2×2.
+- **Stack** = nhiều hộp xếp chồng cùng một vị trí. `boxes[0]` là **hộp trên cùng**. Chỉ hộp trên cùng: hiện đủ nội dung, nhận kéo/thả, được xét hoàn thành nhóm. Hộp dưới chỉ lộ mép viền, **đã có sẵn thẻ nạp từ level data**, đang bị che.
+- Hộp cuối mỗi stack (`IsBottom`) **không bao giờ biến mất**; rỗng thì thành khoảng trống trung chuyển.
 
-Ghi nhận để không thiết kế bít đường: thẻ khóa xích, thẻ băng (mở sau N lượt), slot "Free" mở dần, **mở thêm ô collector bằng ads**, deck dự trữ, booster (hint/undo/magnet), tiền coins. MVP không có các thứ này nhưng kiến trúc Board/Card phải cho phép gắn **trạng thái thẻ** (locked/frozen/normal) và **số ô collector thay đổi** về sau.
+**Nước đi — chỉ một loại**
+
+- Kéo **một thẻ bất kỳ trong hộp trên cùng** sang **hộp trên cùng của stack khác**.
+- Hợp lệ khi hộp đích còn ≥1 slot trống; đầy → từ chối, thẻ bay về chỗ cũ.
+- Thẻ rơi vào **slot trống đầu tiên** (trái→phải, trên→dưới). Người chơi không chọn slot.
+- Thả về chính hộp cũ = huỷ. Không kéo/thả được với hộp bị che.
+- **Không giới hạn số nước đi. Không timer.**
+
+**Hoàn thành nhóm → CLEAR**
+
+- Nhóm G hoàn thành khi **một hộp chứa đủ cả 4 thành viên của G cùng lúc**. Luật đếm *thành viên*, không so với sức chứa hộp — nên đổi hộp sang 16 slot sau này không phải sửa luật.
+- 4 thẻ biến mất. Hộp rỗng ra: **không phải hộp đáy → hộp bị xoá, hộp dưới lộ ra**; là hộp đáy → hộp ở lại, rỗng.
+- Sau **mỗi** nước đi, engine chạy dây chuyền tới khi bàn đứng yên (hộp vừa lộ ra có thể đã chứa sẵn nhóm đủ). Mỗi nhịp cách nhau ~350ms, khoá input trong lúc chạy.
+
+**Màu gợi ý**
+
+- Mặc định thẻ nền xám trắng. **Trong cùng một hộp**, group nào có ≥2 thẻ thì các thẻ đó tô cùng màu; thẻ đứng một mình giữ nền mặc định.
+- Màu cấp phát **cục bộ theo từng hộp**, không cố định theo group toàn cục — cố ý, vì màu toàn cục thì nhìn hai hộp là biết ngay chúng cùng nhóm.
+
+**Thắng / kẹt**
+
+- **Thắng**: không còn thẻ nào trên bàn. Hộp đáy rỗng vẫn nằm đó.
+- **Kẹt**: mọi hộp trên cùng đều đầy và không nhóm nào hoàn thành được. **Không có màn Thua** — chỉ toast + gợi ý Restart.
+
+### Ngoài phạm vi hiện tại (tier sau)
+
+**COLLAPSE** (4 thẻ gộp thành 1 ô chủ đề thuộc nhóm lớn hơn — §R4 của GDD gốc, chính là "gộp nhóm đệ quy"),
+**Undo**, **Hint**, âm thanh, move budget, blocker. Data model đã chừa đường cho COLLAPSE (`group.group` = nhóm cha)
+nhưng validate **chặn** nó ở phạm vi này để không có nhánh code chưa test.
+
+## Sai lệch có ý thức so với GDD gốc §6.2
+
+Schema level trong repo **khác** §6.2 của GDD. Lý do và chi tiết đầy đủ ở `docs/wordstack-design-log.md`; tóm tắt:
+
+| GDD §6.2 | Repo | Vì sao |
+|---|---|---|
+| `groups[].words` là chuỗi chữ; `groupId` suy ra bằng cách **tra label** | Mỗi thẻ có **`id` slug** riêng; `text`/`art` là *cách thể hiện* | Tra theo chữ thì thẻ chỉ-có-ảnh không có gì để tra. Slug cũng độc lập ngôn ngữ — đổi `text` sang tiếng nào cũng không đụng `layout` |
+| `groups` + `stacks` phẳng ở gốc | Hai phần lớn **`layout`** (vị trí) và **`meaning`** (thuộc nhóm nào + thể hiện ra sao) | Tách trục không gian khỏi trục ngữ nghĩa |
+| Quan hệ cha–con = `G.name ∈ G'.words` (so chuỗi) | Field `group` trên chính entry nhóm | So chuỗi thì đổi một chữ hiển thị là đứt cạnh COLLAPSE trong im lặng |
+| Vị trí stack ngầm theo thứ tự mảng | Mỗi stack có **`pos: [x, y]`** số thực | Bố cục là quyết định thiết kế, không phải hệ quả của thứ tự khai báo |
+| `boxCapacity` per-level | Hằng `Rules.BoxCapacity` | Luật đếm thành viên nhóm, không so capacity |
+| — | **Mỗi thẻ bắt buộc có ≥1 trong `text`/`art`**; mỗi level phải có ≥1 thẻ chỉ-ảnh và ≥1 thẻ chỉ-chữ | Giữ "chữ và ảnh ngang vai" thành thuộc tính kiểm được, không chỉ là ý định |
+
+Hai chỗ GDD tự mâu thuẫn hoặc thiếu, đã chốt cách đọc: điều kiện **kẹt** (§7 vs §R7/E8) và điều kiện **xoá hộp**
+khi hộp rỗng do người chơi kéo hết thẻ ra. Xem design log Mục 6-7.
 
 ## Core Loop
 
-**30 giây (moment-to-moment):** Quét các thẻ trên cùng → quyết định: gom vào ô collector cột giữa / gửi sang slot trống để đào / nhịn chờ collector đúng loại lên từ deck → thẻ mới lộ ra → chuỗi quyết định tiếp theo. Cảm giác đã đến từ: gom chuỗi liên tiếp + đào trúng thẻ đang cần.
+**30 giây:** Quét các hộp đang mở → đọc màu gợi ý và nội dung thẻ → quyết định kéo thẻ nào sang hộp nào để gom đủ 4 → CLEAR → hộp dưới lộ ra → chuỗi quyết định mới.
 
-**5 phút (level):** Mỗi level 2-4 phút. Căng thẳng tăng dần khi move budget cạn và slot trống cạn dần. Choices: đầu tư move vào đào chồng nào, giữ slot trống nào làm dự phòng, canh thời điểm clear ô để collector kế tiếp lên từ deck.
+**5 phút (level):** 1–3 phút mỗi level. Căng thẳng đến từ số slot trống cạn dần. Choices: gom nhóm nào trước, giữ hộp nào làm chỗ trung chuyển, có nên dồn thẻ vào hộp sắp CLEAR không.
 
-**Session (10-30 phút):** Chuỗi 3-10 level. Điểm dừng tự nhiên sau mỗi level. Hook quay lại: "level sau nhóm gì, bàn xếp kiểu gì?"
-
-**Progression (ngày/tuần):** Tuyến level tuần tự. Người chơi lớn lên bằng kỹ năng **đọc bàn + quản trị rủi ro đào thẻ + tiết kiệm move**. Game "xong" khi hết level.
-
-## Player Motivation (Self-Determination Theory)
-
-- **Autonomy**: nhiều đường giải — đào chồng nào trước, dùng tray thế nào, gom nhóm nào trước.
-- **Competence**: kỹ năng đọc bàn và quản trị rủi ro thấy rõ qua số move còn thừa khi thắng. Thua vì hết move truy được về các nước lãng phí.
-- **Relatedness**: không có (offline, single player) — chấp nhận, không bù đắp giả tạo.
+**Session:** chuỗi level, điểm dừng tự nhiên sau mỗi level.
 
 ## Pillars
 
-1. **Đọc nhanh, quyết định chậm** — Nhận diện category phải tức thì; chiều sâu nằm ở thứ tự nước đi và quản lý move budget.
-   *Design test*: nếu một feature/art khiến người chơi nheo mắt mới biết category → sửa hoặc cắt. Mơ hồ chỉ được phép khi là decoy **cố ý**.
-2. **Juice là phần thưởng** — Mỗi lượt gom phải "đã" (bay vào collector, đếm số nhảy, hoàn thành quota nổ to).
-   *Design test*: phân vân giữa thêm mechanic mới hay polish cảm giác gom hiện tại → chọn polish.
-3. **Canh bạc đọc được** — Layout cố định, không RNG lúc chơi. Thông tin ẩn trong chồng là rủi ro *có thể ước lượng* (mép thẻ cho biết độ sâu, quota cho biết còn thiếu bao nhiêu). Người chơi luôn biết mình đang đánh cược gì.
-   *Design test*: nếu người chơi thua mà không thể chỉ ra quyết định rủi ro nào của mình dẫn đến đó → level/mechanic đó hỏng. Không bao giờ thêm yếu tố ngẫu nhiên phát sinh lúc chơi.
+1. **Đọc nhanh, quyết định chậm** — nhận diện nhóm phải tức thì; chiều sâu nằm ở thứ tự nước đi.
+   *Design test*: nếu phải nheo mắt mới biết thẻ thuộc nhóm nào → sửa art hoặc sửa chữ.
+2. **Juice là phần thưởng** — mỗi lần CLEAR phải "đã".
+   *Design test*: phân vân giữa thêm mechanic hay polish cảm giác gom → chọn polish.
+3. **Canh bạc đọc được** — layout cố định, không RNG lúc chơi. Thông tin ẩn trong stack là rủi ro *ước lượng được* (mép hộp cho biết còn sâu bao nhiêu).
+   *Design test*: người chơi kẹt mà không chỉ ra được quyết định nào dẫn tới đó → level hỏng.
 
-### Anti-pillars (game này KHÔNG phải)
+### Anti-pillars
 
-- **KHÔNG real-time timer** — áp lực duy nhất là move budget (đếm theo lượt, người chơi suy nghĩ bao lâu tùy thích).
-- **KHÔNG energy/lives/gacha** — chơi lại thoải mái, thua không mất gì ngoài thời gian.
-- **KHÔNG meta trang trí/thu thập** — scope creep kinh điển của thể loại; chỉ cân nhắc sau khi MVP ship.
-- **KHÔNG online/social** — offline hoàn toàn.
-
-## Player Types
-
-- **Primary**: người chơi casual puzzle thiên về flow/completion (Quantic Foundry: Strategy thấp-vừa + Completion cao) — chơi để thư giãn có não.
-- **Secondary**: Achievers thích thắng dư nhiều move, sau này ăn hệ thống sao/perfect (tier 2).
-- **KHÔNG dành cho**: người tìm action/phản xạ, người tìm story, người chơi competitive.
-- **Market validation**: Category Sort gốc 1M+ download; họ hàng Goods Sort/Triple Match đã chứng minh thể loại. Với project clone, validation quan trọng là *scope khả thi solo*.
-
-## Scope & Feasibility
-
-- **Art pipeline**: emoji set nguồn mở (Twemoji CC-BY / OpenMoji CC BY-SA) cho toàn bộ thẻ → gần như **zero chi phí vẽ**. Ghi công theo license. Quyết định cuối ở bước art-bible.
-- **Content scope MVP**: 20 level tay, 8-10 category, mỗi category ≥6 art khác nhau (~60-80 sprite từ emoji set).
-- **MVP definition** (câu hỏi MVP trả lời: *core loop có vui không?*):
-  - Core mechanic đầy đủ: lưới slot chồng thẻ + cột collector giữa + deck collector + khay 5 slot trống + move budget
-  - Thắng/thua/kẹt đúng luật, save tiến độ, UI tối thiểu (menu → level → win/lose → next)
-  - Juice cơ bản: tween kéo/bay vào collector + hiệu ứng hoàn thành quota + SFX
-  - KHÔNG: blocker (khóa/băng/free-slot/deck), booster, coins, ads, IAP, tutorial phức tạp (level 1-2 tự dạy bằng thiết kế)
-- **Scope tiers**:
-  - **Tier 1 — MVP** (3-4 sprint): như trên.
-  - **Tier 2 — Depth**: blocker (khóa xích, băng, free-slot, deck dự trữ), booster (undo/hint/magnet), hệ thống sao, 50+ level.
-  - **Tier 3 — Release**: economy (coins/shop), tutorial polish, ads/IAP, analytics, store assets.
+- **KHÔNG timer, KHÔNG move budget** — người chơi suy nghĩ bao lâu tuỳ thích.
+- **KHÔNG energy/lives/gacha.**
+- **KHÔNG meta trang trí/thu thập.**
+- **KHÔNG online/social.**
 
 ## Risks
 
 | Risk | Loại | Mitigation |
 |------|------|------------|
-| Level tay + thông tin ẩn có thể tạo thế kẹt bất khả kháng hoặc move budget lệch | Design (lớn nhất) | **Level Solver** chạy trên domain thuần: xác minh mọi level giải được, đo số move tối thiểu → đặt budget = tối thiểu × hệ số |
-| Chi tiết mechanic chưa chắc (số ô collector? deck có lộ thứ tự không? lấp ô ngay hay có delay?) | Design | Chơi game gốc 30-60 phút trong bước prototype research, cập nhật các mục (?) của doc này |
-| Match-theo-ngữ-nghĩa gây nhầm lẫn ngoài ý muốn | Design | Category tay chọn, mỗi item thuộc đúng 1 category trong data; decoy là công cụ có chủ đích |
-| Logic kẹt/thua sai → người chơi mất ván oan | Technical | TDD EditMode toàn bộ luật (pillar 3 phụ thuộc trực tiếp) |
-| License emoji set | Legal | Twemoji/OpenMoji cho phép thương mại kèm ghi công; ghi rõ trong credits |
+| Level tay tạo thế kẹt bất khả kháng, hoặc "giải được" nhưng bằng đường không dạy đúng luật | Design (lớn nhất) | **Solver trong SelfCheck** chạy 2 chế độ; bắt buộc giải được ở chế độ **chặt** (mọi hộp ẩn chỉ mở bằng một CLEAR dùng thẻ đang với tới được). Chính lưới này bắt được level-1 bản đầu không chơi được |
+| Ảnh nhận diện nhanh hơn chữ → level trộn dễ hơn hẳn level chữ thuần | Design | Cân lại độ khó sau khi có art thật |
+| Logic kẹt/thắng sai → người chơi mất ván oan | Technical | SelfCheck phủ toàn bộ luật, chạy được ngoài Unity (`./selfcheck.sh`) |
+| Port Unity lệch khỏi demo đã duyệt | Technical | SelfCheck port 1-1 từ `demo/check.mjs`; số nước giải + số nút duyệt của solver phải **trùng khít** hai bên |
+| License art | Legal | Chưa chốt nguồn art; nếu dùng emoji set mở (Twemoji/OpenMoji) thì ghi công theo license |
 
 ## Visual Identity Anchor
 
-- **Direction**: "Thẻ bài nổi trên bàn gỗ ấm" (bám theo game gốc: nền gỗ, thẻ trắng bo góc, item chiếm trọn mặt thẻ)
-- **One-line rule**: *Nếu phải nheo mắt để biết category, art sai.*
-- **Nguyên tắc**:
-  1. Item lớn, bão hòa cao trên mặt thẻ trắng; nền gỗ/pastel trầm — contrast phục vụ nhận diện (test: screenshot thu nhỏ 50% vẫn đọc được category).
-  2. Mọi phản hồi là chuyển động — kéo, bay vào collector, số quota nhảy, chồng dồn lên đều có tween (test: không có state change nào "teleport").
-- **Color philosophy**: nền và mặt bàn trung tính nhường sân khấu cho thẻ; màu rực chỉ dùng cho VFX gom/hoàn thành và CTA. Nhãn collector màu vàng nổi bật (theo game gốc).
+- **Direction**: nền tím đậm, hộp tím nhạt viền xám dày, thẻ trắng bo góc — theo ảnh tham chiếu GDD §9.1.
+- **One-line rule**: *Nếu phải nheo mắt để biết thẻ thuộc nhóm nào, art (hoặc chữ) sai.*
+- **Color philosophy**: nền và hộp trung tính; màu rực chỉ dùng cho **gợi ý nhóm** (palette §7.1) và VFX CLEAR.
 
-## Next Steps (theo pipeline)
+## Next Steps
 
-1. **Prototype research**: chơi game gốc 30-60 phút — chốt các mục (?) (số ô collector, deck có lộ thứ tự không, lấp ô ngay hay delay, move budget điển hình).
-2. **Prototype vứt đi (1-2 ngày)**: 1 scene, luật đầy đủ, 1 level hardcode — xác nhận vui → chốt doc này sang Approved.
-3. `/ccgs-map-systems` — phân rã thành systems index.
-4. `/ccgs-design-system` từng system theo thứ tự dependency.
+1. Port sang Unity theo phase trong `docs/development-plan.md` (đang ở P2 — view).
+2. Art thật thay 12 PNG trong `Assets/Prototype/Resources/Art/`.
+3. Chơi thử trong Editor → chốt doc này sang Approved.
+4. `/ccgs-map-systems` — phân rã systems index.

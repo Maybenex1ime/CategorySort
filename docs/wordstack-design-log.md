@@ -267,8 +267,14 @@ bộ thay cho `Resources/Art/*.png` — schema y hệt, chỉ khác chỗ resolv
 
 Bỏ Undo rồi thì đọc luật chặt (chỉ CLEAR mới xoá hộp) sẽ khiến người chơi tự dọn rỗng một hộp
 là **khoá chết** hộp bên dưới vĩnh viễn, không gỡ được ngoài Restart. Demo cho hộp rỗng biến mất
-bất kể rỗng vì đâu. **Level 1 và 2 được thiết kế dựa trên luật này** — đổi thành `false` thì cả
-hai đều không giải được.
+bất kể rỗng vì đâu.
+
+> **Cập nhật 2026-08-02:** câu trước đây ở đây — *"Level 1 và 2 được thiết kế dựa trên luật này,
+> đổi thành `false` thì cả hai đều không giải được"* — đã **hết đúng**. Đó chính là triệu chứng của
+> lỗi level-1-không-chơi-được (xem Mục 6 bên dưới). Hai level đã thiết kế lại theo nguyên tắc *mọi
+> hộp ẩn phải mở được bằng một CLEAR dùng thẻ đang với tới được*, nên giờ **giải được ở cả hai chế
+> độ**, và `check.mjs` fail nếu chế độ chặt không giải được. Cờ này giờ là lựa chọn tự do, không bị
+> data ép.
 
 ### Kiểm chứng
 

@@ -1,71 +1,93 @@
 # Session State
 
-> Cập nhật cuối: 2026-07-27. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
+> Cập nhật cuối: 2026-08-02. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
 
 ## Đang ở đâu
 
-**Giai đoạn 1b — Prototype vứt đi** (theo `docs/development-plan.md`). Concept ở Rev 3, status vẫn **Draft**.
-Prototype đã dựng xong và tự kiểm chứng bằng code, **nhưng chưa ai bấm Play chơi thử** — đó là việc còn thiếu duy nhất để đóng giai đoạn này.
+**Giai đoạn 1b — Prototype vứt đi**, bước 2 (port sang Unity). Concept ở **Rev 4**, status vẫn **Draft**.
 
-## Luật chơi hiện hành (Rev 3)
+Dự án đã **pivot** khỏi *Category Sort* (collector/quota/move budget) sang **WordStack**.
+Core loop đã xác nhận bằng demo HTML chơi thử được, user duyệt "logic coregame này ổn".
+Mọi mô tả gameplay Rev 3 trở về trước đã hết hiệu lực.
 
-Nguồn chân lý đầy đủ: `design/gdd/game-concept.md` mục "Luật chơi cốt lõi". Tóm tắt để khỏi phải mở file:
+**Xong:** P-doc, P1a, P1b (domain + validate + engine + solver + SelfCheck).
+**Đang tới:** P2 (view tĩnh) → P3 (kéo thả) → P4 (cascade + trạng thái). Bảng phase ở `docs/development-plan.md` Giai đoạn 1b.
 
-- Lưới slot chứa **chồng thẻ**, chỉ thẻ trên cùng tương tác được; thẻ dưới ẩn.
-- **Cột giữa chỉ chứa collector** (3 ô hoạt động). **Deck** góc phải trên lấp collector kế tiếp vào ô vừa clear.
-- **Chỉ 2 loại nước đi**: gom thẻ vào collector cùng category, hoặc đảo thẻ sang **slot trống bất kỳ** (khay 5 slot dưới đáy = slot trống sẵn, cùng luật với slot lưới đã cạn).
-- **Mọi thao tác tốn 1 move**, kể cả **gom sai category** (thẻ bật về chỗ cũ nhưng vẫn trừ move — phạt).
-- **Cân bằng thẻ–quota**: mỗi category số thẻ = quota collector category đó → thắng = dọn sạch bàn, không thẻ thừa.
-- Thắng: deck hết + mọi ô collector clear. Thua: hết move, hoặc kẹt (hết slot trống + không gom được).
+## Luật chơi hiện hành
+
+Nguồn chân lý: `design/gdd/game-concept.md` mục "Luật chơi cốt lõi"; hành vi tham chiếu:
+`demo/wordstack-clear-demo.html`. Tóm tắt để khỏi phải mở file:
+
+- Bàn chơi = các **stack**, mỗi stack là nhiều **hộp 4 slot xếp chồng**. Chỉ **hộp trên cùng** hoạt động; hộp dưới có sẵn thẻ nhưng bị che.
+- **Chỉ 1 loại nước đi**: kéo thẻ trong hộp trên cùng sang hộp trên cùng của stack khác, vào **slot trống đầu tiên**. Hộp đích đầy → từ chối. Không giới hạn nước đi, không timer.
+- Gom đủ **4 thành viên một group vào cùng một hộp** → **CLEAR**. Hộp rỗng mà không phải hộp đáy → bị xoá, hộp dưới lộ ra. Sau mỗi nước đi chạy dây chuyền tới khi bàn đứng yên.
+- **Màu gợi ý** cục bộ theo từng hộp: group ≥2 thẻ mới được tô màu.
+- **Thắng** = sạch bàn. **Kẹt** = mọi hộp trên cùng đầy. Không có màn Thua.
+- **Chưa có**: COLLAPSE, Undo, Hint, âm thanh, move budget.
 
 ## Đã làm, đã kiểm chứng
 
 | File | Nội dung |
 |------|----------|
-| `Assets/Prototype/PrototypeDomain.cs` | Toàn bộ luật bằng C# thuần (không import UnityEngine) + Level 1 hardcode + `SelfCheck` kèm DFS solver |
-| `Assets/Prototype/PrototypeView.cs` | View tự bootstrap khi bấm Play ở **bất kỳ scene nào** (không cần sửa scene), vẽ bằng code, kéo-thả qua Input System |
-| `Assets/Prototype/PrototypeSelfCheckMain.cs` | Entry point chạy SelfCheck ngoài Unity (`#if !UNITY_5_3_OR_NEWER`) |
+| `demo/wordstack-clear-demo.html` | Demo web self-contained, 2 level, chơi được bằng chuột + ngón tay. **Bản tham chiếu hành vi** — port Unity lệch chỗ nào là bug chỗ đó |
+| `demo/check.mjs` | Bộ check của demo; trích engine thẳng từ file HTML nên test đúng code đang chạy. Chạy: `node demo/check.mjs` |
+| `Assets/Prototype/PrototypeDomain.cs` | Toàn bộ luật + model + mini JSON reader + validate + beam solver + `SelfCheck`. **Không import UnityEngine** |
+| `Assets/Prototype/PrototypeSelfCheckMain.cs` | Entry console (`#if !UNITY_5_3_OR_NEWER`), đọc level + art bằng `System.IO` |
+| `Assets/Prototype/Resources/Levels/lv-00{1,2}.json` | 2 level, schema `layout` + `meaning` |
+| `Assets/Prototype/PrototypeView.cs` | **CHƯA port** — vẫn là view của luật cũ. Đây là việc của P2-P4 |
 
-SelfCheck kiểm: luật gom đúng/sai + phạt move, luật đảo slot, deck lấp ô trống, phát hiện kẹt, hết move,
-invariant cân bằng thẻ–quota theo từng category, và **Level 1 giải được trong 23 nước / budget 30 mà bắt buộc phải dùng nước đảo slot**
-(nếu chỉ gom thẳng thì không thắng được — đảm bảo level thật sự test cơ chế đào).
-SelfCheck tự chạy khi vào Play trong Editor (in ra Console); fail thì `Debug.LogError`.
+SelfCheck phủ: 12 loại level hỏng bị validate chặn · luật nước đi (thả về chỗ cũ, slot trống đầu tiên,
+hộp bị che, hộp đầy + state không đổi) · CLEAR + xoá hộp + lộ hộp dưới · CLEAR ở hộp đáy · màu 3 case ·
+thắng/kẹt · solver chứng minh mọi level giải được ở **cả hai** cách đọc luật xoá hộp.
 
-**Game feel** đã cấy theo `D:\Balatro-Feel` (`Assets/Scripts/CardVisual.cs`), tự viết lerp thay DOTween:
-ghost lerp đuổi cursor, xoay Z theo độ trễ chuyển động, tilt lắc sin/cos, scale pop, shadow tách lớp,
-thẻ bay vào collector, snap-back khi thả hụt/gom sai, punch collector khi ăn thẻ, hover phồng nhẹ.
-Các hằng tinh chỉnh nằm gọn trong khối `// Feel` đầu `PrototypeView.cs`.
-
-## Việc tiếp theo (thứ tự)
-
-1. **Chơi thử** — mở Unity, bấm Play, trả lời câu hỏi duy nhất của giai đoạn 1b: *core loop có vui không?*
-2. **Chơi game gốc 30-60 phút** — chốt các mục `(?)` còn lại (xem dưới), cập nhật `Knobs` + concept doc.
-3. Vui → concept sang **Approved** → chạy `/ccgs-map-systems` để phân rã systems index.
+Số liệu solver **trùng khít** giữa C# và `demo/check.mjs` (6/6/9/9 nước, 31322/32318/96530/104202 nút)
+— cùng đường duyệt, cùng kết quả, tức port đúng hành vi. C# nhanh hơn ~13×.
 
 ## Chặn / cần quyết định
 
-*(Không còn blocker kỹ thuật. Chỉ chờ người chơi thử.)*
+**Thiếu 12 file art PNG.** SelfCheck dừng ở preflight và in đủ danh sách. Thả vào
+`Assets/Prototype/Resources/Art/`:
 
-Unity `6000.3.8f1` đã cài trong Hub, project đã mở (có `Library/`) — khớp `ProjectVersion.txt`
-và `docs/engine-reference/unity/VERSION.md`. Mở Unity, bấm Play là chạy.
+```
+apple.png  banana.png  orange.png  dog.png       cat.png    bear.png
+car.png    airplane.png bicycle.png guitar.png   piano.png  violin.png
+```
 
-## Câu hỏi (?) chờ chơi game gốc
+Bốn thẻ `grape · rabbit · bus · drum` là **chỉ-chữ**, không cần art. Luật "mỗi level phải có ≥1 thẻ
+chỉ-ảnh và ≥1 thẻ chỉ-chữ" giữ cho "chữ và ảnh ngang vai" là thuộc tính kiểm được.
 
-- Số ô collector cột giữa (prototype đang 3) — game gốc mở thêm bằng ads, để Tier 3.
-- Deck có lộ thứ tự collector kế tiếp cho người chơi thấy không?
-- Ô collector clear xong thì deck lấp **ngay lập tức** hay có delay/animation?
-- Move budget điển hình theo cỡ level (game gốc ~160 cho level lớn; Level 1 prototype đang 30).
-
-Mọi giả định trên nằm ở khối `Knobs` đầu `PrototypeDomain.cs` — sửa một chỗ, SelfCheck sẽ báo nếu level vỡ.
+Unity `6000.3.8f1` đã cài trong Hub, khớp `ProjectVersion.txt` và `docs/engine-reference/unity/VERSION.md`.
 
 ## Ghi chú kỹ thuật
 
-- **Chạy SelfCheck không cần mở Unity**: dùng Roslyn đi kèm Unity Hub — compile
-  `PrototypeDomain.cs` + `PrototypeSelfCheckMain.cs` bằng
-  `C:\Program Files\Unity\Hub\Editor\6000.3.7f1\Editor\Data\NetCoreRuntime\dotnet.exe`
-  với `...\Editor\Data\DotNetSdkRoslyn\csc.dll`, ref tới `NetCoreRuntime\shared\Microsoft.NETCore.App\6.0.21`.
-  Hữu ích để kiểm luật nhanh khi Unity chưa mở.
-- Emoji trên thẻ render qua `TextMesh` + font hệ thống — có máy hiện ô trống; khi đó vẫn đọc được
-  bằng tên item tiếng Việt + màu viền theo category, không ảnh hưởng việc test luật.
-- Shader của Balatro-Feel (`BG-Shader` nền twirl, `Edition-Foil/Polychrome/Negative`) **chưa dùng**.
-  Prototype hiện không có shader nào. Cân nhắc `BG-Shader` cho Sprint 3 (juice).
+- **Chạy SelfCheck không cần mở Unity** — vòng phản hồi nhanh nhất khi sửa luật hoặc sửa level:
+
+  ```bash
+  ./selfcheck.sh
+  ```
+
+  Script tự đọc version từ `ProjectSettings/ProjectVersion.txt`, dùng Roslyn đi kèm Unity Hub
+  (không cần cài .NET SDK riêng), build vào `Temp/` (đã gitignore). Chạy hết ~3 giây.
+
+  Hai cái bẫy đã gặp, script né sẵn: đường dẫn Unity có dấu cách nên **phải** truyền `-r` qua
+  response file; và build vào `%TEMP%` của user bị Application Control policy chặn thực thi.
+
+- `PrototypeDomain.cs` **không được import UnityEngine** — mất ràng buộc này là mất luôn `./selfcheck.sh`.
+  Đây là lý do `boxColors` trả **index** palette chứ không trả màu, và validate nhận
+  `Predicate<string> hasArt` do host cấp thay vì tự gọi `Resources.Load`.
+
+- **Game feel** đã cấy sẵn trong `PrototypeView.cs` theo `D:\Balatro-Feel` (`CardVisual.cs`), tự viết lerp
+  thay DOTween: ghost lerp đuổi cursor, xoay Z theo độ trễ, tilt sin/cos, scale pop, shadow tách lớp,
+  snap-back khi thả hụt, punch khi nhận thẻ, hover phồng nhẹ. Khối này **độc lập với luật** nên P3 tái
+  dùng gần như nguyên; chỉ phần vẽ bàn (lưới-slot → stack-of-box) phải viết lại.
+
+- File `.meta` cho `Resources/` và các `.json` sẽ do Unity sinh lần mở Editor tiếp theo.
+
+## Câu hỏi mở
+
+Bảng Q1-Q14 (mâu thuẫn / lỗ hổng trong GDD gốc + giả định mặc định) ở `docs/wordstack-design-log.md` Mục 7.
+Hai chỗ còn treo:
+
+- `Rules.RemoveEmptyNonBottomBox` đang `true`. Cả 2 level chạy được ở **cả hai** chế độ nên đây là lựa
+  chọn tự do, không bị data ép. Cân nhắc đảo về `false` (đọc chặt §7) nếu Undo quay lại.
+- Nguồn art thật + license.
