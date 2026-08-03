@@ -51,7 +51,13 @@ namespace WordStack.Prototype
                     "Chỉnh tay trên mấy prefab đó (nếu có) sẽ mất.", "Dựng", "Thôi"))
                 return;
             if (!EditorSceneManager.SaveCurrentModifiedScenesIfUserWantsTo()) return;
+            BuildAll();
+        }
 
+        // Tách khỏi Build() để gọi được mà không vướng hộp thoại — hộp thoại modal sẽ treo
+        // mọi thứ gọi từ ngoài Editor (MCP bridge, batch mode).
+        internal static void BuildAll()
+        {
             Directory.CreateDirectory(PrefabDir);
             Directory.CreateDirectory(SceneDir);
             AssetDatabase.Refresh();
