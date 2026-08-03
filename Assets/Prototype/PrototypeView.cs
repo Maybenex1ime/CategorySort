@@ -93,8 +93,15 @@ namespace WordStack.Prototype
         // dong; list nay chi de don sach khi doi level. Destroy huy luon tween nho SetLink.
         readonly List<GameObject> flies = new List<GameObject>();
 
+        // Bản chờ xoá: giữ để đối chiếu hành vi tới khi bàn dựng-từ-prefab nghiệm thu xong.
+        // Nhường sân ngay khi scene đã có BoardController — nếu không thì Main.unity sẽ có
+        // hai bàn chồng lên nhau.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
-        static void Boot() { new GameObject("WordStackPrototype").AddComponent<PrototypeView>(); }
+        static void Boot()
+        {
+            if (FindAnyObjectByType<BoardController>() != null) return;
+            new GameObject("WordStackPrototype").AddComponent<PrototypeView>();
+        }
 
         // ---------------------------------------------------------------- boot
 

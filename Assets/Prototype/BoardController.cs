@@ -1,0 +1,651 @@
+// ============================================================================
+// View của WordStack — retained-mode, dựng từ prefab. Thiết kế: docs/architecture/view-prefabs.md.
+//
+// Luật nằm hết ở PrototypeDomain.cs; file này chỉ vẽ, bắt input và tạo nhịp cascade.
+// Instance GameObject sống suốt level (khoá là Tile.Uid): mỗi nước đi là tween MỘT thẻ sang
+// slot mới — không rebuild. Đó là điều kiện để animate xuyên thời điểm state đổi.
+//
+// Cái giá của retained-mode: view có sổ sách riêng, và sổ sách lệch là họ bug khó nhất
+// (thẻ ma sau CLEAR, thẻ mới không hiện, màu kẹt giá trị cũ). Không bộ test nào trong repo
+// nhìn tới lớp view → CheckInvariant() dưới cùng là thứ bắt lệch, đừng gỡ.
+//
+// Hành vi tham chiếu: demo/wordstack-clear-demo.html. Lệch chỗ nào là bug chỗ đó.
+// ============================================================================
+using System;
+using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using UnityEngine;
+using UnityEngine.InputSystem;
+using DG.Tweening;
+
+namespace WordStack.Prototype
+{
+    public class BoardController : MonoBehaviour
+    {
+        // ---- Layout (world units) — hằng bố cục gắn với thuật toán đặt lưới, ở lại code.
+        // Kích thước bên trong hộp (viền, slot) author trong Box.prefab; đổi bên đó phải đổi
+        // BoxSize/BoxPad/SlotGap theo, vì hit-test tính từ mấy hằng này.
+        const float BoxSize = 1.6f;
+        const float BoxPad = 0.09f;
+        const float SlotGap = 0.08f;
+        static float SlotSize { get { return (BoxSize - 2f * BoxPad - SlotGap) / 2f; } }
+        static float PitchX { get { return BoxSize + 0.28f; } }
+        static float PitchY { get { return BoxSize + 0.62f; } }   // chừa chỗ cho lớp lấp ló
+
+        // ---- Sorting order (bảng đầy đủ ở Mục 4 của doc) ----
+        const int TileOrder = 3;
+        const int FlyOrder = 90;
+        const int GhostTileOrder = 100;
+
+        const float HoverScale = 1.07f;
+
+        static readonly Color BoxEdge = Hex(0xA5A5A5);
+        static readonly Color BoxEdgeBottom = Hex(0x8B8B8B);
+        static readonly Color TileBg = Hex(0xDEDEDE);
+
+        [Header("Prefabs")]
+        [SerializeField] StackView stackPrefab;
+        [SerializeField] BoxView boxPrefab;
+        [SerializeField] TileView tilePrefab;
+        [SerializeField] GhostView ghostPrefab;
+        [SerializeField] HudView hudPrefab;
+
+        [Header("Palette (GDD §9.1) — domain trả index vào mảng này")]
+        [SerializeField] Color[] palette =
+        {
+            Hex(0xF4B740), Hex(0x5BC98C), Hex(0xEF7C8E),
+            Hex(0x4FA8E8), Hex(0xB48CE8), Hex(0xE88C4F),
+        };
+
+        [Header("Nhịp")]
+        [SerializeField] float flyDur = 0.16f;
+        [SerializeField] float clearDur = 0.26f;
+        [SerializeField] float clearStagger = 0.04f;
+        [SerializeField] float cascadeGap = 0.35f;     // nhịp giữa hai bước cascade (§R6)
+
+        Game g;
+        readonly List<string> levelJsons = new List<string>();
+        int levelIndex;
+
+        Camera cam;
+        Transform root;
+        readonly Dictionary<string, Sprite> artCache = new Dictionary<string, Sprite>();
+
+        StackView[] stackViews;
+        BoxView[] boxViews;
+        HudView hud;
+        readonly Dictionary<string, TileView> tiles = new Dictionary<string, TileView>();
+
+        enum ZoneKind { Tile, Stack }
+        struct Zone { public Rect Rect; public ZoneKind Kind; public int Stack; public string Uid; }
+        readonly List<Zone> zones = new List<Zone>();
+
+        GhostView ghost;
+        int dragFrom = -1;
+        string dragUid;
+        TileView hoverTile;
+        int highlightStack = -1;
+        bool locked;
+
+        // ---------------------------------------------------------------- boot
+
+        void Awake()
+        {
+            ViewText.Font = OsFont("Segoe UI", "Arial");
+
+            cam = Camera.main;
+            if (cam == null) { Debug.LogError("Scene thiếu Main Camera."); enabled = false; return; }
+            if (!RefsOk()) { enabled = false; return; }
+
+            root = new GameObject("Board").transform;
+            root.SetParent(transform, false);
+
+            foreach (var ta in Resources.LoadAll<TextAsset>("Levels").OrderBy(t => t.name, StringComparer.Ordinal))
+                levelJsons.Add(ta.text);
+
+#if UNITY_EDITOR
+            // Cùng bộ assert với ./selfcheck.sh — chạy luôn lúc Play để bắt drift sớm.
+            try { SelfCheck.Run(Debug.Log, levelJsons, HasArt); }
+            catch (Exception e) { Debug.LogError("SelfCheck FAIL: " + e.Message); }
+#endif
+            Load(0);
+        }
+
+        bool RefsOk()
+        {
+            string missing = stackPrefab == null ? "stackPrefab"
+                           : boxPrefab == null ? "boxPrefab"
+                           : tilePrefab == null ? "tilePrefab"
+                           : ghostPrefab == null ? "ghostPrefab"
+                           : hudPrefab == null ? "hudPrefab" : null;
+            if (missing == null) return true;
+            Debug.LogError("BoardController trên '" + name + "' thiếu tham chiếu: " + missing +
+                           " — kéo prefab vào field đó trong Inspector.");
+            return false;
+        }
+
+        bool HasArt(string key) { return LoadArt(key) != null; }
+
+        Sprite LoadArt(string key)
+        {
+            Sprite s;
+            if (artCache.TryGetValue(key, out s)) return s;
+            s = Resources.Load<Sprite>("Art/" + key);
+            artCache[key] = s;
+            return s;
+        }
+
+        Sprite ArtOf(Tile t) { return t != null && t.Art != null ? LoadArt(t.Art) : null; }
+
+        static Font OsFont(params string[] names)
+        {
+            foreach (var n in names)
+            {
+                var f = Font.CreateDynamicFontFromOSFont(n, 64);
+                if (f != null) return f;
+            }
+            return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        }
+
+        void Load(int i)
+        {
+            StopAllCoroutines();
+            DestroyBoard();
+            locked = false;
+            if (levelJsons.Count == 0)
+            {
+                Debug.LogError("Không thấy level nào trong Assets/Prototype/Resources/Levels/");
+                return;
+            }
+            levelIndex = ((i % levelJsons.Count) + levelJsons.Count) % levelJsons.Count;
+            try
+            {
+                var lv = LevelData.Parse(levelJsons[levelIndex]);
+                lv.Validate(HasArt);
+                g = Game.Build(lv);
+            }
+            catch (Exception e)
+            {
+                g = null;
+                Debug.LogError("Level không hợp lệ — " + e.Message);
+                return;
+            }
+            BuildBoard();
+            StartCoroutine(Settle());          // hộp nạp sẵn nhóm đủ phải nổ ngay lúc load
+        }
+
+        // --------------------------------------------------------------- input
+
+        void Update()
+        {
+            var p = Pointer.current;
+            if (p == null || g == null) return;
+            float dt = Time.deltaTime;
+            var wp = cam.ScreenToWorldPoint(p.position.ReadValue());
+            var pt = new Vector2(wp.x, wp.y);
+
+            HandleKeys();
+
+            if (g.Status != GameStatus.Playing)
+            {
+                if (p.press.wasPressedThisFrame)
+                    Load(g.Status == GameStatus.Won ? levelIndex + 1 : levelIndex);
+                return;
+            }
+
+            if (locked) return;
+
+            if (p.press.wasPressedThisFrame && ghost == null)
+            {
+                foreach (var z in zones)
+                {
+                    if (z.Kind != ZoneKind.Tile || !z.Rect.Contains(pt)) continue;
+                    BeginDrag(z.Stack, z.Uid, pt);
+                    break;
+                }
+            }
+            else if (ghost != null && p.press.isPressed)
+            {
+                ghost.Follow(pt, dt);
+                Highlight(TargetStack(pt));
+            }
+            else if (ghost != null)
+            {
+                Drop(pt);
+            }
+            else
+            {
+                Hover(pt);
+            }
+        }
+
+        void HandleKeys()
+        {
+            var k = Keyboard.current;
+            if (k == null) return;
+            if (k.rKey.wasPressedThisFrame) { Load(levelIndex); return; }
+            if (k.nKey.wasPressedThisFrame) { Load(levelIndex + 1); return; }
+            for (int i = 0; i < Math.Min(9, levelJsons.Count); i++)
+                if (k[Key.Digit1 + i].wasPressedThisFrame) { Load(i); return; }
+        }
+
+        Tile FindTile(string uid)
+        {
+            foreach (var st in g.Stacks)
+                foreach (var t in st.Boxes[0].Slots)
+                    if (t != null && t.Uid == uid) return t;
+            return null;
+        }
+
+        static int SlotIndexOf(Box box, string uid)
+        {
+            for (int i = 0; i < box.Slots.Length; i++)
+                if (box.Slots[i] != null && box.Slots[i].Uid == uid) return i;
+            return -1;
+        }
+
+        int TargetStack(Vector2 pt)
+        {
+            foreach (var z in zones)
+            {
+                if (z.Kind != ZoneKind.Stack || !z.Rect.Contains(pt)) continue;
+                if (z.Stack == dragFrom) return -1;
+                return Game.FreeCount(g.TopBox(z.Stack)) > 0 ? z.Stack : -1;
+            }
+            return -1;
+        }
+
+        void BeginDrag(int stack, string uid, Vector2 pt)
+        {
+            var t = FindTile(uid);
+            if (t == null) return;
+            dragFrom = stack;
+            dragUid = uid;
+
+            ghost = Instantiate(ghostPrefab, transform, false);
+            ghost.Begin(pt);
+            var gt = Instantiate(tilePrefab, ghost.TileAnchor, false);
+            gt.transform.localPosition = Vector3.zero;
+            gt.Bind(t, ArtOf(t), TileBg, GhostTileOrder, SlotSize);
+
+            TileView tv;
+            if (tiles.TryGetValue(uid, out tv) && tv != null)
+                tv.transform.localScale = Vector3.zero;   // thẻ "được nhấc lên"
+        }
+
+        void Drop(Vector2 pt)
+        {
+            var dropPos = ghost.transform.position;
+            Destroy(ghost.gameObject);
+            ghost = null;
+            Highlight(-1);
+            int from = dragFrom, to = -1;
+            string uid = dragUid;
+            dragFrom = -1;
+            dragUid = null;
+
+            foreach (var z in zones)
+                if (z.Kind == ZoneKind.Stack && z.Rect.Contains(pt)) { to = z.Stack; break; }
+
+            // Thả ra ngoài, hoặc về chính stack cũ = huỷ thao tác (§R1).
+            if (to < 0 || to == from) { SnapBack(uid, dropPos); return; }
+            if (!g.MoveTile(from, uid, to))
+            {
+                Shake(to);                                  // box đích đầy (§E1)
+                SnapBack(uid, dropPos);
+                return;
+            }
+
+            int slot = SlotIndexOf(g.TopBox(to), uid);
+            TileView tv;
+            if (slot >= 0 && tiles.TryGetValue(uid, out tv) && tv != null)
+                FlyTo(tv, boxViews[to].Slot(slot), dropPos);
+
+            // HAI hộp đổi màu, không chỉ hộp đích: hộp nguồn mất thẻ → cặp có thể tan.
+            RefreshColors(from);
+            RefreshColors(to);
+            RefreshZones();
+            RefreshHud();
+            StartCoroutine(Settle(flyDur));                 // để thẻ hạ cánh rồi mới cascade
+        }
+
+        void SnapBack(string uid, Vector3 from)
+        {
+            TileView tv;
+            if (tiles.TryGetValue(uid, out tv) && tv != null)
+                FlyTo(tv, tv.transform.parent, from);
+        }
+
+        // Thẻ bay từ chỗ thả về đúng slot — chính thẻ đó, không phải bản sao tạm. Đây là
+        // thứ retained-mode mua được: danh tính GameObject sống xuyên qua nước đi.
+        void FlyTo(TileView tv, Transform anchor, Vector3 fromWorld)
+        {
+            tv.transform.SetParent(anchor, false);
+            tv.transform.position = fromWorld;
+            tv.transform.localScale = Vector3.one;
+            tv.SetOrder(FlyOrder);
+            tv.transform.DOLocalMove(Vector3.zero, flyDur).SetEase(Ease.OutCubic)
+              .SetLink(tv.gameObject)
+              .OnComplete(() => { if (tv != null) tv.SetOrder(TileOrder); });
+        }
+
+        void Hover(Vector2 pt)
+        {
+            TileView h = null;
+            foreach (var z in zones)
+            {
+                if (z.Kind != ZoneKind.Tile || !z.Rect.Contains(pt)) continue;
+                tiles.TryGetValue(z.Uid, out h);
+                break;
+            }
+            if (h == hoverTile) return;           // chỉ tween lúc VÀO/RA, không mỗi frame
+            if (hoverTile != null && !IsLifted(hoverTile))
+                hoverTile.transform.DOScale(1f, 0.12f).SetEase(Ease.OutQuad).SetLink(hoverTile.gameObject);
+            hoverTile = h;
+            if (hoverTile != null && !IsLifted(hoverTile))
+                hoverTile.transform.DOScale(HoverScale, 0.12f).SetEase(Ease.OutQuad).SetLink(hoverTile.gameObject);
+        }
+
+        // Thẻ đang bị "nhấc lên" (scale 0) vì đang kéo. Đừng đụng scale của nó.
+        static bool IsLifted(TileView tv) { return tv.transform.localScale.x < 0.01f; }
+
+        void Highlight(int stack)
+        {
+            if (stack == highlightStack) return;
+            highlightStack = stack;
+            for (int s = 0; s < boxViews.Length; s++)
+            {
+                if (boxViews[s] == null) continue;
+                if (s == stack) boxViews[s].SetEdge(Color.white);
+                else RefreshEdge(s);
+            }
+        }
+
+        void Shake(int stack)
+        {
+            var bv = boxViews[stack];
+            if (bv == null) return;
+            bv.transform.DOComplete();            // rung dồn: kết thúc cú trước đã
+            bv.transform.DOPunchPosition(new Vector3(0.12f, 0, 0), 0.22f, 6, 0.6f).SetLink(bv.gameObject);
+        }
+
+        // ------------------------------------------------------------ cascade
+        // Domain mutate từng bước; view animate trên instance đang sống rồi mới cập nhật
+        // sổ sách. Khoá input tới khi bàn đứng yên (§E11).
+
+        IEnumerator Settle(float delay = 0f)
+        {
+            locked = true;
+            if (delay > 0f) yield return new WaitForSeconds(delay);
+            for (;;)
+            {
+                var ev = g.SettleStep(Rules.RemoveEmptyNonBottomBox);
+                if (ev.Kind == SettleKind.None) break;
+
+                if (ev.Kind == SettleKind.Clear)
+                {
+                    var seq = RemoveTiles(ev.DoomedUids);   // 4 thẻ co về 0, lệch nhau clearStagger
+                    if (seq != null) yield return seq.WaitForCompletion();
+                    RefreshColors(ev.Stack);
+                }
+                if (ev.BoxRemoved)
+                {
+                    yield return FadeBox(ev.Stack).WaitForCompletion();
+                    RevealBox(ev.Stack);
+                }
+
+                RefreshZones();
+                RefreshHud();
+                yield return new WaitForSeconds(cascadeGap);
+            }
+            RefreshZones();
+            RefreshHud();
+            CheckInvariant("settle");
+            locked = false;
+        }
+
+        Sequence RemoveTiles(string[] uids)
+        {
+            var seq = DOTween.Sequence();
+            int n = 0;
+            for (int i = 0; i < uids.Length; i++)
+            {
+                TileView tv;
+                if (!tiles.TryGetValue(uids[i], out tv) || tv == null) continue;
+                tiles.Remove(uids[i]);
+                var go = tv.gameObject;
+                seq.Insert(i * clearStagger,
+                           tv.transform.DOScale(0f, clearDur).SetEase(Ease.InBack).SetLink(go)
+                             .OnComplete(() => Destroy(go)));
+                n++;
+            }
+            if (n > 0) return seq;
+            seq.Kill();
+            return null;
+        }
+
+        // Hộp co lại + mờ dần (GDD §9.3 "Xoá box"). Dùng DOTween.To trên BoxView.SetAlpha
+        // chứ không phải sr.DOFade — DOFade nằm trong module Sprite tuỳ chọn của DOTween.
+        Sequence FadeBox(int s)
+        {
+            var bv = boxViews[s];
+            var seq = DOTween.Sequence().SetLink(bv.gameObject);
+            seq.Join(bv.transform.DOScale(0.9f, clearDur).SetEase(Ease.InQuad));
+            seq.Join(DOTween.To(() => 1f, bv.SetAlpha, 0f, clearDur));
+            return seq;
+        }
+
+        // ------------------------------------------------- thao tác tăng dần
+        // Thay cho Rebuild() của bản runtime: mỗi cái đụng đúng phần đã đổi.
+
+        void RevealBox(int s)
+        {
+            boxViews[s].ResetVisual();
+            stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1);
+            RefreshEdge(s);
+            SpawnTiles(s);                                 // thẻ của hộp vừa lộ
+        }
+
+        void SpawnTiles(int s)
+        {
+            var box = g.TopBox(s);
+            if (box == null) return;
+            var colors = Game.BoxColorIndices(box);
+            for (int i = 0; i < box.Slots.Length; i++)
+            {
+                var t = box.Slots[i];
+                if (t == null) continue;
+                var tv = Instantiate(tilePrefab, boxViews[s].Slot(i), false);
+                tv.transform.localPosition = Vector3.zero;
+                tv.Bind(t, ArtOf(t), ColorOf(colors, t.Uid), TileOrder, SlotSize);
+                tiles[t.Uid] = tv;
+            }
+        }
+
+        void RefreshColors(int s)
+        {
+            var box = g.TopBox(s);
+            if (box == null) return;
+            var colors = Game.BoxColorIndices(box);
+            foreach (var t in box.Slots)
+            {
+                if (t == null) continue;
+                TileView tv;
+                if (tiles.TryGetValue(t.Uid, out tv) && tv != null) tv.SetColor(ColorOf(colors, t.Uid));
+            }
+        }
+
+        Color ColorOf(Dictionary<string, int> colors, string uid)
+        {
+            int ci;
+            if (!colors.TryGetValue(uid, out ci) || ci >= palette.Length) return TileBg;
+            return palette[ci];
+        }
+
+        void RefreshEdge(int s)
+        {
+            var box = g.TopBox(s);
+            if (box != null) boxViews[s].SetEdge(box.IsBottom ? BoxEdgeBottom : BoxEdge);
+        }
+
+        void RefreshZones()
+        {
+            zones.Clear();
+            if (g == null) return;
+            for (int s = 0; s < g.Stacks.Count; s++)
+            {
+                var pos = StackWorldPos(g.Stacks[s]);
+                var box = g.TopBox(s);
+                if (box != null)
+                    for (int i = 0; i < box.Slots.Length; i++)
+                    {
+                        var t = box.Slots[i];
+                        if (t == null) continue;
+                        zones.Add(new Zone
+                        {
+                            Rect = RectAt(pos + SlotOffset(i), Vector2.one * SlotSize),
+                            Kind = ZoneKind.Tile, Stack = s, Uid = t.Uid
+                        });
+                    }
+                zones.Add(new Zone
+                {
+                    Rect = RectAt(pos, Vector2.one * BoxSize),
+                    Kind = ZoneKind.Stack, Stack = s
+                });
+            }
+        }
+
+        void RefreshHud()
+        {
+            if (hud == null || g == null) return;
+            hud.Set(g.Title, g.Cleared, g.TotalGroups, g.Moves);
+            if (g.Status == GameStatus.Won) hud.ShowWin();
+            else if (g.Status == GameStatus.Stuck) hud.ShowStuck();
+            else hud.HideAll();
+        }
+
+        // --------------------------------------------------------------- dựng
+
+        void BuildBoard()
+        {
+            int n = g.Stacks.Count;
+            stackViews = new StackView[n];
+            boxViews = new BoxView[n];
+            for (int s = 0; s < n; s++)
+            {
+                var st = g.Stacks[s];
+                var sv = Instantiate(stackPrefab, root, false);
+                var wp = StackWorldPos(st);
+                sv.transform.localPosition = new Vector3(wp.x, wp.y, 0f);
+                stackViews[s] = sv;
+
+                var bv = Instantiate(boxPrefab, sv.BoxAnchor, false);
+                bv.transform.localPosition = Vector3.zero;
+                boxViews[s] = bv;
+
+                sv.ShowDepth(st.Boxes.Count - 1);
+                RefreshEdge(s);
+                SpawnTiles(s);
+            }
+
+            hud = Instantiate(hudPrefab, root, false);
+            hud.transform.localPosition = Vector3.zero;
+            LayoutHud();
+            FitCamera();
+            RefreshZones();
+            RefreshHud();
+            CheckInvariant("build");
+        }
+
+        void DestroyBoard()
+        {
+            if (ghost != null) { Destroy(ghost.gameObject); ghost = null; }
+            dragFrom = -1;
+            dragUid = null;
+            hoverTile = null;
+            highlightStack = -1;
+            if (root != null)
+                foreach (Transform c in root) Destroy(c.gameObject);
+            tiles.Clear();
+            zones.Clear();
+            stackViews = null;
+            boxViews = null;
+            hud = null;
+        }
+
+        void LayoutHud()
+        {
+            float minX = g.Stacks.Min(s => (float)s.X), maxX = g.Stacks.Max(s => (float)s.X);
+            float minY = g.Stacks.Min(s => (float)s.Y), maxY = g.Stacks.Max(s => (float)s.Y);
+            hud.Layout((minX + maxX) / 2f * PitchX,
+                       -minY * PitchY + BoxSize / 2f,
+                       -maxY * PitchY - BoxSize / 2f,
+                       (maxX - minX) * PitchX + BoxSize);
+        }
+
+        void FitCamera()
+        {
+            float minX = g.Stacks.Min(s => (float)s.X), maxX = g.Stacks.Max(s => (float)s.X);
+            float minY = g.Stacks.Min(s => (float)s.Y), maxY = g.Stacks.Max(s => (float)s.Y);
+            float cx = (minX + maxX) / 2f * PitchX;
+            float cy = -(minY + maxY) / 2f * PitchY;
+            float halfW = (maxX - minX) / 2f * PitchX + BoxSize / 2f + 0.4f;
+            float halfH = (maxY - minY) / 2f * PitchY + BoxSize / 2f + 1.5f;   // chừa HUD trên + gợi ý dưới
+            cam.transform.position = new Vector3(cx, cy, -10f);
+            cam.orthographicSize = Mathf.Max(halfH, halfW / Mathf.Max(cam.aspect, 0.01f));
+        }
+
+        static Vector2 StackWorldPos(Stack st)
+        {
+            // data y đi XUỐNG (cùng chiều đọc slot), Unity y đi LÊN → đảo dấu.
+            return new Vector2((float)st.X * PitchX, -(float)st.Y * PitchY);
+        }
+
+        static Vector2 SlotOffset(int slot)
+        {
+            int c = slot % 2, r = slot / 2;
+            float step = SlotSize + SlotGap;
+            return new Vector2((c - 0.5f) * step, (0.5f - r) * step);
+        }
+
+        static Rect RectAt(Vector2 center, Vector2 size) { return new Rect(center - size / 2f, size); }
+
+        static Color Hex(int rgb)
+        {
+            return new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
+        }
+
+        // --------------------------------------------------------- invariant
+        // Thay cho sự an toàn mà rebuild cho không: "màn hình là hàm thuần của state".
+        // Lệch → báo NGAY tại nước đi gây ra, thay vì lộ ra sau 20 nước.
+
+        [System.Diagnostics.Conditional("UNITY_EDITOR")]
+        void CheckInvariant(string where)
+        {
+            if (g == null || boxViews == null) return;
+            var expect = new HashSet<string>();
+            for (int s = 0; s < g.Stacks.Count; s++)
+            {
+                var box = g.TopBox(s);
+                if (box == null) continue;
+                for (int i = 0; i < box.Slots.Length; i++)
+                {
+                    var t = box.Slots[i];
+                    if (t == null) continue;
+                    expect.Add(t.Uid);
+                    TileView tv;
+                    if (!tiles.TryGetValue(t.Uid, out tv) || tv == null)
+                        Debug.LogError("View lệch (" + where + "): thiếu thẻ " + t.Uid +
+                                       " ở stack " + s + " slot " + i);
+                    else if (tv.transform.parent != boxViews[s].Slot(i))
+                        Debug.LogError("View lệch (" + where + "): thẻ " + t.Uid +
+                                       " không nằm ở stack " + s + " slot " + i);
+                }
+            }
+            foreach (var uid in tiles.Keys)
+                if (!expect.Contains(uid))
+                    Debug.LogError("View lệch (" + where + "): thẻ ma " + uid + " còn sống");
+        }
+    }
+}

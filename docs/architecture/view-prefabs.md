@@ -1,12 +1,12 @@
 # Thiết kế View bằng Prefab — WordStack
 
-> Status: **Draft**. Mục 1 đã chốt: **Q1 retained-mode** và **Q3 DOTween** do user quyết
-> 2026-08-03 (Q1 lật ngược lựa chọn ban đầu của doc). Phần còn lại — 5 prefab, scene, phân công —
-> vẫn chờ duyệt. Sau khi duyệt: tôi viết script trước, bạn dựng prefab theo checklist Mục 6,
-> rồi tôi chuyển controller sang dùng prefab và xoá code dựng runtime.
+> Status: **Approved** (user duyệt 2026-08-03). Q1 retained-mode · Q2 TextMesh · Q3 DOTween.
+> Script view **đã viết xong** (compile sạch, chưa có prefab nào): `Assets/Prototype/Views/*.cs`
+> + `Assets/Prototype/BoardController.cs`. Việc kế tiếp là **bạn dựng 5 prefab + scene theo
+> checklist Mục 6**; xong thì tôi Play nghiệm thu và xoá `PrototypeView.cs`.
 > Domain (`PrototypeDomain.cs`) **không đổi một dòng** — thiết kế này chỉ đụng lớp view.
 >
-> **Chặn:** DOTween phải được import tay từ Asset Store trước khi viết script view (xem Q3).
+> Ba chỗ lệch so với bản draft, quyết lúc viết code (Mục 8).
 
 ## 1. Ba quyết định nền
 
@@ -75,8 +75,9 @@ Tile                      TileView; root — code scale về SlotSize khi mount 
 └─ Label     TextMesh (order 4, MiddleCenter) — TileView tự co chữ theo bề rộng
 ```
 
-`TileView` fields: `bg`, `art`, `label`. API: `Bind(Tile t, Sprite sprite, Color bgColor, int order)` —
-tự xử lý 3 trường hợp chỉ-ảnh / chỉ-chữ / cả hai (layout y hệt `BuildTile` hiện tại).
+`TileView` fields: `bg`, `art`, `label`. API: `Bind(Tile, Sprite, Color bgColor, int order, float slotSize)`
+— tự xử lý 3 trường hợp chỉ-ảnh / chỉ-chữ / cả hai (layout y hệt `BuildTile` cũ) — `SetColor`, `SetOrder`.
+Root **giữ scale 1**, `Bind` co phần con về `slotSize` (xem Mục 8). Chữ để màu #111111 trong prefab.
 
 ### `Box.prefab` — hộp trên cùng (script `BoxView`)
 
@@ -91,7 +92,10 @@ Box                       BoxView
    └─ Slot3  (+0.375, -0.375)
 ```
 
-`BoxView` fields: `edge`, `slotAnchors[4]`. API: `SetEdge(Color)`, slot mount points.
+`BoxView` fields: `edge`, `slotAnchors[4]` (kéo 4 object `Slot0..3`). API: `Slot(i)`, `SetEdge(Color)`,
+`SetAlpha(0..1)`, `ResetVisual()`. `Bg` + shadow không cần field: `SetAlpha` quét
+`GetComponentsInChildren<SpriteRenderer>()` **lúc Awake** — tức trước khi thẻ được mount, nên fade hộp
+không kéo theo thẻ nằm trong nó.
 
 ### `Stack.prefab` — một vị trí trên lưới (script `StackView`)
 
@@ -116,8 +120,9 @@ Ghost                     GhostView — giữ toàn bộ feel kéo-thả
    └─ TileAnchor            — Tile instance (order 100) mount vào đây
 ```
 
-`GhostView` `[SerializeField]`: `followSpeed=25, rotAmount=70, rotSpeed=20, autoTilt=7,
-tiltSpeed=12, dragScale=1.15` — khối `// Feel` kéo-thả chuyển hết vào đây, chỉnh trong Inspector.
+`GhostView` fields: `tilt`, `tileAnchor` + `[SerializeField]` feel `followSpeed=25, rotAmount=70,
+rotSpeed=20, autoTilt=7, tiltSpeed=12, dragScale=1.15` — khối `// Feel` kéo-thả chuyển hết vào đây,
+chỉnh trong Inspector. API: `Begin(pt)`, `Follow(pt, dt)`.
 
 ### `Hud.prefab` — world-space HUD (script `HudView`)
 
@@ -129,8 +134,9 @@ Hud                       HudView
 └─ StuckToast quad + TextMesh — tắt sẵn
 ```
 
-`HudView` fields: các TextMesh + 2 panel. API: `Set(title, cleared, total, moves)`,
-`ShowWin()`, `ShowStuck()`, `HideAll()`. Controller vẫn đặt vị trí/bề rộng theo bàn (như `DrawHud`).
+`HudView` fields: `headerBg` (Transform của quad), `title`, `help`, `winPanel`, `winTitle`, `winHint`,
+`stuckPanel`, `stuckLabel`. API: `Layout(cx, top, bottom, width)` (controller gọi 1 lần mỗi level),
+`Set(title, cleared, total, moves)`, `ShowWin()`, `ShowStuck()`, `HideAll()`.
 
 ## 3. Scene `Assets/Scenes/Main.unity`
 
@@ -144,15 +150,20 @@ Game          BoardController (PrototypeView đổi tên dần) — serialized f
               flyDur=0.16, clearDur=0.26, clearStagger=0.04, cascadeGap=0.35
 ```
 
-Thêm scene vào Build Settings. Layout const (BoxSize, PeekStep...) **ở lại code** — chúng là
+Thêm scene vào Build Settings. Layout const (BoxSize, SlotGap...) **ở lại code** — chúng là
 hằng bố cục gắn với thuật toán đặt lưới, không phải thứ chỉnh bằng mắt.
+
+Camera: **màu nền + orthographic author trong scene**, code chỉ chỉnh vị trí + `orthographicSize`
+cho vừa bàn. Palette và 4 hằng nhịp đã có giá trị mặc định trong `BoardController` — chỉ kéo 5
+prefab là chạy, không phải gõ lại 6 màu.
 
 ## 4. Script mới / đổi
 
 | Script | Vai trò |
 |--------|---------|
 | `TileView`, `BoxView`, `StackView`, `GhostView`, `HudView` | Component mỏng trên prefab: giữ tham chiếu + API bind. **Không chứa luật, không gọi domain** |
-| `BoardController` (từ `PrototypeView`) | Giữ: input/zones, cascade `Settle()`, hover. Đổi: `Instantiate(prefab)` thay `new GameObject`; **bỏ `Rebuild()`**, thay bằng API tăng dần (dưới); tween qua DOTween; xoá `Quad()`, `Label()`, `BuildTile()`, `Boot()`, tạo camera |
+| `BoardController` (thay `PrototypeView`) | Giữ: input/zones, cascade `Settle()`, hover. Đổi: `Instantiate(prefab)` thay `new GameObject`; **bỏ `Rebuild()`**, thay bằng API tăng dần (dưới); xoá `Quad()`, `Label()`, `BuildTile()`, `Boot()`, tạo camera, và cả `SpawnFly()` (xem Mục 8) |
+| `ViewText` (static) | Font HĐH + logic co chữ dùng chung cho Tile/Stack/Hud. Không phải MonoBehaviour |
 
 `Rebuild()` tách thành các thao tác tăng dần:
 
@@ -180,23 +191,32 @@ Sorting order giữ nguyên bảng hiện tại (peek −13…−10 · box 0-2 �
 
 ## 5. Phân công
 
-**Tôi (sau khi bạn duyệt doc này):**
-1. Viết 5 script view + sườn `BoardController` — compile sạch khi CHƯA có prefab.
-2. Sau khi bạn dựng xong prefab: chuyển `BoardController` sang Instantiate, xoá code dựng runtime, xoá bootstrap.
-3. Nghiệm thu: Play cả 3 level, SelfCheck vẫn pass (domain không đổi), hành vi khớp demo.
+**Tôi:**
+1. ~~Viết 5 script view + `BoardController`~~ — **xong 2026-08-03**, viết thẳng bản Instantiate
+   (không có sườn trung gian, xem Mục 8). `./compilecheck.sh` + `./selfcheck.sh` đều pass.
+2. Sau khi bạn dựng xong prefab: Play nghiệm thu cả 3 level, rà lại prefab YAML, xoá `PrototypeView.cs`.
+3. `PrototypeView.cs` **còn nguyên và vẫn tự Play được** cho tới bước đó — có cái để đối chiếu hành vi.
+   Nó tự nhường sân khi scene đã có `BoardController`, nên `Main.unity` không bị hai bàn chồng nhau.
 
 **Bạn (checklist Mục 6):** dựng 5 prefab + scene bằng tay trong Editor, gắn script, kéo tham chiếu.
 Sai/thiếu tham chiếu nào `BoardController` sẽ log lỗi nói rõ thiếu field gì.
 
-## 6. Checklist dựng tay (làm SAU khi tôi báo script đã xong)
+## 6. Checklist dựng tay — **script đã xong, tới lượt bạn**
 
 1. `Assets/Prefabs/`, `Assets/Scenes/` — tạo 2 folder.
 2. Mỗi prefab: dựng hierarchy đúng tên/kích thước/màu/offset như Mục 2 (sprite trắng dùng
    `Sprites/Square` có sẵn của Unity), gắn script, kéo đủ tham chiếu vào field, save prefab.
    Số nào không ghi ở Mục 2 (font size, chi tiết chữ) để mặc định — script tự set khi Bind.
-3. Scene `Main.unity`: camera + `Game` object gắn `BoardController`, kéo 5 prefab + palette 6 màu.
+3. Scene `Main.unity`: camera (orthographic, nền #3A2E5F, tag MainCamera) + object `Game` gắn
+   `BoardController`, kéo 5 prefab vào 5 field. Palette + 4 hằng nhịp đã có sẵn giá trị.
 4. File > Build Settings > Add Open Scenes.
-5. Bấm Play — lỗi thiếu gì Console sẽ nói; xong thì báo tôi để tôi rà lại prefab YAML.
+5. Bấm Play — thiếu tham chiếu nào Console gọi tên field đó; xong thì báo tôi để tôi rà prefab YAML.
+
+Hai thứ Console sẽ nói khi sai, biết trước cho đỡ mất thời gian:
+
+- `BoardController trên 'Game' thiếu tham chiếu: tilePrefab` — chưa kéo prefab vào field.
+- `View lệch (settle): ...` — invariant Mục 4a bắt được sổ sách view lệch domain. Đây là bug thật
+  của tôi, không phải bạn dựng sai; chụp Console gửi tôi.
 
 ## 7. Ngoài phạm vi lần này
 
@@ -204,3 +224,20 @@ Pooling (bàn quá nhỏ để cần), TMP + font asset tiếng Việt, tách HU
 Addressables. Mỗi thứ chỉ làm khi có lý do đo được, và sẽ thành ADR riêng.
 
 *(Retained-mode từng nằm ở mục này — đã chuyển vào phạm vi, xem Q1.)*
+
+## 8. Lệch so với bản draft (quyết lúc viết code, 2026-08-03)
+
+1. **Thẻ thật bay, không còn object "fly" tạm.** Draft giữ nguyên cơ chế cũ: thẻ thật ẩn đi
+   (scale 0), một bản sao tạm bay từ chỗ thả tới slot rồi tự huỷ. Retained-mode làm cái đó thành
+   thừa — thẻ thật đổi cha sang slot mới rồi `DOLocalMove` về 0 là xong. Xoá được `SpawnFly()`,
+   list `flies`, `ClearFlies()`. Đây đúng là thứ Q1 mua về, tiêu luôn cho sớm.
+2. **Root của `Tile` giữ scale 1**, `Bind()` co phần con theo `slotSize`, thay vì scale root về
+   `SlotSize` như draft viết. Lý do: hover / nhấc lên / CLEAR đều tween scale — để root ở 1 thì
+   `DOScale(0)` và `DOScale(1.07)` đọc thẳng, không phải nhân `SlotSize` ở mọi chỗ gọi.
+3. **Bước 2 và 4 của phân công gộp làm một.** Draft định viết "sườn compile sạch" trước rồi mới
+   chuyển sang `Instantiate` sau khi có prefab. Nhưng sườn ấy là code vứt đi, mà thiếu prefab thì
+   cả hai bản đều không Play được — nên viết thẳng bản thật. `./compilecheck.sh` xác nhận compile
+   sạch dù chưa có prefab nào.
+
+Ngoài ra `compilecheck.sh` giờ gom `Assets/Prototype/**/*.cs` bằng `find` (thêm file khỏi phải
+sửa script) và mượn `Unity.InputSystem.dll` của repo chính khi worktree chưa có `Library/`.

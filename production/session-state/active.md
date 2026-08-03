@@ -7,9 +7,12 @@
 **Giai đoạn 1b ĐÃ ĐÓNG** — user chơi thử bản Unity và xác nhận *"phần game ok"*.
 `design/gdd/game-concept.md` đã chuyển **Approved** (2026-08-03).
 
-Việc đang mở: **chuyển view sang prefab + retained-mode** theo `docs/architecture/view-prefabs.md`.
-Mục 1 của doc đã chốt (Q1 retained-mode, Q3 DOTween); **phần còn lại — 5 prefab, scene, phân
-công — vẫn chờ user duyệt**. Mọi việc code tiếp đang chờ cái này.
+Việc đang mở: **chuyển view sang prefab + retained-mode** theo `docs/architecture/view-prefabs.md`
+(doc đã **Approved**). Script view **đã viết xong** và compile sạch dù chưa có prefab nào.
+
+**Đang chờ user:** dựng 5 prefab + `Main.unity` bằng tay theo **checklist Mục 6**. Chưa có prefab
+thì chưa Play được bàn mới — mọi nghiệm thu đang chờ cái này. `PrototypeView.cs` vẫn tự Play được
+như cũ (nó tự nhường sân khi scene có `BoardController`), nên vẫn có bản để đối chiếu hành vi.
 
 ## Luật chơi hiện hành
 
@@ -29,19 +32,15 @@ chiếu: `demo/wordstack-clear-demo.html`. Domain thuần + SelfCheck + solver v
 - Domain **không đổi một dòng**.
 
 **Trình tự (phân công):**
-1. User duyệt phần còn lại của thiết kế *(đang chờ)*.
-2. Tôi viết 5 script view + sườn BoardController (compile sạch khi chưa có prefab).
-3. User dựng 5 prefab + scene bằng tay theo **checklist Mục 6** của doc, gắn script, kéo tham chiếu.
-4. Tôi chuyển sang Instantiate, xoá code dựng runtime, nghiệm thu (Play 3 level + SelfCheck pass).
+1. ~~User duyệt thiết kế~~ — xong 2026-08-03.
+2. ~~Viết script view~~ — xong: `Views/{ViewText,TileView,BoxView,StackView,GhostView,HudView}.cs`
+   + `BoardController.cs`. Ba chỗ bắt buộc mang nguyên (co chữ `CharW=0.085` không auto-wrap ·
+   invariant check · **hai** hộp đổi màu mỗi nước) đều đã ở trong code.
+3. **User dựng 5 prefab + `Main.unity`** theo checklist Mục 6 *(đang chờ)*.
+4. Tôi Play nghiệm thu 3 level, rà prefab YAML, rồi xoá `PrototypeView.cs`.
 
-Ba chỗ **phải mang nguyên sang** khi viết script view, đừng viết lại:
-
-- Logic co chữ trong `Label()` — hằng `CharW = 0.085` là số **đo thật** bằng `Renderer.bounds`,
-  không phải số đoán; và **không auto-wrap** (ngắt ở mọi khoảng trắng biến câu HUD thành cột dọc).
-- **Invariant check** (doc Mục 4a): tập uid GameObject phải bằng đúng tập tile trong top box.
-  Retained-mode mất tính "màn hình là hàm thuần của state" mà không test nào trong repo nhìn tới
-  lớp view — đây là thứ thay thế.
-- Mỗi nước đi làm **HAI hộp** đổi màu, không chỉ hộp đích.
+Ba chỗ lệch so với draft, đã ghi ở **Mục 8** của doc: thẻ thật bay (xoá hẳn object "fly" tạm) ·
+root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, không làm sườn vứt đi).
 
 ## Đã làm, đã kiểm chứng
 
@@ -49,12 +48,13 @@ Ba chỗ **phải mang nguyên sang** khi viết script view, đừng viết l�
 |------|----------|
 | `demo/wordstack-clear-demo.html` + `demo/check.mjs` | Bản tham chiếu hành vi + bộ check (`node demo/check.mjs`) |
 | `Assets/Prototype/PrototypeDomain.cs` | Luật + validate + beam solver + SelfCheck. **Không import UnityEngine** |
-| `Assets/Prototype/PrototypeView.cs` | View runtime hiện hành, animation đã chạy DOTween — sẽ thay theo kế hoạch prefab |
+| `Assets/Prototype/PrototypeView.cs` | View runtime cũ (vẽ bằng code). **Chờ xoá** sau khi bàn prefab nghiệm thu xong; tới lúc đó vẫn Play được để đối chiếu |
+| `Assets/Prototype/BoardController.cs` + `Views/*.cs` | View mới: retained-mode, dựng từ prefab. Compile sạch, **chưa Play được vì chưa có prefab** |
 | `Assets/Prototype/Editor/LevelEditorWindow.cs` | Tool xếp level (`WordStack ▸ Level Editor`) |
 | `Assets/Prototype/Resources/Levels/lv-00{1,2,3}.json` | 3 level, solver khớp demo (6/6/9/9/2/2 nước) |
 | `Assets/Prototype/Resources/Art/*.png` | 12 placeholder **có nhãn**; meta đã commit (GUID ổn định) |
 | `Assets/Plugins/Demigiant/` | DOTween 843K, commit vào repo theo quyết định của user |
-| `docs/architecture/view-prefabs.md` | Thiết kế prefab — Mục 1 đã chốt, phần còn lại chờ duyệt |
+| `docs/architecture/view-prefabs.md` | Thiết kế prefab — **Approved**; Mục 6 = checklist dựng tay, Mục 8 = chỗ lệch draft |
 
 ## Hai lệnh kiểm, chạy trước khi mở Unity
 
@@ -63,13 +63,15 @@ Ba chỗ **phải mang nguyên sang** khi viết script view, đừng viết l�
 ./compilecheck.sh   # compile cả 2 assembly C#, vài giây
 ```
 
-`compilecheck.sh` phải **tách 2 assembly** đúng như Unity (`Assembly-CSharp` vs `-Editor`) vì hai
+`compilecheck.sh` gom file bằng `find Assets/Prototype -not -path '*/Editor/*'` (thêm .cs khỏi phải
+sửa script) và mượn `Unity.InputSystem.dll` của repo chính khi worktree chưa có `Library/`. Nó phải
+**tách 2 assembly** đúng như Unity (`Assembly-CSharp` vs `-Editor`) vì hai
 thế giới reference xung khắc: `DOTween.dll` build theo mscorlib, `UnityEditor.dll` theo netstandard
 — nối bằng `Facades/netstandard.dll`.
 
 ## Chặn / cần quyết định
 
-- **User duyệt phần còn lại của thiết kế prefab** — mọi việc code tiếp đang chờ.
+- **User dựng 5 prefab + `Main.unity`** (doc Mục 6) — nghiệm thu bàn mới đang chờ cái này.
 - Nguồn art thật + license (12 file hiện tại là placeholder có nhãn).
 
 ## Ghi chú kỹ thuật

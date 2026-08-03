@@ -22,6 +22,12 @@ NS="$DATA/NetStandard"
 OUT="$PWD/Temp/compilecheck"
 mkdir -p "$OUT"
 
+# Unity.InputSystem.dll chỉ có sau khi Editor import package. Worktree thường chưa có
+# Library/ riêng → mượn của repo chính (cùng manifest, cùng version).
+INPUTSYS="$PWD/Library/ScriptAssemblies/Unity.InputSystem.dll"
+[ -f "$INPUTSYS" ] || INPUTSYS="$(git rev-parse --git-common-dir)/../Library/ScriptAssemblies/Unity.InputSystem.dll"
+[ -f "$INPUTSYS" ] || { echo "Không thấy Unity.InputSystem.dll — mở project bằng Unity một lần cho nó import package."; exit 1; }
+
 w() { cygpath -w "$1"; }
 
 # ---- Assembly-CSharp: domain + view (+ DOTween) ----
@@ -32,10 +38,12 @@ w() { cygpath -w "$1"; }
   for n in mscorlib System System.Core System.Xml; do echo "-r:\"$(w "$API/$n.dll")\""; done
   echo "-r:\"$(w "$API/Facades/netstandard.dll")\""      # cầu nối giữa hai thế giới ref
   for f in "$MAN"/UnityEngine*.dll; do echo "-r:\"$(w "$f")\""; done
-  echo "-r:\"$(w "$PWD/Library/ScriptAssemblies/Unity.InputSystem.dll")\""
+  echo "-r:\"$(w "$INPUTSYS")\""
   echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
-  echo "\"$(w "$PWD/Assets/Prototype/PrototypeDomain.cs")\""
-  echo "\"$(w "$PWD/Assets/Prototype/PrototypeView.cs")\""
+  # mọi .cs dưới Assets/Prototype trừ Editor/ — đúng cách Unity gom Assembly-CSharp
+  find "$PWD/Assets/Prototype" -name '*.cs' -not -path '*/Editor/*' | while read -r f; do
+    echo "\"$(w "$f")\""
+  done
 } > "$OUT/game.rsp"
 
 # ---- Assembly-CSharp-Editor: tool xếp level ----
