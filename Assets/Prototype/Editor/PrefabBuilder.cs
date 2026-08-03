@@ -20,7 +20,7 @@ using UnityEngine;
 
 namespace WordStack.Prototype
 {
-    static class PrefabBuilder
+    public static class PrefabBuilder
     {
         const string PrefabDir = "Assets/Prefabs";
         const string SceneDir = "Assets/Scenes";
@@ -55,8 +55,9 @@ namespace WordStack.Prototype
         }
 
         // Tách khỏi Build() để gọi được mà không vướng hộp thoại — hộp thoại modal sẽ treo
-        // mọi thứ gọi từ ngoài Editor (MCP bridge, batch mode).
-        internal static void BuildAll()
+        // mọi thứ gọi từ ngoài Editor (MCP bridge, batch mode). public vì bên gọi nằm ở
+        // assembly khác.
+        public static void BuildAll()
         {
             Directory.CreateDirectory(PrefabDir);
             Directory.CreateDirectory(SceneDir);
