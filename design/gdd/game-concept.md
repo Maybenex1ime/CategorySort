@@ -1,7 +1,7 @@
 # Game Concept — WordStack
 
 > Nguồn luật gốc: `GDD_WordStack.md` (bản 0.1, 2026-07-29).
-> Status: **Draft** — core loop đã xác nhận bằng demo HTML chơi thử được (`demo/`), đang port sang Unity.
+> Status: **Approved** (2026-08-03 — chơi thử bản Unity trong Editor, user xác nhận "phần game ok").
 > Rev 4 (2026-08-02): **pivot khỏi Category Sort**. Toàn bộ luật cũ (chồng thẻ + cột collector +
 > quota + move budget) bị thay bằng luật WordStack (hộp 4 slot xếp chồng + gom nhóm 4 thẻ).
 > Rev 1-3 mô tả game khác, xem lịch sử git nếu cần.
@@ -120,7 +120,7 @@ khi hộp rỗng do người chơi kéo hết thẻ ra. Xem design log Mục 6-7
 
 ## Next Steps
 
-1. Port sang Unity theo phase trong `docs/development-plan.md` (đang ở P2 — view).
-2. Art thật thay 12 PNG trong `Assets/Prototype/Resources/Art/`.
-3. Chơi thử trong Editor → chốt doc này sang Approved.
+1. ~~Port sang Unity~~ · ~~Chơi thử trong Editor → Approved~~ — xong 2026-08-03.
+2. Chuyển view sang prefab theo `docs/architecture/view-prefabs.md` (đang chờ duyệt thiết kế).
+3. Art thật thay 12 PNG trong `Assets/Prototype/Resources/Art/`.
 4. `/ccgs-map-systems` — phân rã systems index.
