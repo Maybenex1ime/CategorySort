@@ -42,6 +42,9 @@ namespace WordStack.Prototype
         const float FlyDur = 0.16f;
         const float ClearDur = 0.26f;
         const float ClearStagger = 0.04f;
+        // Bề rộng trung bình một ký tự = CharW × size. Đo thật trong Play mode bằng
+        // Renderer.bounds trên TextMesh; lấy giá trị LỚN nhất đo được để chữ không bao giờ tràn.
+        const float CharW = 0.085f;
         const float CascadeGap = 0.35f;        // nhịp giữa hai bước cascade (§R6)
 
         // ---- Bảng màu (GDD §9.1) ----
@@ -187,7 +190,7 @@ namespace WordStack.Prototype
             root = new GameObject("Board").transform;
             root.SetParent(transform, false);
             zones.Clear();
-            Label(root, Vector2.zero, msg, 0.55f, Color.white, 10, 14f);
+            Label(root, Vector2.zero, msg, 1.2f, Color.white, 10, 12f);
             cam.orthographicSize = 5f;
             cam.transform.position = new Vector3(0, 0, -10);
         }
@@ -544,7 +547,7 @@ namespace WordStack.Prototype
                 }
                 if (hidden > PeekMax)
                     Label(root, pos + new Vector2(0, -BoxSize / 2 - PeekStep * PeekMax - 0.18f),
-                          "+" + hidden, 0.4f, new Color(1, 1, 1, 0.7f), 5, 6f);
+                          "+" + hidden, 1.0f, new Color(1, 1, 1, 0.7f), 5, 1.2f);
 
                 var box = g.TopBox(s);
                 var bo = new GameObject("Box" + s);
@@ -601,19 +604,19 @@ namespace WordStack.Prototype
             float cx = (minX + maxX) / 2f * PitchX;
             float width = (maxX - minX) * PitchX + BoxSize;
 
-            Quad(root, new Vector2(cx, top + 0.72f), new Vector2(width, 0.86f), HeaderCol, 5);
-            Label(root, new Vector2(cx, top + 0.72f),
+            Quad(root, new Vector2(cx, top + 0.58f), new Vector2(width, 0.55f), HeaderCol, 5);
+            Label(root, new Vector2(cx, top + 0.58f),
                   g.Title + "   ·   " + g.Cleared + "/" + g.TotalGroups + " groups   ·   " + g.Moves + " moves",
-                  0.42f, Color.white, 6, width - 0.3f);
+                  1.00f, Color.white, 6, width - 0.36f);
             Label(root, new Vector2(cx, bottom - 0.45f),
                   "Drag a tile onto another stack   ·   R restart   ·   N next level",
-                  0.34f, new Color(1, 1, 1, 0.55f), 6, width);
+                  0.85f, new Color(1, 1, 1, 0.55f), 6, width);
 
             if (g.Status == GameStatus.Won)
             {
                 Quad(root, new Vector2(cx, 0), new Vector2(60, 60), new Color(0.08f, 0.05f, 0.16f, 0.82f), 50);
-                Label(root, new Vector2(cx, 0.45f), "Complete!", 1.1f, Color.white, 51, 12f);
-                Label(root, new Vector2(cx, -0.6f), "click / N for next level", 0.45f,
+                Label(root, new Vector2(cx, 0.45f), "Complete!", 3.0f, Color.white, 51, 6f);
+                Label(root, new Vector2(cx, -0.6f), "click / N for next level", 1.2f,
                       new Color(1, 1, 1, 0.8f), 51, 12f);
             }
             else if (g.Status == GameStatus.Stuck)
@@ -621,7 +624,7 @@ namespace WordStack.Prototype
                 Quad(root, new Vector2(cx, bottom - 1.15f), new Vector2(width * 0.9f, 0.7f),
                      new Color(0.11f, 0.09f, 0.2f, 0.95f), 50);
                 Label(root, new Vector2(cx, bottom - 1.15f), "No moves left — click or press R to restart",
-                      0.4f, Color.white, 51, width * 0.85f);
+                      1.0f, Color.white, 51, width * 0.85f);
             }
         }
 
@@ -665,7 +668,7 @@ namespace WordStack.Prototype
             if (t.Text != null)
             {
                 float y = both ? -SlotSize * 0.26f : 0f;
-                float size = both ? 0.30f : 0.36f;
+                float size = both ? 0.85f : 1.10f;
                 Label(go.transform, new Vector2(0, y), t.Text, size, Ink, order + 1, SlotSize * 0.92f);
             }
             return go;
@@ -692,17 +695,12 @@ namespace WordStack.Prototype
             go.transform.localPosition = new Vector3(pos.x, pos.y, 0);
             var tm = go.AddComponent<TextMesh>();
 
-            string longest = text;
-            if (text.Contains(" "))
-            {
-                var words = text.Split(' ');
-                longest = words.OrderByDescending(w => w.Length).First();
-                if (words.Length > 1 && text.Length * 0.5f * size * 0.021f * 64f > maxWidth)
-                    text = string.Join("\n", words);
-            }
-            // ~0.55 em/ký tự với font sans mặc định — đủ để chữ dài không tràn khung.
-            float fit = maxWidth / Mathf.Max(longest.Length * 0.55f, 1f);
-            float chosen = Mathf.Min(size, fit / (0.021f * 64f));
+            // CharW đo thật trong Play mode bằng Renderer.bounds (xem hằng ở đầu class).
+            // Chỉ CO lại, không bao giờ phóng to.
+            // KHÔNG tự ngắt dòng: ngắt ở mọi khoảng trắng biến câu HUD thành cột dọc một
+            // từ mỗi dòng. Chuỗi dài thì co chữ, không xé câu.
+            float fit = maxWidth / Mathf.Max(text.Length * CharW, 0.0001f);
+            float chosen = Mathf.Min(size, fit);
 
             tm.text = text;
             tm.font = labelFont;
