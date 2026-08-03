@@ -10,9 +10,11 @@
 Việc đang mở: **chuyển view sang prefab + retained-mode** theo `docs/architecture/view-prefabs.md`
 (doc đã **Approved**). Script view **đã viết xong** và compile sạch dù chưa có prefab nào.
 
-**Đang chờ user:** dựng 5 prefab + `Main.unity` bằng tay theo **checklist Mục 6**. Chưa có prefab
-thì chưa Play được bàn mới — mọi nghiệm thu đang chờ cái này. `PrototypeView.cs` vẫn tự Play được
-như cũ (nó tự nhường sân khi scene có `BoardController`), nên vẫn có bản để đối chiếu hành vi.
+**Đang chờ user:** mở Unity, bấm menu **WordStack ▸ Build Prefabs + Scene** (`Editor/PrefabBuilder.cs`
+dựng 5 prefab + `Main.unity` + sprite trắng), rồi Play. Chưa ai chạy menu này lần nào — Unity không
+mở ở worktree được (bridge đăng ký theo project path) nên tôi mới chỉ compile-check, **chưa nghiệm
+thu runtime**. `PrototypeView.cs` vẫn tự Play được như cũ (tự nhường sân khi scene có
+`BoardController`), nên vẫn có bản để đối chiếu hành vi.
 
 ## Luật chơi hiện hành
 
@@ -36,7 +38,7 @@ chiếu: `demo/wordstack-clear-demo.html`. Domain thuần + SelfCheck + solver v
 2. ~~Viết script view~~ — xong: `Views/{ViewText,TileView,BoxView,StackView,GhostView,HudView}.cs`
    + `BoardController.cs`. Ba chỗ bắt buộc mang nguyên (co chữ `CharW=0.085` không auto-wrap ·
    invariant check · **hai** hộp đổi màu mỗi nước) đều đã ở trong code.
-3. **User dựng 5 prefab + `Main.unity`** theo checklist Mục 6 *(đang chờ)*.
+3. **User bấm menu dựng prefab + scene** (Mục 6) *(đang chờ)*.
 4. Tôi Play nghiệm thu 3 level, rà prefab YAML, rồi xoá `PrototypeView.cs`.
 
 Ba chỗ lệch so với draft, đã ghi ở **Mục 8** của doc: thẻ thật bay (xoá hẳn object "fly" tạm) ·
@@ -51,6 +53,7 @@ root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, 
 | `Assets/Prototype/PrototypeView.cs` | View runtime cũ (vẽ bằng code). **Chờ xoá** sau khi bàn prefab nghiệm thu xong; tới lúc đó vẫn Play được để đối chiếu |
 | `Assets/Prototype/BoardController.cs` + `Views/*.cs` | View mới: retained-mode, dựng từ prefab. Compile sạch, **chưa Play được vì chưa có prefab** |
 | `Assets/Prototype/Editor/LevelEditorWindow.cs` | Tool xếp level (`WordStack ▸ Level Editor`) |
+| `Assets/Prototype/Editor/PrefabBuilder.cs` | `WordStack ▸ Build Prefabs + Scene` — dựng 5 prefab + Main.unity. **Chạy lại ghi đè prefab**, mất chỉnh tay |
 | `Assets/Prototype/Resources/Levels/lv-00{1,2,3}.json` | 3 level, solver khớp demo (6/6/9/9/2/2 nước) |
 | `Assets/Prototype/Resources/Art/*.png` | 12 placeholder **có nhãn**; meta đã commit (GUID ổn định) |
 | `Assets/Plugins/Demigiant/` | DOTween 843K, commit vào repo theo quyết định của user |
@@ -63,8 +66,10 @@ root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, 
 ./compilecheck.sh   # compile cả 2 assembly C#, vài giây
 ```
 
-`compilecheck.sh` gom file bằng `find Assets/Prototype -not -path '*/Editor/*'` (thêm .cs khỏi phải
-sửa script) và mượn `Unity.InputSystem.dll` của repo chính khi worktree chưa có `Library/`. Nó phải
+`compilecheck.sh` gom file bằng `find` (thêm .cs khỏi phải sửa script) và mượn
+`Unity.InputSystem.dll` của repo chính khi worktree chưa có `Library/`. Assembly editor giờ gom cả
+source runtime vì `PrefabBuilder` đụng tới view — đã thử cách đúng-Unity hơn (tham chiếu `game.dll`)
+nhưng dính CS0012: game.dll theo mscorlib, ref set của UnityEditor theo netstandard. Nó vẫn phải
 **tách 2 assembly** đúng như Unity (`Assembly-CSharp` vs `-Editor`) vì hai
 thế giới reference xung khắc: `DOTween.dll` build theo mscorlib, `UnityEditor.dll` theo netstandard
 — nối bằng `Facades/netstandard.dll`.

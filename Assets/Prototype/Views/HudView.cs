@@ -13,6 +13,7 @@ namespace WordStack.Prototype
         [SerializeField] TextMesh winTitle;
         [SerializeField] TextMesh winHint;
         [SerializeField] GameObject stuckPanel;
+        [SerializeField] Transform stuckBg;
         [SerializeField] TextMesh stuckLabel;
 
         float cx, bottom, width = 6f;
@@ -33,6 +34,7 @@ namespace WordStack.Prototype
 
             winPanel.transform.localPosition = new Vector3(cx, 0f, 0f);
             stuckPanel.transform.localPosition = new Vector3(cx, bottom - 1.15f, 0f);
+            stuckBg.localScale = new Vector3(width * 0.9f, 0.7f, 1f);
         }
 
         public void Set(string levelTitle, int cleared, int total, int moves)

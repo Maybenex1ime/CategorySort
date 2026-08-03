@@ -46,16 +46,23 @@ w() { cygpath -w "$1"; }
   done
 } > "$OUT/game.rsp"
 
-# ---- Assembly-CSharp-Editor: tool xếp level ----
+# ---- Assembly-CSharp-Editor: tool xếp level + dựng prefab ----
+# Editor script giờ đụng tới view (PrefabBuilder dựng prefab từ TileView/BoxView/...), nên gom
+# CẢ source runtime vào đây. Đã thử cách đúng-Unity hơn — tham chiếu game.dll thay vì source —
+# nhưng game.dll build theo mscorlib còn ref set của UnityEditor là netstandard, csc đòi mscorlib
+# cho mọi chữ ký mượn từ nó (CS0012). Rẻ hơn là compile hai lần trong CÙNG một thế giới ref.
 {
   echo "-nologo"; echo "-target:library"; echo "-langversion:latest"; echo "-nostdlib"
   echo "-define:UNITY_EDITOR;UNITY_5_3_OR_NEWER"
   echo "-out:\"$(w "$OUT/editor.dll")\""
-  echo "-r:\"$(w "$NS/ref/2.1.0/netstandard.dll")\""
-  for f in "$NS"/compat/2.1.0/shims/netstandard/*.dll; do [ -f "$f" ] && echo "-r:\"$(w "$f")\""; done
+  for n in mscorlib System System.Core System.Xml; do echo "-r:\"$(w "$API/$n.dll")\""; done
+  echo "-r:\"$(w "$API/Facades/netstandard.dll")\""
   for f in "$MAN"/UnityEngine*.dll "$MAN"/UnityEditor*.dll; do echo "-r:\"$(w "$f")\""; done
-  echo "\"$(w "$PWD/Assets/Prototype/PrototypeDomain.cs")\""
-  echo "\"$(w "$PWD/Assets/Prototype/Editor/LevelEditorWindow.cs")\""
+  echo "-r:\"$(w "$INPUTSYS")\""
+  echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
+  find "$PWD/Assets/Prototype" -name '*.cs' | while read -r f; do
+    echo "\"$(w "$f")\""
+  done
 } > "$OUT/editor.rsp"
 
 fail=0

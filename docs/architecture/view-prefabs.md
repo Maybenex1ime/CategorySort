@@ -136,7 +136,8 @@ Hud                       HudView
 ```
 
 `HudView` fields: `headerBg` (Transform của quad), `title`, `help`, `winPanel`, `winTitle`, `winHint`,
-`stuckPanel`, `stuckLabel`. API: `Layout(cx, top, bottom, width)` (controller gọi 1 lần mỗi level),
+`stuckPanel`, `stuckBg`, `stuckLabel`. API: `Layout(cx, top, bottom, width)` (controller gọi 1 lần mỗi level;
+kéo bề rộng `headerBg` + `stuckBg` theo bàn),
 `Set(title, cleared, total, moves)`, `ShowWin()`, `ShowStuck()`, `HideAll()`.
 
 ## 3. Scene `Assets/Scenes/Main.unity`
@@ -199,23 +200,29 @@ Sorting order giữ nguyên bảng hiện tại (peek −13…−10 · box 0-2 �
 3. `PrototypeView.cs` **còn nguyên và vẫn tự Play được** cho tới bước đó — có cái để đối chiếu hành vi.
    Nó tự nhường sân khi scene đã có `BoardController`, nên `Main.unity` không bị hai bàn chồng nhau.
 
-**Bạn (checklist Mục 6):** dựng 5 prefab + scene bằng tay trong Editor, gắn script, kéo tham chiếu.
-Sai/thiếu tham chiếu nào `BoardController` sẽ log lỗi nói rõ thiếu field gì.
+**Bạn:** bấm menu ở Mục 6 rồi Play. Việc dựng tay đã chuyển thành `PrefabBuilder.cs` — Unity tự
+serialize thì GUID/tham chiếu luôn đúng, và dựng lại được khi thiết kế đổi.
 
-## 6. Checklist dựng tay — **script đã xong, tới lượt bạn**
+## 6. Dựng prefab — bằng menu, không dựng tay
 
-1. `Assets/Prefabs/`, `Assets/Scenes/` — tạo 2 folder.
-2. Mỗi prefab: dựng hierarchy đúng tên/kích thước/màu/offset như Mục 2 (sprite trắng dùng
-   `Sprites/Square` có sẵn của Unity), gắn script, kéo đủ tham chiếu vào field, save prefab.
-   Số nào không ghi ở Mục 2 (font size, chi tiết chữ) để mặc định — script tự set khi Bind.
-3. Scene `Main.unity`: camera (orthographic, nền #3A2E5F, tag MainCamera) + object `Game` gắn
-   `BoardController`, kéo 5 prefab vào 5 field. Palette + 4 hằng nhịp đã có sẵn giá trị.
-4. File > Build Settings > Add Open Scenes.
-5. Bấm Play — thiếu tham chiếu nào Console gọi tên field đó; xong thì báo tôi để tôi rà prefab YAML.
+`Assets/Prototype/Editor/PrefabBuilder.cs` chép Mục 2 + 3 thành code Editor:
+
+1. Mở project bằng Unity, đợi compile xong.
+2. Menu **WordStack ▸ Build Prefabs + Scene** → bấm "Dựng".
+3. Nó tạo: `Assets/Prefabs/{Tile,Box,Stack,Ghost,Hud}.prefab` · `Assets/Scenes/Main.unity`
+   (camera + `Game` đã kéo sẵn 5 prefab) · `Assets/Prototype/Sprites/white.png` (sprite trắng
+   PixelsPerUnit=1, tự sinh để khỏi phụ thuộc GUID asset builtin của Unity) · thêm scene vào
+   Build Settings.
+4. Bấm Play.
+
+**Chạy lại thì GHI ĐÈ 5 prefab** — hình thù chỉnh tay và số feel chỉnh trong Inspector sẽ mất.
+Sau khi đã tinh chỉnh bằng mắt thì đừng chạy lại; muốn đổi hình thù thì sửa doc + `PrefabBuilder`
+rồi mới chạy. Prefab sinh ra là asset bình thường, sửa tay tiếp được như mọi prefab khác.
 
 Hai thứ Console sẽ nói khi sai, biết trước cho đỡ mất thời gian:
 
-- `BoardController trên 'Game' thiếu tham chiếu: tilePrefab` — chưa kéo prefab vào field.
+- `BoardController trên 'Game' thiếu tham chiếu: tilePrefab` — field chưa được kéo (không xảy ra
+  nếu dựng bằng menu).
 - `View lệch (settle): ...` — invariant Mục 4a bắt được sổ sách view lệch domain. Đây là bug thật
   của tôi, không phải bạn dựng sai; chụp Console gửi tôi.
 
