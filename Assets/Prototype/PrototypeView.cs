@@ -15,6 +15,7 @@ using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
+using DG.Tweening;
 
 namespace WordStack.Prototype
 {
@@ -88,17 +89,9 @@ namespace WordStack.Prototype
         int highlightStack = -1;
         bool locked;
 
-        class FlyAnim
-        {
-            public GameObject Go;
-            public Vector3 From, To;
-            public float T;
-            public GameObject Reveal;
-        }
-        readonly List<FlyAnim> flies = new List<FlyAnim>();
-        GameObject shakeGo;
-        float shakeT = 1f;
-        Vector3 shakeHome;
+        // The "bay" tam: snap-back khi tha hut, hoac bay vao slot dich. DOTween lo chuyen
+        // dong; list nay chi de don sach khi doi level. Destroy huy luon tween nho SetLink.
+        readonly List<GameObject> flies = new List<GameObject>();
 
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot() { new GameObject("WordStackPrototype").AddComponent<PrototypeView>(); }
@@ -211,11 +204,10 @@ namespace WordStack.Prototype
             {
                 if (p.press.wasPressedThisFrame)
                     Load(g.Status == GameStatus.Won ? levelIndex + 1 : levelIndex);
-                AnimateTransients(dt);
                 return;
             }
 
-            if (locked) { AnimateTransients(dt); return; }
+            if (locked) return;
 
             if (p.press.wasPressedThisFrame && ghost == null)
             {
@@ -242,10 +234,8 @@ namespace WordStack.Prototype
             }
             else
             {
-                Hover(pt, dt);
+                Hover(pt);
             }
-
-            AnimateTransients(dt);
         }
 
         void HandleKeys()
@@ -336,8 +326,6 @@ namespace WordStack.Prototype
                 Mathf.LerpAngle(e.x, sine, TiltSpeed * dt),
                 Mathf.LerpAngle(e.y, cosine, TiltSpeed * dt), 0);
 
-            float s = Mathf.Lerp(ghost.transform.localScale.x, DragScale, 10f * dt);
-            ghost.transform.localScale = new Vector3(s, s, 1);
         }
 
         void BuildGhost(Tile t, Vector2 pt)
@@ -350,11 +338,12 @@ namespace WordStack.Prototype
             Quad(ghostTilt, new Vector2(0.05f, -0.06f), Vector2.one * (SlotSize + 0.06f),
                  new Color(0, 0, 0, 0.35f), 98);
             BuildTile(ghostTilt, t, Vector2.zero, TileBg, 100);
+            ghost.transform.DOScale(DragScale, 0.12f).SetEase(Ease.OutQuad).SetLink(ghost);
             moveDelta = Vector3.zero;
             rotDelta = Vector3.zero;
         }
 
-        void Hover(Vector2 pt, float dt)
+        void Hover(Vector2 pt)
         {
             GameObject h = null;
             foreach (var z in zones)
@@ -363,15 +352,17 @@ namespace WordStack.Prototype
                 tileGo.TryGetValue(z.Uid, out h);
                 break;
             }
-            if (h != hoverGo && hoverGo != null && !IsRevealPending(hoverGo))
-                hoverGo.transform.localScale = Vector3.one;
+            if (h == hoverGo) return;             // chi tween luc VAO/RA, khong moi frame
+            if (hoverGo != null && !IsLifted(hoverGo))
+                hoverGo.transform.DOScale(1f, 0.12f).SetEase(Ease.OutQuad).SetLink(hoverGo);
             hoverGo = h;
-            if (hoverGo != null && !IsRevealPending(hoverGo))
-            {
-                float s = Mathf.Lerp(hoverGo.transform.localScale.x, HoverScale, 12f * dt);
-                hoverGo.transform.localScale = new Vector3(s, s, 1);
-            }
+            if (hoverGo != null && !IsLifted(hoverGo))
+                hoverGo.transform.DOScale(HoverScale, 0.12f).SetEase(Ease.OutQuad).SetLink(hoverGo);
         }
+
+        // The dang bi "nhac len" (scale 0): dang keo, hoac dang co ban bay thay the no.
+        // Dung dung scale cua no, khong thi no hien lai giua chung.
+        static bool IsLifted(GameObject go) { return go.transform.localScale.x < 0.01f; }
 
         void Highlight(int stack)
         {
@@ -391,9 +382,8 @@ namespace WordStack.Prototype
         {
             GameObject go;
             if (!boxGo.TryGetValue(stack, out go) || go == null) return;
-            shakeGo = go;
-            shakeHome = go.transform.position;
-            shakeT = 0f;
+            go.transform.DOComplete();            // rung don: ket thuc cu truoc da
+            go.transform.DOPunchPosition(new Vector3(0.12f, 0, 0), 0.22f, 6, 0.6f).SetLink(go);
         }
 
         void SpawnFly(Tile t, Vector3 from, Vector3 to, GameObject reveal)
@@ -402,51 +392,26 @@ namespace WordStack.Prototype
             go.transform.SetParent(transform, false);
             go.transform.position = from;
             BuildTile(go.transform, t, Vector2.zero, TileBg, 90);
-            flies.Add(new FlyAnim { Go = go, From = from, To = to, Reveal = reveal });
+            flies.Add(go);
+            go.transform.DOMove(to, FlyDur).SetEase(Ease.OutCubic).SetLink(go)
+              .OnComplete(() =>
+              {
+                  if (reveal != null) reveal.transform.localScale = Vector3.one;
+                  flies.Remove(go);
+                  Destroy(go);
+              });
         }
 
-        bool IsRevealPending(GameObject go)
+        void ClearFlies()
         {
-            foreach (var f in flies) if (f.Reveal == go) return true;
-            return false;
-        }
-
-        void AnimateTransients(float dt)
-        {
-            for (int i = flies.Count - 1; i >= 0; i--)
-            {
-                var f = flies[i];
-                f.T += dt / FlyDur;
-                float e = 1f - Mathf.Pow(1f - Mathf.Clamp01(f.T), 3f);   // ease-out cubic
-                if (f.Go != null) f.Go.transform.position = Vector3.Lerp(f.From, f.To, e);
-                if (f.T < 1f) continue;
-                if (f.Go != null) Destroy(f.Go);
-                if (f.Reveal != null) f.Reveal.transform.localScale = Vector3.one;
-                flies.RemoveAt(i);
-            }
-
-            if (shakeGo != null)
-            {
-                shakeT += dt / 0.22f;
-                if (shakeT >= 1f)
-                {
-                    shakeGo.transform.position = shakeHome;
-                    shakeGo = null;
-                }
-                else
-                {
-                    float x = Mathf.Sin(shakeT * Mathf.PI * 3f) * 0.12f * (1f - shakeT);
-                    shakeGo.transform.position = shakeHome + new Vector3(x, 0, 0);
-                }
-            }
+            foreach (var go in flies) if (go != null) Destroy(go);
+            flies.Clear();
         }
 
         void ClearTransients()
         {
-            foreach (var f in flies) if (f.Go != null) Destroy(f.Go);
-            flies.Clear();
+            ClearFlies();
             if (ghost != null) { Destroy(ghost); ghost = null; }
-            shakeGo = null;
             hoverGo = null;
             highlightStack = -1;
             dragFrom = -1;
@@ -467,35 +432,36 @@ namespace WordStack.Prototype
 
                 if (ev.Kind == SettleKind.Clear)
                 {
-                    float dur = ClearDur + ev.DoomedUids.Length * ClearStagger;
-                    float t = 0f;
-                    while (t < dur)
+                    // 4 the co ve 0, lech nhau ClearStagger (GDD 9.3 "CLEAR")
+                    var seq = DOTween.Sequence();
+                    int n = 0;
+                    for (int i = 0; i < ev.DoomedUids.Length; i++)
                     {
-                        t += Time.deltaTime;
-                        for (int i = 0; i < ev.DoomedUids.Length; i++)
-                        {
-                            GameObject go;
-                            if (!tileGo.TryGetValue(ev.DoomedUids[i], out go) || go == null) continue;
-                            float k = Mathf.Clamp01((t - i * ClearStagger) / ClearDur);
-                            go.transform.localScale = Vector3.one * (1f - k);
-                        }
-                        AnimateTransients(Time.deltaTime);
-                        yield return null;
+                        GameObject go;
+                        if (!tileGo.TryGetValue(ev.DoomedUids[i], out go) || go == null) continue;
+                        seq.Insert(i * ClearStagger,
+                                   go.transform.DOScale(0f, ClearDur).SetEase(Ease.InBack).SetLink(go));
+                        n++;
                     }
+                    if (n > 0) yield return seq.WaitForCompletion();
+                    else seq.Kill();
                 }
                 else                                            // RemoveBox
                 {
                     GameObject go;
                     if (boxGo.TryGetValue(ev.Stack, out go) && go != null)
                     {
-                        float t = 0f;
-                        while (t < ClearDur)
+                        // hộp co lại + mờ dần (GDD §9.3 "Xoá box").
+                        // Dùng DOTween.ToAlpha (core) chứ không phải sr.DOFade — DOFade nằm
+                        // trong module Sprite tuỳ chọn, tránh phụ thuộc vào việc Setup có bật nó.
+                        var seq = DOTween.Sequence().SetLink(go);
+                        seq.Join(go.transform.DOScale(0.9f, ClearDur).SetEase(Ease.InQuad));
+                        foreach (var sr in go.GetComponentsInChildren<SpriteRenderer>())
                         {
-                            t += Time.deltaTime;
-                            float k = Mathf.Clamp01(t / ClearDur);
-                            go.transform.localScale = Vector3.one * Mathf.Lerp(1f, 0.9f, k);
-                            yield return null;
+                            var r = sr;
+                            seq.Join(DOTween.ToAlpha(() => r.color, c => r.color = c, 0f, ClearDur));
                         }
+                        yield return seq.WaitForCompletion();
                     }
                 }
 
@@ -588,9 +554,7 @@ namespace WordStack.Prototype
 
         void ClearTransientsKeepGhost()
         {
-            foreach (var f in flies) if (f.Go != null) Destroy(f.Go);
-            flies.Clear();
-            shakeGo = null;
+            ClearFlies();
             hoverGo = null;
             highlightStack = -1;
         }
