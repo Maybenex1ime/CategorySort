@@ -427,22 +427,111 @@ số nút beam search trùng khít bản trước migrate ở cả JS lẫn C#.
 
 ---
 
-## 9. Trạng thái & việc tiếp theo
+## 9. Timeline, phần 3 — art, va chạm phiên song song, DOTween
+
+### [15] Sinh art placeholder, và lần đầu thấy view chạy — commit `a3d31f4` (bị gỡ, xem [17])
+
+Blocker 9 PNG treo nhiều lượt nên tự sinh bằng Node (Unity đang đóng): encoder PNG tay
+~40 dòng dùng `zlib` có sẵn. Màu **xáo thứ tự** để không tương quan với nhóm — nếu không thì
+chơi thử chỉ cần nhìn màu là biết nhóm, hỏng luôn mục đích playtest.
+
+`./selfcheck.sh` **xanh toàn bộ lần đầu**: 3 level, cả hai chế độ luật.
+
+Nghiệm thu view bằng hai lớp. Trước hết là **histogram pixel**: render camera ra RenderTexture,
+đếm màu. Kết quả đọc đúng bảng GDD §9.1 — nền `#3A2E5F` 81%, hộp `#6B5CA8`, header `#6A5BA5`,
+viền `#A5A5A5`/`#8B8B8B`, và **hai** màu gợi ý nhóm `#F4B740` + `#5BC98C` (tức luật màu đang
+chạy thật). Sau đó mới tới ảnh chụp.
+
+Công cụ `Unity_Camera_Capture` của MCP trả về ảnh **trắng trơn** — nó lấy Scene View chứ không
+phải camera game. Tự render ra RenderTexture rồi `EncodeToPNG` mới ra ảnh thật.
+
+### [16] Hai lỗi chỉ lộ khi nhìn ảnh — commit `e9565ce`
+
+Cả `compilecheck` lẫn `SelfCheck` đều xanh mà màn hình vẫn sai:
+
+1. `Label` **ngắt dòng ở mọi khoảng trắng** khi chuỗi dài → câu HUD *"Drag a tile onto another
+   stack · R restart · N next level"* thành **cột dọc một từ mỗi dòng**.
+2. Hằng bề rộng ký tự **đoán** `0.30 × size`. Đo thật bằng `Renderer.bounds` trong Play mode ra
+   **≈ 0.085** — đoán cao gấp 3.5×, nên mọi nhãn co còn ~1/4 mức cần, gần như không đọc được.
+
+Bài học: `SelfCheck` kiểm **luật**, không kiểm **hình**. Lớp view chỉ có mắt người và ảnh chụp
+làm lưới. Và khi một hằng số là *ước lượng*, đo nó rẻ hơn nhiều so với đoán lại.
+
+Cũng ở đây phát hiện Unity **không tự compile khi mất focus** — hai lần chụp đầu là ảnh của
+assembly cũ. Từ đó mọi lần verify đều phải chờ `Assembly-CSharp.dll` mới hơn file nguồn.
+
+### [17] Va chạm với phiên song song
+
+Push bị từ chối: một phiên Claude khác đã đẩy **4 commit** lên cùng branch —
+art placeholder **có nhãn** cho 12 thẻ, `docs/architecture/view-prefabs.md`, và quan trọng nhất
+**đóng Giai đoạn 1b**: user đã chơi bản Unity, xác nhận *"phần game ok"*, `game-concept.md` →
+**Approved**.
+
+Nghĩa là tiền đề *"chưa ai thấy view chạy"* đã lỗi thời từ trước khi bắt đầu, và 9 PNG ở [15]
+là **việc trùng**. Cách gỡ: `reset --soft` commit của mình, bỏ art trùng (art có nhãn của họ tốt
+hơn ô màu trơn), giữ lại đúng phần sửa code — remote không đụng file `.cs` nào nên không mất gì.
+
+Bài học: branch dùng chung thì `git fetch` trước khi làm việc dài, không phải lúc sắp push.
+
+### [18] Hai quyết định lật thiết kế prefab — commit `e3b69e7`
+
+User đọc doc rồi lật **Q1**: bỏ rebuild-toàn-bàn, chuyển **retained-mode**. Lý do thật không phải
+hiệu năng mà là **animation xuyên trạng thái** — rebuild làm đứt danh tính GameObject nên không
+tween được thẻ trượt sang slot mới, và COLLAPSE sau này cần 4 thẻ bay về tâm hộp.
+
+Kèm **Mục 4a — invariant check**: retained-mode đánh mất tính "màn hình là hàm thuần của state",
+mà `SelfCheck` chỉ kiểm domain còn demo HTML render kiểu rebuild → **không bộ test nào trong repo
+nhìn tới lớp view**. Nên bắt buộc assert sau mỗi lần bàn đứng yên: tập uid GameObject bằng đúng
+tập tile trong top box.
+
+**Q3 mới: DOTween.** Doc cũng ghi chỗ **không** dùng nó — ghost đuổi con trỏ là bám đích *đang di
+chuyển* mỗi frame, không phải tween có điểm đến cố định.
+
+### [19] Cài DOTween + adapt — commit `d1ee532`, `075d4b0`
+
+Không cài được bằng máy: **license DOTween cấm redistribute** nên nó không có trên OpenUPM hay
+bất kỳ UPM registry công khai nào (đã tra cả registry lẫn search). Asset Store `.unitypackage` khi
+import **không để lại dấu vết gì** trong project, nên cũng không có cơ chế "khai một chỗ, máy khác
+tự tải" như `Packages/manifest.json` — cái đó chỉ chạy với gói trên registry.
+
+Kiểm ra repo **đang public**, tức commit DOTween là phát tán công khai. Đã nêu; user chốt commit.
+Ghi vào commit message như quyết định có ý thức.
+
+**Bẫy tốn nhiều thời gian nhất phiên:** sau khi import, Unity **im lặng không sinh assembly mới**.
+Nguyên nhân: DOTween Setup **tự thêm define `DOTWEEN_EPO`** dù `DOTweenSettings` ghi
+`epoOutlineEnabled: 0`. Define bật → `DOTweenModuleEPOOutline.cs` compile → tham chiếu asset
+*Easy Performant Outline* không có → **hỏng toàn bộ compile**, không lỗi nào nổi lên rõ ràng.
+Đã gỡ define khỏi **16 build target** và cho `DOTweenSettings` khớp lại (`epoOutlineEnabled: 0`),
+nếu không lần Setup sau nó tự thêm lại.
+
+Adapt: `FlyAnim` + `AnimateTransients` → `DOMove`; clear 4 thẻ → `Sequence` + `Insert`; xoá hộp →
+`DOScale` + `ToAlpha` (thêm được fade đúng §9.3, trước thiếu); rung → `DOPunchPosition`; hover →
+tween lúc vào/ra thay vì lerp mỗi frame. Dùng `DOTween.ToAlpha` (core) thay `sr.DOFade` để **không
+phụ thuộc module Sprite** có được bật hay không. Mọi tween `.SetLink(go)` — Destroy là tween tự chết.
+
+`compilecheck.sh`: compile cả 2 assembly ngoài Unity. Phải **tách đúng như Unity** vì hai thế giới
+reference xung khắc — `DOTween.dll` theo mscorlib, `UnityEditor.dll` theo netstandard; nối bằng
+`Facades/netstandard.dll`.
+
+---
+
+## 10. Trạng thái & việc tiếp theo
 
 **Đã xong:** demo HTML + check · domain + validate + solver + SelfCheck · `selfcheck.sh` ·
-view (P2–P4) · Level Editor · 3 level · doc pivot (`game-concept.md` Rev 4,
-`development-plan.md`, `active.md`).
+`compilecheck.sh` · view runtime (đã chơi được, user duyệt) · Level Editor · 3 level · 12 art
+placeholder có nhãn · DOTween + adapt · doc pivot.
 
-**Chặn:** thiếu **9 PNG** cho lv-001/lv-002 (`dog cat bear car airplane bicycle guitar piano
-violin`). Chưa có thì `./selfcheck.sh` dừng ở preflight và chỉ `lv-003` render được — bấm phím
-`3` trong game. Ba PNG của lv-003 là **placeholder** ô màu, ghi đè bằng art thật là xong.
+**Giai đoạn 1b ĐÃ ĐÓNG.** `game-concept.md` = **Approved** (2026-08-03).
 
-**Chưa ai nhìn thấy chạy:** `PrototypeView.cs` compile sạch và Unity đã nhận, nhưng render, kéo
-thả, nhịp cascade thì phải bấm Play mới biết đúng sai — mà bấm Play cần art.
+**Việc đang mở:** chuyển view sang prefab + retained-mode theo `docs/architecture/view-prefabs.md`.
+Mục 1 (Q1 retained-mode, Q3 DOTween) đã chốt; **phần còn lại — 5 prefab, scene, phân công — chờ
+user duyệt**. Sau khi duyệt: viết 5 script view + `BoardController`, user dựng prefab tay, rồi
+chuyển sang `Instantiate` và nghiệm thu.
 
 **Còn treo:**
 
 - `Rules.RemoveEmptyNonBottomBox` đang `true`. Cả 3 level chạy được ở **cả hai** chế độ nên đây
   là lựa chọn tự do, không bị data ép. Cân nhắc đảo về `false` (đọc chặt §7) nếu Undo quay lại.
-- Nguồn art thật + license.
+- Nguồn art thật + license (12 file hiện tại là placeholder có nhãn).
 - COLLAPSE, Undo, Hint — schema đã chừa đường (`group.group`), validate đang chặn.
+- DOTween nằm trong repo public — quyết định có ý thức của user, không phải sơ suất.
