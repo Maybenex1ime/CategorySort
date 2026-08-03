@@ -10,11 +10,12 @@
 Việc đang mở: **chuyển view sang prefab + retained-mode** theo `docs/architecture/view-prefabs.md`
 (doc đã **Approved**). Script view **đã viết xong** và compile sạch dù chưa có prefab nào.
 
-**Đang chờ user:** mở Unity, bấm menu **WordStack ▸ Build Prefabs + Scene** (`Editor/PrefabBuilder.cs`
-dựng 5 prefab + `Main.unity` + sprite trắng), rồi Play. Chưa ai chạy menu này lần nào — Unity không
-mở ở worktree được (bridge đăng ký theo project path) nên tôi mới chỉ compile-check, **chưa nghiệm
-thu runtime**. `PrototypeView.cs` vẫn tự Play được như cũ (tự nhường sân khi scene có
-`BoardController`), nên vẫn có bản để đối chiếu hành vi.
+**Đã dựng và chạy được** (2026-08-03): 5 prefab + `Main.unity` + `white.png` đã sinh bằng
+`PrefabBuilder` và **đã commit kèm .meta**. Play lv-001: 4 stack · 8 thẻ · HUD đếm đúng · lớp lấp ló
+hiện đúng chỗ · SelfCheck chạy từ `BoardController.Awake` và pass · **không có `View lệch`**.
+
+**Còn thiếu nghiệm thu:** kéo-thả, cascade CLEAR, xoá hộp, Won/Stuck — mấy cái đó cần người kéo
+chuột thật, tự động hoá không đáng. Kéo thử 3 level rồi mới xoá `PrototypeView.cs` được.
 
 ## Luật chơi hiện hành
 
@@ -38,8 +39,8 @@ chiếu: `demo/wordstack-clear-demo.html`. Domain thuần + SelfCheck + solver v
 2. ~~Viết script view~~ — xong: `Views/{ViewText,TileView,BoxView,StackView,GhostView,HudView}.cs`
    + `BoardController.cs`. Ba chỗ bắt buộc mang nguyên (co chữ `CharW=0.085` không auto-wrap ·
    invariant check · **hai** hộp đổi màu mỗi nước) đều đã ở trong code.
-3. **User bấm menu dựng prefab + scene** (Mục 6) *(đang chờ)*.
-4. Tôi Play nghiệm thu 3 level, rà prefab YAML, rồi xoá `PrototypeView.cs`.
+3. ~~Dựng prefab + scene~~ — xong, chạy qua MCP bridge, đã commit.
+4. **User kéo thử 3 level** *(đang chờ)*, rồi tôi xoá `PrototypeView.cs`.
 
 Ba chỗ lệch so với draft, đã ghi ở **Mục 8** của doc: thẻ thật bay (xoá hẳn object "fly" tạm) ·
 root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, không làm sườn vứt đi).
@@ -76,7 +77,8 @@ thế giới reference xung khắc: `DOTween.dll` build theo mscorlib, `UnityEdi
 
 ## Chặn / cần quyết định
 
-- **User dựng 5 prefab + `Main.unity`** (doc Mục 6) — nghiệm thu bàn mới đang chờ cái này.
+- **User kéo thử bàn mới** (Play `Assets/Scenes/Main.unity`) — kéo-thả/cascade/Won/Stuck chưa ai
+  chạy qua. Xong mới xoá được `PrototypeView.cs`.
 - Nguồn art thật + license (12 file hiện tại là placeholder có nhãn).
 
 ## Ghi chú kỹ thuật
@@ -100,9 +102,19 @@ thế giới reference xung khắc: `DOTween.dll` build theo mscorlib, `UnityEdi
 - **`Unity_Camera_Capture` của MCP trả ảnh trắng** — nó lấy Scene View. Muốn ảnh game thật thì tự
   render camera ra `RenderTexture` rồi `EncodeToPNG`.
 
-- **MCP Unity bridge** (`com.unity.ai.assistant`): đăng ký theo **project path** nên Unity mở ở repo
-  chính không điều khiển được worktree. Rớt mỗi domain reload, đợi vài giây. Package trong
-  `manifest.json` cố ý chưa commit (tooling, không phải dependency).
+- **MCP Unity bridge** (`com.unity.ai.assistant`): đăng ký theo **project path**. Unity thực tế đang
+  mở ở worktree `gdd-wordstack-logic-plan-5821c0` — KHÔNG phải repo chính, cũng không phải worktree
+  đang code. Cách làm việc: commit ở worktree mình → `git merge --ff-only` ở worktree kia (hai
+  branch cùng dòng nên luôn fast-forward) → `AssetDatabase.Refresh()` qua bridge → gọi hàm.
+  Bridge **rớt mỗi domain reload**, gọi lại sau vài giây là được. Nó **chặn `System.Reflection`**
+  (nên `PrefabBuilder.BuildAll` phải `public`) và treo nếu code gọi hộp thoại modal.
+  Package trong `manifest.json` cố ý chưa commit (tooling, không phải dependency).
+
+- **Ảnh game thật:** render `Camera.main` ra `RenderTexture` → `ReadPixels` → `EncodeToPNG` vào
+  `Temp/board.png` rồi đọc file. `Unity_Camera_Capture` của MCP vẫn trả Scene View trắng.
+
+- Lỗi `Burst compilation ... BurstCache/JIT/*.dll, error code 4551` trong Console: của Burst cache
+  trong worktree, không liên quan script mình, không chặn compile.
 
 - **Branch dùng chung với phiên Claude khác** — `git fetch` trước khi làm việc dài, không phải lúc
   sắp push. Đã một lần trùng việc vì bỏ qua bước này.

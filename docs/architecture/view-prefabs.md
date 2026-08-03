@@ -207,6 +207,9 @@ serialize thì GUID/tham chiếu luôn đúng, và dựng lại được khi thi
 
 `Assets/Prototype/Editor/PrefabBuilder.cs` chép Mục 2 + 3 thành code Editor:
 
+**Đã chạy 2026-08-03** — 5 prefab + scene + sprite trắng đã sinh và commit. Phần dưới là cách chạy
+lại khi thiết kế đổi.
+
 1. Mở project bằng Unity, đợi compile xong.
 2. Menu **WordStack ▸ Build Prefabs + Scene** → bấm "Dựng".
 3. Nó tạo: `Assets/Prefabs/{Tile,Box,Stack,Ghost,Hud}.prefab` · `Assets/Scenes/Main.unity`
