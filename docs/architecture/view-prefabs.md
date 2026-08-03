@@ -120,9 +120,10 @@ Ghost                     GhostView — giữ toàn bộ feel kéo-thả
    └─ TileAnchor            — Tile instance (order 100) mount vào đây
 ```
 
-`GhostView` fields: `tilt`, `tileAnchor` + `[SerializeField]` feel `followSpeed=25, rotAmount=70,
-rotSpeed=20, autoTilt=7, tiltSpeed=12, dragScale=1.15` — khối `// Feel` kéo-thả chuyển hết vào đây,
-chỉnh trong Inspector. API: `Begin(pt)`, `Follow(pt, dt)`.
+`GhostView` fields: `tilt`, `tileAnchor`, **`shadow`** (kéo chính node Shadow ở trên vào) +
+`[SerializeField]` feel `followSpeed=25, rotAmount=70, rotSpeed=20, autoTilt=7, manualTilt=20,
+tiltSpeed=12, dragScale=1.15, shadowLift=0.10` — khối `// Feel` kéo-thả chuyển hết vào đây, chỉnh
+trong Inspector. API: `Begin(pt)`, `Follow(pt, dt)`.
 
 ### `Hud.prefab` — world-space HUD (script `HudView`)
 
@@ -238,6 +239,22 @@ Addressables. Mỗi thứ chỉ làm khi có lý do đo được, và sẽ thàn
    chuyển sang `Instantiate` sau khi có prefab. Nhưng sườn ấy là code vứt đi, mà thiếu prefab thì
    cả hai bản đều không Play được — nên viết thẳng bản thật. `./compilecheck.sh` xác nhận compile
    sạch dù chưa có prefab nào.
+
+## 9. Feel lấy từ `D:\Balatro-Feel` (CardVisual.cs)
+
+Bản `PrototypeView` cũ đã mang sang: lerp đuổi con trỏ · xoay Z theo `movementDelta` · lắc sin/cos ·
+scale pop lúc nhấc · bóng · punch khi từ chối. User chốt 2026-08-03 lấy nốt 4 thứ còn thiếu:
+
+| Bên họ | Bên mình |
+|---|---|
+| `PointerEnter` → `DOPunchRotation(forward × 5)` | `Hover()` giật một cái khi con trỏ vào; `SetId(2)` + `Kill(id, true)` để rê nhanh qua nhiều thẻ không cộng dồn góc |
+| `scaleEase = Ease.OutBack` | mọi tween scale hover/nhấc đổi từ `OutQuad` sang `OutBack` |
+| `PointerDown` → bóng lùi ra xa | `GhostView.shadowLift = 0.10` lúc `Begin()`; ghost chết lúc thả nên không cần trả về |
+| `CardTilt` phần manual (`offset × 20`) | cộng vào lắc sin/cos: `movement` (độ trễ so với con trỏ) chính là `offset` mà bản gốc đo bằng `ScreenToWorldPoint` |
+
+Không lấy: `shakeParent` riêng (mình punch thẳng lên hộp), `Swap` punch (không có swap), curve fan
+tay bài (không có tay bài). Số của họ tính bằng pixel UI nên **đừng chép thẳng** — `rotAmount` mình
+70 so với 20 của họ vì đơn vị world nhỏ hơn nhiều.
 
 Ngoài ra `compilecheck.sh` giờ gom `Assets/Prototype/**/*.cs` bằng `find` (thêm file khỏi phải
 sửa script) và mượn `Unity.InputSystem.dll` của repo chính khi worktree chưa có `Library/`.

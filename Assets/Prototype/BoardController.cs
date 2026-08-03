@@ -38,7 +38,10 @@ namespace WordStack.Prototype
         const int FlyOrder = 90;
         const int GhostTileOrder = 100;
 
+        // Feel hover (tham chiếu D:\Balatro-Feel CardVisual.cs): phồng + giật một cái.
         const float HoverScale = 1.07f;
+        const float HoverPunchAngle = 5f;
+        const int HoverPunchId = 2;            // để Kill cú punch trước, không đụng tween scale
 
         static readonly Color BoxEdge = Hex(0xA5A5A5);
         static readonly Color BoxEdgeBottom = Hex(0x8B8B8B);
@@ -269,6 +272,7 @@ namespace WordStack.Prototype
             gt.transform.localPosition = Vector3.zero;
             gt.Bind(t, ArtOf(t), TileBg, GhostTileOrder, SlotSize);
 
+            DOTween.Kill(HoverPunchId, true);             // trả góc quay về 0 trước khi nhấc
             TileView tv;
             if (tiles.TryGetValue(uid, out tv) && tv != null)
                 tv.transform.localScale = Vector3.zero;   // thẻ "được nhấc lên"
@@ -341,10 +345,17 @@ namespace WordStack.Prototype
             }
             if (h == hoverTile) return;           // chỉ tween lúc VÀO/RA, không mỗi frame
             if (hoverTile != null && !IsLifted(hoverTile))
-                hoverTile.transform.DOScale(1f, 0.12f).SetEase(Ease.OutQuad).SetLink(hoverTile.gameObject);
+                hoverTile.transform.DOScale(1f, 0.12f).SetEase(Ease.OutBack).SetLink(hoverTile.gameObject);
             hoverTile = h;
             if (hoverTile != null && !IsLifted(hoverTile))
-                hoverTile.transform.DOScale(HoverScale, 0.12f).SetEase(Ease.OutQuad).SetLink(hoverTile.gameObject);
+            {
+                hoverTile.transform.DOScale(HoverScale, 0.12f).SetEase(Ease.OutBack).SetLink(hoverTile.gameObject);
+                // Giật một cái lúc con trỏ vào (CardVisual.PointerEnter). Kill(complete)
+                // cú trước để góc quay không cộng dồn khi rê nhanh qua nhiều thẻ.
+                DOTween.Kill(HoverPunchId, true);
+                hoverTile.transform.DOPunchRotation(Vector3.forward * HoverPunchAngle, 0.12f, 20, 1f)
+                         .SetId(HoverPunchId).SetLink(hoverTile.gameObject);
+            }
         }
 
         // Thẻ đang bị "nhấc lên" (scale 0) vì đang kéo. Đừng đụng scale của nó.
