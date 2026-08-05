@@ -24,11 +24,17 @@ namespace WordStack.Prototype
         [SerializeField] float tiltSpeed = 12f;
         [SerializeField] float dragScale = 1.15f;
         [SerializeField] float shadowLift = 0.10f;   // bóng lùi ra xa = thẻ rời mặt bàn
-        [SerializeField] float shadowSwing = 0.5f;   // bóng dạt theo hướng kéo, 0 = tắt
-        [SerializeField] float shadowSwingMax = 0.35f;
+
+        [Header("Bóng dạt theo hướng + tốc độ kéo")]
+        [SerializeField] float shadowSwing = 0.40f;      // dạt TỐI ĐA, tính bằng world unit
+                                                         // (ô thẻ rộng 0.67 → 0.40 ≈ 60% bề ngang thẻ)
+        [SerializeField] float shadowSwingAt = 6f;       // kéo nhanh bao nhiêu (unit/giây) thì đạt tối đa
+        [SerializeField] float shadowSwingSmooth = 14f;  // càng nhỏ càng ì, càng lớn càng bám sát
 
         Vector3 moveDelta, rotDelta;
-        Vector3 shadowHome;
+        Vector3 shadowHome, swingVel;
+        Vector2 lastPt;
+        bool hasLastPt;
         float lift;                                  // 0..shadowLift, DOTween nhấc lúc Begin
 
         public Transform TileAnchor { get { return tileAnchor; } }
@@ -44,6 +50,8 @@ namespace WordStack.Prototype
             transform.localScale = Vector3.one;
             moveDelta = Vector3.zero;
             rotDelta = Vector3.zero;
+            swingVel = Vector3.zero;
+            hasLastPt = false;
             lift = 0f;
             transform.DOScale(dragScale, 0.12f).SetEase(Ease.OutBack).SetLink(gameObject);
 
@@ -75,13 +83,24 @@ namespace WordStack.Prototype
                 Mathf.LerpAngle(e.x, sine, tiltSpeed * dt),
                 Mathf.LerpAngle(e.y, cosine, tiltSpeed * dt), 0f);
 
-            // Bóng dạt theo hướng kéo: kéo sang phải thì bóng lệch sang phải.
-            // `moveDelta` là độ trễ của thẻ SO VỚI con trỏ nên ngược hướng kéo → đảo dấu.
-            // Cộng ở toạ độ thế giới (không phải local) để hướng dạt không bị xoay Z của thẻ
-            // bẻ đi; clamp để giật con trỏ thật mạnh cũng không văng bóng ra khỏi thẻ.
+            // Bóng dạt theo HƯỚNG và TỐC ĐỘ kéo: kéo sang phải thì bóng lệch sang phải, kéo
+            // càng nhanh lệch càng xa, dừng tay thì bóng trôi về chỗ cũ.
+            //
+            // Đo vận tốc con trỏ trực tiếp (chia dt → world unit/giây) thay vì mượn `moveDelta`.
+            // `moveDelta` là độ trễ của thẻ, mà độ trễ đó tỉ lệ với dt: cùng một cú kéo, máy chạy
+            // 144fps ra độ trễ chỉ bằng ~2/5 máy 60fps, nên bóng sẽ dạt khác nhau tuỳ máy.
+            //
+            // Cộng ở toạ độ THẾ GIỚI (không phải local): thẻ đang xoay Z tới ±40°, cộng ở local
+            // thì "sang phải" bị góc xoay bẻ thành phải-chéo-xuống.
             if (shadow != null)
             {
-                var swing = Vector3.ClampMagnitude(-moveDelta * shadowSwing, shadowSwingMax);
+                var vel = hasLastPt ? (Vector3)((pt - lastPt) / Mathf.Max(dt, 1e-4f)) : Vector3.zero;
+                lastPt = pt;
+                hasLastPt = true;
+                swingVel = Vector3.Lerp(swingVel, vel, shadowSwingSmooth * dt);
+
+                var swing = Vector3.ClampMagnitude(
+                    swingVel * (shadowSwing / Mathf.Max(shadowSwingAt, 0.01f)), shadowSwing);
                 shadow.position = tilt.TransformPoint(shadowHome + Vector3.down * lift) + swing;
             }
         }

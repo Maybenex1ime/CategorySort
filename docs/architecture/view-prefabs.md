@@ -122,15 +122,23 @@ Ghost                     GhostView — giữ toàn bộ feel kéo-thả
 
 `GhostView` fields: `tilt`, `tileAnchor`, **`shadow`** (kéo chính node Shadow ở trên vào) +
 `[SerializeField]` feel `followSpeed=25, rotAmount=70, rotSpeed=20, autoTilt=7, manualTilt=20,
-tiltSpeed=12, dragScale=1.15, shadowLift=0.10, shadowSwing=0.5, shadowSwingMax=0.35` — khối
-`// Feel` kéo-thả chuyển hết vào đây, chỉnh trong Inspector. API: `Begin(pt)`, `Follow(pt, dt)`.
+tiltSpeed=12, dragScale=1.15, shadowLift=0.10, shadowSwing=0.40, shadowSwingAt=6,
+shadowSwingSmooth=14` — khối `// Feel` kéo-thả chuyển hết vào đây, chỉnh trong Inspector.
+API: `Begin(pt)`, `Follow(pt, dt)`.
 
 **Bóng của ghost do một mình `Follow()` đặt vị trí** (2026-08-05). Trước đó `Begin()` tween thẳng
 `shadow.localPosition`; từ khi có phần dạt-theo-hướng-kéo thì hai bên ghi cùng một transform sẽ đá
 nhau, nên `Begin()` chuyển sang tween biến `lift`, còn `Follow()` mỗi frame dựng lại vị trí bóng từ
 ba thành phần: `shadowHome` (giá trị authored trong prefab, chụp lúc `Awake`) + `lift` xuống dưới
 (local, nên nghiêng cùng thẻ) + `swing` dạt theo hướng kéo (**world**, để hướng dạt không bị xoay Z
-của thẻ bẻ đi, kèm `ClampMagnitude` cho khỏi văng ra ngoài lúc giật con trỏ).
+của thẻ bẻ đi, kèm `ClampMagnitude`).
+
+Phần `swing` đo **vận tốc con trỏ** (`Δpt / dt`, world unit/giây), không mượn `moveDelta`. Bản đầu
+dùng `moveDelta` cho ít code hơn nhưng hỏng hai đường: hệ số là số nhân mờ nghĩa nên đặt quá nhỏ
+(0.5 → dạt ~0.1 unit, mắt không thấy), và `moveDelta` là *độ trễ* vốn tỉ lệ với `dt` nên cùng một
+cú kéo, máy 144fps dạt chỉ bằng ~2/5 máy 60fps. Bản hiện tại: `shadowSwing` = dạt **tối đa tính
+bằng world unit**, `shadowSwingAt` = tốc độ kéo đạt mức tối đa đó — hai số đều đọc ra nghĩa vật lý,
+chỉnh mò được ngay trong Inspector.
 
 ### `Hud.prefab` — world-space HUD (script `HudView`)
 
@@ -267,7 +275,7 @@ scale pop lúc nhấc · bóng · punch khi từ chối. User chốt 2026-08-03 
 | `PointerEnter` → `DOPunchRotation(forward × 5)` | `Hover()` giật một cái khi con trỏ vào; `SetId(2)` + `Kill(id, true)` để rê nhanh qua nhiều thẻ không cộng dồn góc |
 | `scaleEase = Ease.OutBack` | mọi tween scale hover/nhấc đổi từ `OutQuad` sang `OutBack` |
 | `PointerDown` → bóng lùi ra xa | `GhostView.shadowLift = 0.10` lúc `Begin()`; ghost chết lúc thả nên không cần trả về |
-| *(thêm ngoài bản gốc)* bóng dạt theo hướng kéo | `shadowSwing` × `-moveDelta`, cộng ở world space. Bản gốc chỉ nhấc bóng, không dạt — user yêu cầu 2026-08-05 |
+| *(thêm ngoài bản gốc)* bóng dạt theo hướng + tốc độ kéo | vận tốc con trỏ (world unit/giây) → offset world space, clamp ở `shadowSwing`. Bản gốc chỉ nhấc bóng, không dạt — user yêu cầu 2026-08-05 |
 | `CardTilt` phần manual (`offset × 20`) | cộng vào lắc sin/cos: `movement` (độ trễ so với con trỏ) chính là `offset` mà bản gốc đo bằng `ScreenToWorldPoint` |
 
 Không lấy: `shakeParent` riêng (mình punch thẳng lên hộp), `Swap` punch (không có swap), curve fan
