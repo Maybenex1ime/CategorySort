@@ -1,6 +1,6 @@
 # Session State
 
-> Cập nhật cuối: 2026-08-03. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
+> Cập nhật cuối: 2026-08-04. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
 
 ## Đang ở đâu
 
@@ -23,8 +23,18 @@ kiểm được (xem "Input mô phỏng" dưới). Kéo thử rồi mới xoá `
 
 ## Luật chơi hiện hành
 
-Không đổi. Nguồn chân lý: `design/gdd/game-concept.md` mục "Luật chơi cốt lõi"; hành vi tham
-chiếu: `demo/wordstack-clear-demo.html`. Domain thuần + SelfCheck + solver vẫn nguyên.
+Không đổi. Domain thuần + SelfCheck + solver vẫn nguyên.
+
+- **`docs/wordstack-rules.md`** — bản tóm tắt **tự đủ nghĩa**, mô tả luật *đang chạy thật* (đưa
+  cho model/người mới đọc một file này là đủ). Viết 2026-08-04.
+- `design/gdd/game-concept.md` mục "Luật chơi cốt lõi" — thiết kế gốc. **Lệch một chỗ**: điều kiện
+  xoá hộp, xem dưới.
+- `demo/wordstack-clear-demo.html` — hành vi tham chiếu.
+
+**Q2 đã chốt 2026-08-04: giữ luật RỘNG** (`Rules.RemoveEmptyNonBottomBox = true`) — hộp trên cùng
+không-đáy rỗng vì *bất kỳ* lý do gì (kể cả người chơi kéo hết thẻ ra) cũng lùi ra. GDD đọc chặt thì
+chỉ CLEAR mới xoá hộp; chọn rộng vì không có Undo → luật chặt cho phép tự khoá chết bàn. Đảo lại là
+một cờ, solver kiểm cả hai chế độ. Mở lại khi làm Undo.
 
 ## Kế hoạch prefab (tóm tắt `docs/architecture/view-prefabs.md`)
 
@@ -56,13 +66,16 @@ root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, 
 | `demo/wordstack-clear-demo.html` + `demo/check.mjs` | Bản tham chiếu hành vi + bộ check (`node demo/check.mjs`) |
 | `Assets/Prototype/PrototypeDomain.cs` | Luật + validate + beam solver + SelfCheck. **Không import UnityEngine** |
 | `Assets/Prototype/PrototypeView.cs` | View runtime cũ (vẽ bằng code). **Chờ xoá** sau khi bàn prefab nghiệm thu xong; tới lúc đó vẫn Play được để đối chiếu |
-| `Assets/Prototype/BoardController.cs` + `Views/*.cs` | View mới: retained-mode, dựng từ prefab. Compile sạch, **chưa Play được vì chưa có prefab** |
+| `Assets/Prototype/BoardController.cs` + `Views/*.cs` | View mới: retained-mode, dựng từ prefab. **Đang chạy** trong `Main.unity` |
+| `Assets/Prefabs/*.prefab` + `Assets/Scenes/Main.unity` + `Assets/Prototype/Sprites/white.png` | Sinh bằng `PrefabBuilder`, đã commit kèm .meta |
 | `Assets/Prototype/Editor/LevelEditorWindow.cs` | Tool xếp level (`WordStack ▸ Level Editor`) |
 | `Assets/Prototype/Editor/PrefabBuilder.cs` | `WordStack ▸ Build Prefabs + Scene` — dựng 5 prefab + Main.unity. **Chạy lại ghi đè prefab**, mất chỉnh tay |
 | `Assets/Prototype/Resources/Levels/lv-00{1,2,3}.json` | 3 level, solver khớp demo (6/6/9/9/2/2 nước) |
 | `Assets/Prototype/Resources/Art/*.png` | 12 placeholder **có nhãn**; meta đã commit (GUID ổn định) |
 | `Assets/Plugins/Demigiant/` | DOTween 843K, commit vào repo theo quyết định của user |
-| `docs/architecture/view-prefabs.md` | Thiết kế prefab — **Approved**; Mục 6 = checklist dựng tay, Mục 8 = chỗ lệch draft |
+| `Assets/Prototype/Editor/BoardTestDriver.cs` | `WordStack ▸ Test ▸ Play 4 moves on lv-001` — chạy chuỗi nước đi qua `BoardController.DebugMove`, ghi `Temp/testdrive.{txt,png}` |
+| `docs/architecture/view-prefabs.md` | Thiết kế prefab — **Approved**; Mục 6 = dựng bằng menu, Mục 8 = chỗ lệch draft, Mục 9 = feel lấy từ Balatro-Feel |
+| `docs/wordstack-rules.md` | Luật chơi tự đủ nghĩa — đưa cho model/người mới đọc |
 
 ## Hai lệnh kiểm, chạy trước khi mở Unity
 
@@ -106,9 +119,15 @@ thế giới reference xung khắc: `DOTween.dll` build theo mscorlib, `UnityEdi
 - **`Unity_Camera_Capture` của MCP trả ảnh trắng** — nó lấy Scene View. Muốn ảnh game thật thì tự
   render camera ra `RenderTexture` rồi `EncodeToPNG`.
 
-- **MCP Unity bridge** (`com.unity.ai.assistant`): đăng ký theo **project path**. Unity thực tế đang
-  mở ở worktree `gdd-wordstack-logic-plan-5821c0` — KHÔNG phải repo chính, cũng không phải worktree
-  đang code. Cách làm việc: commit ở worktree mình → `git merge --ff-only` ở worktree kia (hai
+- **MCP Unity bridge** (`com.unity.ai.assistant`): mỗi Editor ghi một file đăng ký ở
+  `~/.unity/mcp/connections/bridge-*.json` (có `project_path` + named pipe). Client chọn instance
+  có `project_path` **là tiền tố của thư mục làm việc** — worktree nằm *dưới* `D:\CategorySort` nên
+  **Unity mở ở repo chính luôn thắng**, và nó giữ pipe sẵn nên xoá file đăng ký cũng vô ích:
+  **phải đóng hẳn instance repo chính** thì bridge mới chuyển sang worktree. Mất khá lâu mới ra.
+  Unity cần mở ở worktree `gdd-wordstack-logic-plan-5821c0` — repo chính đang ở commit cũ, không có
+  `Assets/Prefabs/` lẫn `Main.unity`. Mở bằng
+  `Start-Process "C:\Program Files\Unity\Hub\Editor\6000.3.8f1\Editor\Unity.exe" -ArgumentList @("-projectPath", "<worktree>")`.
+  Cách làm việc: commit ở worktree mình → `git merge --ff-only` ở worktree kia (hai
   branch cùng dòng nên luôn fast-forward) → `AssetDatabase.Refresh()` qua bridge → gọi hàm.
   Bridge **rớt mỗi domain reload**, gọi lại sau vài giây là được. Nó **chặn `System.Reflection`**
   (nên `PrefabBuilder.BuildAll` phải `public`) và treo nếu code gọi hộp thoại modal.
@@ -134,7 +153,17 @@ thế giới reference xung khắc: `DOTween.dll` build theo mscorlib, `UnityEdi
 - **Branch dùng chung với phiên Claude khác** — `git fetch` trước khi làm việc dài, không phải lúc
   sắp push. Đã một lần trùng việc vì bỏ qua bước này.
 
+- **Git — hai worktree, một dòng commit.** `claude/tiep-tuc-cong-viec-b27c80` (chỗ code) và
+  `claude/gdd-wordstack-logic-plan-5821c0` (chỗ Unity mở) luôn trỏ **cùng commit**: commit bên nào
+  thì `git merge --ff-only` bên kia. `main` ở `04ef5e6`, **không fast-forward được** (nó có riêng
+  commit ignore `Assets/_Recovery`; điểm rẽ `0ec41f2`).
+
+- **PR #1** — <https://github.com/Maybenex1ime/CategorySort/pull/1>, "Rebuild the view as
+  retained-mode prefabs", nhánh code → `main`, no conflicts, **chưa merge** (chờ user).
+  Push nhánh `claude/gdd-...` từng **treo ở `git-credential-manager get`** (hộp thoại đăng nhập,
+  phiên tự động không bấm được) — nội dung không mất vì cùng commit với nhánh đã đẩy.
+
 - File `.md` bị git đổi CRLF — normalize LF trước khi sửa bằng công cụ khớp chuỗi.
 
-- Câu hỏi mở Q1-Q14: `docs/wordstack-design-log.md` Mục 7. `Rules.RemoveEmptyNonBottomBox=true`
-  là lựa chọn tự do (3 level chạy được cả hai chế độ) — cân nhắc lại nếu làm Undo.
+- Câu hỏi mở Q1-Q14: `docs/wordstack-design-log.md` Mục 7. **Q2 đã chốt** (xem "Luật chơi hiện
+  hành"); các câu còn lại giữ nguyên.
