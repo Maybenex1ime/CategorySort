@@ -26,8 +26,8 @@ namespace WordStack.Prototype
         [SerializeField] float shadowLift = 0.10f;   // bóng lùi ra xa = thẻ rời mặt bàn
 
         [Header("Bóng dạt theo hướng + tốc độ kéo")]
-        [SerializeField] float shadowSwing = 0.40f;      // dạt TỐI ĐA, tính bằng world unit
-                                                         // (ô thẻ rộng 0.67 → 0.40 ≈ 60% bề ngang thẻ)
+        [SerializeField] float shadowSwing = 0.22f;      // dạt TỐI ĐA, tính bằng world unit
+                                                         // (ô thẻ rộng 0.67 → 0.22 ≈ 1/3 bề ngang thẻ)
         [SerializeField] float shadowSwingAt = 6f;       // kéo nhanh bao nhiêu (unit/giây) thì đạt tối đa
         [SerializeField] float shadowSwingSmooth = 14f;  // bóng trôi tới đích nhanh/chậm
         [SerializeField] float shadowSwingHold = 0.5f;   // dưới tốc độ này coi như tay đứng yên
