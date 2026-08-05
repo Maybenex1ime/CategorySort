@@ -87,6 +87,10 @@ MonoBehaviour:
   tiltSpeed: 12
   dragScale: 1.15
   shadowLift: 0.1
+  shadowSwing: 0.4
+  shadowSwingAt: 4
+  shadowSwingSmooth: 14
+  shadowSwingHold: 0.5
 --- !u!1 &5732262593776042664
 GameObject:
   m_ObjectHideFlags: 0
