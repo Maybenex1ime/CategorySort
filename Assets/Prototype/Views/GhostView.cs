@@ -85,8 +85,8 @@ namespace WordStack.Prototype
                 Mathf.LerpAngle(e.x, sine, tiltSpeed * dt),
                 Mathf.LerpAngle(e.y, cosine, tiltSpeed * dt), 0f);
 
-            // Bóng dạt theo HƯỚNG và TỐC ĐỘ kéo: kéo sang phải thì bóng lệch sang phải, kéo càng
-            // nhanh lệch càng xa. Đích của bóng được CHỐT lại — ngừng kéo mà vẫn giữ chuột thì bóng
+            // Bóng dạt NGANG theo hướng và tốc độ kéo: kéo sang phải thì bóng lệch sang phải, kéo
+            // càng nhanh lệch càng xa. Đích của bóng được CHỐT lại — ngừng kéo mà vẫn giữ chuột thì bóng
             // nằm yên ở chỗ cú kéo cuối để lại, không trôi về giữa thẻ. Đổi hướng kéo thì chốt lại
             // đích mới. Đây là lý do phải tách `swingTarget` (đích, chỉ đổi khi tay đang di chuyển)
             // khỏi `swingCur` (chỗ bóng đang ở, luôn trôi về đích).
@@ -99,15 +99,19 @@ namespace WordStack.Prototype
             // thì "sang phải" bị góc xoay bẻ thành phải-chéo-xuống.
             if (shadow != null)
             {
-                var vel = hasLastPt ? (Vector3)((pt - lastPt) / Mathf.Max(dt, 1e-4f)) : Vector3.zero;
+                // CHỈ dạt ngang: chỉ đo vận tốc trục X, thành phần dọc không tham gia kể cả ở
+                // ngưỡng xét — nên kéo thẳng đứng bị coi như tay đứng yên và bóng giữ nguyên chỗ
+                // cũ, thay vì trôi về giữa thẻ.
+                float velX = hasLastPt ? (pt.x - lastPt.x) / Mathf.Max(dt, 1e-4f) : 0f;
                 lastPt = pt;
                 hasLastPt = true;
 
                 // Ngưỡng này cũng nuốt luôn nhịp giật do chuột poll thưa hơn tốc độ khung hình:
-                // frame nào hệ điều hành không báo toạ độ mới thì vel = 0, đích giữ nguyên.
-                if (vel.magnitude > shadowSwingHold)
-                    swingTarget = Vector3.ClampMagnitude(
-                        vel * (shadowSwing / Mathf.Max(shadowSwingAt, 0.01f)), shadowSwing);
+                // frame nào hệ điều hành không báo toạ độ mới thì velX = 0, đích giữ nguyên.
+                if (Mathf.Abs(velX) > shadowSwingHold)
+                    swingTarget = new Vector3(
+                        Mathf.Clamp(velX * (shadowSwing / Mathf.Max(shadowSwingAt, 0.01f)),
+                                    -shadowSwing, shadowSwing), 0f, 0f);
 
                 swingCur = Vector3.Lerp(swingCur, swingTarget, shadowSwingSmooth * dt);
                 shadow.position = tilt.TransformPoint(shadowHome + Vector3.down * lift) + swingCur;

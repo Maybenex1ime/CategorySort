@@ -131,7 +131,11 @@ trong Inspector. API: `Begin(pt)`, `Follow(pt, dt)`.
 nhau, nên `Begin()` chuyển sang tween biến `lift`, còn `Follow()` mỗi frame dựng lại vị trí bóng từ
 ba thành phần: `shadowHome` (giá trị authored trong prefab, chụp lúc `Awake`) + `lift` xuống dưới
 (local, nên nghiêng cùng thẻ) + `swing` dạt theo hướng kéo (**world**, để hướng dạt không bị xoay Z
-của thẻ bẻ đi, kèm `ClampMagnitude`).
+của thẻ bẻ đi).
+
+`swing` **chỉ có trục X** (user chốt 2026-08-05) — bóng chạy trái/phải, không lên xuống. Trục dọc bị
+loại ngay từ khâu đo vận tốc, tức nó không tham gia cả phép xét ngưỡng: kéo thẳng đứng được coi như
+tay đứng yên nên bóng **giữ nguyên** chỗ cũ, không trôi về giữa thẻ.
 
 Phần `swing` đo **vận tốc con trỏ** (`Δpt / dt`, world unit/giây), không mượn `moveDelta`. Bản đầu
 dùng `moveDelta` cho ít code hơn nhưng hỏng hai đường: hệ số là số nhân mờ nghĩa nên đặt quá nhỏ
