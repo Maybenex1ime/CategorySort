@@ -317,7 +317,16 @@ làm box rỗng nên không được xoá), chứ không mở rộng sang trư�
 → Đọc chặt: **box chỉ bị xoá khi một CLEAR làm nó rỗng.**
 
 > Nhưng khi bỏ Undo (bước [9]) thì luật chặt tạo ra soft-lock không gỡ được → demo dùng luật
-> rộng, có cờ bật tắt. Quyết định cho bản Unity **chưa chốt** — phụ thuộc Undo có quay lại không.
+> rộng, có cờ bật tắt.
+
+**Chốt 2026-08-04: bản Unity giữ luật RỘNG** (`Rules.RemoveEmptyNonBottomBox = true`) — hộp rỗng vì
+bất kỳ lý do gì cũng lùi ra. *(User quyết khi rà lại thời điểm hộp lên đỉnh stack.)*
+
+Nghĩa là hành vi hiện hành **rộng hơn GDD** (§Luật dòng 46 gắn việc xoá hộp với CLEAR). Đổi lại
+được bằng một dòng, và solver trong `./selfcheck.sh` chạy **cả hai chế độ** cho cả 3 level — "chặt"
+và "rộng" đều giải được, cùng số nước (6/9/2), nên chuyện đổi không phụ thuộc level hiện có mà
+phụ thuộc **Undo**: luật chặt cộng không-Undo cho phép người chơi tự khoá bàn bằng cách kéo rỗng
+một hộp không-đáy. Mở lại câu này khi làm Undo.
 
 ---
 
@@ -328,7 +337,7 @@ Giả định mặc định đề nghị, để không chặn tiến độ:
 | # | Vấn đề | Giả định |
 |---|---|---|
 | Q1 | §7 `hasAnyLegalProgress` ("còn slot trống → còn nước đi") **mâu thuẫn** §R7/E8 ("mọi top box đầy VÀ không nhóm nào hoàn thành được") | Hai định nghĩa chỉ khác nhau khi board **chưa ổn định**. Dùng định nghĩa §R7/E8, implement bằng check §7, gọi **sau khi cascade ổn định** → một điều kiện thoả cả hai. Cả hai đều KHÔNG bắt soft-lock — đúng chủ đích "không có màn Thua" |
-| Q2 | Xoá box khi rỗng do kéo tay | Xem Mục 6(b) — chưa chốt |
+| Q2 | Xoá box khi rỗng do kéo tay | **Chốt 2026-08-04: giữ luật rộng** (cờ bật). Xem Mục 6(b); mở lại khi làm Undo |
 | Q3 | Cascade vòng (A.name ∈ B.words và ngược lại) — GDD không nói | Validate reject cycle |
 | Q4 | R2 lời văn ("group đạt count ≥ 2 đầu tiên") vs code §7.1 ("xuất hiện đầu tiên") | Theo code §7.1 — thuần cosmetic |
 | Q5 | `boxCapacity` per-level (§6.2) vs group luôn 4 từ | Hằng `BoxCapacity = 4`, bỏ per-level. Điều kiện hoàn thành đếm thành viên, không so capacity → đổi 16 không sửa luật |

@@ -14,8 +14,12 @@ Việc đang mở: **chuyển view sang prefab + retained-mode** theo `docs/arch
 `PrefabBuilder` và **đã commit kèm .meta**. Play lv-001: 4 stack · 8 thẻ · HUD đếm đúng · lớp lấp ló
 hiện đúng chỗ · SelfCheck chạy từ `BoardController.Awake` và pass · **không có `View lệch`**.
 
-**Còn thiếu nghiệm thu:** kéo-thả, cascade CLEAR, xoá hộp, Won/Stuck — mấy cái đó cần người kéo
-chuột thật, tự động hoá không đáng. Kéo thử 3 level rồi mới xoá `PrototypeView.cs` được.
+**Chuỗi nước đi đã nghiệm thu** (2026-08-04, `WordStack ▸ Test ▸ Play 4 moves on lv-001`): 4 nước
+đều nhận, CLEAR nổ (`1/3 groups · 4 moves`), hộp rỗng lùi ra, **hộp ẩn lộ ra kèm 4 thẻ mới**, lớp
+lấp ló giảm, màu nhóm đúng ở cả hộp nguồn lẫn hộp đích, **không có `View lệch`**.
+
+**Còn thiếu nghiệm thu:** hit-test vùng thả · ghost đuổi con trỏ · hover · feel — chỉ kéo tay mới
+kiểm được (xem "Input mô phỏng" dưới). Kéo thử rồi mới xoá `PrototypeView.cs` được.
 
 ## Luật chơi hiện hành
 
@@ -112,6 +116,17 @@ thế giới reference xung khắc: `DOTween.dll` build theo mscorlib, `UnityEdi
 
 - **Ảnh game thật:** render `Camera.main` ra `RenderTexture` → `ReadPixels` → `EncodeToPNG` vào
   `Temp/board.png` rồi đọc file. `Unity_Camera_Capture` của MCP vẫn trả Scene View trắng.
+
+- **Input mô phỏng KHÔNG chạy được từ tự động hoá** (đã thử hết, đừng thử lại): `InputSystem.
+  QueueStateEvent` lên `Mouse` bị Editor nuốt khi Game View không có focus — kể cả khi đã đặt
+  `backgroundBehavior=IgnoreFocus`, `editorInputBehaviorInPlayMode=AllDeviceInputAlwaysGoesToGameView`,
+  `canRunInBackground=true`. `Pointer.current` đứng im ở toạ độ chuột thật. Mà terminal chạy lệnh
+  luôn giữ foreground nên Game View không bao giờ focus được. Thay bằng
+  `BoardController.DebugMove` (editor-only) + `Editor/BoardTestDriver.cs`, vào đúng chỗ `Drop()`
+  đi tiếp qua `AfterMove()`. Còn hit-test/ghost/hover/feel thì phải người kéo.
+
+- **Player loop đứng im khi Unity ở background** — `Time.frameCount` không tăng. Bật
+  `Application.runInBackground = true` lúc Play trước khi làm bất cứ thứ gì cần frame chạy.
 
 - Lỗi `Burst compilation ... BurstCache/JIT/*.dll, error code 4551` trong Console: của Burst cache
   trong worktree, không liên quan script mình, không chặn compile.
