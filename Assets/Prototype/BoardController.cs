@@ -301,10 +301,17 @@ namespace WordStack.Prototype
                 return;
             }
 
+            AfterMove(from, to, uid, dropPos);
+        }
+
+        // Phần sau khi domain đã nhận nước đi. Tách ra để test tự động (DebugMove) đi đúng
+        // đường này chứ không phải một bản chép lại.
+        void AfterMove(int from, int to, string uid, Vector3 fromWorld)
+        {
             int slot = SlotIndexOf(g.TopBox(to), uid);
             TileView tv;
             if (slot >= 0 && tiles.TryGetValue(uid, out tv) && tv != null)
-                FlyTo(tv, boxViews[to].Slot(slot), dropPos);
+                FlyTo(tv, boxViews[to].Slot(slot), fromWorld);
 
             // HAI hộp đổi màu, không chỉ hộp đích: hộp nguồn mất thẻ → cặp có thể tan.
             RefreshColors(from);
@@ -313,6 +320,27 @@ namespace WordStack.Prototype
             RefreshHud();
             StartCoroutine(Settle(flyDur));                 // để thẻ hạ cánh rồi mới cascade
         }
+
+#if UNITY_EDITOR
+        // Cửa sau cho test tự động: đi từ đúng chỗ Drop() đi tiếp, bỏ phần con trỏ/ghost.
+        // Không thay được việc kéo tay — hit-test, ghost và feel vẫn phải người kiểm.
+        public bool DebugMove(int from, int slot, int to)
+        {
+            if (g == null || locked || boxViews == null) return false;
+            var box = g.TopBox(from);
+            if (box == null || slot < 0 || slot >= box.Slots.Length || box.Slots[slot] == null) return false;
+            string uid = box.Slots[slot].Uid;
+            TileView tv;
+            if (!tiles.TryGetValue(uid, out tv) || tv == null) return false;
+            var fromWorld = tv.transform.position;
+            if (!g.MoveTile(from, uid, to)) return false;
+            AfterMove(from, to, uid, fromWorld);
+            return true;
+        }
+
+        public bool DebugBusy { get { return locked; } }
+        public string DebugStatus { get { return g == null ? "?" : g.Status + " " + g.Cleared + "/" + g.TotalGroups + " " + g.Moves + " moves"; } }
+#endif
 
         void SnapBack(string uid, Vector3 from)
         {

@@ -30,7 +30,8 @@ namespace WordStack.Prototype
         // false = đọc chặt pseudocode §7 GDD (chỉ CLEAR mới xoá hộp). Phạm vi này KHÔNG
         // có Undo, nên false cho phép người chơi tự khoá chết hộp dưới vĩnh viễn, chỉ gỡ
         // được bằng Restart. Cân nhắc đảo khi Undo xuất hiện.
-        // Cả 2 level chạy được ở CẢ HAI chế độ — SelfCheck kiểm cả hai bất kể cờ này.
+        // Cả 3 level chạy được ở CẢ HAI chế độ — SelfCheck kiểm cả hai bất kể cờ này.
+        // Chốt 2026-08-04: giữ true. Xem docs/wordstack-rules.md Mục 4.
         public const bool RemoveEmptyNonBottomBox = true;
     }
 
