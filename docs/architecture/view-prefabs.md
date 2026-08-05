@@ -123,8 +123,8 @@ Ghost                     GhostView — giữ toàn bộ feel kéo-thả
 `GhostView` fields: `tilt`, `tileAnchor`, **`shadow`** (kéo chính node Shadow ở trên vào) +
 `[SerializeField]` feel `followSpeed=25, rotAmount=70, rotSpeed=20, autoTilt=7, manualTilt=20,
 tiltSpeed=12, dragScale=1.15, shadowLift=0.10, shadowSwing=0.40, shadowSwingAt=6,
-shadowSwingSmooth=14` — khối `// Feel` kéo-thả chuyển hết vào đây, chỉnh trong Inspector.
-API: `Begin(pt)`, `Follow(pt, dt)`.
+shadowSwingSmooth=14, shadowSwingHold=0.5` — khối `// Feel` kéo-thả chuyển hết vào đây, chỉnh
+trong Inspector. API: `Begin(pt)`, `Follow(pt, dt)`.
 
 **Bóng của ghost do một mình `Follow()` đặt vị trí** (2026-08-05). Trước đó `Begin()` tween thẳng
 `shadow.localPosition`; từ khi có phần dạt-theo-hướng-kéo thì hai bên ghi cùng một transform sẽ đá
@@ -139,6 +139,13 @@ dùng `moveDelta` cho ít code hơn nhưng hỏng hai đường: hệ số là s
 cú kéo, máy 144fps dạt chỉ bằng ~2/5 máy 60fps. Bản hiện tại: `shadowSwing` = dạt **tối đa tính
 bằng world unit**, `shadowSwingAt` = tốc độ kéo đạt mức tối đa đó — hai số đều đọc ra nghĩa vật lý,
 chỉnh mò được ngay trong Inspector.
+
+**Đích của bóng được CHỐT, không phải lò xo** (user làm rõ 2026-08-05). Ngừng kéo mà vẫn giữ chuột
+thì bóng **nằm yên tại chỗ cú kéo cuối để lại**, không trôi về giữa thẻ; đổi hướng kéo mới chốt đích
+mới. Vì vậy phải tách hai biến: `swingTarget` chỉ cập nhật khi vận tốc vượt `shadowSwingHold`, còn
+`swingCur` luôn `Lerp` về đích. Ngưỡng `shadowSwingHold` kiêm luôn việc nuốt nhịp giật khi chuột poll
+thưa hơn tốc độ khung hình (frame nào OS không báo toạ độ mới thì `vel = 0`, đích giữ nguyên thay vì
+sụp về 0). Bản trước lerp thẳng vận tốc nên hết kéo là bóng tự bật về — đúng nghĩa lò xo, sai ý định.
 
 ### `Hud.prefab` — world-space HUD (script `HudView`)
 

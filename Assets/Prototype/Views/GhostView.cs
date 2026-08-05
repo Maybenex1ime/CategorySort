@@ -29,10 +29,11 @@ namespace WordStack.Prototype
         [SerializeField] float shadowSwing = 0.40f;      // dạt TỐI ĐA, tính bằng world unit
                                                          // (ô thẻ rộng 0.67 → 0.40 ≈ 60% bề ngang thẻ)
         [SerializeField] float shadowSwingAt = 6f;       // kéo nhanh bao nhiêu (unit/giây) thì đạt tối đa
-        [SerializeField] float shadowSwingSmooth = 14f;  // càng nhỏ càng ì, càng lớn càng bám sát
+        [SerializeField] float shadowSwingSmooth = 14f;  // bóng trôi tới đích nhanh/chậm
+        [SerializeField] float shadowSwingHold = 0.5f;   // dưới tốc độ này coi như tay đứng yên
 
         Vector3 moveDelta, rotDelta;
-        Vector3 shadowHome, swingVel;
+        Vector3 shadowHome, swingTarget, swingCur;
         Vector2 lastPt;
         bool hasLastPt;
         float lift;                                  // 0..shadowLift, DOTween nhấc lúc Begin
@@ -50,7 +51,8 @@ namespace WordStack.Prototype
             transform.localScale = Vector3.one;
             moveDelta = Vector3.zero;
             rotDelta = Vector3.zero;
-            swingVel = Vector3.zero;
+            swingTarget = Vector3.zero;
+            swingCur = Vector3.zero;
             hasLastPt = false;
             lift = 0f;
             transform.DOScale(dragScale, 0.12f).SetEase(Ease.OutBack).SetLink(gameObject);
@@ -83,8 +85,11 @@ namespace WordStack.Prototype
                 Mathf.LerpAngle(e.x, sine, tiltSpeed * dt),
                 Mathf.LerpAngle(e.y, cosine, tiltSpeed * dt), 0f);
 
-            // Bóng dạt theo HƯỚNG và TỐC ĐỘ kéo: kéo sang phải thì bóng lệch sang phải, kéo
-            // càng nhanh lệch càng xa, dừng tay thì bóng trôi về chỗ cũ.
+            // Bóng dạt theo HƯỚNG và TỐC ĐỘ kéo: kéo sang phải thì bóng lệch sang phải, kéo càng
+            // nhanh lệch càng xa. Đích của bóng được CHỐT lại — ngừng kéo mà vẫn giữ chuột thì bóng
+            // nằm yên ở chỗ cú kéo cuối để lại, không trôi về giữa thẻ. Đổi hướng kéo thì chốt lại
+            // đích mới. Đây là lý do phải tách `swingTarget` (đích, chỉ đổi khi tay đang di chuyển)
+            // khỏi `swingCur` (chỗ bóng đang ở, luôn trôi về đích).
             //
             // Đo vận tốc con trỏ trực tiếp (chia dt → world unit/giây) thay vì mượn `moveDelta`.
             // `moveDelta` là độ trễ của thẻ, mà độ trễ đó tỉ lệ với dt: cùng một cú kéo, máy chạy
@@ -97,11 +102,15 @@ namespace WordStack.Prototype
                 var vel = hasLastPt ? (Vector3)((pt - lastPt) / Mathf.Max(dt, 1e-4f)) : Vector3.zero;
                 lastPt = pt;
                 hasLastPt = true;
-                swingVel = Vector3.Lerp(swingVel, vel, shadowSwingSmooth * dt);
 
-                var swing = Vector3.ClampMagnitude(
-                    swingVel * (shadowSwing / Mathf.Max(shadowSwingAt, 0.01f)), shadowSwing);
-                shadow.position = tilt.TransformPoint(shadowHome + Vector3.down * lift) + swing;
+                // Ngưỡng này cũng nuốt luôn nhịp giật do chuột poll thưa hơn tốc độ khung hình:
+                // frame nào hệ điều hành không báo toạ độ mới thì vel = 0, đích giữ nguyên.
+                if (vel.magnitude > shadowSwingHold)
+                    swingTarget = Vector3.ClampMagnitude(
+                        vel * (shadowSwing / Mathf.Max(shadowSwingAt, 0.01f)), shadowSwing);
+
+                swingCur = Vector3.Lerp(swingCur, swingTarget, shadowSwingSmooth * dt);
+                shadow.position = tilt.TransformPoint(shadowHome + Vector3.down * lift) + swingCur;
             }
         }
     }
