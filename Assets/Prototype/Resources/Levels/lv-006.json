@@ -1,0 +1,55 @@
+{
+  "id": "lv-006",
+  "title": "So thich",
+  "note": "Chuyen tu BUILTIN[2] cua demo wordstack.html. COLLAPSE 2 tang: dog/cat/bird -> pet -> hobby. Nhom dog co art rieng: tile 'Cho' sinh ra mang hinh con cho. Bo cuc sap lai 2026-08-06 de giai duoc o che do chat (ly do nhu lv-005).",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["poodle","corgi","husky",null] },
+          { "slots": ["meo-anh","meo-xiem","meo-ba-tu","vet"] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["chihuahua","meo-muop","se",null] },
+          { "slots": ["ca","am-nhac",null,null] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["bo-cau","dai-bang","the-thao","du-lich"] }
+      ]},
+      { "pos": [1,1], "boxes": [
+          { "slots": [null,null,null,null] }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"dog", "text":"Chó", "art":"dog", "group":"pet", "cards": [
+          { "id":"poodle",    "text":"Poodle"    },
+          { "id":"corgi",     "text":"Corgi"     },
+          { "id":"husky",     "text":"Husky"     },
+          { "id":"chihuahua", "text":"Chihuahua" }
+      ]},
+      { "id":"cat", "text":"Mèo", "group":"pet", "cards": [
+          { "id":"meo-muop",                     "art":"cat" },
+          { "id":"meo-ba-tu", "text":"Mèo Ba Tư"             },
+          { "id":"meo-anh",   "text":"Mèo Anh"               },
+          { "id":"meo-xiem",  "text":"Mèo Xiêm"              }
+      ]},
+      { "id":"bird", "text":"Chim", "group":"pet", "cards": [
+          { "id":"se",       "text":"Sẻ"       },
+          { "id":"bo-cau",   "text":"Bồ câu"   },
+          { "id":"dai-bang", "text":"Đại bàng" },
+          { "id":"vet",      "text":"Vẹt"      }
+      ]},
+      { "id":"pet", "text":"Thú cưng", "group":"hobby", "cards": [
+          { "id":"ca", "text":"Cá" }
+      ]},
+      { "id":"hobby", "text":"Sở thích", "cards": [
+          { "id":"am-nhac", "text":"Âm nhạc" },
+          { "id":"the-thao","text":"Thể thao" },
+          { "id":"du-lich", "text":"Du lịch"  }
+      ]}
+    ]
+  }
+}
