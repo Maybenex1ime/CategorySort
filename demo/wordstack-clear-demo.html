@@ -1,0 +1,593 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<title>WordStack — CLEAR-only demo</title>
+<style>
+  :root{
+    --bg:#3A2E5F; --header:#6A5BA5; --boxbg:#6B5CA8; --boxborder:#A5A5A5;
+    --tile:#DEDEDE; --ink:#111;
+    --box: min(160px, 42vw);
+    --gap: calc(var(--box) * .13);
+    --pitch: calc(var(--box) + var(--gap));
+    --vpitch: calc(var(--box) + var(--gap) * 2.4);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%}
+  body{
+    background:var(--bg); color:#fff; touch-action:none; user-select:none;
+    font:500 15px/1.4 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+    display:flex; flex-direction:column; align-items:center; gap:14px; padding:14px 10px 90px;
+  }
+
+  header{
+    background:var(--header); border-radius:24px; padding:10px 18px;
+    display:flex; align-items:center; gap:14px; flex-wrap:wrap; justify-content:center;
+    width:min(560px,100%);
+  }
+  header .title{font-weight:700}
+  header .prog{opacity:.85; font-variant-numeric:tabular-nums}
+  header .spacer{flex:1}
+  button{
+    font:inherit; font-weight:600; color:#fff; background:rgba(255,255,255,.14);
+    border:1px solid rgba(255,255,255,.25); border-radius:12px; padding:6px 12px; cursor:pointer;
+  }
+  button:hover{background:rgba(255,255,255,.24)}
+  button[aria-pressed="true"]{background:#fff; color:#3A2E5F; border-color:#fff}
+
+  #board{position:relative; margin-top:6px;
+    width:calc(var(--pitch) * var(--cols) - var(--gap));
+    height:calc(var(--vpitch) * var(--rows));
+  }
+
+  .stack{position:absolute; width:var(--box); height:var(--box);
+    left:calc(var(--pitch) * var(--x)); top:calc(var(--vpitch) * var(--y));}
+
+  /* Lớp báo độ sâu: phải TỤT XUỐNG để hở mép dưới, không phải co lại.
+     Dùng transform chứ không phải top — `inset:0` đã ghim bottom, đặt top chỉ làm nó thấp đi. */
+  .peek{position:absolute; inset:0; transform:translateY(calc(7px * var(--d))); border-radius:16px;
+    background:#544593; border:8px solid #8d8d8d; opacity:.9;}
+
+  .box{position:absolute; inset:0; background:var(--boxbg);
+    border:8px solid var(--boxborder); border-radius:16px;
+    display:grid; grid-template-columns:1fr 1fr; grid-template-rows:1fr 1fr;
+    gap:calc(var(--box)*.05); padding:calc(var(--box)*.05);
+    transition:transform .18s, opacity .22s;}
+  .box.bottom{border-style:dashed; border-color:#8b8b8b}
+  .stack.target .box{border-color:#fff; box-shadow:0 0 0 4px rgba(255,255,255,.28)}
+  .box.shake{animation:shake .2s}
+  @keyframes shake{25%{transform:translateX(-6px)}75%{transform:translateX(6px)}}
+  .box.gone{transform:scale(.9); opacity:0}
+
+  .slot{border-radius:10px; background:rgba(0,0,0,.14)}
+
+  .tile{width:100%; height:100%; border-radius:10px; background:var(--tile); color:var(--ink);
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:2px;
+    padding:2px; text-align:center; cursor:grab;
+    transition:background .15s, transform .15s, opacity .22s;
+    box-shadow:0 2px 0 rgba(0,0,0,.22);}
+  .tile .art{font-size:calc(var(--box)*.22); line-height:1}
+  .tile .txt{font-size:calc(var(--box)*.085); font-weight:700; line-height:1.05;
+    word-break:break-word; hyphens:auto; padding:0 2px}
+  .tile.has-both .art{font-size:calc(var(--box)*.17)}
+  .tile.has-both .txt{font-size:calc(var(--box)*.072)}
+  .tile.paired{transform:scale(1.03)}
+  .tile.lifted{opacity:0}
+  .tile.clearing{transform:scale(0); opacity:0}
+
+  #ghost{position:fixed; z-index:50; pointer-events:none; width:calc(var(--box)*.42);
+    height:calc(var(--box)*.42); transform:translate(-50%,-50%) scale(1.12) rotate(-3deg);
+    filter:drop-shadow(0 8px 10px rgba(0,0,0,.45));}
+
+  #toast{position:fixed; bottom:22px; left:50%; transform:translateX(-50%) translateY(20px);
+    background:#1d1633; border:1px solid rgba(255,255,255,.2); border-radius:14px;
+    padding:10px 16px; opacity:0; transition:.25s; pointer-events:none; z-index:60}
+  #toast.on{opacity:1; transform:translateX(-50%) translateY(0)}
+
+  #overlay{position:fixed; inset:0; background:rgba(20,14,40,.82); display:none;
+    flex-direction:column; align-items:center; justify-content:center; gap:16px; z-index:70}
+  #overlay.on{display:flex}
+  #overlay h2{font-size:34px; margin:0}
+
+  details{width:min(560px,100%); opacity:.75}
+  summary{cursor:pointer; padding:6px 0}
+  pre{background:rgba(0,0,0,.28); border-radius:12px; padding:12px; overflow:auto;
+    max-height:44vh; font-size:12px; line-height:1.45}
+  .err{background:#7a1f2b; padding:14px 18px; border-radius:12px; max-width:560px}
+</style>
+</head>
+<body>
+
+<header>
+  <span class="title" id="title">—</span>
+  <span class="prog" id="prog">0/0 groups</span>
+  <span class="spacer"></span>
+  <button data-lv="0" aria-pressed="true">Level 1</button>
+  <button data-lv="1" aria-pressed="false">Level 2</button>
+  <button id="restart">Restart</button>
+</header>
+
+<div id="board"></div>
+<div id="toast"></div>
+<div id="overlay"><h2>Complete!</h2><button id="next">Next level</button></div>
+
+<details>
+  <summary>Level data (JSON) — layout + meaning</summary>
+  <pre id="json"></pre>
+</details>
+
+<script id="levels" type="application/json">
+[
+{
+  "id": "lv-001",
+  "title": "Warm-up",
+
+  "note": "Nuoc 1-2: keo grape + orange sang hop trai tren -> du 4 Fruit -> CLEAR -> hop bien mat, lo hop duoi. Day dung vong lap loi ngay tu nuoc dau.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["apple","banana",null,null] },
+          { "slots": ["rabbit","bear","airplane","bicycle"] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["grape","orange","dog","cat"] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["car","bus",null,null] }
+      ]},
+      { "pos": [1,1], "boxes": [ { "slots": [null,null,null,null] } ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"fruit", "text":"Fruit", "cards": [
+          { "id":"apple",  "text":"Apple",  "art":"apple"  },
+          { "id":"banana",                  "art":"banana" },
+          { "id":"grape",  "text":"Grape"                  },
+          { "id":"orange", "text":"Orange", "art":"orange" }
+      ]},
+      { "id":"animal", "text":"Animal", "cards": [
+          { "id":"dog",    "text":"Dog",    "art":"dog"    },
+          { "id":"cat",                     "art":"cat"    },
+          { "id":"rabbit", "text":"Rabbit"                 },
+          { "id":"bear",   "text":"Bear",   "art":"bear"   }
+      ]},
+      { "id":"vehicle", "text":"Vehicle", "cards": [
+          { "id":"car",                        "art":"car"      },
+          { "id":"bus",      "text":"Bus"                       },
+          { "id":"airplane", "text":"Airplane", "art":"airplane" },
+          { "id":"bicycle",                    "art":"bicycle"  }
+      ]}
+    ]
+  }
+},
+{
+  "id": "lv-002",
+  "title": "Four groups",
+
+  "note": "Hai hop an, moi hop mo bang mot CLEAR rieng: Fruit mo hop trai, Animal mo hop phai. Vehicle + Music nam trong hai hop an do, gom not o hai hop trong cuoi.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["apple","banana",null,null] },
+          { "slots": ["car","bus","guitar","piano"] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["dog","cat",null,null] },
+          { "slots": ["airplane","bicycle","drum","violin"] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["grape","orange","rabbit","bear"] }
+      ]},
+      { "pos": [1,1], "boxes": [ { "slots": [null,null,null,null] } ]},
+      { "pos": [0,2], "boxes": [ { "slots": [null,null,null,null] } ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"fruit", "text":"Fruit", "cards": [
+          { "id":"apple",  "text":"Apple",  "art":"apple"  },
+          { "id":"banana",                  "art":"banana" },
+          { "id":"grape",  "text":"Grape"                  },
+          { "id":"orange", "text":"Orange", "art":"orange" }
+      ]},
+      { "id":"animal", "text":"Animal", "cards": [
+          { "id":"dog",    "text":"Dog",    "art":"dog"    },
+          { "id":"cat",                     "art":"cat"    },
+          { "id":"rabbit", "text":"Rabbit"                 },
+          { "id":"bear",   "text":"Bear",   "art":"bear"   }
+      ]},
+      { "id":"vehicle", "text":"Vehicle", "cards": [
+          { "id":"car",                        "art":"car"      },
+          { "id":"bus",      "text":"Bus"                       },
+          { "id":"airplane", "text":"Airplane", "art":"airplane" },
+          { "id":"bicycle",                    "art":"bicycle"  }
+      ]},
+      { "id":"music", "text":"Music", "cards": [
+          { "id":"guitar",                   "art":"guitar" },
+          { "id":"piano",  "text":"Piano",   "art":"piano"  },
+          { "id":"drum",   "text":"Drum"                    },
+          { "id":"violin", "text":"Violin",  "art":"violin" }
+      ]}
+    ]
+  }
+}
+]
+</script>
+
+<script>
+"use strict";
+
+// ── Hằng ─────────────────────────────────────────────────────────────────────
+const BOX_CAPACITY = 4;
+const GROUP_SIZE   = 4;
+const PALETTE = ['#F4B740','#5BC98C','#EF7C8E','#4FA8E8','#B48CE8','#E88C4F'];
+const CLEAR_MS = 260, CASCADE_MS = 350;
+
+// Trong Unity đây là key file trong Resources/Art. Demo dùng emoji để file tự đứng một mình.
+const ART = {
+  apple:'🍎', banana:'🍌', grape:'🍇', orange:'🍊',
+  dog:'🐶', cat:'🐱', rabbit:'🐰', bear:'🐻',
+  car:'🚗', bus:'🚌', airplane:'✈️', bicycle:'🚲',
+  guitar:'🎸', piano:'🎹', drum:'🥁', violin:'🎻'
+};
+
+// Box top rỗng (không phải box đáy) thì bị xoá, box dưới lộ ra — kể cả khi rỗng
+// do người chơi kéo hết thẻ ra, không chỉ do CLEAR.
+// Đặt false = bám sát pseudocode §7 (chỉ CLEAR mới xoá box); nhưng bỏ Undo rồi thì
+// người chơi tự dọn rỗng một box là khoá chết box dưới vĩnh viễn, không gỡ được.
+const REMOVE_EMPTY_NONBOTTOM_BOX = true;
+
+// ── Validate (chạy lúc load, sai là dừng, không render bàn hỏng) ─────────────
+function validate(lv){
+  const die = m => { throw new Error(`[${lv.id}] ${m}`); };
+  if(!lv.layout || !lv.meaning) die('thiếu "layout" hoặc "meaning"');
+
+  const groups = lv.meaning.groups || [];
+  const cards = groups.flatMap(g => g.cards || []);
+  const gid = new Set(), cid = new Set(), artOwner = new Map();
+
+  // Card lồng trong group nên KHÔNG còn phải kiểm "card trỏ group không tồn tại"
+  // và "một card thuộc hai group" — cấu trúc đã loại trừ cả hai.
+  for(const g of groups){
+    if(!g.id) die('group thiếu id');
+    if(gid.has(g.id)) die(`group id trùng: ${g.id}`);
+    gid.add(g.id);
+    if(!g.text && !g.art) die(`group "${g.id}" phải có text hoặc art`);
+    if(g.group) die(`group "${g.id}" có nhóm cha → COLLAPSE, bản demo này chỉ hỗ trợ CLEAR`);
+    const n = (g.cards || []).length;
+    if(n !== GROUP_SIZE) die(`group "${g.id}" có ${n} thẻ, phải đúng ${GROUP_SIZE}`);
+    if(g.art){
+      if(!ART[g.art]) die(`group "${g.id}" trỏ art "${g.art}" không tồn tại`);
+      if(artOwner.has(g.art)) die(`art "${g.art}" dùng cho cả ${artOwner.get(g.art)} và group "${g.id}"`);
+      artOwner.set(g.art, `group "${g.id}"`);
+    }
+  }
+  for(const g of groups) for(const c of g.cards){
+    if(!c.id) die(`group "${g.id}" có thẻ thiếu id`);
+    if(cid.has(c.id)) die(`card id trùng: ${c.id}`);
+    if(gid.has(c.id)) die(`id "${c.id}" dùng cho cả card lẫn group`);
+    cid.add(c.id);
+    if(!c.text && !c.art) die(`card "${c.id}" phải có text hoặc art`);
+    if(!c.art) continue;
+    if(!ART[c.art]) die(`card "${c.id}" trỏ art "${c.art}" không tồn tại`);
+    // Mỗi ảnh thuộc về đúng một thẻ — hai thẻ chung ảnh là kéo nhầm asset.
+    if(artOwner.has(c.art)) die(`art "${c.art}" dùng cho cả ${artOwner.get(c.art)} và card "${c.id}"`);
+    artOwner.set(c.art, `card "${c.id}"`);
+  }
+  // "text và ảnh ngang vai" là thuộc tính của level, không chỉ của schema
+  if(!cards.some(c => c.art && !c.text)) die('level không có thẻ nào chỉ-ảnh');
+  if(!cards.some(c => c.text && !c.art)) die('level không có thẻ nào chỉ-chữ');
+
+  const seen = new Map(), pos = new Set();
+  const stacks = lv.layout.stacks || [];
+  if(!stacks.length) die('layout không có stack nào');
+  stacks.forEach((st, si) => {
+    if(!Array.isArray(st.pos) || st.pos.length !== 2 || st.pos.some(n => typeof n !== 'number'))
+      die(`stack ${si}: "pos" phải là [x, y]`);
+    const key = st.pos.join(',');
+    if(pos.has(key)) die(`hai stack cùng pos [${key}]`);
+    pos.add(key);
+    if(!st.boxes || !st.boxes.length) die(`stack ${si} không có box nào`);
+    st.boxes.forEach((box, bi) => {
+      if(!Array.isArray(box.slots) || box.slots.length !== BOX_CAPACITY)
+        die(`stack ${si} box ${bi}: phải đúng ${BOX_CAPACITY} slot`);
+      const empty = box.slots.every(s => s === null);
+      if(empty && bi < st.boxes.length - 1)
+        die(`stack ${si} box ${bi}: box rỗng mà không phải box đáy → box dưới không bao giờ với tới được`);
+      for(const id of box.slots){
+        if(id === null) continue;
+        if(gid.has(id)) die(`"${id}" là group, không được đặt sẵn trên bàn`);
+        if(!cid.has(id)) die(`"${id}" trong layout không phải id của thẻ nào`);
+        if(seen.has(id)) die(`card "${id}" xuất hiện nhiều lần trên bàn`);
+        seen.set(id, true);
+      }
+    });
+  });
+  for(const c of cards) if(!seen.has(c.id)) die(`card "${c.id}" không có mặt trên bàn`);
+  return lv;
+}
+
+// ── Build state ──────────────────────────────────────────────────────────────
+let uidSeq = 0;
+function build(lv){
+  const card = {};
+  for(const g of lv.meaning.groups)
+    for(const c of g.cards) card[c.id] = { ...c, group: g.id };
+  return {
+    id: lv.id, title: lv.title,
+    groups: lv.meaning.groups,
+    totalGroups: lv.meaning.groups.length,
+    cleared: 0, moves: 0, status: 'playing',
+    stacks: lv.layout.stacks.map(st => ({
+      pos: st.pos,
+      boxes: st.boxes.map((b, i) => ({
+        isBottom: i === st.boxes.length - 1,
+        slots: b.slots.map(id => id === null ? null : {
+          uid: 't' + (++uidSeq), cardId: id, groupId: card[id].group,
+          text: card[id].text || null, art: card[id].art || null
+        })
+      }))
+    }))
+  };
+}
+
+// ── Engine (thuần, không đụng DOM) ───────────────────────────────────────────
+const topBox    = st  => st.boxes[0];
+const freeCount = box => box.slots.filter(s => !s).length;
+const firstFree = box => box.slots.indexOf(null);
+const isEmpty   = box => box.slots.every(s => !s);
+
+function moveTile(state, from, uid, to){
+  if(from === to) return false;
+  const src = topBox(state.stacks[from]), dst = topBox(state.stacks[to]);
+  if(!src || !dst) return false;
+  const i = src.slots.findIndex(t => t && t.uid === uid);
+  if(i < 0) return false;                       // không phải thẻ của top box
+  const j = firstFree(dst);
+  if(j < 0) return false;                       // box đích đầy
+  dst.slots[j] = src.slots[i];
+  src.slots[i] = null;
+  state.moves++;
+  return true;
+}
+
+function findCompletedGroup(state){
+  for(let s = 0; s < state.stacks.length; s++){
+    const box = topBox(state.stacks[s]);
+    if(!box) continue;
+    const count = {};
+    for(const t of box.slots) if(t) count[t.groupId] = (count[t.groupId] || 0) + 1;
+    for(const g in count) if(count[g] === GROUP_SIZE) return { s, g };
+  }
+  return null;
+}
+
+function findRemovableBox(state){
+  for(let s = 0; s < state.stacks.length; s++){
+    const box = topBox(state.stacks[s]);
+    if(box && !box.isBottom && isEmpty(box)) return s;
+  }
+  return -1;
+}
+
+const totalTiles = state =>
+  state.stacks.reduce((n, st) => n + st.boxes.reduce((m, b) => m + b.slots.filter(Boolean).length, 0), 0);
+
+function checkStatus(state){
+  if(totalTiles(state) === 0) return 'won';
+  if(state.stacks.every(st => freeCount(topBox(st)) === 0)) return 'stuck';
+  return 'playing';
+}
+
+// Cấp màu cục bộ theo từng box, thứ tự xuất hiện. Group có ≥2 thẻ mới được màu.
+function boxColors(box){
+  const byGroup = new Map();
+  for(const t of box.slots) if(t){
+    if(!byGroup.has(t.groupId)) byGroup.set(t.groupId, []);
+    byGroup.get(t.groupId).push(t);
+  }
+  const out = new Map(); let i = 0;
+  for(const [, ts] of byGroup)
+    if(ts.length >= 2){ const c = PALETTE[i++ % PALETTE.length]; ts.forEach(t => out.set(t.uid, c)); }
+  return out;
+}
+
+// ── Render ───────────────────────────────────────────────────────────────────
+const $ = s => document.querySelector(s);
+const board = $('#board'), toastEl = $('#toast'), overlay = $('#overlay');
+let state = null, locked = false, drag = null;
+
+function tileNode(t, color){
+  const el = document.createElement('div');
+  el.className = 'tile' + (t.text && t.art ? ' has-both' : '') + (color ? ' paired' : '');
+  el.dataset.uid = t.uid;
+  if(color) el.style.background = color;
+  if(t.art){ const a = document.createElement('div'); a.className = 'art'; a.textContent = ART[t.art]; el.appendChild(a); }
+  if(t.text){ const x = document.createElement('div'); x.className = 'txt'; x.textContent = t.text; el.appendChild(x); }
+  return el;
+}
+
+function render(){
+  board.innerHTML = '';
+  const cols = Math.max(...state.stacks.map(s => s.pos[0])) + 1;
+  const rows = Math.max(...state.stacks.map(s => s.pos[1])) + 1;
+  board.style.setProperty('--cols', cols);
+  board.style.setProperty('--rows', rows);
+
+  state.stacks.forEach((st, si) => {
+    const el = document.createElement('div');
+    el.className = 'stack';
+    el.style.setProperty('--x', st.pos[0]);
+    el.style.setProperty('--y', st.pos[1]);
+    el.dataset.stack = si;
+
+    const hidden = st.boxes.length - 1;
+    for(let d = Math.min(hidden, 3); d >= 1; d--){
+      const p = document.createElement('div');
+      p.className = 'peek'; p.style.setProperty('--d', d);
+      el.appendChild(p);
+    }
+
+    const box = topBox(st);
+    const bx = document.createElement('div');
+    bx.className = 'box' + (box.isBottom ? ' bottom' : '');
+    const colors = boxColors(box);
+    for(const t of box.slots){
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      if(t) slot.appendChild(tileNode(t, colors.get(t.uid)));
+      bx.appendChild(slot);
+    }
+    el.appendChild(bx);
+    board.appendChild(el);
+  });
+
+  $('#title').textContent = state.title;
+  $('#prog').textContent = `${state.cleared}/${state.totalGroups} groups · ${state.moves} moves`;
+}
+
+function toast(msg){
+  toastEl.textContent = msg;
+  toastEl.classList.add('on');
+  clearTimeout(toast.t);
+  toast.t = setTimeout(() => toastEl.classList.remove('on'), 2200);
+}
+
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+
+// ── Cascade: mỗi nhịp một bước, khoá input tới khi bàn đứng yên ──────────────
+async function settle(){
+  locked = true;
+  for(;;){
+    const hit = findCompletedGroup(state);
+    if(hit){
+      const box = topBox(state.stacks[hit.s]);
+      const doomed = box.slots.filter(t => t && t.groupId === hit.g).map(t => t.uid);
+      doomed.forEach((uid, i) => {
+        const n = board.querySelector(`.tile[data-uid="${uid}"]`);
+        if(n) setTimeout(() => n.classList.add('clearing'), i * 40);
+      });
+      await sleep(CLEAR_MS + doomed.length * 40);
+
+      for(let i = 0; i < box.slots.length; i++)
+        if(box.slots[i] && box.slots[i].groupId === hit.g) box.slots[i] = null;
+      state.cleared++;
+      if(isEmpty(box) && !box.isBottom) state.stacks[hit.s].boxes.shift();
+      render();
+      await sleep(CASCADE_MS);
+      continue;
+    }
+
+    if(REMOVE_EMPTY_NONBOTTOM_BOX){
+      const s = findRemovableBox(state);
+      if(s >= 0){
+        const n = board.querySelector(`.stack[data-stack="${s}"] .box`);
+        if(n) n.classList.add('gone');
+        await sleep(CLEAR_MS);
+        state.stacks[s].boxes.shift();
+        render();
+        await sleep(CASCADE_MS);
+        continue;
+      }
+    }
+    break;
+  }
+
+  state.status = checkStatus(state);
+  render();
+  locked = false;
+  if(state.status === 'won') overlay.classList.add('on');
+  if(state.status === 'stuck') toast('No moves left — press Restart');
+}
+
+// ── Kéo thả (Pointer Events, chạy cả chuột lẫn ngón tay) ─────────────────────
+board.addEventListener('pointerdown', e => {
+  if(locked || state.status !== 'playing') return;
+  const node = e.target.closest('.tile');
+  if(!node) return;
+  const from = +node.closest('.stack').dataset.stack;
+
+  const ghost = node.cloneNode(true);
+  ghost.id = 'ghost';
+  ghost.classList.remove('lifted');
+  document.body.appendChild(ghost);
+  node.classList.add('lifted');
+
+  drag = { uid: node.dataset.uid, from, node, ghost };
+  moveGhost(e);
+  e.preventDefault();
+});
+
+function moveGhost(e){
+  drag.ghost.style.left = e.clientX + 'px';
+  drag.ghost.style.top  = e.clientY + 'px';
+}
+
+function stackUnder(e){
+  const el = document.elementFromPoint(e.clientX, e.clientY);
+  const st = el && el.closest('.stack');
+  return st ? +st.dataset.stack : -1;
+}
+
+window.addEventListener('pointermove', e => {
+  if(!drag) return;
+  moveGhost(e);
+  const to = stackUnder(e);
+  document.querySelectorAll('.stack').forEach(s => s.classList.remove('target'));
+  if(to >= 0 && to !== drag.from && freeCount(topBox(state.stacks[to])) > 0)
+    board.querySelector(`.stack[data-stack="${to}"]`).classList.add('target');
+});
+
+window.addEventListener('pointerup', e => {
+  if(!drag) return;
+  const { uid, from, node, ghost } = drag;
+  const to = stackUnder(e);
+  drag = null;
+  ghost.remove();
+  node.classList.remove('lifted');
+  document.querySelectorAll('.stack').forEach(s => s.classList.remove('target'));
+
+  if(to < 0 || to === from) return;                       // thả ra ngoài / về chỗ cũ = huỷ
+  if(!moveTile(state, from, uid, to)){                    // box đích đầy
+    const bx = board.querySelector(`.stack[data-stack="${to}"] .box`);
+    if(bx){ bx.classList.add('shake'); setTimeout(() => bx.classList.remove('shake'), 220); }
+    return;
+  }
+  render();
+  settle();
+});
+
+// ── Bootstrap ────────────────────────────────────────────────────────────────
+const LEVELS = JSON.parse(document.getElementById('levels').textContent);
+let current = 0;
+
+function load(i){
+  current = i;
+  overlay.classList.remove('on');
+  document.querySelectorAll('[data-lv]').forEach(b =>
+    b.setAttribute('aria-pressed', String(+b.dataset.lv === i)));
+  try{
+    state = build(validate(LEVELS[i]));
+  }catch(err){
+    board.innerHTML = `<div class="err"><b>Level không hợp lệ</b><br>${err.message}</div>`;
+    return;
+  }
+  $('#json').textContent = JSON.stringify(LEVELS[i], null, 2);
+  render();
+  settle();                                               // box nạp sẵn nhóm đủ → nổ ngay lúc load
+}
+
+document.querySelectorAll('[data-lv]').forEach(b => b.onclick = () => load(+b.dataset.lv));
+$('#restart').onclick = () => load(current);
+$('#next').onclick = () => load((current + 1) % LEVELS.length);
+
+load(0);
+</script>
+</body>
+</html>

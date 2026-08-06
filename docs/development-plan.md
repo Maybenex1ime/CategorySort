@@ -1,22 +1,26 @@
-# Kế hoạch phát triển — Category Sort (Unity)
+# Kế hoạch phát triển — WordStack (Unity)
 
-> Clone game **Category Sort** (Lion Studios Plus): puzzle sắp xếp memoji theo danh mục,
-> kiểu Solitaire, level tăng dần độ khó với không gian giới hạn.
+> Puzzle sắp xếp: kéo thẻ giữa những chiếc hộp xếp chồng, gom đủ 4 thẻ cùng chủ đề vào một hộp
+> để chúng biến mất, hộp bên dưới lộ ra.
 > Kế hoạch này bám theo pipeline **Claude Cowork Game Studio (CCGS)** đã cài trong `.claude/skills`.
+>
+> **2026-08-02 — pivot:** dự án đổi từ *Category Sort* (collector/quota/move budget) sang
+> **WordStack**. Mọi mô tả gameplay Rev 3 trở về trước đã hết hiệu lực.
 
 ---
 
-## Tóm tắt gameplay cần clone
+## Tóm tắt gameplay
 
-*(Rev 3 — nguồn chân lý chi tiết: `design/gdd/game-concept.md`)*
+*(Nguồn chân lý chi tiết: `design/gdd/game-concept.md`; hành vi tham chiếu: `demo/wordstack-clear-demo.html`)*
 
-- Bàn chơi là **lưới slot chứa chồng thẻ**; chỉ thẻ trên cùng tương tác được, thẻ dưới bị ẩn.
-- Mỗi thẻ thuộc 1 **category**; item cùng category có art khác nhau (match bằng ngữ nghĩa).
-- **Cột giữa chỉ chứa collector** (~3 ô): mỗi ô gom 1 category với **quota**, đủ quota thì clear; **deck collector** góc phải trên lấp vào ô trống nếu còn thẻ.
-- **Chỉ 2 loại nước đi**, đều tốn 1 move: gom vào collector cùng loại, hoặc đảo thẻ sang **slot trống bất kỳ** (khay 5 slot dưới đáy = slot trống sẵn, cùng luật). Gom sai category: thẻ bật lại nhưng vẫn trừ 1 move (phạt). **Move budget** giới hạn mỗi level.
-- Cân bằng thẻ–quota: số thẻ mỗi category = quota collector category đó (không có thẻ thừa). Thắng: deck hết + mọi ô collector clear = dọn sạch bàn. Thua: hết move hoặc kẹt (hết slot trống, không gom được).
-- Game gốc còn có blocker (khóa xích, băng, free-slot, deck) + booster + coins → **ngoài MVP**, để Tier 2/3.
-- Chơi offline, single player, casual — session ngắn 2-4 phút/level.
+- Bàn chơi là các **stack**, mỗi stack là nhiều **hộp 4 slot xếp chồng**. Chỉ **hộp trên cùng** tương tác được; hộp dưới đã có sẵn thẻ nhưng bị che, chỉ lộ mép viền.
+- Mỗi thẻ thuộc đúng 1 **group** (4 thành viên). Thẻ hiện ra bằng **chữ, hình, hoặc cả hai** — match bằng ngữ nghĩa, xuyên cả hai phương thức.
+- **Chỉ 1 loại nước đi**: kéo thẻ bất kỳ trong hộp trên cùng sang hộp trên cùng của stack khác, vào **slot trống đầu tiên**. Hộp đích đầy → từ chối. **Không giới hạn nước đi, không timer.**
+- Gom đủ **4 thành viên của một group vào cùng một hộp** → **CLEAR**: 4 thẻ biến mất; hộp rỗng mà không phải hộp đáy thì bị xoá, hộp dưới lộ ra. Sau mỗi nước đi engine chạy **dây chuyền** tới khi bàn đứng yên.
+- **Màu gợi ý**: trong cùng một hộp, group có ≥2 thẻ được tô cùng màu; cấp phát cục bộ theo từng hộp, không cố định toàn cục.
+- **Thắng**: dọn sạch bàn. **Kẹt**: mọi hộp trên cùng đầy và không nhóm nào hoàn thành được — không có màn Thua, chỉ toast + Restart.
+- **Ngoài phạm vi hiện tại**: COLLAPSE (gộp nhóm đệ quy), Undo, Hint, âm thanh, blocker, booster.
+- Chơi offline, single player, casual — 1-3 phút/level.
 
 ---
 
@@ -47,22 +51,38 @@ Skill dùng ngoài luồng khi cần: `unity-bug-root-cause` (khi có bug), `ccg
 
 ## Giai đoạn 1 — Concept (`ccgs-brainstorm`) (1 ngày)
 
-Vì đã có game gốc để tham chiếu, brainstorm chạy nhanh, tập trung vào:
-- **Elevator pitch**: "Solitaire dọn thẻ: đào các chồng thẻ, gom đủ chỉ tiêu từng nhóm — match bằng ý nghĩa, không phải bằng hình."
+Đã chạy — kết quả ở `design/gdd/game-concept.md` (Rev 4). Tóm tắt để khỏi mở file:
+- **Elevator pitch**: "Kéo thẻ giữa những chiếc hộp xếp chồng, gom đủ 4 thẻ cùng chủ đề vào một hộp để chúng biến mất."
 - **Core verb**: *sort* (kéo-thả phân loại).
-- **Core loop 30s**: nhìn bàn → nhận diện category → kéo memoji → match nổ → mở khóa nước đi mới.
-- **Pillars** (đề xuất, chốt khi chạy skill):
-  1. *Đọc nhanh, quyết định chậm* — nhận diện category tức thì, chiến thuật nằm ở thứ tự.
-  2. *Juice là phần thưởng* — mỗi match phải "đã" (âm thanh, hiệu ứng).
-  3. *Canh bạc đọc được* — layout cố định, không RNG lúc chơi; rủi ro đào chồng luôn ước lượng được.
-- **MVP**: 1 mechanic match duy nhất, 20 level, không ads/IAP/meta.
-- **Scope tiers**: MVP → thêm booster/undo → polish phát hành.
+- **Core loop 30s**: quét các hộp đang mở → đọc màu gợi ý + nội dung thẻ → kéo thẻ gom đủ 4 → CLEAR → hộp dưới lộ ra.
+- **Pillars**: *Đọc nhanh, quyết định chậm* · *Juice là phần thưởng* · *Canh bạc đọc được*.
+- **MVP**: chỉ kết cục CLEAR, không ads/IAP/meta.
+- **Scope tiers**: MVP (CLEAR) → COLLAPSE + Undo/Hint + nhiều level → polish phát hành.
 
-## Giai đoạn 1b — Prototype vứt đi (1-2 ngày)
+## Giai đoạn 1b — Prototype vứt đi (đang làm)
 
-Một scene duy nhất, art placeholder (emoji font hệ thống), hardcode 1 level:
-kéo-thả + đủ luật core (chồng thẻ, collector/quota, tray, move budget). Mục tiêu duy nhất: **xác nhận core loop vui**
-trước khi viết GDD. Code này không mang sang production.
+Hai bước, bước 1 xong:
+
+**Bước 1 — demo HTML (xong, đã duyệt).** `demo/wordstack-clear-demo.html`: 1 file self-contained,
+đủ luật core, 2 level, chơi được bằng chuột lẫn ngón tay. `demo/check.mjs` trích engine thẳng từ
+file HTML nên test đúng code đang chạy; có beam-search solver chứng minh cả 2 level giải được ở
+**cả hai** cách đọc luật xoá hộp. Mục tiêu "core loop có vui không?" — đã trả lời.
+
+**Bước 2 — port sang Unity (đang làm).** Vẫn đúng 3 file trong `Assets/Prototype/`, không thêm
+file `.cs` nào, không thêm package nào.
+
+| Phase | Việc | Xong khi |
+|---|---|---|
+| P-doc | Pivot tài liệu | Không doc nào còn coi collector/quota/move-budget là luật hiện hành |
+| P1a | Model + mini JSON reader + validate + build; console main đọc file | `./selfcheck.sh` chạy được, **không cần mở Unity** |
+| P1b | Engine + màu + Encode/Score/beam solver + SelfCheck đầy đủ | `./selfcheck.sh` exit 0; số nước giải + số nút duyệt **trùng khít** `demo/check.mjs` |
+| P2 | View tĩnh: stack/hộp/mép viền/thẻ, sprite+chữ, camera fit từ bbox của `pos` | Bấm Play thấy lv-001 khớp demo |
+| P3 | Kéo thả: zone mới + tái dùng khối game-feel sẵn có | Kéo tay đúng luật, hộp đầy rung + snap-back |
+| P4 | Coroutine cascade + khoá input + toast/overlay + settle ngay sau load | Chơi tay thắng cả 2 level trong Editor |
+
+Code này không mang sang production. Ràng buộc quan trọng nhất: `PrototypeDomain.cs`
+**không import UnityEngine**, nên luật kiểm được bằng `./selfcheck.sh` trong ~2 giây thay vì
+mở Editor — đó là vòng phản hồi nhanh nhất khi sửa luật hoặc sửa level.
 
 ## Giai đoạn 2 — Systems Design (`ccgs-map-systems` → `ccgs-design-system`) (2-3 ngày)
 
@@ -70,18 +90,20 @@ trước khi viết GDD. Code này không mang sang production.
 
 | Layer | System | Ghi chú |
 |-------|--------|---------|
-| Foundation | **Item/Category Database** | ScriptableObject: category, các art variant |
-| Foundation | **Level Data** | ScriptableObject/JSON: lưới chồng thẻ, deck collector + quota, move budget |
+| Foundation | **Level Data** | JSON: `layout` (stack có `pos`, hộp, slot) + `meaning` (group, card, text/art) |
+| Foundation | **Level Validator** | 12 luật, chạy lúc load, sai là ném lỗi rõ ràng — plain C# |
 | Foundation | **Save System** | PlayerPrefs/JSON: level đã qua, settings |
-| Core | **Pile Board System** | Lưới chồng thẻ, lộ thẻ khi lấy, trạng thái thẻ (thiết kế mở cho blocker Tier 2) — plain C# |
-| Core | **Collector System** | Cột ô collector + deck lấp ô trống, quota, hoàn thành — plain C# |
-| Core | **Slot System** | Slot trống (khay + lưới), luật đảo thẻ, điều kiện kẹt — plain C# |
-| Core | **Turn & Win/Lose Rules** | Move budget, thắng/thua/kẹt — plain C# |
+| Core | **Stack/Box Board** | Stack các hộp 4 slot, chỉ hộp trên cùng hoạt động, lộ hộp khi xoá — plain C# |
+| Core | **CLEAR Rules** | Đếm 4 thành viên nhóm trong 1 hộp, xoá thẻ, xoá hộp, hộp đáy ở lại — plain C# |
+| Core | **Cascade Resolver** | `SettleStep` từng bước để view có nhịp + khoá input — plain C# |
+| Core | **Win/Stuck Rules** | Sạch bàn = thắng; mọi hộp trên cùng đầy = kẹt — plain C# |
+| Core | **Group Color Hints** | Cấp màu cục bộ theo hộp, trả index (màu hex ở view) — plain C# |
 | Core | **Drag & Drop Input** | MonoBehaviour adapter → gọi domain |
-| Feature | **Level Progression** | Mở khóa tuần tự, độ khó tăng dần |
-| Feature | **Level Solver/Validator** | Chạy trên domain thuần: kiểm cân bằng thẻ–quota + xác minh level giải được + đo move tối thiểu → đặt budget |
-| Presentation | **Game UI** | Menu, HUD (moves, quota), màn thắng/thua, level select |
-| Presentation | **VFX & Audio (Juice)** | Thẻ bay vào collector, quota nhảy số, hoàn thành nổ, SFX |
+| Feature | **Level Progression** | Mở khoá tuần tự, độ khó tăng dần |
+| Feature | **Level Solver** | Beam search trên domain thuần: xác minh level giải được ở **chế độ chặt** (mọi hộp ẩn chỉ mở bằng một CLEAR dùng thẻ đang với tới được) |
+| Feature (tier sau) | **COLLAPSE** | Gộp nhóm đệ quy — data model đã chừa `group.group`, validate đang chặn |
+| Presentation | **Game UI** | Menu, HUD (tiến độ nhóm), màn thắng, level select |
+| Presentation | **VFX & Audio (Juice)** | Thẻ bay vào slot đích, đổi màu khi thành cặp, CLEAR nổ, hộp trượt lên khi lộ, SFX |
 | Polish (Tier 2) | **Obstacles/Blockers** | Khóa xích, băng, free-slot, deck dự trữ — ngoài MVP |
 | Polish (Tier 2) | **Boosters** | Undo/hint/magnet — ngoài MVP |
 | Polish | **Tutorial** | 1-2 level đầu tự dạy bằng thiết kế |
@@ -108,7 +130,7 @@ Các ADR then chốt cần chốt:
 
 Vòng lặp mỗi story: **`unity-tdd-workflow`** (test EditMode trước → code pass → wire MonoBehaviour) → **`ccgs-code-review`** + **`unity-clean-architecture-review`** → **`ccgs-story-done`**.
 
-- **Sprint 1 — Core chơi được**: Item DB, Level Data, Pile Board + Collector/Deck + Slot + Turn Rules (TDD đầy đủ: gom đúng/sai category, quota hoàn thành + deck lấp ô, lộ thẻ dưới, đảo slot trống, hết move, phát hiện kẹt), Drag & Drop, 3 level test. *Kết quả: chơi được 1 level từ đầu đến cuối, art placeholder.*
+- **Sprint 1 — Core chơi được**: Level Data + Validator, Stack/Box Board + CLEAR Rules + Cascade + Win/Stuck + Color Hints (TDD đầy đủ: slot trống đầu tiên, hộp đầy bị từ chối, hộp bị che bất khả xâm, CLEAR + xoá hộp + lộ hộp dưới, CLEAR ở hộp đáy, màu 3 case, thắng/kẹt), Level Solver, Drag & Drop, 3 level. *Kết quả: chơi được 1 level từ đầu đến cuối, art placeholder.*
 - **Sprint 2 — Game hoàn chỉnh tối thiểu**: Level Progression, Save, UI flow (menu → level → thắng/thua → next), 20 level, difficulty curve tay.
 - **Sprint 3 — Juice & hoàn thiện**: VFX/SFX/tween, tutorial, polish cảm giác kéo-thả, playtest + sửa theo `unity-bug-root-cause`.
 

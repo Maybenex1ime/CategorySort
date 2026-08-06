@@ -1,0 +1,44 @@
+{
+  "id": "lv-001",
+  "title": "Warm-up",
+  "note": "Nuoc 1-2: keo grape + orange sang hop trai tren -> du 4 Fruit -> CLEAR -> hop bien mat, lo hop duoi. Day dung vong lap loi ngay tu nuoc dau.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["apple","banana",null,null] },
+          { "slots": ["rabbit","bear","airplane","bicycle"] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["grape","orange","dog","cat"] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["car","bus",null,null] }
+      ]},
+      { "pos": [1,1], "boxes": [ { "slots": [null,null,null,null] } ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"fruit", "text":"Fruit", "cards": [
+          { "id":"apple",  "text":"Apple",  "art":"apple"  },
+          { "id":"banana",                  "art":"banana" },
+          { "id":"grape",  "text":"Grape"                  },
+          { "id":"orange", "text":"Orange", "art":"orange" }
+      ]},
+      { "id":"animal", "text":"Animal", "cards": [
+          { "id":"dog",    "text":"Dog",    "art":"dog"    },
+          { "id":"cat",                     "art":"cat"    },
+          { "id":"rabbit", "text":"Rabbit"                 },
+          { "id":"bear",   "text":"Bear",   "art":"bear"   }
+      ]},
+      { "id":"vehicle", "text":"Vehicle", "cards": [
+          { "id":"car",                       "art":"car"      },
+          { "id":"bus",      "text":"Bus"                      },
+          { "id":"airplane", "text":"Airplane","art":"airplane" },
+          { "id":"bicycle",                   "art":"bicycle"  }
+      ]}
+    ]
+  }
+}

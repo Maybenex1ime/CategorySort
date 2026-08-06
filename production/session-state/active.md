@@ -1,71 +1,169 @@
 # Session State
 
-> Cập nhật cuối: 2026-07-27. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
+> Cập nhật cuối: 2026-08-04. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
 
 ## Đang ở đâu
 
-**Giai đoạn 1b — Prototype vứt đi** (theo `docs/development-plan.md`). Concept ở Rev 3, status vẫn **Draft**.
-Prototype đã dựng xong và tự kiểm chứng bằng code, **nhưng chưa ai bấm Play chơi thử** — đó là việc còn thiếu duy nhất để đóng giai đoạn này.
+**Giai đoạn 1b ĐÃ ĐÓNG** — user chơi thử bản Unity và xác nhận *"phần game ok"*.
+`design/gdd/game-concept.md` đã chuyển **Approved** (2026-08-03).
 
-## Luật chơi hiện hành (Rev 3)
+Việc đang mở: **chuyển view sang prefab + retained-mode** theo `docs/architecture/view-prefabs.md`
+(doc đã **Approved**). Script view **đã viết xong** và compile sạch dù chưa có prefab nào.
 
-Nguồn chân lý đầy đủ: `design/gdd/game-concept.md` mục "Luật chơi cốt lõi". Tóm tắt để khỏi phải mở file:
+**Đã dựng và chạy được** (2026-08-03): 5 prefab + `Main.unity` + `white.png` đã sinh bằng
+`PrefabBuilder` và **đã commit kèm .meta**. Play lv-001: 4 stack · 8 thẻ · HUD đếm đúng · lớp lấp ló
+hiện đúng chỗ · SelfCheck chạy từ `BoardController.Awake` và pass · **không có `View lệch`**.
 
-- Lưới slot chứa **chồng thẻ**, chỉ thẻ trên cùng tương tác được; thẻ dưới ẩn.
-- **Cột giữa chỉ chứa collector** (3 ô hoạt động). **Deck** góc phải trên lấp collector kế tiếp vào ô vừa clear.
-- **Chỉ 2 loại nước đi**: gom thẻ vào collector cùng category, hoặc đảo thẻ sang **slot trống bất kỳ** (khay 5 slot dưới đáy = slot trống sẵn, cùng luật với slot lưới đã cạn).
-- **Mọi thao tác tốn 1 move**, kể cả **gom sai category** (thẻ bật về chỗ cũ nhưng vẫn trừ move — phạt).
-- **Cân bằng thẻ–quota**: mỗi category số thẻ = quota collector category đó → thắng = dọn sạch bàn, không thẻ thừa.
-- Thắng: deck hết + mọi ô collector clear. Thua: hết move, hoặc kẹt (hết slot trống + không gom được).
+**Chuỗi nước đi đã nghiệm thu** (2026-08-04, `WordStack ▸ Test ▸ Play 4 moves on lv-001`): 4 nước
+đều nhận, CLEAR nổ (`1/3 groups · 4 moves`), hộp rỗng lùi ra, **hộp ẩn lộ ra kèm 4 thẻ mới**, lớp
+lấp ló giảm, màu nhóm đúng ở cả hộp nguồn lẫn hộp đích, **không có `View lệch`**.
+
+**Còn thiếu nghiệm thu:** hit-test vùng thả · ghost đuổi con trỏ · hover · feel — chỉ kéo tay mới
+kiểm được (xem "Input mô phỏng" dưới). Kéo thử rồi mới xoá `PrototypeView.cs` được.
+
+## Luật chơi hiện hành
+
+Không đổi. Domain thuần + SelfCheck + solver vẫn nguyên.
+
+- **`docs/wordstack-rules.md`** — bản tóm tắt **tự đủ nghĩa**, mô tả luật *đang chạy thật* (đưa
+  cho model/người mới đọc một file này là đủ). Viết 2026-08-04.
+- `design/gdd/game-concept.md` mục "Luật chơi cốt lõi" — thiết kế gốc. **Lệch một chỗ**: điều kiện
+  xoá hộp, xem dưới.
+- `demo/wordstack-clear-demo.html` — hành vi tham chiếu.
+
+**Q2 đã chốt 2026-08-04: giữ luật RỘNG** (`Rules.RemoveEmptyNonBottomBox = true`) — hộp trên cùng
+không-đáy rỗng vì *bất kỳ* lý do gì (kể cả người chơi kéo hết thẻ ra) cũng lùi ra. GDD đọc chặt thì
+chỉ CLEAR mới xoá hộp; chọn rộng vì không có Undo → luật chặt cho phép tự khoá chết bàn. Đảo lại là
+một cờ, solver kiểm cả hai chế độ. Mở lại khi làm Undo.
+
+## Kế hoạch prefab (tóm tắt `docs/architecture/view-prefabs.md`)
+
+- **5 prefab** tại `Assets/Prefabs/`: `Tile` (TileView) · `Box` (BoxView) · `Stack` (StackView,
+  3 lớp lấp ló dựng sẵn) · `Ghost` (GhostView, hằng feel thành SerializeField) · `Hud` (HudView).
+- **Scene `Assets/Scenes/Main.unity`**: camera + `Game` (BoardController giữ tham chiếu prefab +
+  palette). Xoá cơ chế tự bootstrap `RuntimeInitializeOnLoadMethod`.
+- **Q1 = retained-mode** (user chốt, lật lựa chọn ban đầu của doc). `Rebuild()` tách thành
+  `PlaceTile` / `RemoveTiles` / `RevealBox` / `RefreshColors` / `RefreshZones`.
+- **Q2 = giữ TextMesh** (TMP thiếu glyph tiếng Việt ở font mặc định).
+- **Q3 = DOTween** (đã cài, đã adapt view hiện tại).
+- Domain **không đổi một dòng**.
+
+**Trình tự (phân công):**
+1. ~~User duyệt thiết kế~~ — xong 2026-08-03.
+2. ~~Viết script view~~ — xong: `Views/{ViewText,TileView,BoxView,StackView,GhostView,HudView}.cs`
+   + `BoardController.cs`. Ba chỗ bắt buộc mang nguyên (co chữ `CharW=0.085` không auto-wrap ·
+   invariant check · **hai** hộp đổi màu mỗi nước) đều đã ở trong code.
+3. ~~Dựng prefab + scene~~ — xong, chạy qua MCP bridge, đã commit.
+4. **User kéo thử 3 level** *(đang chờ)*, rồi tôi xoá `PrototypeView.cs`.
+
+Ba chỗ lệch so với draft, đã ghi ở **Mục 8** của doc: thẻ thật bay (xoá hẳn object "fly" tạm) ·
+root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, không làm sườn vứt đi).
 
 ## Đã làm, đã kiểm chứng
 
 | File | Nội dung |
 |------|----------|
-| `Assets/Prototype/PrototypeDomain.cs` | Toàn bộ luật bằng C# thuần (không import UnityEngine) + Level 1 hardcode + `SelfCheck` kèm DFS solver |
-| `Assets/Prototype/PrototypeView.cs` | View tự bootstrap khi bấm Play ở **bất kỳ scene nào** (không cần sửa scene), vẽ bằng code, kéo-thả qua Input System |
-| `Assets/Prototype/PrototypeSelfCheckMain.cs` | Entry point chạy SelfCheck ngoài Unity (`#if !UNITY_5_3_OR_NEWER`) |
+| `demo/wordstack-clear-demo.html` + `demo/check.mjs` | Bản tham chiếu hành vi + bộ check (`node demo/check.mjs`) |
+| `Assets/Prototype/PrototypeDomain.cs` | Luật + validate + beam solver + SelfCheck. **Không import UnityEngine** |
+| `Assets/Prototype/PrototypeView.cs` | View runtime cũ (vẽ bằng code). **Chờ xoá** sau khi bàn prefab nghiệm thu xong; tới lúc đó vẫn Play được để đối chiếu |
+| `Assets/Prototype/BoardController.cs` + `Views/*.cs` | View mới: retained-mode, dựng từ prefab. **Đang chạy** trong `Main.unity` |
+| `Assets/Prefabs/*.prefab` + `Assets/Scenes/Main.unity` + `Assets/Prototype/Sprites/white.png` | Sinh bằng `PrefabBuilder`, đã commit kèm .meta |
+| `Assets/Prototype/Editor/LevelEditorWindow.cs` | Tool xếp level (`WordStack ▸ Level Editor`) |
+| `Assets/Prototype/Editor/PrefabBuilder.cs` | `WordStack ▸ Build Prefabs + Scene` — dựng 5 prefab + Main.unity. **Chạy lại ghi đè prefab**, mất chỉnh tay |
+| `Assets/Prototype/Resources/Levels/lv-00{1,2,3}.json` | 3 level, solver khớp demo (6/6/9/9/2/2 nước) |
+| `Assets/Prototype/Resources/Art/*.png` | 12 placeholder **có nhãn**; meta đã commit (GUID ổn định) |
+| `Assets/Plugins/Demigiant/` | DOTween 843K, commit vào repo theo quyết định của user |
+| `Assets/Prototype/Editor/BoardTestDriver.cs` | `WordStack ▸ Test ▸ Play 4 moves on lv-001` — chạy chuỗi nước đi qua `BoardController.DebugMove`, ghi `Temp/testdrive.{txt,png}` |
+| `docs/architecture/view-prefabs.md` | Thiết kế prefab — **Approved**; Mục 6 = dựng bằng menu, Mục 8 = chỗ lệch draft, Mục 9 = feel lấy từ Balatro-Feel |
+| `docs/wordstack-rules.md` | Luật chơi tự đủ nghĩa — đưa cho model/người mới đọc |
 
-SelfCheck kiểm: luật gom đúng/sai + phạt move, luật đảo slot, deck lấp ô trống, phát hiện kẹt, hết move,
-invariant cân bằng thẻ–quota theo từng category, và **Level 1 giải được trong 23 nước / budget 30 mà bắt buộc phải dùng nước đảo slot**
-(nếu chỉ gom thẳng thì không thắng được — đảm bảo level thật sự test cơ chế đào).
-SelfCheck tự chạy khi vào Play trong Editor (in ra Console); fail thì `Debug.LogError`.
+## Hai lệnh kiểm, chạy trước khi mở Unity
 
-**Game feel** đã cấy theo `D:\Balatro-Feel` (`Assets/Scripts/CardVisual.cs`), tự viết lerp thay DOTween:
-ghost lerp đuổi cursor, xoay Z theo độ trễ chuyển động, tilt lắc sin/cos, scale pop, shadow tách lớp,
-thẻ bay vào collector, snap-back khi thả hụt/gom sai, punch collector khi ăn thẻ, hover phồng nhẹ.
-Các hằng tinh chỉnh nằm gọn trong khối `// Feel` đầu `PrototypeView.cs`.
+```bash
+./selfcheck.sh      # luật + validate + solver, ~3s, không cần Unity
+./compilecheck.sh   # compile cả 2 assembly C#, vài giây
+```
 
-## Việc tiếp theo (thứ tự)
-
-1. **Chơi thử** — mở Unity, bấm Play, trả lời câu hỏi duy nhất của giai đoạn 1b: *core loop có vui không?*
-2. **Chơi game gốc 30-60 phút** — chốt các mục `(?)` còn lại (xem dưới), cập nhật `Knobs` + concept doc.
-3. Vui → concept sang **Approved** → chạy `/ccgs-map-systems` để phân rã systems index.
+`compilecheck.sh` gom file bằng `find` (thêm .cs khỏi phải sửa script) và mượn
+`Unity.InputSystem.dll` của repo chính khi worktree chưa có `Library/`. Assembly editor giờ gom cả
+source runtime vì `PrefabBuilder` đụng tới view — đã thử cách đúng-Unity hơn (tham chiếu `game.dll`)
+nhưng dính CS0012: game.dll theo mscorlib, ref set của UnityEditor theo netstandard. Nó vẫn phải
+**tách 2 assembly** đúng như Unity (`Assembly-CSharp` vs `-Editor`) vì hai
+thế giới reference xung khắc: `DOTween.dll` build theo mscorlib, `UnityEditor.dll` theo netstandard
+— nối bằng `Facades/netstandard.dll`.
 
 ## Chặn / cần quyết định
 
-*(Không còn blocker kỹ thuật. Chỉ chờ người chơi thử.)*
-
-Unity `6000.3.8f1` đã cài trong Hub, project đã mở (có `Library/`) — khớp `ProjectVersion.txt`
-và `docs/engine-reference/unity/VERSION.md`. Mở Unity, bấm Play là chạy.
-
-## Câu hỏi (?) chờ chơi game gốc
-
-- Số ô collector cột giữa (prototype đang 3) — game gốc mở thêm bằng ads, để Tier 3.
-- Deck có lộ thứ tự collector kế tiếp cho người chơi thấy không?
-- Ô collector clear xong thì deck lấp **ngay lập tức** hay có delay/animation?
-- Move budget điển hình theo cỡ level (game gốc ~160 cho level lớn; Level 1 prototype đang 30).
-
-Mọi giả định trên nằm ở khối `Knobs` đầu `PrototypeDomain.cs` — sửa một chỗ, SelfCheck sẽ báo nếu level vỡ.
+- **User kéo thử bàn mới** (Play `Assets/Scenes/Main.unity`) — kéo-thả/cascade/Won/Stuck chưa ai
+  chạy qua. Xong mới xoá được `PrototypeView.cs`.
+- Nguồn art thật + license (12 file hiện tại là placeholder có nhãn).
 
 ## Ghi chú kỹ thuật
 
-- **Chạy SelfCheck không cần mở Unity**: dùng Roslyn đi kèm Unity Hub — compile
-  `PrototypeDomain.cs` + `PrototypeSelfCheckMain.cs` bằng
-  `C:\Program Files\Unity\Hub\Editor\6000.3.7f1\Editor\Data\NetCoreRuntime\dotnet.exe`
-  với `...\Editor\Data\DotNetSdkRoslyn\csc.dll`, ref tới `NetCoreRuntime\shared\Microsoft.NETCore.App\6.0.21`.
-  Hữu ích để kiểm luật nhanh khi Unity chưa mở.
-- Emoji trên thẻ render qua `TextMesh` + font hệ thống — có máy hiện ô trống; khi đó vẫn đọc được
-  bằng tên item tiếng Việt + màu viền theo category, không ảnh hưởng việc test luật.
-- Shader của Balatro-Feel (`BG-Shader` nền twirl, `Edition-Foil/Polychrome/Negative`) **chưa dùng**.
-  Prototype hiện không có shader nào. Cân nhắc `BG-Shader` cho Sprint 3 (juice).
+- `PrototypeDomain.cs` **không được import UnityEngine** — mất ràng buộc là mất `./selfcheck.sh`.
+  Vì vậy `BoxColorIndices` trả index palette, `Validate` nhận `Predicate<string> hasArt`.
+
+- **DOTween — hai cái bẫy đã gặp:**
+  1. Setup **tự thêm define `DOTWEEN_EPO`** dù `DOTweenSettings` ghi `epoOutlineEnabled: 0`.
+     Define bật → `DOTweenModuleEPOOutline.cs` compile → tham chiếu asset *Easy Performant Outline*
+     không có → **hỏng toàn bộ compile**, Unity im lặng không sinh assembly mới. Đã gỡ khỏi 16
+     target và cho settings khớp lại. **Chạy lại Setup có thể thêm lại** — gặp lỗi `Outlinable`
+     thì biết ngay là cái này.
+  2. `sr.DOFade` nằm trong **module Sprite tuỳ chọn**; dùng `DOTween.ToAlpha` (core) thì không
+     phụ thuộc Setup có bật module hay không.
+  - `ProjectSettings.asset` **phải commit** — thiếu define `DOTWEEN` là máy khác build ra hành vi khác.
+
+- **Unity không tự compile khi mất focus.** Sau khi sửa `.cs`, phải đợi `Assembly-CSharp.dll` mới
+  hơn file nguồn rồi mới verify — nếu không sẽ nghiệm thu nhầm bản cũ (đã dính 2 lần).
+
+- **`Unity_Camera_Capture` của MCP trả ảnh trắng** — nó lấy Scene View. Muốn ảnh game thật thì tự
+  render camera ra `RenderTexture` rồi `EncodeToPNG`.
+
+- **MCP Unity bridge** (`com.unity.ai.assistant`): mỗi Editor ghi một file đăng ký ở
+  `~/.unity/mcp/connections/bridge-*.json` (có `project_path` + named pipe). Client chọn instance
+  có `project_path` **là tiền tố của thư mục làm việc** — worktree nằm *dưới* `D:\CategorySort` nên
+  **Unity mở ở repo chính luôn thắng**, và nó giữ pipe sẵn nên xoá file đăng ký cũng vô ích:
+  **phải đóng hẳn instance repo chính** thì bridge mới chuyển sang worktree. Mất khá lâu mới ra.
+  Unity cần mở ở worktree `gdd-wordstack-logic-plan-5821c0` — repo chính đang ở commit cũ, không có
+  `Assets/Prefabs/` lẫn `Main.unity`. Mở bằng
+  `Start-Process "C:\Program Files\Unity\Hub\Editor\6000.3.8f1\Editor\Unity.exe" -ArgumentList @("-projectPath", "<worktree>")`.
+  Cách làm việc: commit ở worktree mình → `git merge --ff-only` ở worktree kia (hai
+  branch cùng dòng nên luôn fast-forward) → `AssetDatabase.Refresh()` qua bridge → gọi hàm.
+  Bridge **rớt mỗi domain reload**, gọi lại sau vài giây là được. Nó **chặn `System.Reflection`**
+  (nên `PrefabBuilder.BuildAll` phải `public`) và treo nếu code gọi hộp thoại modal.
+  Package trong `manifest.json` cố ý chưa commit (tooling, không phải dependency).
+
+- **Ảnh game thật:** render `Camera.main` ra `RenderTexture` → `ReadPixels` → `EncodeToPNG` vào
+  `Temp/board.png` rồi đọc file. `Unity_Camera_Capture` của MCP vẫn trả Scene View trắng.
+
+- **Input mô phỏng KHÔNG chạy được từ tự động hoá** (đã thử hết, đừng thử lại): `InputSystem.
+  QueueStateEvent` lên `Mouse` bị Editor nuốt khi Game View không có focus — kể cả khi đã đặt
+  `backgroundBehavior=IgnoreFocus`, `editorInputBehaviorInPlayMode=AllDeviceInputAlwaysGoesToGameView`,
+  `canRunInBackground=true`. `Pointer.current` đứng im ở toạ độ chuột thật. Mà terminal chạy lệnh
+  luôn giữ foreground nên Game View không bao giờ focus được. Thay bằng
+  `BoardController.DebugMove` (editor-only) + `Editor/BoardTestDriver.cs`, vào đúng chỗ `Drop()`
+  đi tiếp qua `AfterMove()`. Còn hit-test/ghost/hover/feel thì phải người kéo.
+
+- **Player loop đứng im khi Unity ở background** — `Time.frameCount` không tăng. Bật
+  `Application.runInBackground = true` lúc Play trước khi làm bất cứ thứ gì cần frame chạy.
+
+- Lỗi `Burst compilation ... BurstCache/JIT/*.dll, error code 4551` trong Console: của Burst cache
+  trong worktree, không liên quan script mình, không chặn compile.
+
+- **Branch dùng chung với phiên Claude khác** — `git fetch` trước khi làm việc dài, không phải lúc
+  sắp push. Đã một lần trùng việc vì bỏ qua bước này.
+
+- **Git — hai worktree, một dòng commit.** `claude/tiep-tuc-cong-viec-b27c80` (chỗ code) và
+  `claude/gdd-wordstack-logic-plan-5821c0` (chỗ Unity mở) luôn trỏ **cùng commit**: commit bên nào
+  thì `git merge --ff-only` bên kia. `main` ở `04ef5e6`, **không fast-forward được** (nó có riêng
+  commit ignore `Assets/_Recovery`; điểm rẽ `0ec41f2`).
+
+- **PR #1** — <https://github.com/Maybenex1ime/CategorySort/pull/1>, "Rebuild the view as
+  retained-mode prefabs", nhánh code → `main`, no conflicts, **chưa merge** (chờ user).
+  Push nhánh `claude/gdd-...` từng **treo ở `git-credential-manager get`** (hộp thoại đăng nhập,
+  phiên tự động không bấm được) — nội dung không mất vì cùng commit với nhánh đã đẩy.
+
+- File `.md` bị git đổi CRLF — normalize LF trước khi sửa bằng công cụ khớp chuỗi.
+
+- Câu hỏi mở Q1-Q14: `docs/wordstack-design-log.md` Mục 7. **Q2 đã chốt** (xem "Luật chơi hiện
+  hành"); các câu còn lại giữ nguyên.
