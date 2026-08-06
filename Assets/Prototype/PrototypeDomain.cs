@@ -452,7 +452,7 @@ namespace WordStack.Prototype
         }
     }
 
-    public enum SettleKind { None, Clear, RemoveBox }
+    public enum SettleKind { None, Clear, RemoveBox, Collapse }
 
     public struct SettleEvent
     {
@@ -460,6 +460,7 @@ namespace WordStack.Prototype
         public int Stack;
         public string GroupId;
         public string[] DoomedUids;   // uid các thẻ vừa bị xoá — view animate rồi mới Rebuild
+        public string NewTileUid;     // Collapse: uid thẻ vừa sinh ra, view spawn nó
         public bool BoxRemoved;
     }
 
@@ -569,6 +570,28 @@ namespace WordStack.Prototype
                         box.Slots[i] = null;
                     }
                 Cleared++;
+                // Nhóm có cha → COLLAPSE: sinh 1 thẻ mang mặt nhóm vừa gộp, là thành viên
+                // của nhóm cha, đặt vào ô trống đầu tiên của CHÍNH hộp này. Hộp không rỗng
+                // nên luật xoá hộp bên dưới tự im — hộp dưới không lộ ra.
+                // CardId = id nhóm (không phải null): Solver.Encode mã hoá bằng CardId,
+                // để null là hai trạng thái khác nhau memo thành một.
+                GroupDef def;
+                if (GroupDefs != null && GroupDefs.TryGetValue(gid, out def) && def.ParentId != null)
+                {
+                    int j = Array.FindIndex(box.Slots, t => t == null);
+                    var nt = new Tile
+                    {
+                        Uid = "t" + (++uidSeq),
+                        CardId = gid, GroupId = def.ParentId, Text = def.Text, Art = def.Art
+                    };
+                    box.Slots[j] = nt;
+                    box.HadCollapse = true;
+                    return new SettleEvent
+                    {
+                        Kind = SettleKind.Collapse, Stack = s, GroupId = gid,
+                        DoomedUids = doomed.ToArray(), NewTileUid = nt.Uid
+                    };
+                }
                 bool removed = IsEmpty(box) && !box.IsBottom;
                 if (removed) Stacks[s].Boxes.RemoveAt(0);
                 return new SettleEvent
@@ -859,6 +882,19 @@ namespace WordStack.Prototype
                    "Clone chia sẻ bảng nhóm (chỉ-đọc), không sao sâu");
                 var boxB = new Box { HadCollapse = true };
                 Ok(boxB.Clone().HadCollapse, "Box.Clone phải chép cờ HadCollapse");
+
+                // Collapse nổ ngay nhịp Settle đầu: 4 thẻ leaf cùng hộp → 1 thẻ "Leaf"
+                var gC = Game.Build(lvB).Settle(false);
+                var topC = gC.TopBox(0);
+                Ok(gC.Stacks[0].Boxes.Count == 2, "collapse KHÔNG xoá hộp, hộp dưới KHÔNG lộ");
+                Ok(topC.HadCollapse, "hộp phải ghi nhớ đã collapse");
+                Ok(topC.Slots[0] != null && topC.Slots[0].CardId == "leaf"
+                   && topC.Slots[0].GroupId == "root" && topC.Slots[0].Text == "Leaf"
+                   && topC.Slots[0].Art == null,
+                   "thẻ sinh ra mang mặt nhóm leaf, thuộc nhóm root, ở ô trống đầu tiên");
+                Ok(topC.Slots[1] == null && topC.Slots[2] == null && topC.Slots[3] == null,
+                   "ba ô còn lại phải trống");
+                Ok(gC.Cleared == 1, "collapse tính là một lần clear");
             }
             broken(l => l.AllCards().First(c => c.Art == null).Text = null, "card không có text lẫn art");
             broken(l => { foreach (var c in l.AllCards()) c.Text = c.Text ?? c.Id; },
