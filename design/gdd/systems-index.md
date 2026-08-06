@@ -51,7 +51,7 @@ Cột **Code**: ✅ đã có và đã kiểm chứng · ⚠️ có một phần 
 | 16 | Game UI Flow | UI | Menu → level select → chơi → thắng/kẹt → next; HUD tiến độ nhóm; toast + Restart | Implicit | ⚠️ |
 | 17 | Audio (SFX) | UI | Tiếng cho kéo, thả, từ chối, CLEAR, lộ hộp | Explicit (ghi rõ ngoài phạm vi hiện tại) | ❌ |
 | 18 | Tutorial | Meta | 1-2 level đầu tự dạy bằng thiết kế, không popup | Implicit | ❌ |
-| 19 | COLLAPSE | Gameplay | Gộp nhóm đệ quy (§R4 GDD gốc). Data đã chừa `group.group`; validate đang **chặn** | Explicit (tier sau) | ❌ |
+| 19 | COLLAPSE | Gameplay | Gộp nhóm đệ quy (§R4 GDD gốc). **Đã land trong domain 2026-08-06** (spec `docs/superpowers/specs/2026-08-06-collapse-design.md`); lv-005/006 qua solver cả hai chế độ; animation chưa nghiệm thu tay | Explicit (tier sau) | ⚠️ |
 | 20 | Assist (Undo + Hint) | Gameplay | Gộp một hệ thống — cùng chạm vào lịch sử nước đi; Hint chạy Solver | Explicit (tier sau) | ❌ |
 | 21 | Localization | Technical | Slug đã độc lập ngôn ngữ; còn thiếu lớp tra chuỗi hiển thị | Implicit | ❌ |
 
@@ -163,7 +163,7 @@ vòng đời đầy đủ, ít level · **Alpha** = đủ content · **Full Visi
 | Level Authoring Tool | Vertical Slice | Người chơi không thấy, nhưng nó quyết định làm được bao nhiêu level. Bản cơ bản đã có |
 | Tutorial | Alpha | 1-2 level đầu tự dạy bằng thiết kế — đúng tinh thần Pillar 1, dạy bằng bố cục chứ không bằng chữ |
 | Audio (SFX) | Alpha | Concept ghi rõ ngoài phạm vi hiện tại. Pillar 2 hụt một nửa nếu CLEAR không có tiếng |
-| COLLAPSE | Full Vision | Data đã chừa `group.group`, validate đang chặn để không có nhánh code chưa test |
+| COLLAPSE | Full Vision | Kéo lên sớm theo yêu cầu user 2026-08-06 — code đã land, SelfCheck phủ; tier gốc giữ nguyên trong bảng để thấy nó đi trước kế hoạch |
 | Assist (Undo + Hint) | Full Vision | Kéo theo việc chốt cứng `RemoveEmptyNonBottomBox` — xem mục Cạnh rủi ro |
 | Localization | Full Vision | Slug đã độc lập ngôn ngữ từ đầu; còn thiếu lớp tra chuỗi hiển thị |
 
@@ -232,7 +232,7 @@ vòng đời đầy đủ, ít level · **Alpha** = đủ content · **Full Visi
 | Game UI Flow | Not Started | `design/gdd/game-ui-flow.md` | — |
 | Tutorial | Not Started | `design/gdd/tutorial.md` | — |
 | Audio (SFX) | Not Started | `design/gdd/audio.md` | — |
-| COLLAPSE | Not Started | `design/gdd/collapse.md` | — |
+| COLLAPSE | In Progress (code landed, chờ nghiệm thu tay) | `docs/superpowers/specs/2026-08-06-collapse-design.md` | 2026-08-06 |
 | Assist (Undo + Hint) | Not Started | `design/gdd/assist.md` | — |
 | Localization | Not Started | `design/gdd/localization.md` | — |
 

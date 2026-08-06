@@ -1,8 +1,18 @@
 # Session State
 
-> Cập nhật cuối: 2026-08-04. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
+> Cập nhật cuối: 2026-08-06. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
 
 ## Đang ở đâu
+
+**COLLAPSE đã land trong domain** (2026-08-06): nhóm có cha (`"group"` trong JSON) gộp đủ 4 thì
+sinh 1 thẻ mang mặt nhóm đó, thuộc nhóm cha, chiếm ô trống đầu tiên của CHÍNH hộp vừa gộp — hộp
+không bị xoá, hộp dưới không lộ. Chế độ chặt học thêm: hộp rỗng có `HadCollapse` vẫn lùi ra.
+`Solver.Encode` đánh dấu `!` cho hộp đã collapse. Spec: `docs/superpowers/specs/2026-08-06-collapse-design.md`,
+plan: `docs/superpowers/plans/2026-08-06-collapse.md`. Level mới: lv-004 (không collapse),
+lv-005 (1 tầng), lv-006 (2 tầng — nhóm `dog` có art riêng) — **cả 6 level qua solver cả hai chế độ**
+(bố cục lv-005/006 phải sắp lại so với demo: bản demo dựa vào luật rộng, không giải được ở chặt).
+**Chưa nghiệm thu tay**: animation collapse (`SpawnCollapsedTile` — 4 thẻ co về 0, thẻ mới nở ra).
+`.meta` của 3 level mới viết tay (Unity mất focus không import) — GUID đã ghim, Unity mở lại sẽ nhận.
 
 **Giai đoạn 1b ĐÃ ĐÓNG** — user chơi thử bản Unity và xác nhận *"phần game ok"*.
 `design/gdd/game-concept.md` đã chuyển **Approved** (2026-08-03).

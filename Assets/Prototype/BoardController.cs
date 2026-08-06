@@ -428,6 +428,13 @@ namespace WordStack.Prototype
                     if (seq != null) yield return seq.WaitForCompletion();
                     RefreshColors(ev.Stack);
                 }
+                if (ev.Kind == SettleKind.Collapse)
+                {
+                    var seq = RemoveTiles(ev.DoomedUids);   // 4 thẻ co về 0 như CLEAR
+                    if (seq != null) yield return seq.WaitForCompletion();
+                    SpawnCollapsedTile(ev.Stack, ev.NewTileUid);
+                    RefreshColors(ev.Stack);
+                }
                 if (ev.BoxRemoved)
                 {
                     yield return FadeBox(ev.Stack).WaitForCompletion();
@@ -500,6 +507,24 @@ namespace WordStack.Prototype
                 tv.Bind(t, ArtOf(t), ColorOf(colors, t.Uid), TileOrder, SlotSize);
                 tiles[t.Uid] = tv;
             }
+        }
+
+        // Thẻ sinh ra từ collapse: dựng như SpawnTiles nhưng một thẻ, nở từ 0 để đọc ra
+        // "4 thẻ vừa gộp thành cái này" thay vì "thẻ mới rơi xuống".
+        void SpawnCollapsedTile(int s, string uid)
+        {
+            var box = g.TopBox(s);
+            if (box == null) return;
+            int i = Array.FindIndex(box.Slots, t => t != null && t.Uid == uid);
+            if (i < 0) return;
+            var t = box.Slots[i];
+            var colors = Game.BoxColorIndices(box);
+            var tv = Instantiate(tilePrefab, boxViews[s].Slot(i), false);
+            tv.transform.localPosition = Vector3.zero;
+            tv.Bind(t, ArtOf(t), ColorOf(colors, t.Uid), TileOrder, SlotSize);
+            tv.transform.localScale = Vector3.zero;
+            tv.transform.DOScale(1f, 0.18f).SetEase(Ease.OutBack).SetLink(tv.gameObject);
+            tiles[t.Uid] = tv;
         }
 
         void RefreshColors(int s)
