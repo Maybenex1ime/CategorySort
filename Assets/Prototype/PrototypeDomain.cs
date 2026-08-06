@@ -601,16 +601,17 @@ namespace WordStack.Prototype
                 };
             }
 
-            if (drain)
+            // Hộp trên cùng rỗng, không phải đáy → lùi ra. Chế độ rộng (drain) xoá mọi hộp
+            // rỗng; chế độ chặt chỉ xoá hộp ĐÃ TỪNG collapse — vì collapse là một lần ghép
+            // bộ, chỉ khác CLEAR ở chỗ để lại một thẻ. Không có luật này thì hộp sau
+            // collapse thành nắp đậy vĩnh viễn ở chế độ chặt (spec Mục 5).
+            for (int s = 0; s < Stacks.Count; s++)
             {
-                for (int s = 0; s < Stacks.Count; s++)
+                var box = TopBox(s);
+                if (box != null && !box.IsBottom && IsEmpty(box) && (drain || box.HadCollapse))
                 {
-                    var box = TopBox(s);
-                    if (box != null && !box.IsBottom && IsEmpty(box))
-                    {
-                        Stacks[s].Boxes.RemoveAt(0);
-                        return new SettleEvent { Kind = SettleKind.RemoveBox, Stack = s, BoxRemoved = true };
-                    }
+                    Stacks[s].Boxes.RemoveAt(0);
+                    return new SettleEvent { Kind = SettleKind.RemoveBox, Stack = s, BoxRemoved = true };
                 }
             }
 
@@ -696,13 +697,17 @@ namespace WordStack.Prototype
                 for (int i = 0; i < st.Boxes.Count; i++)
                 {
                     var b = st.Boxes[i];
+                    // Dấu "!" cho hộp đã collapse: ở chế độ chặt, hai bàn giống hệt về thẻ
+                    // nhưng khác cờ HadCollapse có tương lai khác nhau (một cái rỗng là tự
+                    // mở) — memo trộn chúng là solver trả kết quả sai im lặng.
                     if (i == 0)
                     {
                         var ids = b.Slots.Where(t => t != null).Select(t => t.CardId).ToList();
                         ids.Sort(StringComparer.Ordinal);
-                        parts.Add(string.Join(",", ids));
+                        parts.Add((b.HadCollapse ? "!" : "") + string.Join(",", ids));
                     }
-                    else parts.Add(string.Join(",", b.Slots.Select(t => t == null ? "_" : t.CardId)));
+                    else parts.Add((b.HadCollapse ? "!" : "") +
+                                   string.Join(",", b.Slots.Select(t => t == null ? "_" : t.CardId)));
                 }
                 keys.Add(string.Join("/", parts));
             }
@@ -895,6 +900,37 @@ namespace WordStack.Prototype
                 Ok(topC.Slots[1] == null && topC.Slots[2] == null && topC.Slots[3] == null,
                    "ba ô còn lại phải trống");
                 Ok(gC.Cleared == 1, "collapse tính là một lần clear");
+
+                // Chặt: kéo thẻ sinh ra đi → hộp rỗng DO COLLAPSE → vẫn bị xoá (luật mới).
+                string leafUid = topC.Slots[0].Uid;
+                Ok(gC.MoveTile(0, leafUid, 1), "kéo thẻ sinh ra sang stack chứa root");
+                gC.Settle(false);
+                Ok(gC.Stacks[0].Boxes.Count == 1,
+                   "chặt: hộp rỗng SAU COLLAPSE vẫn bị xoá, hộp đáy lộ ra");
+                Ok(gC.Cleared == 2 && gC.Status == GameStatus.Won,
+                   "root đủ 4 (r1+r2+r3+Leaf) → CLEAR gốc → sạch bàn → thắng");
+
+                // Đối chứng: hộp rỗng KHÔNG do clear/collapse thì chặt giữ nguyên như cũ.
+                var strictG = load(0, false);
+                var t0 = strictG.TopBox(0);
+                string mA = t0.Slots[0].Uid, mB = t0.Slots[1].Uid;
+                int emptyS = strictG.Stacks.FindIndex(st => Game.IsEmpty(st.Boxes[0]));
+                Ok(emptyS >= 0 && strictG.MoveTile(0, mA, emptyS) && strictG.MoveTile(0, mB, emptyS),
+                   "dọn rỗng được hộp trên của stack 0");
+                int depth0 = strictG.Stacks[0].Boxes.Count;
+                strictG.Settle(false);
+                Ok(strictG.Stacks[0].Boxes.Count == depth0,
+                   "chặt: hộp rỗng vì bị kéo sạch thẻ thì Ở LẠI");
+
+                // Solver giải được level collapse ở CẢ HAI chế độ, đúng 1 nước.
+                foreach (bool dr in new[] { false, true })
+                {
+                    var lvS = freshC();
+                    lvS.Validate(hasArt);
+                    var rS = Solver.Solve(Game.Build(lvS).Settle(dr), dr);
+                    Ok(rS.Ok && rS.Depth == 1,
+                       "mini collapse phải giải được trong 1 nước, chế độ " + (dr ? "rộng" : "chặt"));
+                }
             }
             broken(l => l.AllCards().First(c => c.Art == null).Text = null, "card không có text lẫn art");
             broken(l => { foreach (var c in l.AllCards()) c.Text = c.Text ?? c.Id; },
