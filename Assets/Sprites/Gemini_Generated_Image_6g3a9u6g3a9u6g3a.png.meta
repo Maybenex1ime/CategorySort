@@ -1,10 +1,10 @@
 fileFormatVersion: 2
-guid: 946c5c5936d6b6641892894f887d68c7
+guid: 964fc823b7370c24597dcd2890df319d
 TextureImporter:
   internalIDToNameTable:
   - first:
-      213: 7935234321397735378
-    second: bear_0
+      213: 4119522134794141384
+    second: Gemini_Generated_Image_6g3a9u6g3a9u6g3a_0
   externalObjects: {}
   serializedVersion: 13
   mipmaps:
@@ -52,7 +52,7 @@ TextureImporter:
   alignment: 0
   spritePivot: {x: 0.5, y: 0.5}
   spritePixelsToUnits: 1000
-  spriteBorder: {x: 0, y: 0, z: 0, w: 0}
+  spriteBorder: {x: 35, y: 34, z: 35, w: 39}
   spriteGenerateFallbackPhysicsShape: 1
   alphaUsage: 1
   alphaIsTransparency: 1
@@ -109,40 +109,27 @@ TextureImporter:
     ignorePlatformSupport: 0
     androidETC2FallbackOverride: 0
     forceMaximumCompressionQuality_BC6H_BC7: 0
-  - serializedVersion: 4
-    buildTarget: WebGL
-    maxTextureSize: 2048
-    resizeAlgorithm: 0
-    textureFormat: -1
-    textureCompression: 1
-    compressionQuality: 50
-    crunchedCompression: 0
-    allowsAlphaSplitting: 0
-    overridden: 0
-    ignorePlatformSupport: 0
-    androidETC2FallbackOverride: 0
-    forceMaximumCompressionQuality_BC6H_BC7: 0
   spriteSheet:
     serializedVersion: 2
     sprites:
     - serializedVersion: 2
-      name: bear_0
+      name: Gemini_Generated_Image_6g3a9u6g3a9u6g3a_0
       rect:
         serializedVersion: 2
-        x: 0
-        y: 0
-        width: 128
-        height: 128
+        x: 3
+        y: 7
+        width: 477
+        height: 499
       alignment: 0
-      pivot: {x: 0, y: 0}
+      pivot: {x: 0.5, y: 0.5}
       border: {x: 0, y: 0, z: 0, w: 0}
       customData: 
       outline: []
       physicsShape: []
       tessellationDetail: -1
       bones: []
-      spriteID: 2df5668929d9f1e60800000000000000
-      internalID: 7935234321397735378
+      spriteID: 8ce73c03e8b7b2930800000000000000
+      internalID: 4119522134794141384
       vertices: []
       indices: 
       edges: []
@@ -152,7 +139,7 @@ TextureImporter:
     physicsShape: []
     bones: []
     spriteID: 5e97eb03825dee720800000000000000
-    internalID: 0
+    internalID: 1537655665
     vertices: []
     indices: 
     edges: []
@@ -161,7 +148,7 @@ TextureImporter:
     spriteCustomMetadata:
       entries: []
     nameFileIdTable:
-      bear_0: 7935234321397735378
+      Gemini_Generated_Image_6g3a9u6g3a9u6g3a_0: 4119522134794141384
   mipmapLimitGroupName: 
   pSDRemoveMatte: 0
   userData: 

@@ -1,7 +1,9 @@
 // Một thẻ. Component mỏng: giữ tham chiếu + bind hiển thị. KHÔNG chứa luật, không gọi domain.
 //
-// Prefab author ở kích thước 1 đơn vị; Bind() co các phần con về SlotSize. Root giữ scale 1
-// để tween scale (hover / nhấc lên / CLEAR) đọc thẳng 0..1 không phải nhân hằng nào.
+// Kích thước Bg và Art author THẲNG TRONG PREFAB — Bind() không còn đụng scale của chúng
+// (đổi 2026-08-06: chỉnh bằng Inspector mà không bị code ghi đè mỗi lần bind). Root vẫn giữ
+// scale 1 để tween scale (hover / nhấc lên / CLEAR) đọc thẳng 0..1 không phải nhân hằng nào.
+// `slotSize` giờ chỉ còn lo VỊ TRÍ ảnh/chữ và bề rộng co chữ, không lo kích thước nữa.
 using UnityEngine;
 
 namespace WordStack.Prototype
@@ -19,7 +21,6 @@ namespace WordStack.Prototype
         {
             Uid = t != null ? t.Uid : null;
 
-            bg.transform.localScale = new Vector3(slotSize, slotSize, 1f);
             bg.color = bgColor;
 
             bool hasArt = t != null && sprite != null;
@@ -31,9 +32,6 @@ namespace WordStack.Prototype
             {
                 art.sprite = sprite;
                 art.transform.localPosition = new Vector3(0f, both ? slotSize * 0.14f : 0f, 0f);
-                var b = sprite.bounds.size;
-                float k = slotSize * (both ? 0.46f : 0.72f) / Mathf.Max(Mathf.Max(b.x, b.y), 0.0001f);
-                art.transform.localScale = new Vector3(k, k, 1f);
             }
 
             label.gameObject.SetActive(hasText);
