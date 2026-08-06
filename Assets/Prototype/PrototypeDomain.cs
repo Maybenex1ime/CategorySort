@@ -308,10 +308,6 @@ namespace WordStack.Prototype
                 if (string.IsNullOrEmpty(g.Id)) die("group thiếu id");
                 if (!gids.Add(g.Id)) die("group id trùng: " + g.Id);
                 if (g.Text == null && g.Art == null) die("group \"" + g.Id + "\" phải có text hoặc art");
-                if (g.ParentId != null)
-                    die("group \"" + g.Id + "\" có nhóm cha → COLLAPSE, phạm vi này chỉ hỗ trợ CLEAR");
-                if (g.Cards.Count != Rules.GroupSize)
-                    die("group \"" + g.Id + "\" có " + g.Cards.Count + " thẻ, phải đúng " + Rules.GroupSize);
                 if (g.Art != null)
                 {
                     if (!hasArt(g.Art)) die("group \"" + g.Id + "\" trỏ art \"" + g.Art + "\" không tồn tại");
@@ -319,6 +315,47 @@ namespace WordStack.Prototype
                         die("art \"" + g.Art + "\" dùng cho cả " + artOwner[g.Art] + " và group \"" + g.Id + "\"");
                     artOwner[g.Art] = "group \"" + g.Id + "\"";
                 }
+            }
+
+            // -- COLLAPSE: quan hệ nhóm cha-con --
+            // Member của một nhóm = card khai trực tiếp + nhóm con trỏ vào nó. Nhóm nào
+            // (kể cả gốc) cũng phải đủ đúng GroupSize thành viên thì mới gộp được.
+            var childCount = new Dictionary<string, int>();
+            bool hasRoot = false;
+            foreach (var g in Groups)
+            {
+                if (g.ParentId == null) { hasRoot = true; continue; }
+                if (g.ParentId == g.Id) die("group \"" + g.Id + "\" tự làm cha chính nó");
+                if (!gids.Contains(g.ParentId))
+                    die("group \"" + g.Id + "\" trỏ nhóm cha \"" + g.ParentId + "\" không tồn tại");
+                int n;
+                childCount.TryGetValue(g.ParentId, out n);
+                childCount[g.ParentId] = n + 1;
+            }
+            if (!hasRoot)
+                die("phải có ít nhất một nhóm gốc (không có \"group\") — không thì không thẻ nào biến mất được");
+
+            // Chu trình: đi theo cha; quá số nhóm là chắc chắn có vòng.
+            var byId = Groups.ToDictionary(x => x.Id);
+            foreach (var g in Groups)
+            {
+                var cur = g;
+                int steps = 0;
+                while (cur.ParentId != null)
+                {
+                    if (++steps > Groups.Count)
+                        die("chuỗi nhóm cha-con có chu trình (đi từ \"" + g.Id + "\")");
+                    cur = byId[cur.ParentId];
+                }
+            }
+
+            foreach (var g in Groups)
+            {
+                int cn;
+                childCount.TryGetValue(g.Id, out cn);
+                if (g.Cards.Count + cn != Rules.GroupSize)
+                    die("group \"" + g.Id + "\" có " + g.Cards.Count + " thẻ + " + cn +
+                        " nhóm con = " + (g.Cards.Count + cn) + " thành viên, phải đúng " + Rules.GroupSize);
             }
 
             foreach (var g in Groups)
@@ -371,8 +408,6 @@ namespace WordStack.Prototype
             foreach (var c in AllCards())
                 if (!seen.Contains(c.Id)) die("card \"" + c.Id + "\" không có mặt trên bàn");
 
-            // Chưa cần kiểm cycle trong chuỗi group: ParentId đã bị chặn ở trên.
-            // Khi COLLAPSE lands thì thêm lại — xem docs/wordstack-design-log.md Q3.
         }
 
         public IEnumerable<string> ArtKeys()
@@ -726,6 +761,26 @@ namespace WordStack.Prototype
     {
         static void Ok(bool cond, string msg) { if (!cond) throw new Exception(msg); }
 
+        // Level mini cho COLLAPSE: leaf (4 thẻ, cha = root) đủ bộ NGAY trong hộp trên của
+        // stack 0 → nổ ngay nhịp Settle đầu tiên. root (3 thẻ + 1 con) nằm ở stack 1.
+        // Stack 0 có hộp đáy rỗng bên dưới để test luật xoá hộp sau collapse ở chế độ chặt.
+        const string CollapseLv = @"{
+          ""id"":""t-collapse"", ""title"":""t"", ""note"":"""",
+          ""layout"": { ""stacks"": [
+            { ""pos"":[0,0], ""boxes"":[ { ""slots"":[""l1"",""l2"",""l3"",""l4""] },
+                                          { ""slots"":[null,null,null,null] } ] },
+            { ""pos"":[1,0], ""boxes"":[ { ""slots"":[""r1"",""r2"",""r3"",null] } ] }
+          ]},
+          ""meaning"": { ""groups"": [
+            { ""id"":""leaf"", ""text"":""Leaf"", ""group"":""root"", ""cards"":[
+              { ""id"":""l1"",""text"":""L1"" },{ ""id"":""l2"",""text"":""L2"" },
+              { ""id"":""l3"",""text"":""L3"" },{ ""id"":""l4"",""art"":""apple"" } ]},
+            { ""id"":""root"", ""text"":""Root"", ""cards"":[
+              { ""id"":""r1"",""text"":""R1"" },{ ""id"":""r2"",""text"":""R2"" },
+              { ""id"":""r3"",""text"":""R3"" } ]}
+          ]}
+        }";
+
         public static void Run(Action<string> log, IList<string> levelJsons, Predicate<string> hasArt)
         {
             Ok(levelJsons != null && levelJsons.Count >= 2, "cần ít nhất 2 file level");
@@ -764,7 +819,29 @@ namespace WordStack.Prototype
             broken(l => l.Stacks[0].Boxes[0].Slots[0] = null, "card thiếu trên bàn");
             broken(l => l.Stacks[0].Boxes[0].Slots[0] = "fruit", "đặt group lên bàn");
             broken(l => l.Groups[0].Cards.RemoveAt(0), "group thiếu thành viên");
-            broken(l => l.Groups[0].ParentId = l.Groups[1].Id, "group có cha (COLLAPSE)");
+            // ---- 1b. COLLAPSE: level cha-con hợp lệ phải pass, level hỏng phải chết ----
+            {
+                Func<LevelData> freshC = () => LevelData.Parse(CollapseLv);
+                Action<Action<LevelData>, string> brokenC = (mutate, label) =>
+                {
+                    var lv = freshC();
+                    mutate(lv);
+                    bool threw = false;
+                    try { lv.Validate(hasArt); } catch { threw = true; }
+                    Ok(threw, "validate phải ném lỗi: " + label);
+                };
+
+                freshC().Validate(hasArt);   // hợp lệ: leaf (4 card, cha root) + root (3 card + 1 con)
+
+                brokenC(l => l.Groups[0].ParentId = "ghost", "nhóm cha không tồn tại");
+                brokenC(l => l.Groups[0].ParentId = "leaf", "nhóm tự làm cha chính nó");
+                brokenC(l => l.Groups[1].ParentId = "leaf", "chu trình leaf ↔ root (và hết nhóm gốc)");
+                brokenC(l =>
+                {
+                    l.Groups[0].Cards.Add(new CardDef { Id = "l5", Text = "L5" });
+                    l.Stacks[1].Boxes[0].Slots[3] = "l5";
+                }, "nhóm 4 card + 1 con = 5 thành viên");
+            }
             broken(l => l.AllCards().First(c => c.Art == null).Text = null, "card không có text lẫn art");
             broken(l => { foreach (var c in l.AllCards()) c.Text = c.Text ?? c.Id; },
                    "level không còn thẻ chỉ-ảnh");
