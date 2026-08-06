@@ -430,10 +430,11 @@ namespace WordStack.Prototype
     public class Box
     {
         public bool IsBottom;
+        public bool HadCollapse;   // đã từng xảy ra collapse — chế độ chặt dùng để xoá hộp rỗng
         public Tile[] Slots = new Tile[Rules.BoxCapacity];
         public Box Clone()
         {
-            var b = new Box { IsBottom = IsBottom, Slots = new Tile[Slots.Length] };
+            var b = new Box { IsBottom = IsBottom, HadCollapse = HadCollapse, Slots = new Tile[Slots.Length] };
             for (int i = 0; i < Slots.Length; i++) b.Slots[i] = Slots[i] == null ? null : Slots[i].Clone();
             return b;
         }
@@ -469,6 +470,10 @@ namespace WordStack.Prototype
         public GameStatus Status = GameStatus.Playing;
         public List<Stack> Stacks = new List<Stack>();
 
+        // gid → định nghĩa nhóm (ParentId/Text/Art) — SettleStep tra khi gộp. Chỉ-đọc sau
+        // Build nên Clone chia sẻ tham chiếu: solver clone hàng vạn lần, sao sâu là phí thật.
+        public Dictionary<string, GroupDef> GroupDefs;
+
         int uidSeq;
 
         public static Game Build(LevelData lv)
@@ -479,6 +484,7 @@ namespace WordStack.Prototype
                 foreach (var c in grp.Cards) { card[c.Id] = c; ownerGroup[c.Id] = grp.Id; }
 
             var g = new Game { LevelId = lv.Id, Title = lv.Title, TotalGroups = lv.Groups.Count };
+            g.GroupDefs = lv.Groups.ToDictionary(x => x.Id);
             foreach (var sd in lv.Stacks)
             {
                 var st = new Stack { X = sd.Pos[0], Y = sd.Pos[1] };
@@ -638,7 +644,8 @@ namespace WordStack.Prototype
             var g = new Game
             {
                 LevelId = LevelId, Title = Title, TotalGroups = TotalGroups,
-                Cleared = Cleared, Moves = Moves, Status = Status, uidSeq = uidSeq
+                Cleared = Cleared, Moves = Moves, Status = Status, uidSeq = uidSeq,
+                GroupDefs = GroupDefs
             };
             foreach (var st in Stacks) g.Stacks.Add(st.Clone());
             return g;
@@ -841,6 +848,17 @@ namespace WordStack.Prototype
                     l.Groups[0].Cards.Add(new CardDef { Id = "l5", Text = "L5" });
                     l.Stacks[1].Boxes[0].Slots[3] = "l5";
                 }, "nhóm 4 card + 1 con = 5 thành viên");
+
+                var lvB = freshC();
+                lvB.Validate(hasArt);
+                var gB = Game.Build(lvB);
+                Ok(gB.GroupDefs != null && gB.GroupDefs["leaf"].ParentId == "root"
+                   && gB.GroupDefs["root"].ParentId == null,
+                   "Game phải mang bảng nhóm gid → def");
+                Ok(ReferenceEquals(gB.GroupDefs, gB.Clone().GroupDefs),
+                   "Clone chia sẻ bảng nhóm (chỉ-đọc), không sao sâu");
+                var boxB = new Box { HadCollapse = true };
+                Ok(boxB.Clone().HadCollapse, "Box.Clone phải chép cờ HadCollapse");
             }
             broken(l => l.AllCards().First(c => c.Art == null).Text = null, "card không có text lẫn art");
             broken(l => { foreach (var c in l.AllCards()) c.Text = c.Text ?? c.Id; },
