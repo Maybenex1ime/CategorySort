@@ -67,6 +67,14 @@ namespace WordStack.Prototype
         [SerializeField] float clearStagger = 0.04f;
         [SerializeField] float cascadeGap = 0.35f;     // nhịp giữa hai bước cascade (§R6)
 
+        [Header("Gộp 4 thẻ thành 1 (COLLAPSE)")]
+        [SerializeField] float mergeGather = 0.24f;    // 4 thẻ bay chụm về ô đích mất bao lâu
+        [SerializeField] float mergeShrink = 0.45f;    // tới nơi thì co còn bao nhiêu (1 = không co)
+        [SerializeField] float mergeStagger = 0.03f;   // lệch nhau chút cho khỏi dính thành một khối
+        [SerializeField] float mergeHold = 0.07f;      // khựng lại trước khi thẻ mới nở — nhịp "cộp"
+        [SerializeField] float mergeBloom = 0.30f;     // thẻ mới nở ra mất bao lâu
+        [SerializeField] float mergeSpin = 140f;       // thẻ mới xoay bao nhiêu độ lúc nở (0 = tắt)
+
         Game g;
         readonly List<string> levelJsons = new List<string>();
         int levelIndex;
@@ -430,9 +438,7 @@ namespace WordStack.Prototype
                 }
                 if (ev.Kind == SettleKind.Collapse)
                 {
-                    var seq = RemoveTiles(ev.DoomedUids);   // 4 thẻ co về 0 như CLEAR
-                    if (seq != null) yield return seq.WaitForCompletion();
-                    SpawnCollapsedTile(ev.Stack, ev.NewTileUid);
+                    yield return MergeTiles(ev.Stack, ev.DoomedUids, ev.NewTileUid);
                     RefreshColors(ev.Stack);
                 }
                 if (ev.BoxRemoved)
@@ -469,6 +475,54 @@ namespace WordStack.Prototype
             if (n > 0) return seq;
             seq.Kill();
             return null;
+        }
+
+        // COLLAPSE nhìn phải ra "gộp", không phải "biến mất rồi mọc lại" — nên 4 thẻ BAY CHỤM về
+        // đúng ô mà domain đã đặt thẻ mới, nén về 0 ở đó, rồi thẻ mới bung ra từ chính điểm ấy.
+        // Domain đã mutate xong trước khi hàm này chạy, nên thẻ mới đã nằm sẵn trong Slots — tra
+        // ra ô của nó chính là cách biết điểm hội tụ.
+        IEnumerator MergeTiles(int s, string[] doomedUids, string newUid)
+        {
+            var box = g.TopBox(s);
+            int dest = box == null ? -1 : Array.FindIndex(box.Slots, t => t != null && t.Uid == newUid);
+            if (dest < 0)
+            {
+                // Không tra ra ô đích thì lùi về cách cũ — thà xấu còn hơn nuốt mất thẻ.
+                var fallback = RemoveTiles(doomedUids);
+                if (fallback != null) yield return fallback.WaitForCompletion();
+                SpawnCollapsedTile(s, newUid);
+                yield break;
+            }
+
+            var destPos = boxViews[s].Slot(dest).position;
+            var seq = DOTween.Sequence();
+            int n = 0;
+            for (int i = 0; i < doomedUids.Length; i++)
+            {
+                TileView tv;
+                if (!tiles.TryGetValue(doomedUids[i], out tv) || tv == null) continue;
+                tiles.Remove(doomedUids[i]);
+                var go = tv.gameObject;
+                tv.SetOrder(FlyOrder);                       // đang bay thì nổi lên trên hộp
+                float at = i * mergeStagger;
+
+                // InBack: nhích ra ngoài một chút rồi mới lao vào — cú lấy đà làm chuyển động
+                // đọc ra là "bị hút vào" thay vì "trượt tới".
+                seq.Insert(at, tv.transform.DOMove(destPos, mergeGather)
+                                 .SetEase(Ease.InBack, 0.6f).SetLink(go));
+                seq.Insert(at, tv.transform.DOScale(mergeShrink, mergeGather)
+                                 .SetEase(Ease.InQuad).SetLink(go));
+                // Tới nơi thì nén nốt về 0: nhịp "cộp" ngăn giữa lúc 4 thẻ tắt và lúc thẻ mới bung.
+                seq.Insert(at + mergeGather,
+                           tv.transform.DOScale(0f, Mathf.Max(mergeHold, 0.01f))
+                             .SetEase(Ease.InQuad).SetLink(go)
+                             .OnComplete(() => Destroy(go)));
+                n++;
+            }
+            if (n == 0) { seq.Kill(); SpawnCollapsedTile(s, newUid); yield break; }
+
+            yield return seq.WaitForCompletion();
+            SpawnCollapsedTile(s, newUid);
         }
 
         // Hộp co lại + mờ dần (GDD §9.3 "Xoá box"). Dùng DOTween.To trên BoxView.SetAlpha
@@ -509,8 +563,8 @@ namespace WordStack.Prototype
             }
         }
 
-        // Thẻ sinh ra từ collapse: dựng như SpawnTiles nhưng một thẻ, nở từ 0 để đọc ra
-        // "4 thẻ vừa gộp thành cái này" thay vì "thẻ mới rơi xuống".
+        // Thẻ sinh ra từ collapse: dựng như SpawnTiles nhưng một thẻ, nở từ 0 ngay tại điểm 4 thẻ
+        // vừa hội tụ. Xoay về 0 trong lúc nở để cú bung có hướng, đọc ra "vừa được đúc ra".
         void SpawnCollapsedTile(int s, string uid)
         {
             var box = g.TopBox(s);
@@ -523,7 +577,15 @@ namespace WordStack.Prototype
             tv.transform.localPosition = Vector3.zero;
             tv.Bind(t, ArtOf(t), ColorOf(colors, t.Uid), TileOrder, SlotSize);
             tv.transform.localScale = Vector3.zero;
-            tv.transform.DOScale(1f, 0.18f).SetEase(Ease.OutBack).SetLink(tv.gameObject);
+
+            var go = tv.gameObject;
+            var seq = DOTween.Sequence().SetLink(go);
+            seq.Join(tv.transform.DOScale(1f, mergeBloom).SetEase(Ease.OutBack));
+            if (Mathf.Abs(mergeSpin) > 0.01f)
+            {
+                tv.transform.localEulerAngles = new Vector3(0f, 0f, mergeSpin);
+                seq.Join(tv.transform.DOLocalRotate(Vector3.zero, mergeBloom).SetEase(Ease.OutCubic));
+            }
             tiles[t.Uid] = tv;
         }
 
