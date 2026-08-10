@@ -21,6 +21,12 @@
       "source": "embedded",
       "dependencies": {}
     },
+    "com.gustavopsantos.reflex": {
+      "version": "file:com.gustavopsantos.reflex",
+      "depth": 0,
+      "source": "embedded",
+      "dependencies": {}
+    },
     "com.harumak.fancycarouselview": {
       "version": "file:com.harumak.fancycarouselview",
       "depth": 0,
@@ -258,7 +264,7 @@
     },
     "com.unity.profiling.core": {
       "version": "1.0.3",
-      "depth": 2,
+      "depth": 1,
       "source": "registry",
       "dependencies": {},
       "url": "https://packages.unity.com"
@@ -297,7 +303,7 @@
     },
     "com.unity.scriptablebuildpipeline": {
       "version": "2.5.2",
-      "depth": 2,
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.test-framework": "1.4.5",
