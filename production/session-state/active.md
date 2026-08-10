@@ -13,10 +13,23 @@ embed vào `Packages/`, **R3 1.3.0** + 4 DLL NuGet đi kèm vào `Assets/Package
 `com.unity.addressables 2.3.1` + `com.unity.nuget.newtonsoft-json 3.2.1` (addressables còn sửa
 luôn `addressable-importer` embed từ trước bị thiếu dep ngầm). Kiểm: một pass csc riêng
 (ref set NetStandard 2.1 shims đúng kiểu Unity Bee) compile cả SDK + 4 module → OK;
-`selfcheck.sh` + `compilecheck.sh` vẫn pass. **Chưa làm:** wire runtime (chưa có installer/bootstrap
-nào trong `Main.unity` — muốn dùng service phải dựng Reflex scope + `SaveManager` binding);
-`compilecheck.sh` chưa gom các assembly mới; Unity cần mở 1 lần (có mạng) để resolve 2 package
-registry mới. `Assets/Editor Default Resources/` là đồ user đang làm dở, chưa track.
+`selfcheck.sh` + `compilecheck.sh` vẫn pass. **Đã wire runtime xong** (cùng ngày): `Assets/Resources/ReflexSettings.asset`
+trỏ tới `Assets/Prefabs/ProjectScope.prefab` (ContainerScope + SaveSystemInstaller +
+GameSaveInstaller + CurrencyInstaller + HeartInstaller); `Main.unity` thêm object `SceneScope`
+(ContainerScope + MetaSaveTrigger). Code meta ở `Assets/_Game/`, asmdef **riêng**
+`WordStack.Meta`(+`.Editor`) nên Assembly-CSharp không đổi. Nghiệm thu bằng menu
+**WordStack ▸ Test ▸ Meta save round-trip** — dựng container từ chính prefab thật, +37 coin,
+ghi đĩa, dựng container mới đọc lại: đã chạy PASS (`currency.json` đúng số, tự trả về giá trị cũ).
+`compilecheck.sh` nay có target thứ ba `meta` (netstandard2.1, tách khỏi 2 target cũ vì R3/Reflex
+xung khắc ref set mscorlib) — cả 3 OK. **Hai bẫy đã ghi trong code, đừng lặp lại:** (1) Reflex
+KHÔNG instantiate prefab root scope, nên MonoBehaviour đặt trên đó không có callback vòng đời —
+aquapark để `OnApplicationQuit → SaveAll` trong `GameSaveInstaller` là **bug ngầm**, ở đây trigger
+nằm ở `MetaSaveTrigger` trong scene; (2) `ISaveManager.Save<T>()` chỉ đánh dấu dirty, phải
+`SaveAll()` mới ghi file (HeartService dùng `SaveImmediate` nên tự lo, CurrencyService thì không).
+Service bind `Resolution.Lazy` — Eager sẽ chạy trước khi domain đăng ký và mất hết dữ liệu.
+**Chưa làm:** Progression/Inventory/Purchase/CheatPanel chưa bind (Progression còn giẫm lên hệ
+level JSON hiện tại, phải chốt thiết kế trước); `ProjectInstaller` của SDK cố tình KHÔNG gắn
+(nó bind EventBus + AddressableAssetService, WordStack chưa dùng). `Assets/Editor Default Resources/` là đồ user đang làm dở, chưa track.
 
 **COLLAPSE đã land trong domain** (2026-08-06): nhóm có cha (`"group"` trong JSON) gộp đủ 4 thì
 sinh 1 thẻ mang mặt nhóm đó, thuộc nhóm cha, chiếm ô trống đầu tiên của CHÍNH hộp vừa gộp — hộp

@@ -1,0 +1,22 @@
+{
+    "name": "WordStack.Meta.Editor",
+    "rootNamespace": "WordStack.Meta.Editor",
+    "references": [
+        "WordStack.Meta",
+        "LogosSDK.Core",
+        "LogosSDK.Save",
+        "LogosMeta.Economy",
+        "Reflex"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

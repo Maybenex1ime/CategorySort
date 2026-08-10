@@ -65,8 +65,60 @@ w() { cygpath -w "$1"; }
   done
 } > "$OUT/editor.rsp"
 
+# ---- WordStack.Meta (+ .Editor): tầng meta và cả stack SDK/module nó dựa vào ----
+# Đây là thế giới netstandard2.1 thuần (R3, Reflex, LogosSDK), KHÔNG trộn với hai
+# assembly trên: chúng build theo mscorlib 4.7.1, còn R3.dll/Reflex.dll theo
+# netstandard2.1 — trộn vào là CS1701 hàng loạt. Tách ra là cách rẻ nhất.
+#
+# Reflex, TMP, ugui, Addressables chỉ có dạng .dll sau khi Editor import package,
+# nên mượn Library/ScriptAssemblies giống cách INPUTSYS ở trên. Chưa mở Unity lần
+# nào thì bỏ qua phần này thay vì báo fail — Unity vẫn là bên kiểm cuối.
+SA="$PWD/Library/ScriptAssemblies"
+[ -d "$SA" ] || SA="$(git rev-parse --git-common-dir)/../Library/ScriptAssemblies"
+NS_REF="$NS/ref/2.1.0/netstandard.dll"
+PKG="$PWD/Assets/Packages"
+
+meta_ready=1
+for d in Reflex Unity.TextMeshPro UnityEngine.UI; do
+  [ -f "$SA/$d.dll" ] || meta_ready=0
+done
+
+if [ "$meta_ready" = 1 ]; then
+  {
+    echo "-nologo"; echo "-target:library"; echo "-langversion:latest"; echo "-nostdlib"
+    echo "-define:UNITY_EDITOR;UNITY_5_3_OR_NEWER;NET_STANDARD_2_1;NETSTANDARD2_1"
+    echo "-nowarn:CS0649"                                   # [SerializeField] private — Unity gán, csc không biết
+    echo "-out:\"$(w "$OUT/meta.dll")\""
+    echo "-r:\"$(w "$NS_REF")\""
+    for f in "$NS"/compat/2.1.0/shims/netfx/*.dll "$NS"/compat/2.1.0/shims/netstandard/*.dll; do
+      echo "-r:\"$(w "$f")\""
+    done
+    for f in "$MAN"/UnityEngine*.dll "$MAN"/UnityEditor*.dll; do echo "-r:\"$(w "$f")\""; done
+    echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
+    echo "-r:\"$(w "$PKG/R3.1.3.0/lib/netstandard2.1/R3.dll")\""
+    echo "-r:\"$(w "$PKG/Microsoft.Bcl.TimeProvider.8.0.0/lib/netstandard2.0/Microsoft.Bcl.TimeProvider.dll")\""
+    echo "-r:\"$(w "$PKG/Microsoft.Bcl.AsyncInterfaces.6.0.0/lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll")\""
+    echo "-r:\"$(w "$PKG/System.Threading.Channels.8.0.0/lib/netstandard2.1/System.Threading.Channels.dll")\""
+    echo "-r:\"$(w "$PKG/System.ComponentModel.Annotations.5.0.0/lib/netstandard2.1/System.ComponentModel.Annotations.dll")\""
+    for d in Reflex Unity.Addressables Unity.ResourceManager Unity.TextMeshPro UnityEngine.UI; do
+      [ -f "$SA/$d.dll" ] && echo "-r:\"$(w "$SA/$d.dll")\""
+    done
+    # Newtonsoft là DLL tiền biên dịch của package, không đi qua ScriptAssemblies.
+    NJ="$(ls "$SA/../PackageCache"/com.unity.nuget.newtonsoft-json*/Runtime/Newtonsoft.Json.dll 2>/dev/null | head -1)"
+    [ -n "$NJ" ] && echo "-r:\"$(w "$NJ")\""
+    # DOTween/Modules đi kèm vì CheatToastView dùng DOFade/DOAnchorPosY trên UI
+    # Bỏ Tests/: chúng cần NUnit + TestRunner, chỉ Unity mới dựng nổi ref đó.
+    find "$PWD/Assets/_StudioSDK" "$PWD/Assets/_Modules" "$PWD/Assets/_Game" \
+         "$PWD/Assets/Plugins/Demigiant/DOTween/Modules" -name '*.cs' -not -path '*/Tests/*' | while read -r f; do
+      echo "\"$(w "$f")\""
+    done
+  } > "$OUT/meta.rsp"
+else
+  echo "  meta BỎ QUA (chưa có Library/ScriptAssemblies — mở Unity một lần)"
+fi
+
 fail=0
-for a in game editor; do
+for a in game editor $([ "$meta_ready" = 1 ] && echo meta); do
   rm -f "$OUT/$a.dll"
   if "$DOTNET" "$CSC" "@$(w "$OUT/$a.rsp")"; then
     echo "  $a.dll OK  ($(stat -c %s "$OUT/$a.dll") bytes)"
