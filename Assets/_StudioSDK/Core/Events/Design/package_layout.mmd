@@ -1,0 +1,17 @@
+%% EventBus v3 – Physical Folder / Package Layout
+graph TD
+    root["Assets/Core/Utils/EventBus/Scripts"]
+    root --> Runtime
+    root --> Editor
+    root --> Tests
+
+    Runtime --> GlobalBus["GlobalBus.cs"]
+    Runtime --> Invoker["Invoker.cs"]
+    Runtime --> Dispatcher["ThreadDispatcher.cs"]
+    Runtime --> asmdef["Shared.Events.asmdef"]
+
+    Editor --> DebuggerWin["EventBusDebuggerWindow.cs"]
+    Editor --> asmdefEd["Shared.Events.Editor.asmdef"]
+
+    Tests --> RuntimeTests["Runtime/"]
+    Tests --> EditorTests["Editor/"]

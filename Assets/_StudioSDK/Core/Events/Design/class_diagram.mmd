@@ -1,0 +1,64 @@
+%% EventBus v3 – Static Structure
+classDiagram
+    direction LR
+
+    class Bus {
+        <<static>>
+        +Global : GlobalBus
+    }
+
+    class GlobalBus {
+        +Fire~T~(T evt)$
+        +On~T~(Action~T~, int order)$
+        +Off~T~(Action~T~)$
+        +OnAsync~T~(Func~T,ValueTask~, int order)$
+        +OffAsync~T~(Func~T,ValueTask~)$
+        +HasListeners~T~() bool$
+        +ListenerCount~T~() int$
+    }
+
+    class InvokerStore~T~ {
+        <<static>>
+        +Invoker : Invoker~T~
+    }
+
+    class Invoker~T~ {
+        -_sync : List~ListenerEntry~T~~
+        -_async : List~AsyncListenerEntry~T~~
+        -_dirty : int
+        +Invoke(T evt)
+        +AddSync(handler, order, target)
+        +AddAsync(handler, order, target)
+        +RemoveSync(handler)
+        +RemoveAsync(handler)
+        -Sort()
+    }
+
+    class ListenerEntry~T~ {
+        +Order : int
+        +Target : WeakRef~UnityEngine.Object~
+        +Action : Action~T~
+    }
+
+    class AsyncListenerEntry~T~ {
+        +Order : int
+        +Target : WeakRef~UnityEngine.Object~
+        +Action : Func~T,ValueTask~
+    }
+
+    class ThreadDispatcher {
+        <<static>>
+        +IsMainThread : bool
+        +Enqueue(Action)$
+        +AwaitOnMainThread(ValueTask)$
+    }
+
+    class EventOrderAttribute {
+        +Order : int
+    }
+
+    Bus --> GlobalBus : contains
+    GlobalBus ..> InvokerStore : uses
+    InvokerStore --> Invoker : owns
+    Invoker --> ListenerEntry
+    Invoker --> AsyncListenerEntry

@@ -1,0 +1,12 @@
+%% EventBus v3 – Subscribe / Unsubscribe Flow
+sequenceDiagram
+    participant Client
+    participant GlobalBus
+    participant Invoker
+
+    Client->>GlobalBus: On<MyEvent>(handler, order=5)
+    GlobalBus->>Invoker: AddSync(handler, 5, this)
+    Invoker->>Invoker: mark dirty
+
+    Client->>GlobalBus: Off<MyEvent>(handler)
+    GlobalBus->>Invoker: RemoveSync(handler)

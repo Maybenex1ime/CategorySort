@@ -1,0 +1,28 @@
+%% EventBus v3 – Component Overview
+graph TD
+    subgraph Unity Runtime
+        MonoBehaviour
+        ScriptableObject
+        ECS[SystemBase]
+    end
+
+    subgraph Shared.Events
+        GlobalBus
+        InvokerStore
+        Invoker
+        ListenerEntry
+        AsyncListenerEntry
+    end
+
+    subgraph Unity Editor
+        Debugger[EventBusDebuggerWindow]
+    end
+
+    MonoBehaviour --> Bus[Bus.Global]
+    ScriptableObject --> Bus
+    ECS --> Bus
+    GlobalBus --> InvokerStore
+    InvokerStore --> Invoker
+    Invoker --> ListenerEntry
+    Invoker --> AsyncListenerEntry
+    Debugger -.-> GlobalBus

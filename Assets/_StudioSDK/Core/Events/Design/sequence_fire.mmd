@@ -1,0 +1,22 @@
+%% EventBus v3 – Fire Flow (sync + async)
+sequenceDiagram
+    participant Caller
+    participant GlobalBus
+    participant ThreadDispatcher
+    participant Invoker
+    participant Listener1
+    participant AsyncListener2
+
+    Caller->>GlobalBus: Fire<MyEvent>(evt)
+
+    alt running on main thread
+        GlobalBus->>Invoker: Invoke(evt)
+    else running on worker thread
+        GlobalBus->>ThreadDispatcher: Enqueue(() ⇒ Invoker.Invoke(evt))
+        ThreadDispatcher->>Invoker: Invoke(evt)
+    end
+
+    Invoker->>Listener1: action(evt)
+    Invoker->>AsyncListener2: task = action(evt)
+    Invoker->>ThreadDispatcher: AwaitOnMainThread(task)
+    ThreadDispatcher->>AsyncListener2: await task
