@@ -1,0 +1,18 @@
+{
+    "name": "LogosMeta.Economy",
+    "rootNamespace": "LogosMeta.Economy",
+    "references": [
+        "LogosSDK.Core",
+        "LogosSDK.Save",
+        "R3"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

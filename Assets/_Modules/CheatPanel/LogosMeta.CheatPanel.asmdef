@@ -1,0 +1,21 @@
+{
+    "name": "LogosMeta.CheatPanel",
+    "rootNamespace": "LogosMeta.CheatPanel",
+    "references": [
+        "LogosSDK.Core",
+        "R3",
+        "Reflex",
+        "DOTween.Modules",
+        "Unity.TextMeshPro",
+        "Unity.ugui"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

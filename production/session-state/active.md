@@ -1,8 +1,22 @@
 # Session State
 
-> Cập nhật cuối: 2026-08-06. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
+> Cập nhật cuối: 2026-08-10. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
 
 ## Đang ở đâu
+
+**Stack module meta đã vào repo và compile sạch** (2026-08-10): user copy `Assets/_Modules/`
+(CheatPanel · Economy Currency/Hearts/Purchase · Inventory · Progression, namespace `LogosMeta.*`)
+từ project **aquapark** — bản copy giống hệt nguồn nhưng thiếu `_Modules.meta` (đã bổ sung, GUID
+giữ nguyên từ aquapark). Phiên này mang nốt phần chúng phụ thuộc, cũng từ aquapark (cùng Unity
+6000.3.8f1): `Assets/_StudioSDK/` Core+Save (bỏ Core/Tests + 2 folder Demo), **Reflex 14.3.0**
+embed vào `Packages/`, **R3 1.3.0** + 4 DLL NuGet đi kèm vào `Assets/Packages/`, manifest thêm
+`com.unity.addressables 2.3.1` + `com.unity.nuget.newtonsoft-json 3.2.1` (addressables còn sửa
+luôn `addressable-importer` embed từ trước bị thiếu dep ngầm). Kiểm: một pass csc riêng
+(ref set NetStandard 2.1 shims đúng kiểu Unity Bee) compile cả SDK + 4 module → OK;
+`selfcheck.sh` + `compilecheck.sh` vẫn pass. **Chưa làm:** wire runtime (chưa có installer/bootstrap
+nào trong `Main.unity` — muốn dùng service phải dựng Reflex scope + `SaveManager` binding);
+`compilecheck.sh` chưa gom các assembly mới; Unity cần mở 1 lần (có mạng) để resolve 2 package
+registry mới. `Assets/Editor Default Resources/` là đồ user đang làm dở, chưa track.
 
 **COLLAPSE đã land trong domain** (2026-08-06): nhóm có cha (`"group"` trong JSON) gộp đủ 4 thì
 sinh 1 thẻ mang mặt nhóm đó, thuộc nhóm cha, chiếm ô trống đầu tiên của CHÍNH hộp vừa gộp — hộp
