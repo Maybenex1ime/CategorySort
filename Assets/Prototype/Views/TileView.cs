@@ -13,6 +13,10 @@ namespace WordStack.Prototype
         [SerializeField] SpriteRenderer bg;
         [SerializeField] SpriteRenderer art;
         [SerializeField] TextMesh label;
+        // Vành ngoài: cùng sprite với bg, tô màu viền, phóng to vài % và nằm sau. Bỏ trống cũng
+        // chạy. Màu và độ dày author thẳng trong prefab — code không đụng, chỉ lo sorting order
+        // để lúc thẻ bay lên (FlyOrder) vành không bị bỏ lại dưới bàn.
+        [SerializeField] SpriteRenderer outline;
 
         public string Uid { get; private set; }
 
@@ -52,6 +56,9 @@ namespace WordStack.Prototype
             bg.sortingOrder = order;
             art.sortingOrder = order + 1;
             ViewText.Order(label, order + 1);
+            // order-1 nên lúc thẻ nằm yên vành trùng order với bóng đáy slot. Hoà nhau ở đây vô
+            // hại: cả hai đều bị mặt thẻ đục che kín, mà bóng chỉ đen 14%.
+            if (outline != null) outline.sortingOrder = order - 1;
         }
     }
 }
