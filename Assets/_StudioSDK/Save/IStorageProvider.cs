@@ -1,0 +1,11 @@
+namespace LogosSDK.Save
+{
+    public interface IStorageProvider
+    {
+        void Save<T>(string key, T data);
+        T Load<T>(string key, T defaultValue);
+        bool HasKey(string key);
+        void Delete(string key);
+        void Flush();
+    }
+}

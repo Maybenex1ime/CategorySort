@@ -1,0 +1,17 @@
+{
+    "name": "LogosMeta.Progression",
+    "rootNamespace": "LogosMeta.Progression",
+    "references": [
+        "LogosSDK.Core",
+        "LogosSDK.Save"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

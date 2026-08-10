@@ -1,0 +1,17 @@
+{
+    "name": "LogosSDK.Save",
+    "rootNamespace": "LogosSDK.Save",
+    "references": [
+        "LogosSDK.Core",
+        "Reflex"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

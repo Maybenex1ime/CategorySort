@@ -144,7 +144,8 @@ PlayerSettings:
   visionOSBundleVersion: 1.0
   tvOSBundleVersion: 1.0
   bundleVersion: 1.0
-  preloadedAssets: []
+  preloadedAssets:
+  - {fileID: 11400000, guid: 87555e90f013e2345a0dccda58d5071d, type: 2}
   metroInputSource: 0
   wsaTransparentSwapchain: 0
   m_HolographicPauseOnTrackingLoss: 1
@@ -690,9 +691,9 @@ PlayerSettings:
     PS4: DOTWEEN;DOTWEEN_UITOOLKIT
     PS5: DOTWEEN;DOTWEEN_UITOOLKIT
     QNX: DOTWEEN;DOTWEEN_UITOOLKIT
-    Standalone: DOTWEEN;DOTWEEN_UITOOLKIT
+    Standalone: DOTWEEN;DOTWEEN_UITOOLKIT;DOTWEEN_ENABLED;UNITASK_DOTWEEN_SUPPORT
     VisionOS: DOTWEEN;DOTWEEN_UITOOLKIT
-    WebGL: DOTWEEN;DOTWEEN_UITOOLKIT
+    WebGL: DOTWEEN;DOTWEEN_UITOOLKIT;DOTWEEN_ENABLED;UNITASK_DOTWEEN_SUPPORT
     Windows Store Apps: DOTWEEN;DOTWEEN_UITOOLKIT
     XboxOne: DOTWEEN;DOTWEEN_UITOOLKIT
     iPhone: DOTWEEN;DOTWEEN_UITOOLKIT

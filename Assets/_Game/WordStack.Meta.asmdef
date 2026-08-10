@@ -1,0 +1,20 @@
+{
+    "name": "WordStack.Meta",
+    "rootNamespace": "WordStack.Meta",
+    "references": [
+        "LogosSDK.Core",
+        "LogosSDK.Save",
+        "LogosMeta.Economy",
+        "Reflex",
+        "R3"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
