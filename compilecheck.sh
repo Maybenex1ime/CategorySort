@@ -90,7 +90,10 @@ done
 if [ "$meta_ready" = 1 ]; then
   {
     echo "-nologo"; echo "-target:library"; echo "-langversion:latest"; echo "-nostdlib"
-    echo "-define:UNITY_EDITOR;UNITY_5_3_OR_NEWER;NET_STANDARD_2_1;NETSTANDARD2_1"
+    # Bộ define khớp Unity thật (đọc từ .rsp Unity sinh ra). NET_STANDARD_2_0 và
+    # UNITY_2018_1_OR_NEWER là bắt buộc: DOTweenModuleUnityVersion giấu
+    # AsyncWaitForCompletion sau đúng hai cờ đó, mà LogosSDK.UI await nó.
+    echo "-define:UNITY_EDITOR;UNITY_5_3_OR_NEWER;UNITY_2018_1_OR_NEWER;NET_STANDARD;NET_STANDARD_2_0;NET_STANDARD_2_1;NETSTANDARD;NETSTANDARD2_1"
     echo "-nowarn:CS0649"                                   # [SerializeField] private — Unity gán, csc không biết
     echo "-out:\"$(w "$OUT/meta.dll")\""
     echo "-r:\"$(w "$NS_REF")\""
@@ -107,6 +110,7 @@ if [ "$meta_ready" = 1 ]; then
     for d in Reflex Unity.Addressables Unity.ResourceManager Unity.TextMeshPro UnityEngine.UI; do
       [ -f "$SA/$d.dll" ] && echo "-r:\"$(w "$SA/$d.dll")\""
     done
+    echo "-r:\"$(w "$INPUTSYS")\""          # LogosSDK.UI/Core/BackButtonListener đọc phím Back
     # Newtonsoft là DLL tiền biên dịch của package, không đi qua ScriptAssemblies.
     NJ="$(ls "$SA/../PackageCache"/com.unity.nuget.newtonsoft-json*/Runtime/Newtonsoft.Json.dll 2>/dev/null | head -1)"
     [ -n "$NJ" ] && echo "-r:\"$(w "$NJ")\""

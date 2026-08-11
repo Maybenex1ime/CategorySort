@@ -41,10 +41,27 @@ popup nên chỉ ghi log, vẫn cho chơi (chặn mà không giải thích thì 
 **KHÔNG bê sang:** AppFlow 8 state + 11 trigger, UIManager/NavigationService, màn hình
 MainMenu/LevelSelect/Result — chúng cần `LogosSDK.UI` (chưa copy) + scene Addressables + art,
 mà WordStack chỉ có 1 scene và chưa có UI framework.
-**Chưa gắn vào asset:** chạy menu **WordStack ▸ Setup ▸ Wire meta components** một lần trong Unity
-để thêm `ProgressionInstaller` vào prefab và `MetaSession` vào scene (bridge Unity ngắt giữa phiên
-nên em không gắn được; menu này chạy lại nhiều lần vô hại). Sau đó chạy
-**WordStack ▸ Test ▸ Meta flow round-trip** để nghiệm thu.
+**Đã gắn asset và NGHIỆM THU trong Unity thật** (bridge nối lại): `ProjectScope` mang 8 installer
+(Save · GameSave · Currency · Heart · Progression · UIInstaller · UIAnimationInstaller), `SceneScope`
+mang ContainerScope + MetaSaveTrigger + MetaSession. Hai menu đều PASS:
+`FLOW CHECK OK — coin 0 → 50 (+50) · màn 0 → 1 · tim 4 → 3` và
+`META CHECK OK — coin 0 → 37 qua đĩa`.
+
+**Tầng UI của SDK đã bê sang** (`Assets/_StudioSDK/UI/`, 29 file — Core `UIManager`/`NavigationService`,
+Base `ScreenBase`/`PopupBaseTArgs`, Animation, Transitions, Components, Installers; bỏ Tests + Editor rỗng).
+Khai báo `DOTweenPro.Scripts` trong asmdef đã **xoá** — đo thật: 30 file không dùng một type DOTweenPro
+nào, chỉ `DG.Tweening` lõi, nên DOTween free là đủ. Mọi ref còn lại project đã có sẵn. `compilecheck.sh`
+target `meta` phải thêm `Unity.InputSystem` và bộ define `UNITY_2018_1_OR_NEWER;NET_STANDARD_2_0`
+(DOTweenModuleUnityVersion giấu `AsyncWaitForCompletion` sau đúng hai cờ đó, LogosSDK.UI await nó).
+
+**Còn lại để dùng được UI** (việc trong Editor, chưa làm): [3] tạo Addressables Settings —
+`UIManager` nạp UI bằng `Addressables.InstantiateAsync(type.Name, root)` nên **mỗi popup phải là
+prefab Addressable có address ĐÚNG BẰNG tên class**, sai là lỗi runtime chứ không phải lỗi compile;
+[4] dựng Canvas + EventSystem + `UIManager` trong `Main.unity` rồi trỏ `UIInstaller._uiManager` vào nó
+(hiện đang null nên UIInstaller tự thoát, vô hại); [6] dựng prefab popup đầu tiên.
+`UIAnimationInstaller` cần `UIAnimationSettingsSO` nhưng null thì tự thoát, để trống được.
+Screens/Popups của aquapark (`_Game/UI/`) **không copy được** — chúng tham chiếu BoosterModule,
+LevelCatalog, các lớp `*Args` riêng; phải viết lại trên `ScreenBase`/`PopupBaseTArgs`.
 
 **Chưa làm:** Inventory/Purchase/CheatPanel chưa bind (`LevelService` mới là thứ cần `ILevelCatalog`
 và giẫm lên hệ level JSON — `ProgressionService` thì tự đủ, đã bind); `ProjectInstaller` của SDK cố tình KHÔNG gắn

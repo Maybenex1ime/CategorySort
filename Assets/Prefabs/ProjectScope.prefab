@@ -14,6 +14,9 @@ GameObject:
   - component: {fileID: 2602147501520399264}
   - component: {fileID: 4530739768493955437}
   - component: {fileID: 5149418319263063496}
+  - component: {fileID: 144833543617070357}
+  - component: {fileID: 5052728955425916649}
+  - component: {fileID: 3078012191308316219}
   m_Layer: 0
   m_Name: ProjectScope
   m_TagString: Untagged
@@ -85,6 +88,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: WordStack.Meta::WordStack.Meta.CurrencyInstaller
   _initialCoins: 0
+  _coinsPerWin: 50
 --- !u!114 &5149418319263063496
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -99,3 +103,41 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordStack.Meta::WordStack.Meta.HeartInstaller
   _maxHearts: 5
   _regenMinutes: 30
+--- !u!114 &144833543617070357
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8140624054349446140}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 6ad218b7e90c4f53ab621d804e7c95f1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: WordStack.Meta::WordStack.Meta.ProgressionInstaller
+--- !u!114 &5052728955425916649
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8140624054349446140}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 47bcd9ab2202a36469428295e2dba985, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Installers.UIInstaller
+  _uiManager: {fileID: 0}
+--- !u!114 &3078012191308316219
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8140624054349446140}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 53b600e3b8e4e41d8b6d819d22084568, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Installers.UIAnimationInstaller
+  _animationSettings: {fileID: 0}
