@@ -18,6 +18,7 @@ using System.Linq;
 using UnityEngine;
 using UnityEngine.InputSystem;
 using DG.Tweening;
+using WordStack.Contracts;
 
 namespace WordStack.Prototype
 {
@@ -78,6 +79,7 @@ namespace WordStack.Prototype
         Game g;
         readonly List<string> levelJsons = new List<string>();
         int levelIndex;
+        bool resultReported;               // mỗi màn chỉ báo kết quả cho tầng meta một lần
 
         Camera cam;
         Transform root;
@@ -183,6 +185,8 @@ namespace WordStack.Prototype
                 return;
             }
             BuildBoard();
+            resultReported = false;
+            LevelSignals.RaiseStarted(levelIndex);          // tầng meta trừ tim ở đây
             StartCoroutine(Settle());          // hộp nạp sẵn nhóm đủ phải nổ ngay lúc load
         }
 
@@ -649,6 +653,14 @@ namespace WordStack.Prototype
             if (g.Status == GameStatus.Won) hud.ShowWin();
             else if (g.Status == GameStatus.Stuck) hud.ShowStuck();
             else hud.HideAll();
+
+            // RefreshHud chạy nhiều lần mỗi màn, nên chốt bằng cờ: tầng meta chỉ được
+            // nghe kết quả đúng một lần, nếu không sẽ cộng coin lặp mỗi khung hình.
+            if (!resultReported && g.Status != GameStatus.Playing)
+            {
+                resultReported = true;
+                LevelSignals.RaiseFinished(g.Status == GameStatus.Won, levelIndex, g.Moves);
+            }
         }
 
         // --------------------------------------------------------------- dựng

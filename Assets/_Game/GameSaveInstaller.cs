@@ -1,4 +1,5 @@
 using LogosMeta.Economy;
+using LogosMeta.Progression;
 using LogosSDK.Save;
 using LogosSDK.Save.Providers;
 using Reflex.Core;
@@ -24,6 +25,7 @@ namespace WordStack.Meta
 
                 save.Register<CurrencyData>(json, "currency");
                 save.Register<HeartData>(json, "hearts");
+                save.Register<LevelProgressData>(json, "progress");
             };
         }
     }

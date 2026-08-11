@@ -40,8 +40,12 @@ w() { cygpath -w "$1"; }
   for f in "$MAN"/UnityEngine*.dll; do echo "-r:\"$(w "$f")\""; done
   echo "-r:\"$(w "$INPUTSYS")\""
   echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
-  # mọi .cs dưới Assets/Prototype trừ Editor/ — đúng cách Unity gom Assembly-CSharp
-  find "$PWD/Assets/Prototype" -name '*.cs' -not -path '*/Editor/*' | while read -r f; do
+  # mọi .cs dưới Assets/Prototype trừ Editor/ — đúng cách Unity gom Assembly-CSharp.
+  # Kèm Contracts vì BoardController báo kết quả màn qua LevelSignals. Contracts cố ý
+  # KHÔNG phụ thuộc gì nên nhập thẳng vào thế giới mscorlib này được; kéo EventBus hay
+  # WordStack.Meta vào đây thì hỏng (EventBus cần ValueTask — không có trong 4.7.1-api;
+  # R3/Reflex là netstandard2.1, xung khắc DOTween). Đó là lý do có target meta riêng.
+  find "$PWD/Assets/Prototype" "$PWD/Assets/_Game/Contracts" -name '*.cs' -not -path '*/Editor/*' | while read -r f; do
     echo "\"$(w "$f")\""
   done
 } > "$OUT/game.rsp"
@@ -60,7 +64,7 @@ w() { cygpath -w "$1"; }
   for f in "$MAN"/UnityEngine*.dll "$MAN"/UnityEditor*.dll; do echo "-r:\"$(w "$f")\""; done
   echo "-r:\"$(w "$INPUTSYS")\""
   echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
-  find "$PWD/Assets/Prototype" -name '*.cs' | while read -r f; do
+  find "$PWD/Assets/Prototype" "$PWD/Assets/_Game/Contracts" -name '*.cs' | while read -r f; do
     echo "\"$(w "$f")\""
   done
 } > "$OUT/editor.rsp"

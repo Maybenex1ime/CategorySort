@@ -27,8 +27,27 @@ aquapark để `OnApplicationQuit → SaveAll` trong `GameSaveInstaller` là **b
 nằm ở `MetaSaveTrigger` trong scene; (2) `ISaveManager.Save<T>()` chỉ đánh dấu dirty, phải
 `SaveAll()` mới ghi file (HeartService dùng `SaveImmediate` nên tự lo, CurrencyService thì không).
 Service bind `Resolution.Lazy` — Eager sẽ chạy trước khi domain đăng ký và mất hết dữ liệu.
-**Chưa làm:** Progression/Inventory/Purchase/CheatPanel chưa bind (Progression còn giẫm lên hệ
-level JSON hiện tại, phải chốt thiết kế trước); `ProjectInstaller` của SDK cố tình KHÔNG gắn
+**Luồng meta đã nối vào gameplay** (bê từ aquapark, cùng ngày): gameplay báo qua
+`LevelSignals` (assembly `WordStack.Contracts`, **không phụ thuộc gì**) → `MetaSession` (scene)
+trừ tim, gọi `ProgressionService.ReportResult`, và **chuyển tiếp lên `Bus.Global`** → `CoinRewardService`
+nghe bus mà cộng coin — đúng hình dạng aquapark (service nghe bus, không ai gọi thẳng).
+`BoardController` chỉ thêm 2 dòng: `RaiseStarted` trong `Load()`, `RaiseFinished` trong `RefreshHud()`
+có cờ `resultReported` (RefreshHud chạy nhiều lần/màn, thiếu cờ là cộng coin mỗi khung hình).
+**Vì sao không cho gameplay dùng thẳng `Bus.Global`:** `Core.EventBus` dùng `ValueTask`, kiểu không
+có trong ref set `4.7.1-api` mà target `game`/`editor` của compilecheck dùng → gameplay sẽ compile
+được trong Unity nhưng gãy cổng kiểm. Contracts là assembly đệm để tránh đúng chuyện đó.
+**Lệch aquapark một điểm CÓ CHỦ Ý:** hết tim aquapark chặn vào màn + bật popup; WordStack chưa có
+popup nên chỉ ghi log, vẫn cho chơi (chặn mà không giải thích thì thành game đứng im).
+**KHÔNG bê sang:** AppFlow 8 state + 11 trigger, UIManager/NavigationService, màn hình
+MainMenu/LevelSelect/Result — chúng cần `LogosSDK.UI` (chưa copy) + scene Addressables + art,
+mà WordStack chỉ có 1 scene và chưa có UI framework.
+**Chưa gắn vào asset:** chạy menu **WordStack ▸ Setup ▸ Wire meta components** một lần trong Unity
+để thêm `ProgressionInstaller` vào prefab và `MetaSession` vào scene (bridge Unity ngắt giữa phiên
+nên em không gắn được; menu này chạy lại nhiều lần vô hại). Sau đó chạy
+**WordStack ▸ Test ▸ Meta flow round-trip** để nghiệm thu.
+
+**Chưa làm:** Inventory/Purchase/CheatPanel chưa bind (`LevelService` mới là thứ cần `ILevelCatalog`
+và giẫm lên hệ level JSON — `ProgressionService` thì tự đủ, đã bind); `ProjectInstaller` của SDK cố tình KHÔNG gắn
 (nó bind EventBus + AddressableAssetService, WordStack chưa dùng). `Assets/Editor Default Resources/` là đồ user đang làm dở, chưa track.
 
 **COLLAPSE đã land trong domain** (2026-08-06): nhóm có cha (`"group"` trong JSON) gộp đủ 4 thì

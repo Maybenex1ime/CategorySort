@@ -6,6 +6,9 @@
         "LogosSDK.Core",
         "LogosSDK.Save",
         "LogosMeta.Economy",
+        "LogosMeta.Progression",
+        "Core.EventBus",
+        "WordStack.Contracts",
         "Reflex"
     ],
     "includePlatforms": [
