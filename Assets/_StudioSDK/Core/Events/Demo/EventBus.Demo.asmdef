@@ -1,0 +1,17 @@
+{
+    "name": "EventBus.Demo",
+    "rootNamespace": "EventBus.Demo",
+    "references": [
+        "Core.EventBus",
+        "Unity.TextMeshPro"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+} 

@@ -1,0 +1,16 @@
+{
+    "name": "LogosSDK.Utils",
+    "rootNamespace": "LogosSDK.Utils",
+    "references": [
+        "LogosSDK.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

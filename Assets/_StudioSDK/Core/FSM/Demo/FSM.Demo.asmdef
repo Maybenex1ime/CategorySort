@@ -1,0 +1,16 @@
+{
+    "name": "LogosSDK.Core.FSM.Demo",
+    "rootNamespace": "LogosSDK.Core.FSM.Demo",
+    "references": [
+        "LogosSDK.Core"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

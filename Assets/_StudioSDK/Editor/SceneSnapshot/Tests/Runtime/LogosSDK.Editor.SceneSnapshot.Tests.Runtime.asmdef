@@ -1,0 +1,17 @@
+{
+    "name": "LogosSDK.Editor.SceneSnapshot.Tests.Runtime",
+    "rootNamespace": "LogosGameLab.Editor.SceneSnapshot.Tests",
+    "references": [
+        "DOTween.Modules",
+        "DOTweenPro.Scripts"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

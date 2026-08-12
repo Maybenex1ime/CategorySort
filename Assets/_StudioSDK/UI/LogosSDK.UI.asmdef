@@ -1,0 +1,22 @@
+{
+    "name": "LogosSDK.UI",
+    "rootNamespace": "LogosSDK.UI",
+    "references": [
+        "LogosSDK.Core",
+        "Reflex",
+        "Unity.Addressables",
+        "Unity.ResourceManager",
+        "Unity.InputSystem",
+        "DOTween.Modules",
+        "DOTweenPro.Scripts"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}
