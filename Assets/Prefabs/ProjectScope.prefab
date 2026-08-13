@@ -140,4 +140,4 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 53b600e3b8e4e41d8b6d819d22084568, type: 3}
   m_Name: 
   m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Installers.UIAnimationInstaller
-  _animationSettings: {fileID: 0}
+  _animationSettings: {fileID: 11400000, guid: f446d8c48e1474b7db85c31af3e32f1d, type: 2}

@@ -1,0 +1,32 @@
+using LogosSDK.Core.Logging;
+using UnityEngine;
+using WordStack.Meta.AppFlow.Triggers;
+using ILogger = LogosSDK.Core.Logging.ILogger;
+
+namespace WordStack.Meta.AppFlow.States
+{
+    internal sealed class GameplayState : AppFlowStateBase
+    {
+        private static readonly ILogger _logger = LogManager.GetLogger<GameplayState>();
+
+        public GameplayState(AppFlowContext context) : base(context)
+        {
+            RegisterTriggerHandler<LevelFinishedTrigger>(_ => new ResultState(Context));
+            RegisterTriggerHandler<ReturnToMainMenuTrigger>(_ => new MainMenuState(Context));
+        }
+
+        public override async Awaitable OnEnterAsync()
+        {
+            _logger.Info("[AppFlow] Enter Gameplay");
+            Context.SetPhase(AppFlowPhase.Gameplay);
+
+            // Gỡ màn hình menu để lộ bàn chơi. Gameplay nằm cùng scene nên
+            // không có gì để nạp — khác aquapark (nó load GameplayScene qua Addressables).
+            await Context.RemoveCurrentScreenAsync();
+
+            // Đây là NƠI DUY NHẤT ra lệnh nạp màn — cả vào lần đầu, chơi lại,
+            // lẫn sang màn kế đều đi qua đây.
+            Context.StartCurrentLevel();
+        }
+    }
+}

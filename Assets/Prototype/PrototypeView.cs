@@ -99,7 +99,10 @@ namespace WordStack.Prototype
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.AfterSceneLoad)]
         static void Boot()
         {
-            if (FindAnyObjectByType<BoardController>() != null) return;
+            // Include: mặc định FindAnyObjectByType BỎ QUA object inactive, nên tắt
+            // GameObject "Game" để dừng bàn mới lại khiến bản prototype này tự dựng
+            // bàn cũ thay vào — đúng thứ vừa bị tắt.
+            if (FindAnyObjectByType<BoardController>(FindObjectsInactive.Include) != null) return;
             new GameObject("WordStackPrototype").AddComponent<PrototypeView>();
         }
 

@@ -79,6 +79,7 @@ namespace WordStack.Prototype
         Game g;
         readonly List<string> levelJsons = new List<string>();
         int levelIndex;
+        LevelDifficulty levelDifficulty = LevelDifficulty.Normal;
         bool resultReported;               // mỗi màn chỉ báo kết quả cho tầng meta một lần
 
         Camera cam;
@@ -122,7 +123,20 @@ namespace WordStack.Prototype
             try { SelfCheck.Run(Debug.Log, levelJsons, HasArt); }
             catch (Exception e) { Debug.LogError("SelfCheck FAIL: " + e.Message); }
 #endif
-            Load(0);
+            // KHÔNG tự Load(0) nữa — AppFlow sở hữu vòng đời màn chơi và ra lệnh
+            // qua LevelCommands. Không có AppFlow trong scene thì bàn đứng trống,
+            // đó là chủ ý: chỉ một bên được quyết định màn nào đang chơi.
+            LevelCommands.LoadRequested += OnLoadRequested;
+        }
+
+        void OnDestroy()
+        {
+            LevelCommands.LoadRequested -= OnLoadRequested;
+        }
+
+        void OnLoadRequested(int levelIndex)
+        {
+            Load(levelIndex);
         }
 
         bool RefsOk()
@@ -176,6 +190,7 @@ namespace WordStack.Prototype
             {
                 var lv = LevelData.Parse(levelJsons[levelIndex]);
                 lv.Validate(HasArt);
+                levelDifficulty = lv.Difficulty;
                 g = Game.Build(lv);
             }
             catch (Exception e)
@@ -186,7 +201,7 @@ namespace WordStack.Prototype
             }
             BuildBoard();
             resultReported = false;
-            LevelSignals.RaiseStarted(levelIndex);          // tầng meta trừ tim ở đây
+            LevelSignals.RaiseStarted(levelIndex, levelDifficulty);   // tầng meta trừ tim + đổi sprite khung
             StartCoroutine(Settle());          // hộp nạp sẵn nhóm đủ phải nổ ngay lúc load
         }
 
@@ -202,12 +217,9 @@ namespace WordStack.Prototype
 
             HandleKeys();
 
-            if (g.Status != GameStatus.Playing)
-            {
-                if (p.press.wasPressedThisFrame)
-                    Load(g.Status == GameStatus.Won ? levelIndex + 1 : levelIndex);
-                return;
-            }
+            // Hết màn thì đứng yên chờ AppFlow. Trước đây chạm màn hình là tự nạp
+            // màn kế — giờ ResultState hiện popup và người chơi bấm Next/Retry ở đó.
+            if (g.Status != GameStatus.Playing) return;
 
             if (locked) return;
 
@@ -235,6 +247,9 @@ namespace WordStack.Prototype
             }
         }
 
+        // Phím tắt dev: nạp bàn TRỰC TIẾP, không đi qua AppFlow nên KHÔNG đổi
+        // LevelProgressData.CurrentLevel. Lần chuyển màn kế tiếp do AppFlow điều
+        // khiển sẽ kéo về đúng màn đã lưu. Chấp nhận được cho việc thử nhanh.
         void HandleKeys()
         {
             var k = Keyboard.current;
@@ -650,9 +665,12 @@ namespace WordStack.Prototype
         {
             if (hud == null || g == null) return;
             hud.Set(g.Title, g.Cleared, g.TotalGroups, g.Moves);
-            if (g.Status == GameStatus.Won) hud.ShowWin();
-            else if (g.Status == GameStatus.Stuck) hud.ShowStuck();
-            else hud.HideAll();
+
+            // Panel Win/Stuck của HudView đã nghỉ: ResultState hiện CompletedPopup /
+            // FailedPopup đè lên đúng chỗ đó, và chữ trong panel ("click / N for next
+            // level") sai từ khi bỏ tap-để-sang-màn. HudView giữ nguyên phần thanh
+            // tiêu đề tiến độ; muốn dùng lại 2 panel thì sửa wording trước.
+            hud.HideAll();
 
             // RefreshHud chạy nhiều lần mỗi màn, nên chốt bằng cờ: tầng meta chỉ được
             // nghe kết quả đúng một lần, nếu không sẽ cộng coin lặp mỗi khung hình.

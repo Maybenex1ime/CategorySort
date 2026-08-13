@@ -1,6 +1,7 @@
 {
   "id": "lv-004",
   "title": "Khoi dong",
+  "difficulty": "Normal",
   "note": "Chuyen tu BUILTIN[0] cua demo wordstack.html (3 nhom, khong COLLAPSE). Bo cuc va vi tri the giu nguyen theo demo; chi doi tham chieu tu nhan chu sang card id. Solver: 10 nuoc che do chat, 9 nuoc che do rong.",
 
   "layout": {

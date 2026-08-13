@@ -29,8 +29,8 @@ namespace WordStack.Prototype
             title.transform.localPosition = new Vector3(cx, top + 0.58f, 0f);
 
             help.transform.localPosition = new Vector3(cx, bottom - 0.45f, 0f);
-            ViewText.Apply(help, "Drag a tile onto another stack   ·   R restart   ·   N next level",
-                           0.85f, width);
+            // R/N là phím dev bỏ qua AppFlow — không quảng cáo cho người chơi nữa.
+            ViewText.Apply(help, "Drag a tile onto another stack", 0.85f, width);
 
             winPanel.transform.localPosition = new Vector3(cx, 0f, 0f);
             stuckPanel.transform.localPosition = new Vector3(cx, bottom - 1.15f, 0f);

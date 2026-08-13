@@ -17,9 +17,13 @@ namespace WordStack.Contracts
     {
         public int LevelIndex { get; }
 
-        public LevelStartedEvent(int levelIndex)
+        /// <summary>Đọc từ field "difficulty" của file level. HUD dùng để chọn sprite khung.</summary>
+        public LevelDifficulty Difficulty { get; }
+
+        public LevelStartedEvent(int levelIndex, LevelDifficulty difficulty)
         {
             LevelIndex = levelIndex;
+            Difficulty = difficulty;
         }
     }
 
@@ -47,8 +51,8 @@ namespace WordStack.Contracts
         public static event Action<LevelStartedEvent> Started;
         public static event Action<LevelResultEvent> Finished;
 
-        public static void RaiseStarted(int levelIndex)
-            => Started?.Invoke(new LevelStartedEvent(levelIndex));
+        public static void RaiseStarted(int levelIndex, LevelDifficulty difficulty)
+            => Started?.Invoke(new LevelStartedEvent(levelIndex, difficulty));
 
         public static void RaiseFinished(bool isWin, int levelIndex, int movesUsed)
             => Finished?.Invoke(new LevelResultEvent(isWin, levelIndex, movesUsed));

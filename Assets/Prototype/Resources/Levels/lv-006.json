@@ -1,6 +1,7 @@
 {
   "id": "lv-006",
   "title": "So thich",
+  "difficulty": "Crazy",
   "note": "Chuyen tu BUILTIN[2] cua demo wordstack.html. COLLAPSE 2 tang: dog/cat/bird -> pet -> hobby. Nhom dog co art rieng: tile 'Cho' sinh ra mang hinh con cho. Bo cuc sap lai 2026-08-06 de giai duoc o che do chat (ly do nhu lv-005).",
 
   "layout": {

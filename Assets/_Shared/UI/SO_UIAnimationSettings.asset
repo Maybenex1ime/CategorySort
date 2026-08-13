@@ -1,0 +1,18 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: bb3bd636f5ea44d9ca984c740e34084f, type: 3}
+  m_Name: SO_UIAnimationSettings
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Animation.UIAnimationSettingsSO
+  _defaultPanelProfile: {fileID: 11400000, guid: 5e9a9e563087048f7a1d2356160fdd90, type: 2}
+  _defaultPopupProfile: {fileID: 11400000, guid: 6ce682aa29d26498a84fb5045e8e5bd6, type: 2}
+  _defaultStaggerProfile: {fileID: 11400000, guid: 29023e6239fe74990a936f06e8a4783c, type: 2}
+  _defaultButtonProfile: {fileID: 11400000, guid: f9597d1ae49b647b5b0e67ce4e9ac0e0, type: 2}

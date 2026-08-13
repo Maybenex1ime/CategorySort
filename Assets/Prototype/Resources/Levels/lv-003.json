@@ -1,6 +1,7 @@
 {
   "id": "lv-003",
   "title": "Smallest",
+  "difficulty": "Hard",
   "note": "Level nho nhat chay duoc: 1 nhom, 4 the, 3 stack. Keo grape + orange sang hop trai -> du 4 Fruit -> CLEAR -> thang trong 2 nuoc.",
 
   "layout": {

@@ -9,7 +9,11 @@
         "Core.EventBus",
         "WordStack.Contracts",
         "Reflex",
-        "R3"
+        "LogosSDK.UI",
+        "Unity.TextMeshPro",
+        "Unity.ugui",
+        "Unity.InputSystem",
+        "DOTween.Modules"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

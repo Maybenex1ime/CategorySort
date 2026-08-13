@@ -1,6 +1,7 @@
 {
   "id": "lv-005",
   "title": "Thanh pho",
+  "difficulty": "Hard",
   "note": "Chuyen tu BUILTIN[1] cua demo wordstack.html. COLLAPSE 1 tang: hospital/school/airport -> building. Bo cuc sap lai 2026-08-06: ban demo dua vao luat rong (keo rong hop de mo hop duoi), khong giai duoc o che do chat — moi hop chon gio chi chua the ma nhom con duong gom tu mat ban luc no lo ra.",
 
   "layout": {
