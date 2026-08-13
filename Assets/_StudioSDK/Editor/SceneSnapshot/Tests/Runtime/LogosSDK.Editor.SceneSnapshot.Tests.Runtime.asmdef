@@ -1,12 +1,7 @@
 {
-    "name": "LogosSDK.UI",
-    "rootNamespace": "LogosSDK.UI",
+    "name": "LogosSDK.Editor.SceneSnapshot.Tests.Runtime",
+    "rootNamespace": "LogosGameLab.Editor.SceneSnapshot.Tests",
     "references": [
-        "LogosSDK.Core",
-        "Reflex",
-        "Unity.Addressables",
-        "Unity.ResourceManager",
-        "Unity.InputSystem",
         "DOTween.Modules",
         "DOTweenPro.Scripts"
     ],

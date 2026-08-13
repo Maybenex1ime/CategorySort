@@ -1,14 +1,9 @@
 {
-    "name": "LogosSDK.UI",
-    "rootNamespace": "LogosSDK.UI",
+    "name": "EventBus.Demo",
+    "rootNamespace": "EventBus.Demo",
     "references": [
-        "LogosSDK.Core",
-        "Reflex",
-        "Unity.Addressables",
-        "Unity.ResourceManager",
-        "Unity.InputSystem",
-        "DOTween.Modules",
-        "DOTweenPro.Scripts"
+        "Core.EventBus",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -19,4 +14,4 @@
     "defineConstraints": [],
     "versionDefines": [],
     "noEngineReferences": false
-}
+} 

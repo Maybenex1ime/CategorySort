@@ -1,14 +1,8 @@
 {
-    "name": "LogosSDK.UI",
-    "rootNamespace": "LogosSDK.UI",
+    "name": "LogosSDK.Audio",
+    "rootNamespace": "LogosSDK.Audio",
     "references": [
-        "LogosSDK.Core",
-        "Reflex",
-        "Unity.Addressables",
-        "Unity.ResourceManager",
-        "Unity.InputSystem",
-        "DOTween.Modules",
-        "DOTweenPro.Scripts"
+        "LogosSDK.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
