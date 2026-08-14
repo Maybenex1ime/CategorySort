@@ -15,7 +15,9 @@ static class PrototypeSelfCheckMain
             string levelsDir = args.Length > 0
                 ? args[0]
                 : Path.Combine("Assets", "_Game", "Content", "Levels");
-            string artDir = Path.Combine(Path.GetDirectoryName(levelsDir) ?? ".", "Art");
+            // Art KHÔNG đi theo thư mục level: runtime nạp Resources.Load("Art/" + key),
+            // tức cố định Assets/Prototype/Resources/Art dù level đã dời sang _Game/Content.
+            string artDir = Path.Combine("Assets", "Prototype", "Resources", "Art");
 
             if (!Directory.Exists(levelsDir))
                 throw new Exception("không thấy thư mục level: " + Path.GetFullPath(levelsDir) +

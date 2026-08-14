@@ -107,7 +107,7 @@ if [ "$meta_ready" = 1 ]; then
     echo "-r:\"$(w "$PKG/Microsoft.Bcl.AsyncInterfaces.6.0.0/lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll")\""
     echo "-r:\"$(w "$PKG/System.Threading.Channels.8.0.0/lib/netstandard2.1/System.Threading.Channels.dll")\""
     echo "-r:\"$(w "$PKG/System.ComponentModel.Annotations.5.0.0/lib/netstandard2.1/System.ComponentModel.Annotations.dll")\""
-    for d in Reflex Unity.Addressables Unity.ResourceManager Unity.TextMeshPro UnityEngine.UI; do
+    for d in Reflex Unity.Addressables Unity.Addressables.Editor Unity.ResourceManager Unity.TextMeshPro UnityEngine.UI; do
       [ -f "$SA/$d.dll" ] && echo "-r:\"$(w "$SA/$d.dll")\""
     done
     echo "-r:\"$(w "$INPUTSYS")\""          # LogosSDK.UI/Core/BackButtonListener đọc phím Back
@@ -116,7 +116,7 @@ if [ "$meta_ready" = 1 ]; then
     [ -n "$NJ" ] && echo "-r:\"$(w "$NJ")\""
     # DOTween/Modules đi kèm vì CheatToastView dùng DOFade/DOAnchorPosY trên UI
     # Bỏ Tests/: chúng cần NUnit + TestRunner, chỉ Unity mới dựng nổi ref đó.
-    find "$PWD/Assets/_StudioSDK" "$PWD/Assets/_Modules" "$PWD/Assets/_Game" \
+    find "$PWD/Assets/_StudioSDK" "$PWD/Assets/_Modules" "$PWD/Assets/_Game" "$PWD/Assets/BoosterModule" \
          "$PWD/Assets/Plugins/Demigiant/DOTween/Modules" -name '*.cs' -not -path '*/Tests/*' | while read -r f; do
       echo "\"$(w "$f")\""
     done

@@ -1,4 +1,3 @@
-using LogosGame.Features.Gameplay.Flow;
 using LogosGame.Features.Gameplay.Services;
 using LogosMeta.Economy;
 using R3;
@@ -12,7 +11,6 @@ namespace LogosGame.Features.Gameplay.Views
 {
     public sealed class GameplayHudView : MonoBehaviour
     {
-        [Inject] private readonly IGameplayFlowController _gameplayFlowController;
         [Inject] private readonly IFeedbackDispatcher _feedbackDispatcher;
         [Inject] private readonly ICurrencyService _currencyService;
         [Inject] private readonly IDifficultyStateProvider _difficultyProvider;
@@ -21,10 +19,6 @@ namespace LogosGame.Features.Gameplay.Views
         [SerializeField] private GameObject _coinBoxRoot;
         [SerializeField] private TextMeshProUGUI _levelTitleText;
         [SerializeField] private Button _settingsButton;
-
-        [Header("Debug — gỡ khi có điều kiện thua thật")]
-        [Tooltip("Ép màn hiện tại thành thua để thử chuỗi Result → FailedPopup.")]
-        [SerializeField] private Button _forceLoseButton;
 
         [Header("Level Box Sprite per Difficulty")]
         [SerializeField] private Image _levelBoxImage;
@@ -39,11 +33,6 @@ namespace LogosGame.Features.Gameplay.Views
             if (_settingsButton != null)
             {
                 _settingsButton.onClick.AddListener(OnSettingsClicked);
-            }
-
-            if (_forceLoseButton != null)
-            {
-                _forceLoseButton.onClick.AddListener(OnForceLoseClicked);
             }
         }
 
@@ -86,11 +75,6 @@ namespace LogosGame.Features.Gameplay.Views
             if (_settingsButton != null)
             {
                 _settingsButton.onClick.RemoveListener(OnSettingsClicked);
-            }
-
-            if (_forceLoseButton != null)
-            {
-                _forceLoseButton.onClick.RemoveListener(OnForceLoseClicked);
             }
 
             _disposables.Dispose();
@@ -153,34 +137,6 @@ namespace LogosGame.Features.Gameplay.Views
             // Như aquapark: nút settings trong gameplay mở PausePopup. Khác ở chỗ
             // không có phase Paused — AppFlow gate input thay vì đổi state.
             LogosSDK.Core.Events.Bus.Global.Fire(new WordStack.Meta.AppFlow.PauseRequestedEvent());
-        }
-
-        private void OnForceLoseClicked()
-        {
-            if (_feedbackDispatcher != null)
-            {
-                _feedbackDispatcher.PlayUiButtonClick();
-            }
-            ForceLoseInBackground();
-        }
-
-        // Đi đúng đường của máy phase: phải qua Evaluating thì NotifyEvaluationCompleted
-        // mới được chấp nhận (nó bỏ qua nếu phase khác Evaluating).
-        private async void ForceLoseInBackground()
-        {
-            if (_gameplayFlowController == null) return;
-
-            await _gameplayFlowController.NotifyPlayerActionCommittedAsync(new GameplayActionContext
-            {
-                RemainingMoves = 0,
-            });
-
-            await _gameplayFlowController.NotifyEvaluationCompletedAsync(new GameplayEvaluationResult
-            {
-                IsLose = true,
-                RemainingMoves = 0,
-                CanRetry = true,
-            });
         }
     }
 }
