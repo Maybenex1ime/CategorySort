@@ -86,11 +86,22 @@ namespace LogosGame.Features.Gameplay.Boosters.ViewModels
         }
     }
 
-    /// <summary>Booster dùng ngay, không cần chọn mục tiêu.</summary>
+    /// <summary>
+    /// Booster dùng ngay, không cần chọn mục tiêu.
+    ///
+    /// CHƯA TRỪ LƯỢT — hiệu ứng lên bàn chưa chốt nên chỉ log; trừ lượt cho hiệu
+    /// ứng rỗng là người chơi mất booster oan. Khi có logic thật: áp hiệu ứng rồi
+    /// gọi <see cref="BoosterViewModelBase.RequestUse"/> (nó trừ qua BoosterManager).
+    /// </summary>
     public abstract class InstantBoosterViewModelBase : BoosterViewModelBase
     {
         protected InstantBoosterViewModelBase(BoosterId id) : base(id) { }
 
-        public void OnButtonClicked() => RequestUse();
+        public void OnButtonClicked()
+        {
+            if (!HasStock) return;   // hết lượt → View lo mở luồng mua
+
+            Logger.Info($"[Booster] {BoosterId} kích hoạt — logic chưa chốt, chưa trừ lượt.");
+        }
     }
 }

@@ -62,6 +62,21 @@ namespace WordStack.Meta.AppFlow.Installers
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
 
+            // Nghe PurchaseRequestedEvent (nút booster bắn khi count = 0) → mở popup
+            // mua. Eager như GameplayFlowAdapter: không ai inject nó, toàn bộ việc
+            // nằm ở constructor (đăng ký bus) — Lazy là luồng mua im lặng biến mất.
+            builder.RegisterFactory<LogosGame.Features.Currency.UI.Impl.BoosterPurchaseFlow>(
+                c => new LogosGame.Features.Currency.UI.Impl.BoosterPurchaseFlow(
+                    c.TryGetResolver<UIManager>(out _) ? c.Resolve<UIManager>() : null,
+                    c.TryGetResolver<LogosMeta.Economy.ICurrencyService>(out _)
+                        ? c.Resolve<LogosMeta.Economy.ICurrencyService>()
+                        : null,
+                    c.TryGetResolver<LogosGame.Features.Gameplay.Content.IUnlockSchedule>(out _)
+                        ? c.Resolve<LogosGame.Features.Gameplay.Content.IUnlockSchedule>()
+                        : null),
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Eager);
+
             // Eager BẮT BUỘC: không ai inject adapter này, toàn bộ việc của nó nằm
             // trong constructor (đăng ký nghe LevelSignals). Để Lazy là nó không bao
             // giờ được dựng và gameplay không báo gì cho ViewModel — im lặng, không lỗi.

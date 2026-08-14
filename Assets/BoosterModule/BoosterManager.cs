@@ -53,7 +53,7 @@ namespace BoosterModule
         {
             if (!_inventory.TryGetValue(evt.Id, out int count) || count <= 0)
             {
-                Bus.Global.Fire(new BoosterExhaustedEvent(evt.Id, _inventory[evt.Id]));
+                Bus.Global.Fire(new BoosterExhaustedEvent(evt.Id, count));
                 Debug.LogWarning($"[BoosterManager] Cannot use booster {evt.Id}: Not enough in inventory.");
                 return;
             }

@@ -19,6 +19,20 @@ chưa từng gắn vào GameObject nào — cheat panel ép Win/Lose thay); sử
 meta gom thêm `Assets/BoosterModule` + ref `Unity.Addressables.Editor` (LevelCatalogBuilder cần).
 `./selfcheck.sh` + `./compilecheck.sh` (game/editor/meta) đều PASS trở lại.
 
+**Luồng mua booster khi hết lượt (2026-08-14, cùng phiên):** click nút booster count = 0 → view bắn
+`PurchaseRequestedEvent` (4 view đã bắn sẵn từ trước) → **`BoosterPurchaseFlow`** (mới,
+`Currency/UI/Impl/`, đăng ký **Eager** trong AppFlowInstaller — không ai inject, việc nằm ở ctor
+đăng ký bus) → mở **`BoosterPurchasePopup`** (port aquapark giữ GUID: prefab + Args + 6 sprite
+`Art/UI/revive/` + font baloo Blue Border). Chưa có hệ mua: Price = 0 hiện "—", nút Mua **log stub**
+không trừ coin/cộng booster; giao dịch ngoài booster (heart) log warn bỏ qua. Count > 0: armable
+lên nòng như cũ; instant giờ **chỉ log** "logic chưa chốt, chưa trừ lượt" (không RequestUse — người
+chơi khỏi mất booster cho hiệu ứng rỗng). Fix kèm: `BoosterManager` KeyNotFoundException khi
+BoosterUseEvent bắn id chưa có trong inventory. Utility mới **WordStack ▸ Build UI Addressables**
+(quét `_Shared/Prefab/Popup|Screen`, address = tên file — đóng footgun address≠class).
+**CÒN 1 BƯỚC EDITOR:** focus Unity cho compile rồi chạy menu đó để đăng ký address
+`BoosterPurchasePopup` (bridge chết cả phiên: pipe stale PID 25724 đã xoá, instance sống không
+trả lời — nghi mất focus/modal).
+
 **Stack module meta đã vào repo và compile sạch** (2026-08-10): user copy `Assets/_Modules/`
 (CheatPanel · Economy Currency/Hearts/Purchase · Inventory · Progression, namespace `LogosMeta.*`)
 từ project **aquapark** — bản copy giống hệt nguồn nhưng thiếu `_Modules.meta` (đã bổ sung, GUID
