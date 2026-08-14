@@ -1,8 +1,23 @@
 # Session State
 
-> Cập nhật cuối: 2026-08-10. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
+> Cập nhật cuối: 2026-08-14. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
 
 ## Đang ở đâu
+
+**Port hệ meta aquapark HOÀN TẤT — `main` = `8dfb879`, đã push** (4 commit 13–14/08:
+`92f771c` AppFlow FSM + BoosterModule → `473c7de` HUD + level pipeline + cheat →
+`cf23c99` audio + Settings/Pause → `8dfb879` NoHeartsPopup + kinh tế tim).
+**Nguồn chi tiết hiện hành: `docs/session-log/2026-08-14-17.md`** — kiến trúc (FSM 5 state,
+level pipeline, kinh tế tim 3 điểm trừ, popup, audio, booster, DI layout), 8 gotcha, backlog 10 mục.
+Các đoạn dưới của mục này là lịch sử đến 2026-08-10 — riêng đoạn "KHÔNG bê sang: AppFlow/UIManager/
+màn hình" đã LỖI THỜI (đã bê đủ trong 4 commit trên).
+
+**Dọn sau port (2026-08-14, phiên đọc-log):** xoá nút Force Lose khỏi `GameplayHudView` (dead code,
+chưa từng gắn vào GameObject nào — cheat panel ép Win/Lose thay); sửa 2 gate lệch sau port:
+`PrototypeSelfCheckMain` trỏ art về `Assets/Prototype/Resources/Art` (runtime vẫn
+`Resources.Load("Art/…")` dù level đã dời sang `_Game/Content/Levels`), `compilecheck.sh` target
+meta gom thêm `Assets/BoosterModule` + ref `Unity.Addressables.Editor` (LevelCatalogBuilder cần).
+`./selfcheck.sh` + `./compilecheck.sh` (game/editor/meta) đều PASS trở lại.
 
 **Stack module meta đã vào repo và compile sạch** (2026-08-10): user copy `Assets/_Modules/`
 (CheatPanel · Economy Currency/Hearts/Purchase · Inventory · Progression, namespace `LogosMeta.*`)
