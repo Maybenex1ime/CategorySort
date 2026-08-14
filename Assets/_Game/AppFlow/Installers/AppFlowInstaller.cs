@@ -68,6 +68,11 @@ namespace WordStack.Meta.AppFlow.Installers
             builder.RegisterFactory<LogosGame.Features.Currency.UI.Impl.BoosterPurchaseFlow>(
                 c => new LogosGame.Features.Currency.UI.Impl.BoosterPurchaseFlow(
                     c.TryGetResolver<UIManager>(out _) ? c.Resolve<UIManager>() : null,
+                    // Vắng khi CurrencyInstaller chưa được gán SO_TransactionCatalog
+                    // — flow rơi về stub log, popup vẫn mở với giá "—".
+                    c.TryGetResolver<LogosMeta.Economy.IPurchaseService>(out _)
+                        ? c.Resolve<LogosMeta.Economy.IPurchaseService>()
+                        : null,
                     c.TryGetResolver<LogosMeta.Economy.ICurrencyService>(out _)
                         ? c.Resolve<LogosMeta.Economy.ICurrencyService>()
                         : null,

@@ -23,15 +23,27 @@ meta gom thêm `Assets/BoosterModule` + ref `Unity.Addressables.Editor` (LevelCa
 `PurchaseRequestedEvent` (4 view đã bắn sẵn từ trước) → **`BoosterPurchaseFlow`** (mới,
 `Currency/UI/Impl/`, đăng ký **Eager** trong AppFlowInstaller — không ai inject, việc nằm ở ctor
 đăng ký bus) → mở **`BoosterPurchasePopup`** (port aquapark giữ GUID: prefab + Args + 6 sprite
-`Art/UI/revive/` + font baloo Blue Border). Chưa có hệ mua: Price = 0 hiện "—", nút Mua **log stub**
-không trừ coin/cộng booster; giao dịch ngoài booster (heart) log warn bỏ qua. Count > 0: armable
+`Art/UI/revive/` + font baloo Blue Border). Popup gate bàn bằng `SetInputBlocked` như PausePopup
+(unblock ở mọi callback thoát + try/catch mở-fail để không khoá bàn vĩnh viễn). Count > 0: armable
 lên nòng như cũ; instant giờ **chỉ log** "logic chưa chốt, chưa trừ lượt" (không RequestUse — người
 chơi khỏi mất booster cho hiệu ứng rỗng). Fix kèm: `BoosterManager` KeyNotFoundException khi
 BoosterUseEvent bắn id chưa có trong inventory. Utility mới **WordStack ▸ Build UI Addressables**
 (quét `_Shared/Prefab/Popup|Screen`, address = tên file — đóng footgun address≠class).
-**CÒN 1 BƯỚC EDITOR:** focus Unity cho compile rồi chạy menu đó để đăng ký address
-`BoosterPurchasePopup` (bridge chết cả phiên: pipe stale PID 25724 đã xoá, instance sống không
-trả lời — nghi mất focus/modal).
+
+**Hệ mua THẬT đã wire (cùng ngày):** **giá đặt ở `Assets/_Game/Content/SO_TransactionCatalog.asset`**
+(Inspector — entry: TransactionId `t_booster_*`/`t_heart`, Price, Items ItemId+Amount; seed số
+aquapark 1900/1500/1900/300, heart 900 — placeholder chờ GD chỉnh; Description để trống vì hiệu ứng
+chưa chốt, KHÔNG bịa). Chuỗi: `CurrencyInstaller` (thêm field `_catalog`) chỉ bind
+`ITransactionCatalog` + `TransactionItemDispatcher` + `PurchaseService` **khi catalog được gán** —
+thiếu asset là IPurchaseService vắng mặt, flow rơi về stub log, không sập. `BoosterPurchaseFlow`
+đọc giá qua `TryGetTransaction`, nút Mua chạy `TryPurchase` (trừ coin → dispatcher phát hàng:
+`booster.*` bắn `BoosterAddedEvent` cho BoosterManager, `heart` gọi `HeartService.Add` — khác
+aquapark: không có BoosterGrantEvent trung gian); popup tự disable nút Mua khi thiếu coin.
+`TransactionIds` đổi stub `booster.hand` → bộ id thật `t_booster_*` khớp catalog (NoHeartsPopup
+theo const nên tự đúng). `MetaWiring` học thêm: gán catalog vào CurrencyInstaller trên ProjectScope.
+**CÒN 2 CLICK EDITOR** (bridge chết cả phiên: pipe stale PID 25724 đã xoá, instance sống không trả
+lời — nghi mất focus/modal): focus Unity chờ compile → **WordStack ▸ Setup ▸ Wire meta components**
+(gán catalog) → **WordStack ▸ Build UI Addressables** (address cho BoosterPurchasePopup).
 
 **Stack module meta đã vào repo và compile sạch** (2026-08-10): user copy `Assets/_Modules/`
 (CheatPanel · Economy Currency/Hearts/Purchase · Inventory · Progression, namespace `LogosMeta.*`)

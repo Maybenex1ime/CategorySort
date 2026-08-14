@@ -38,12 +38,38 @@ namespace WordStack.Meta.Editor
             {
                 root.AddComponent<ProgressionInstaller>();
                 added = true;
+                Debug.Log("WIRE: thêm ProgressionInstaller vào ProjectScope.");
+            }
+
+            // Hệ mua: CurrencyInstaller cần SO_TransactionCatalog (field private
+            // → đi qua SerializedObject). Chưa gán thì IPurchaseService vắng mặt,
+            // nút Mua trong BoosterPurchasePopup chỉ log stub.
+            var currency = root.GetComponent<CurrencyInstaller>();
+            if (currency != null)
+            {
+                var so = new SerializedObject(currency);
+                var catalogProp = so.FindProperty("_catalog");
+                if (catalogProp != null && catalogProp.objectReferenceValue == null)
+                {
+                    var catalog = AssetDatabase.LoadAssetAtPath<LogosGame.Features.Currency.Transactions.TransactionCatalog>(
+                        "Assets/_Game/Content/SO_TransactionCatalog.asset");
+                    if (catalog != null)
+                    {
+                        catalogProp.objectReferenceValue = catalog;
+                        so.ApplyModifiedPropertiesWithoutUndo();
+                        added = true;
+                        Debug.Log("WIRE: gán SO_TransactionCatalog vào CurrencyInstaller.");
+                    }
+                    else
+                    {
+                        Debug.LogError("WIRE FAIL: không thấy Assets/_Game/Content/SO_TransactionCatalog.asset");
+                    }
+                }
             }
 
             if (added)
             {
                 PrefabUtility.SaveAsPrefabAsset(root, ScopePath);
-                Debug.Log("WIRE: thêm ProgressionInstaller vào ProjectScope.");
             }
             else
             {

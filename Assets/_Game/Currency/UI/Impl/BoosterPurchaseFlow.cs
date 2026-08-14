@@ -18,23 +18,24 @@ namespace LogosGame.Features.Currency.UI.Impl
     /// và mở BoosterPurchasePopup — caller ở scope nào cũng gọi được, không cần
     /// inject UIManager.
     ///
-    /// KHÁC AQUAPARK: chưa có IPurchaseService/catalog giao dịch nên Price = 0
-    /// (popup hiện "—") và nút Mua chỉ log stub, KHÔNG trừ coin/cộng booster.
-    /// Khi port hệ mua: đổi ExecutePurchase sang IPurchaseService.TryPurchase như
-    /// bản aquapark (Currency/UI/Impl/BoosterPurchaseFlow.cs bên đó).
+    /// IPurchaseService có thể VẮNG (CurrencyInstaller chưa được gán
+    /// SO_TransactionCatalog): popup vẫn mở với giá "—", nút Mua chỉ log stub —
+    /// không trừ coin/cộng booster, không sập.
     /// </summary>
     public sealed class BoosterPurchaseFlow : IDisposable
     {
         private static readonly ILogger _logger = LogManager.GetLogger<BoosterPurchaseFlow>();
 
         private readonly UIManager _uiManager;
+        private readonly IPurchaseService _purchaseService;
         private readonly ICurrencyService _currencyService;
         private readonly IUnlockSchedule _unlockSchedule;
 
-        public BoosterPurchaseFlow(UIManager uiManager, ICurrencyService currencyService,
-            IUnlockSchedule unlockSchedule)
+        public BoosterPurchaseFlow(UIManager uiManager, IPurchaseService purchaseService,
+            ICurrencyService currencyService, IUnlockSchedule unlockSchedule)
         {
             _uiManager = uiManager;
+            _purchaseService = purchaseService;
             _currencyService = currencyService;
             _unlockSchedule = unlockSchedule;
             Bus.Global.On<PurchaseRequestedEvent>(OnPurchaseRequested);
@@ -55,8 +56,22 @@ namespace LogosGame.Features.Currency.UI.Impl
                 return;
             }
 
-            // Giao dịch ngoài booster (vd heart từ NoHeartsPopup): chưa có hệ mua.
-            _logger.Warn($"[BoosterPurchaseFlow] Hệ mua chưa có — bỏ qua transaction '{evt.TransactionId}'.");
+            // Giao dịch ngoài booster (vd heart từ NoHeartsPopup): mua thẳng,
+            // không qua popup — như aquapark.
+            ExecutePurchase(evt.TransactionId);
+        }
+
+        private void ExecutePurchase(string transactionId)
+        {
+            if (_purchaseService == null)
+            {
+                _logger.Warn($"[BoosterPurchaseFlow] Hệ mua chưa bind (catalog chưa gán) — bỏ qua '{transactionId}'.");
+                return;
+            }
+
+            PurchaseResult result = _purchaseService.TryPurchase(transactionId);
+            if (!result.IsSuccess)
+                _logger.Warn($"[BoosterPurchaseFlow] Mua '{transactionId}' thất bại: {result.Code}.");
         }
 
         private void ShowForBooster(BoosterId boosterId)
@@ -67,10 +82,22 @@ namespace LogosGame.Features.Currency.UI.Impl
                 return;
             }
 
+            string transactionId = TransactionIds.ForBooster(boosterId);
+            bool hasEntry = false;
+            TransactionDefinition transaction = default;
+            if (_purchaseService != null)
+            {
+                hasEntry = _purchaseService.TryGetTransaction(transactionId, out transaction);
+                if (!hasEntry)
+                    _logger.Warn($"[BoosterPurchaseFlow] Catalog không có entry '{transactionId}' — popup mở với giá '—'.");
+            }
+
             string displayName = null;
             string description = null;
             Sprite icon = null;
             _unlockSchedule?.TryGetBoosterInfo(boosterId, out displayName, out description, out icon);
+            if (string.IsNullOrEmpty(displayName) && hasEntry) displayName = transaction.Name;
+            if (string.IsNullOrEmpty(description) && hasEntry) description = transaction.Description;
 
             // Nút booster chỉ sống trong HUD gameplay → popup luôn đè lên bàn đang chơi.
             // Gate như PausePopup (AppFlowContext): block trước khi mở, unblock ở MỌI
@@ -82,13 +109,12 @@ namespace LogosGame.Features.Currency.UI.Impl
                 Icon = icon,
                 BoosterName = string.IsNullOrEmpty(displayName) ? boosterId.ToString() : displayName,
                 Description = description,
-                Price = 0,
+                Price = hasEntry ? transaction.Price : 0,
                 Coins = _currencyService?.Coins,
                 OnPurchaseConfirmed = () =>
                 {
                     WordStack.Contracts.LevelCommands.SetInputBlocked(false);
-                    _logger.Info(
-                        $"[BoosterPurchaseFlow] Mua {boosterId}: hệ mua chưa có — chưa trừ coin, chưa cộng booster.");
+                    ExecutePurchase(transactionId);
                 },
                 OnClose = () => WordStack.Contracts.LevelCommands.SetInputBlocked(false)
             };

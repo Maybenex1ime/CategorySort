@@ -1,0 +1,50 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5340e1708f7ea6549a41e7a8fd0d26b3, type: 3}
+  m_Name: SO_TransactionCatalog
+  m_EditorClassIdentifier:
+  _entries:
+  - TransactionId: t_booster_hand
+    Name: Hand
+    Description:
+    Price: 1900
+    Items:
+    - ItemId: booster.hand
+      Amount: 2
+  - TransactionId: t_booster_hammer
+    Name: Hammer
+    Description:
+    Price: 1500
+    Items:
+    - ItemId: booster.hammer
+      Amount: 2
+  - TransactionId: t_booster_addqueue
+    Name: Add Queue
+    Description:
+    Price: 1900
+    Items:
+    - ItemId: booster.addqueue
+      Amount: 2
+  - TransactionId: t_booster_addbelt
+    Name: Add Belt
+    Description:
+    Price: 300
+    Items:
+    - ItemId: booster.addbelt
+      Amount: 2
+  - TransactionId: t_heart
+    Name: Heart
+    Description:
+    Price: 900
+    Items:
+    - ItemId: heart
+      Amount: 1
