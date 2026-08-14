@@ -34,6 +34,7 @@ namespace WordStack.Meta.AppFlow
         private readonly LevelCatalog _levelCatalog;   // concrete: LevelEntry không mang Difficulty
         private readonly IAudioService _audioService;
         private readonly IHapticService _hapticService;
+        private readonly LogosMeta.Economy.IHeartService _heartService;
         private readonly float _minLoadingSeconds;
 
         private GameplayResultViewData _lastResult;
@@ -53,7 +54,8 @@ namespace WordStack.Meta.AppFlow
             ILevelService levelService = null,
             LevelCatalog levelCatalog = null,
             IAudioService audioService = null,
-            IHapticService hapticService = null)
+            IHapticService hapticService = null,
+            LogosMeta.Economy.IHeartService heartService = null)
         {
             _manager = manager ?? throw new ArgumentNullException(nameof(manager));
             _uiManager = uiManager ?? throw new ArgumentNullException(nameof(uiManager));
@@ -65,6 +67,7 @@ namespace WordStack.Meta.AppFlow
             _levelCatalog = levelCatalog;
             _audioService = audioService;
             _hapticService = hapticService;
+            _heartService = heartService;
         }
 
         public float MinLoadingSeconds => _minLoadingSeconds;
@@ -214,7 +217,8 @@ namespace WordStack.Meta.AppFlow
             MainMenuScreenArgs args = new MainMenuScreenArgs
             {
                 LevelTitle = $"Level {CurrentLevelIndex + 1}",
-                OnStartLevel = () => TriggerDeferred(new StartGameplayTrigger()),
+                OnStartLevel = () => RunGatedByHearts(
+                    () => TriggerDeferred(new StartGameplayTrigger()), returnToMenuOnClose: false),
                 OnOpenSettings = OnOpenSettingsRequested,
             };
 
@@ -236,7 +240,9 @@ namespace WordStack.Meta.AppFlow
             {
                 LevelTitle = $"Level {_playingLevelIndex + 1}",
                 RewardCoinAmount = _coinReward != null ? _coinReward.LastAwardedAmount : 0,
-                OnClaim = () => TriggerDeferred(new NextLevelTrigger()),
+                // WS trừ tim lúc VÀO màn nên sang màn kế cũng cần tim (khác aquapark).
+                OnClaim = () => RunGatedByHearts(
+                    () => TriggerDeferred(new NextLevelTrigger()), returnToMenuOnClose: true),
             };
 
             await _uiManager.ShowPopupImmediate<CompletedPopup, CompletedPopupArgs>(args);
@@ -249,7 +255,8 @@ namespace WordStack.Meta.AppFlow
             FailedPopupArgs args = new FailedPopupArgs
             {
                 LevelTitle = $"Level {_playingLevelIndex + 1}",
-                OnTryAgain = () => TriggerDeferred(new RetryTrigger()),
+                OnTryAgain = () => RunGatedByHearts(
+                    () => TriggerDeferred(new RetryTrigger()), returnToMenuOnClose: true),
                 OnGoHome = () => TriggerDeferred(new ReturnToMainMenuTrigger()),
             };
 
@@ -319,6 +326,82 @@ namespace WordStack.Meta.AppFlow
             await _uiManager.ShowPopupImmediate<SettingsPopup, SettingsPopupArgs>(args);
         }
 
+        // --- Hearts gate --------------------------------------------------------
+
+        // Không có HeartService (chưa gắn installer) thì không chặn — giữ hành vi cũ.
+        private bool HasHearts => _heartService == null || _heartService.Current.CurrentValue > 0;
+
+        /// <summary>Đủ tim thì chạy tiếp, hết tim thì thay bằng NoHeartsPopup.</summary>
+        private void RunGatedByHearts(Action proceed, bool returnToMenuOnClose)
+        {
+            if (HasHearts)
+            {
+                proceed();
+                return;
+            }
+
+            ShowNoHeartsPopupInBackground(returnToMenuOnClose);
+        }
+
+        private async void ShowNoHeartsPopupInBackground(bool returnToMenuOnClose)
+        {
+            try
+            {
+                await ShowNoHeartsPopupAsync(returnToMenuOnClose);
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "[AppFlow] Mở NoHeartsPopup thất bại.");
+            }
+        }
+
+        // returnToMenuOnClose = true CHỈ cho gate ở Result (TryAgain/Claim): màn đã
+        // kết thúc, sau popup là khoảng trống nên phải về menu chờ tim (có countdown).
+        // Gate ở menu và ở pause-restart để false: menu thì đứng yên tại chỗ, còn
+        // pause-restart thì bàn phía sau vẫn sống — đóng popup là chơi tiếp lượt dở.
+        // Lưu ý: popup gọi OnClose cho MỌI nút (Ok/X lẫn Ad), nên true ở ngữ cảnh
+        // giữa màn sẽ khiến nhận tim từ ad xong vẫn bị đá về menu + dính phí quit.
+        public async Awaitable ShowNoHeartsPopupAsync(bool returnToMenuOnClose)
+        {
+            LevelCommands.SetInputBlocked(true);   // popup đè lên board/menu — board đọc raw Pointer
+
+            NoHeartsPopupArgs args = new NoHeartsPopupArgs
+            {
+                OnClose = () =>
+                {
+                    LevelCommands.SetInputBlocked(false);
+                    if (returnToMenuOnClose &&
+                        (_manager.CurrentPhase == AppFlowPhase.Gameplay || _manager.CurrentPhase == AppFlowPhase.Result))
+                    {
+                        TriggerDeferred(new ReturnToMainMenuTrigger());
+                    }
+                },
+            };
+
+            await _uiManager.ShowPopupImmediate<NoHeartsPopup, NoHeartsPopupArgs>(args);
+        }
+
+        // Restart/Quit GIỮA màn mất 1 tim (như aquapark). Try Again sau thua thì
+        // KHÔNG — cú thua đã trừ ở MetaSession rồi, trừ nữa là tính hai lần.
+        // ConsumeOne tự guard <= 0 nên gọi lúc hết tim là no-op, không âm.
+        internal void ConsumeHeart(string reason)
+        {
+            if (_heartService == null) return;
+            _heartService.ConsumeOne();
+            _logger.Info($"[AppFlow] {reason} → -1 tim (còn {_heartService.Current.CurrentValue}).");
+        }
+
+        /// <summary>Restart giữa màn: gate tim, TRỪ 1 tim, rồi nạp lại — manager gọi cho đường RestartRequestedEvent.</summary>
+        // returnToMenuOnClose: FALSE — bàn phía sau vẫn sống, đóng popup (kể cả sau
+        // khi xem ad nhận tim) là quay lại chơi tiếp lượt dở. true ở đây từng gây bug:
+        // Ad +1 tim → OnClose → về menu → dính phí quit giữa màn → tim vừa nhận bay mất.
+        public void RequestRetryGated()
+            => RunGatedByHearts(() =>
+            {
+                ConsumeHeart("Restart giữa màn");
+                TriggerDeferred(new RetryTrigger());
+            }, returnToMenuOnClose: false);
+
         // PausePopup như aquapark, nhưng KHÔNG có phase Paused: bàn WordStack là
         // puzzle tĩnh (không timer), "pause" chỉ cần gate input trong lúc popup mở.
         // MỌI đường thoát (Close/Resume/Restart/Quit) đều phải mở lại gate,
@@ -345,7 +428,13 @@ namespace WordStack.Meta.AppFlow
                 OnRestartSelected = () =>
                 {
                     LevelCommands.SetInputBlocked(false);
-                    TriggerDeferred(new RetryTrigger());
+                    // false: gate chặn thì đóng popup là chơi tiếp lượt dở (bàn còn sống),
+                    // không đuổi về menu — xem chú thích ở RequestRetryGated.
+                    RunGatedByHearts(() =>
+                    {
+                        ConsumeHeart("Restart giữa màn");
+                        TriggerDeferred(new RetryTrigger());
+                    }, returnToMenuOnClose: false);
                 },
                 OnQuitSelected = () =>
                 {

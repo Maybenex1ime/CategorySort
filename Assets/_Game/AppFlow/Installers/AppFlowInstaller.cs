@@ -108,7 +108,8 @@ namespace WordStack.Meta.AppFlow.Installers
                         levelService,
                         catalog,
                         audio,
-                        haptic);
+                        haptic,
+                        c.Resolve<LogosMeta.Economy.IHeartService>());
                 },
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);

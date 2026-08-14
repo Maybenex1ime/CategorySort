@@ -10,10 +10,11 @@ using ILogger = LogosSDK.Core.Logging.ILogger;
 namespace WordStack.Meta
 {
     /// <summary>
-    /// Cầu nối giữa gameplay và tầng meta, đặt trong scene. Nghe hai sự kiện
-    /// gameplay bắn ra và điều phối đúng như aquapark làm trong AppFlowContext /
-    /// GameplayCoordinator: bắt đầu màn thì trừ tim, kết thúc thì ghi tiến độ.
-    /// Coin do <see cref="CoinRewardService"/> lo — nó tự nghe cùng sự kiện.
+    /// Cầu nối giữa gameplay và tầng meta, đặt trong scene.
+    ///
+    /// Mô hình tim (đổi 2026-08: theo aquapark): VÀO màn miễn phí, tim chỉ trừ khi
+    /// THUA (ở đây) hoặc RESTART giữa màn (AppFlowContext, chỗ bấm nút). Cửa chặn
+    /// hết-tim nằm ở AppFlow (RunGatedByHearts → NoHeartsPopup), không nằm ở đây.
     ///
     /// <see cref="_coinReward"/> được [Inject] chỉ để ÉP DỰNG service đó (nó đăng ký
     /// nghe bus trong constructor). Bỏ field này đi là coin lặng lẽ ngừng cộng.
@@ -28,37 +29,26 @@ namespace WordStack.Meta
 
         private void Awake()
         {
-            LevelSignals.Started += OnLevelStarted;
             LevelSignals.Finished += OnLevelResult;
         }
 
         private void OnDestroy()
         {
-            LevelSignals.Started -= OnLevelStarted;
             LevelSignals.Finished -= OnLevelResult;
-        }
-
-        private void OnLevelStarted(LevelStartedEvent evt)
-        {
-            if (_hearts == null) return;
-
-            // Khác aquapark một điểm CÓ CHỦ Ý: bên đó hết tim là chặn không cho vào
-            // màn và bật popup "hết tim". WordStack chưa có popup nào, chặn ở đây
-            // sẽ thành game đứng im không giải thích. Nên chỉ ghi log, chưa chặn.
-            if (_hearts.Current.CurrentValue <= 0)
-            {
-                _logger.Warn("[MetaSession] Hết tim — aquapark sẽ chặn vào màn ở đây; " +
-                             "WordStack cho chơi tiếp vì chưa có popup báo.");
-                return;
-            }
-
-            _hearts.ConsumeOne();
         }
 
         private void OnLevelResult(LevelResultEvent evt)
         {
-            // Chuyển tiếp lên bus TRƯỚC: CoinRewardService nghe ở đó, giữ nguyên
-            // hình dạng aquapark (service nghe bus, không ai gọi thẳng nó).
+            // Thua mất 1 tim. Finished bắn đúng một lần mỗi màn (cờ resultReported
+            // phía board) nên không trừ lặp; ép-thua từ cheat cũng đi qua đây.
+            if (!evt.IsWin && _hearts != null)
+            {
+                _hearts.ConsumeOne();
+                _logger.Info($"[MetaSession] Thua màn {evt.LevelIndex} → -1 tim (còn {_hearts.Current.CurrentValue}).");
+            }
+
+            // Chuyển tiếp lên bus TRƯỚC progression: CoinRewardService nghe ở đó,
+            // giữ nguyên hình dạng aquapark (service nghe bus, không ai gọi thẳng nó).
             Bus.Global.Fire(evt);
             _progression?.ReportResult(evt.IsWin);
         }

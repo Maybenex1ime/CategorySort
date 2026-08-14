@@ -38,7 +38,8 @@ namespace WordStack.Meta.AppFlow
             LogosMeta.Progression.ILevelService levelService = null,
             LogosGame.Features.Gameplay.Content.LevelCatalog levelCatalog = null,
             LogosSDK.Audio.IAudioService audioService = null,
-            LogosSDK.Services.IHapticService hapticService = null)
+            LogosSDK.Services.IHapticService hapticService = null,
+            LogosMeta.Economy.IHeartService heartService = null)
         {
             if (uiManager == null)
                 throw new ArgumentNullException(nameof(uiManager));
@@ -46,7 +47,7 @@ namespace WordStack.Meta.AppFlow
             _stateMachine = new StateMachine<IAppFlowState, IAppFlowTrigger>();
             _context = new AppFlowContext(this, uiManager, minLoadingSeconds,
                 saveManager, coinReward, flow, levelService, levelCatalog,
-                audioService, hapticService);
+                audioService, hapticService, heartService);
 
             // Nguồn kết quả DUY NHẤT của AppFlow là ViewModel — nó công bố sau khi
             // máy phase chốt Win/Lose. MetaSession vẫn nghe LevelSignals.Finished
@@ -176,7 +177,7 @@ namespace WordStack.Meta.AppFlow
                 return;
             }
 
-            _context.TriggerDeferred(new RetryTrigger());
+            _context.RequestRetryGated();   // hết tim → NoHeartsPopup thay vì vào màn
         }
 
         private void OnPauseRequested(PauseRequestedEvent evt)

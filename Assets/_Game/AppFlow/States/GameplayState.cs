@@ -12,7 +12,15 @@ namespace WordStack.Meta.AppFlow.States
         public GameplayState(AppFlowContext context) : base(context)
         {
             RegisterTriggerHandler<LevelFinishedTrigger>(_ => new ResultState(Context));
-            RegisterTriggerHandler<ReturnToMainMenuTrigger>(_ => new MainMenuState(Context));
+            // Quit GIỮA màn mất 1 tim — trừ ở đây để mọi đường về menu từ gameplay
+            // (PausePopup Quit, nút back, bus event) cùng qua một cửa, không né được
+            // bằng Quit + Play lại. Về menu từ ResultState là handler khác, không dính.
+            // NoHeartsPopup đóng lúc 0 tim cũng đi đường này: ConsumeOne no-op ở 0.
+            RegisterTriggerHandler<ReturnToMainMenuTrigger>(_ =>
+            {
+                Context.ConsumeHeart("Quit giữa màn");
+                return new MainMenuState(Context);
+            });
 
             // Chơi lại GIỮA màn (không qua Result). Instance mới nên StateMachine
             // coi là chuyển state thật: OnExit rồi OnEnter → nạp lại bàn.

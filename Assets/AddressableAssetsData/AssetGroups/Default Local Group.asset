@@ -15,6 +15,11 @@ MonoBehaviour:
   m_GroupName: Default Local Group
   m_GUID: bf0a47c2d3ae701408ac12a11f369e7e
   m_SerializeEntries:
+  - m_GUID: 07a340d7d4107544693db7abf9307cff
+    m_Address: NoHeartsPopup
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 11fd41f1580bb224787f27522a09a2e4
     m_Address: lv-004
     m_ReadOnly: 0
