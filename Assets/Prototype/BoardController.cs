@@ -221,6 +221,10 @@ namespace WordStack.Prototype
 
             if (locked) return;
 
+            // Popup meta đang mở (settings...) — board đọc raw Pointer nên phải tự
+            // nhường, uGUI không chặn hộ. Ghost đang kéo (nếu có) đứng im tới khi mở lại.
+            if (LevelCommands.InputBlocked) return;
+
             if (p.press.wasPressedThisFrame && !firstInteractionRaised)
             {
                 firstInteractionRaised = true;

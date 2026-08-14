@@ -116,6 +116,18 @@ namespace LogosGame.Features.Cheat.Services.Impl
             Emit(true, $"LEVEL: nhảy tới màn {oneBasedLevelNumber}");
         }
 
+        public void ForceWin()
+        {
+            Bus.Global.Fire(new ForceOutcomeRequestedEvent(true));
+            Emit(true, "OUTCOME: ép THẮNG");
+        }
+
+        public void ForceLose()
+        {
+            Bus.Global.Fire(new ForceOutcomeRequestedEvent(false));
+            Emit(true, "OUTCOME: ép THUA");
+        }
+
         // --- Private ------------------------------------------------------------
 
         private void Emit(bool success, string message)

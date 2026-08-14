@@ -4,6 +4,8 @@
     "references": [
         "LogosSDK.Core",
         "LogosSDK.Save",
+        "LogosSDK.Audio",
+        "LogosSDK.Services",
         "LogosMeta.Economy",
         "LogosMeta.Progression",
         "LogosMeta.CheatPanel",

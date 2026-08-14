@@ -21,12 +21,22 @@ namespace WordStack.Contracts
         public static void RequestLoad(int levelIndex, string levelJson)
             => LoadRequested?.Invoke(levelIndex, levelJson);
 
+        /// <summary>
+        /// Chặn input của bàn khi UI meta (popup settings...) đang mở. Cần thiết vì
+        /// BoardController đọc Pointer.current trực tiếp — uGUI KHÔNG chặn hộ nó,
+        /// bấm lên popup mà không gate là kéo thẻ phía sau.
+        /// </summary>
+        public static bool InputBlocked { get; private set; }
+
+        public static void SetInputBlocked(bool blocked) => InputBlocked = blocked;
+
         // Event static sống sót qua lần Play kế tiếp khi Domain Reload tắt —
         // cùng lý do với LevelSignals.ResetStaticState.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStaticState()
         {
             LoadRequested = null;
+            InputBlocked = false;
         }
     }
 }

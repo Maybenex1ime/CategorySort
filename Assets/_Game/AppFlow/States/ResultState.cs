@@ -24,6 +24,13 @@ namespace WordStack.Meta.AppFlow.States
         {
             _logger.Info("[AppFlow] Enter Result");
             Context.SetPhase(AppFlowPhase.Result);
+
+            // Board đọc raw Pointer — popup kết quả không chặn hộ. Đặc biệt sau khi
+            // ÉP thắng/thua từ cheat: board phía sau vẫn Playing, không gate là kéo
+            // thẻ xuyên popup và board có thể tự kết thúc lần nữa. Gate mở lại ở
+            // lần nạp màn kế tiếp (StartCurrentLevelAsync).
+            WordStack.Contracts.LevelCommands.SetInputBlocked(true);
+
             await Context.ShowResultPopupAsync();
         }
 

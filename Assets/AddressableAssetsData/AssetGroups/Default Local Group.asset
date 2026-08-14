@@ -35,13 +35,18 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
-  - m_GUID: 39d2d48d265f64f6d8001e19d923b0d7
-    m_Address: Assets/_Shared/Prefab/GamePlayUIRoot .prefab
+  - m_GUID: 334471d99cd454dd1bd8ea47a559367c
+    m_Address: PausePopup
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 86c1f004f62489f4a97d677763e98402
     m_Address: lv-002
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 973c54ce3dfb14dd2826fcddf26519af
+    m_Address: SettingsPopup
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -56,7 +61,7 @@ MonoBehaviour:
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: ef8f0bcb0358348a7b6cc9bc80939d89
-    m_Address: Assets/_Shared/Prefab/Popup/CompletedPopup.prefab
+    m_Address: CompletedPopup
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -66,7 +71,7 @@ MonoBehaviour:
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: fa5749f73709146bcb819009979221e8
-    m_Address: Assets/_Shared/Prefab/Popup/FailedPopup.prefab
+    m_Address: FailedPopup
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0

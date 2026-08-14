@@ -22,5 +22,10 @@ namespace LogosGame.Features.Cheat.Services
         // Level cheat — works in MainMenu (starts gameplay at level) and in Gameplay
         // (in-memory jump). 1-based level number.
         void JumpToLevel(int oneBasedLevelNumber);
+
+        // Outcome cheat (WordStack thêm, aquapark không có) — ép màn hiện tại kết
+        // thúc thắng/thua để test luồng Result. Chỉ có tác dụng trong Gameplay.
+        void ForceWin();
+        void ForceLose();
     }
 }

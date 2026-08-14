@@ -1,0 +1,28 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 5d03894701f82446db73ca1eb91949a0, type: 3}
+  m_Name: SO_Button_CTA
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Animation.UIButtonFeedbackSO
+  _pressScale: 0.85
+  _pressDuration: 0.08
+  _releaseDuration: 0.14
+  _releaseEase: 27
+  _idlePulseEnabled: 1
+  _pulseScale: 1.06
+  _pulseDuration: 0.9
+  _idleWobbleEnabled: 1
+  _wobbleAngle: 8
+  _wobbleDuration: 0.4
+  _idleThreshold: 4
+  _toggleOnScale: 1.12
+  _toggleOnEase: 27
+  _toggleOffShake: 1

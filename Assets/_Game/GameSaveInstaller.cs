@@ -1,3 +1,4 @@
+using LogosGame.Save.Data;
 using LogosMeta.Economy;
 using LogosMeta.Progression;
 using LogosSDK.Save;
@@ -22,10 +23,13 @@ namespace WordStack.Meta
             {
                 var save = container.Resolve<ISaveManager>();
                 var json = container.Resolve<JsonFileStorage>();
+                var prefs = container.Resolve<PlayerPrefsStorage>();
 
                 save.Register<CurrencyData>(json, "currency");
                 save.Register<HeartData>(json, "hearts");
                 save.Register<LevelProgressData>(json, "progress");
+                // PlayerPrefs như aquapark: toggle nhạc/rung là thứ nhẹ, đọc sớm.
+                save.Register<SettingsData>(prefs, "settings");
             };
         }
     }

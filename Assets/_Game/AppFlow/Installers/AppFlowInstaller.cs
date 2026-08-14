@@ -29,8 +29,16 @@ namespace WordStack.Meta.AppFlow.Installers
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
 
-            builder.RegisterType(typeof(NullFeedbackDispatcher),
-                new[] { typeof(IFeedbackDispatcher) },
+            // Có audio thì phát tiếng + rung thật; chưa gắn AudioServicesInstaller
+            // thì rơi về bản rỗng — View không cần biết khác biệt.
+            builder.RegisterFactory<IFeedbackDispatcher>(
+                c => c.TryGetResolver<LogosSDK.Audio.IAudioService>(out _)
+                    ? new WordStackFeedbackDispatcher(
+                        c.Resolve<LogosSDK.Audio.IAudioService>(),
+                        c.TryGetResolver<LogosSDK.Services.IHapticService>(out _)
+                            ? c.Resolve<LogosSDK.Services.IHapticService>()
+                            : null)
+                    : (IFeedbackDispatcher)new NullFeedbackDispatcher(),
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
 
@@ -79,6 +87,18 @@ namespace WordStack.Meta.AppFlow.Installers
                             ? c.Resolve<LogosMeta.Progression.ILevelService>()
                             : null;
 
+                    // Audio/haptic chỉ tồn tại khi AudioServicesInstaller được gắn
+                    // lên ProjectScope — thiếu thì settings popup từ chối mở (có warn),
+                    // app không sập.
+                    LogosSDK.Audio.IAudioService audio =
+                        c.TryGetResolver<LogosSDK.Audio.IAudioService>(out _)
+                            ? c.Resolve<LogosSDK.Audio.IAudioService>()
+                            : null;
+                    LogosSDK.Services.IHapticService haptic =
+                        c.TryGetResolver<LogosSDK.Services.IHapticService>(out _)
+                            ? c.Resolve<LogosSDK.Services.IHapticService>()
+                            : null;
+
                     return new WordStackAppFlowManager(
                         c.Resolve<UIManager>(),
                         _minLoadingSeconds,
@@ -86,7 +106,9 @@ namespace WordStack.Meta.AppFlow.Installers
                         c.Resolve<ICoinRewardService>(),
                         c.Resolve<IGameplayFlowController>(),
                         levelService,
-                        catalog);
+                        catalog,
+                        audio,
+                        haptic);
                 },
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);

@@ -5,8 +5,10 @@ using LogosGame.Features.UI.Popups;
 using LogosGame.Features.UI.Popups.Args;
 using LogosGame.Features.UI.Screens;
 using LogosMeta.Progression;
+using LogosSDK.Audio;
 using LogosSDK.Core.Logging;
 using LogosSDK.Save;
+using LogosSDK.Services;
 using LogosSDK.UI.Core;
 using UnityEngine;
 using WordStack.Contracts;
@@ -30,6 +32,8 @@ namespace WordStack.Meta.AppFlow
         private readonly IGameplayFlowController _flow;
         private readonly ILevelService _levelService;
         private readonly LevelCatalog _levelCatalog;   // concrete: LevelEntry không mang Difficulty
+        private readonly IAudioService _audioService;
+        private readonly IHapticService _hapticService;
         private readonly float _minLoadingSeconds;
 
         private GameplayResultViewData _lastResult;
@@ -47,7 +51,9 @@ namespace WordStack.Meta.AppFlow
             ICoinRewardService coinReward = null,
             IGameplayFlowController flow = null,
             ILevelService levelService = null,
-            LevelCatalog levelCatalog = null)
+            LevelCatalog levelCatalog = null,
+            IAudioService audioService = null,
+            IHapticService hapticService = null)
         {
             _manager = manager ?? throw new ArgumentNullException(nameof(manager));
             _uiManager = uiManager ?? throw new ArgumentNullException(nameof(uiManager));
@@ -57,6 +63,8 @@ namespace WordStack.Meta.AppFlow
             _flow = flow;
             _levelService = levelService;
             _levelCatalog = levelCatalog;
+            _audioService = audioService;
+            _hapticService = hapticService;
         }
 
         public float MinLoadingSeconds => _minLoadingSeconds;
@@ -94,6 +102,10 @@ namespace WordStack.Meta.AppFlow
             int index = CurrentLevelIndex;
             _playingLevelIndex = index;
 
+            // Bảo hiểm: gate còn dính từ phiên trước (popup mở đúng lúc chuyển state)
+            // thì bàn mới sẽ chết cứng — mở lại vô điều kiện mỗi lần nạp màn.
+            LevelCommands.SetInputBlocked(false);
+
             if (_flow == null)
             {
                 _logger.Error("[AppFlow] Thiếu IGameplayFlowController — không nạp màn được.");
@@ -110,6 +122,55 @@ namespace WordStack.Meta.AppFlow
 
             _logger.Info($"[AppFlow] Nạp màn {index} (AddressKey='{context.AddressKey}')");
             await _flow.ResetLevelAsync(context);
+        }
+
+        /// <summary>
+        /// Cheat ép kết quả màn hiện tại. Đi đúng đường máy phase (Committed →
+        /// Evaluation) nên popup + phase chuẩn; đồng thời bắn LevelSignals.Finished
+        /// để meta (coin, CurrentLevel++) chạy như kết quả thật.
+        /// </summary>
+        public async Awaitable ForceOutcomeAsync(bool isWin)
+        {
+            if (_flow == null)
+            {
+                _logger.Warn("[AppFlow] Thiếu IGameplayFlowController — không ép kết quả được.");
+                return;
+            }
+
+            GameplayPhase phase = _flow.CurrentPhase.CurrentValue;
+
+            // Chưa chạm lần nào thì tự "chạm" — máy phase chỉ nhận Committed khi Playing.
+            if (phase == GameplayPhase.Ready)
+            {
+                await _flow.NotifyFirstInteractionAsync();
+                phase = _flow.CurrentPhase.CurrentValue;
+            }
+
+            if (phase != GameplayPhase.Playing)
+            {
+                // Đang cascade (Evaluating/Animating) mà ép thì kết quả thật của board
+                // sẽ đè lên ngay sau đó — chặn cho khỏi ra hai kết quả lệch nhau.
+                _logger.Warn($"[AppFlow] Không ép được kết quả ở phase {phase} — chờ bàn đứng yên rồi bấm lại.");
+                return;
+            }
+
+            // Kênh meta trước (như board thật: Finished bắn trong lúc settle) —
+            // coin cộng xong TRƯỚC khi CompletedPopup đọc LastAwardedAmount.
+            LevelSignals.RaiseFinished(isWin, _playingLevelIndex, 0);
+
+            int remaining = _flow.RemainingMoves.CurrentValue;
+            await _flow.NotifyPlayerActionCommittedAsync(new GameplayActionContext
+            {
+                RemainingMoves = remaining,
+            });
+            await _flow.NotifyEvaluationCompletedAsync(new GameplayEvaluationResult
+            {
+                IsWin = isWin,
+                IsLose = !isWin,
+                RemainingMoves = remaining,
+                CanRetry = true,
+                CanContinueToNext = isWin,
+            });
         }
 
         /// <summary>Cheat nhảy màn: ghi thẳng CurrentLevel vào save.</summary>
@@ -221,12 +282,94 @@ namespace WordStack.Meta.AppFlow
             }
         }
 
-        // --- Intent từ UI ------------------------------------------------------
+        // --- Settings -----------------------------------------------------------
 
-        private void OnOpenSettingsRequested()
+        private void OnOpenSettingsRequested() => ShowSettingsPopupInBackground();
+
+        private async void ShowSettingsPopupInBackground()
         {
-            // WordStack chưa có SettingsPopup — cần cả tầng audio/haptic kèm theo.
-            _logger.Info("[AppFlow] Settings tapped — chưa port SettingsPopup.");
+            try
+            {
+                await ShowSettingsPopupAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "[AppFlow] Mở SettingsPopup thất bại.");
+            }
+        }
+
+        // Port từ aquapark: chỉ 2 nút Music/Haptic được nối ở ngữ cảnh MainMenu.
+        // Resume/Restart/Quit là cho bản Pause — WordStack không có pause, để null.
+        public async Awaitable ShowSettingsPopupAsync()
+        {
+            if (_audioService == null || _hapticService == null)
+            {
+                _logger.Warn("[AppFlow] Thiếu IAudioService/IHapticService — chưa gắn AudioServicesInstaller lên ProjectScope?");
+                return;
+            }
+
+            SettingsPopupArgs args = new SettingsPopupArgs
+            {
+                InitialMusicEnabled = !_audioService.IsMuted,
+                InitialHapticEnabled = _hapticService.IsEnabled,
+                OnMusicSelected = ToggleAudioMute,
+                OnHapticSelected = ToggleHaptic,
+            };
+
+            await _uiManager.ShowPopupImmediate<SettingsPopup, SettingsPopupArgs>(args);
+        }
+
+        // PausePopup như aquapark, nhưng KHÔNG có phase Paused: bàn WordStack là
+        // puzzle tĩnh (không timer), "pause" chỉ cần gate input trong lúc popup mở.
+        // MỌI đường thoát (Close/Resume/Restart/Quit) đều phải mở lại gate,
+        // thiếu một đường là kẹt bàn. Restart/Quit chạy thẳng không qua popup
+        // xác nhận — tim WordStack trừ lúc VÀO màn, thoát không tốn thêm gì.
+        public async Awaitable ShowPausePopupAsync()
+        {
+            if (_audioService == null || _hapticService == null)
+            {
+                _logger.Warn("[AppFlow] Thiếu IAudioService/IHapticService — chưa gắn AudioServicesInstaller lên ProjectScope?");
+                return;
+            }
+
+            LevelCommands.SetInputBlocked(true);
+
+            PausePopupArgs args = new PausePopupArgs
+            {
+                InitialMusicEnabled = !_audioService.IsMuted,
+                InitialHapticEnabled = _hapticService.IsEnabled,
+                OnMusicSelected = ToggleAudioMute,
+                OnHapticSelected = ToggleHaptic,
+                OnClose = () => LevelCommands.SetInputBlocked(false),
+                OnResumeSelected = () => LevelCommands.SetInputBlocked(false),
+                OnRestartSelected = () =>
+                {
+                    LevelCommands.SetInputBlocked(false);
+                    TriggerDeferred(new RetryTrigger());
+                },
+                OnQuitSelected = () =>
+                {
+                    LevelCommands.SetInputBlocked(false);
+                    TriggerDeferred(new ReturnToMainMenuTrigger());
+                },
+            };
+
+            await _uiManager.ShowPopupImmediate<PausePopup, PausePopupArgs>(args);
+        }
+
+        private void ToggleAudioMute()
+        {
+            _audioService.SetMuted(!_audioService.IsMuted);
+        }
+
+        private void ToggleHaptic()
+        {
+            bool nextEnabled = !_hapticService.IsEnabled;
+            _hapticService.SetEnabled(nextEnabled);
+            if (nextEnabled)
+            {
+                _hapticService.Play(HapticLevel.Light);   // rung nhẹ xác nhận vừa bật
+            }
         }
     }
 }

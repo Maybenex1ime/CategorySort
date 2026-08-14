@@ -148,14 +148,11 @@ namespace LogosGame.Features.Gameplay.Views
             OpenSettingsInBackground();
         }
 
-        private async void OpenSettingsInBackground()
+        private void OpenSettingsInBackground()
         {
-            if (_gameplayFlowController != null)
-            {
-                // Aquapark gọi RequestPauseAsync để mở popup pause. WordStack chưa có
-                // pause lẫn SettingsPopup, nên nút này tạm làm nhiệm vụ thoát về menu.
-                await _gameplayFlowController.RequestReturnToMainMenuAsync();
-            }
+            // Như aquapark: nút settings trong gameplay mở PausePopup. Khác ở chỗ
+            // không có phase Paused — AppFlow gate input thay vì đổi state.
+            LogosSDK.Core.Events.Bus.Global.Fire(new WordStack.Meta.AppFlow.PauseRequestedEvent());
         }
 
         private void OnForceLoseClicked()

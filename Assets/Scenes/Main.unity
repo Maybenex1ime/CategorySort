@@ -1026,6 +1026,52 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 3386655873428242268, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
   m_PrefabInstance: {fileID: 1950749825}
   m_PrefabAsset: {fileID: 0}
+--- !u!1 &2005648262
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 2005648264}
+  - component: {fileID: 2005648263}
+  m_Layer: 0
+  m_Name: CheatBootstrap
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &2005648263
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2005648262}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b868aa3e03b0bff41b7d0a62c1125d2e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Cheat.CheatBootstrap
+  _cheatSettings: {fileID: 11400000, guid: 3e0b0f39a6ff5744e9411b7b0e816619, type: 2}
+  _cheatRootPrefab: {fileID: 6901200932656779198, guid: db69fb94b8d85274fb20ebb8e9470d26, type: 3}
+--- !u!4 &2005648264
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 2005648262}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 642, y: 1383.0555, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
@@ -1037,3 +1083,4 @@ SceneRoots:
   - {fileID: 249654736}
   - {fileID: 1758717743}
   - {fileID: 392553848}
+  - {fileID: 2005648264}
