@@ -14,7 +14,7 @@ static class PrototypeSelfCheckMain
         {
             string levelsDir = args.Length > 0
                 ? args[0]
-                : Path.Combine("Assets", "Prototype", "Resources", "Levels");
+                : Path.Combine("Assets", "_Game", "Content", "Levels");
             string artDir = Path.Combine(Path.GetDirectoryName(levelsDir) ?? ".", "Art");
 
             if (!Directory.Exists(levelsDir))

@@ -1,0 +1,46 @@
+{
+  "id": "lv-004",
+  "title": "Khoi dong",
+  "difficulty": "Normal",
+  "note": "Chuyen tu BUILTIN[0] cua demo wordstack.html (3 nhom, khong COLLAPSE). Bo cuc va vi tri the giu nguyen theo demo; chi doi tham chieu tu nhan chu sang card id. Solver: 10 nuoc che do chat, 9 nuoc che do rong.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["bac-si","tao","sao-thuy",null] },
+          { "slots": ["nho","cam",null,null] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["y-ta","chuoi","sao-hoa",null] },
+          { "slots": ["sao-kim","sao-moc",null,null] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["xe-cuu-thuong","benh-nhan",null,null] },
+          { "slots": [null,null,null,null] }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"fruit", "text":"Trái cây", "cards": [
+          { "id":"tao",                        "art":"apple"  },
+          { "id":"chuoi", "text":"Chuối",      "art":"banana" },
+          { "id":"nho",   "text":"Nho"                        },
+          { "id":"cam",   "text":"Cam",        "art":"orange" }
+      ]},
+      { "id":"planet", "text":"Hành tinh", "cards": [
+          { "id":"sao-thuy", "text":"Sao Thuỷ" },
+          { "id":"sao-hoa",  "text":"Sao Hoả"  },
+          { "id":"sao-kim",  "text":"Sao Kim"  },
+          { "id":"sao-moc",  "text":"Sao Mộc"  }
+      ]},
+      { "id":"hospital", "text":"Bệnh viện", "cards": [
+          { "id":"bac-si",         "text":"Bác sĩ"        },
+          { "id":"y-ta",           "text":"Y tá"          },
+          { "id":"xe-cuu-thuong",  "text":"Xe cứu thương" },
+          { "id":"benh-nhan",      "text":"Bệnh nhân"     }
+      ]}
+    ]
+  }
+}

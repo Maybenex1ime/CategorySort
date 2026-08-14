@@ -38,4 +38,4 @@ cat > "$OUT/selfcheck.runtimeconfig.json" <<EOF
 EOF
 
 "$DOTNET" "$CSC" "@$(cygpath -w "$OUT/csc.rsp")"
-"$DOTNET" "$(cygpath -w "$OUT/selfcheck.dll")" "$(cygpath -w "$PWD/Assets/Prototype/Resources/Levels")"
+"$DOTNET" "$(cygpath -w "$OUT/selfcheck.dll")" "$(cygpath -w "$PWD/Assets/_Game/Content/Levels")"

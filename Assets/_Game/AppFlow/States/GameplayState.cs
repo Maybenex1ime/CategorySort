@@ -13,6 +13,10 @@ namespace WordStack.Meta.AppFlow.States
         {
             RegisterTriggerHandler<LevelFinishedTrigger>(_ => new ResultState(Context));
             RegisterTriggerHandler<ReturnToMainMenuTrigger>(_ => new MainMenuState(Context));
+
+            // Chơi lại GIỮA màn (không qua Result). Instance mới nên StateMachine
+            // coi là chuyển state thật: OnExit rồi OnEnter → nạp lại bàn.
+            RegisterTriggerHandler<RetryTrigger>(_ => new GameplayState(Context));
         }
 
         public override async Awaitable OnEnterAsync()
@@ -26,7 +30,7 @@ namespace WordStack.Meta.AppFlow.States
 
             // Đây là NƠI DUY NHẤT ra lệnh nạp màn — cả vào lần đầu, chơi lại,
             // lẫn sang màn kế đều đi qua đây.
-            Context.StartCurrentLevel();
+            await Context.StartCurrentLevelAsync();
         }
     }
 }

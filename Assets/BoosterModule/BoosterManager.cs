@@ -18,12 +18,24 @@ namespace BoosterModule
         {
             Bus.Global.On<BoosterAddedEvent>(OnBoosterAdded);
             Bus.Global.On<BoosterUseEvent>(OnUseBooster);
+            Bus.Global.On<BoosterSetEvent>(OnBoosterSet);
         }
 
         private void OnDisable()
         {
             Bus.Global.Off<BoosterAddedEvent>(OnBoosterAdded);
             Bus.Global.Off<BoosterUseEvent>(OnUseBooster);
+            Bus.Global.Off<BoosterSetEvent>(OnBoosterSet);
+        }
+
+        // Cheat: ghi đè số lượng, không cộng dồn.
+        private void OnBoosterSet(BoosterSetEvent evt)
+        {
+            if (evt.Id == BoosterId.None) return;
+
+            _inventory[evt.Id] = evt.Count < 0 ? 0 : evt.Count;
+            SaveInventory();
+            Bus.Global.Fire(new BoosterInventoryChangedEvent(evt.Id, _inventory[evt.Id]));
         }
 
         private void OnBoosterAdded(BoosterAddedEvent evt)

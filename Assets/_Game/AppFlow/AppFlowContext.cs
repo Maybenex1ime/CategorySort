@@ -1,4 +1,6 @@
 using System;
+using LogosGame.Features.Gameplay.Content;
+using LogosGame.Features.Gameplay.Flow;
 using LogosGame.Features.UI.Popups;
 using LogosGame.Features.UI.Popups.Args;
 using LogosGame.Features.UI.Screens;
@@ -25,22 +27,36 @@ namespace WordStack.Meta.AppFlow
         private readonly UIManager _uiManager;
         private readonly ISaveManager _saveManager;
         private readonly ICoinRewardService _coinReward;
+        private readonly IGameplayFlowController _flow;
+        private readonly ILevelService _levelService;
+        private readonly LevelCatalog _levelCatalog;   // concrete: LevelEntry không mang Difficulty
         private readonly float _minLoadingSeconds;
 
-        private LevelResultEvent _lastResult;
+        private GameplayResultViewData _lastResult;
+
+        // Màn ĐANG chơi, chốt lúc bắt đầu. Không đọc CurrentLevelIndex ở thời điểm
+        // kết thúc được: thắng thì ProgressionService đã tăng nó rồi, popup sẽ hiện
+        // sai số màn.
+        private int _playingLevelIndex;
 
         public AppFlowContext(
             WordStackAppFlowManager manager,
             UIManager uiManager,
             float minLoadingSeconds,
             ISaveManager saveManager = null,
-            ICoinRewardService coinReward = null)
+            ICoinRewardService coinReward = null,
+            IGameplayFlowController flow = null,
+            ILevelService levelService = null,
+            LevelCatalog levelCatalog = null)
         {
             _manager = manager ?? throw new ArgumentNullException(nameof(manager));
             _uiManager = uiManager ?? throw new ArgumentNullException(nameof(uiManager));
             _minLoadingSeconds = minLoadingSeconds;
             _saveManager = saveManager;
             _coinReward = coinReward;
+            _flow = flow;
+            _levelService = levelService;
+            _levelCatalog = levelCatalog;
         }
 
         public float MinLoadingSeconds => _minLoadingSeconds;
@@ -65,15 +81,64 @@ namespace WordStack.Meta.AppFlow
             }
         }
 
-        /// <summary>Bảo gameplay nạp màn hiện tại. BoardController là bên nghe.</summary>
-        public void StartCurrentLevel()
+        /// <summary>
+        /// Nạp màn hiện tại theo đường aquapark: dựng GameplayStartContext từ catalog,
+        /// đưa vào ViewModel → nó publish AddressKey → BoardInitializerView nạp JSON
+        /// qua Addressables → LevelCommands đưa xuống BoardController.
+        ///
+        /// Luôn dùng ResetLevelAsync (không phải StartLevelAsync): chơi lại cùng màn
+        /// thì AddressKey không đổi giá trị, phải xoá trước để ReactiveProperty phát lại.
+        /// </summary>
+        public async Awaitable StartCurrentLevelAsync()
         {
             int index = CurrentLevelIndex;
-            _logger.Info($"[AppFlow] Nạp màn {index}");
-            LevelCommands.RequestLoad(index);
+            _playingLevelIndex = index;
+
+            if (_flow == null)
+            {
+                _logger.Error("[AppFlow] Thiếu IGameplayFlowController — không nạp màn được.");
+                return;
+            }
+
+            GameplayStartContext context = new GameplayStartContext
+            {
+                LevelTitle = $"Level {index + 1}",
+                LevelId = _levelService?.GetCurrentLevelId() ?? string.Empty,
+                AddressKey = _levelService?.GetCurrentLevelAddressKey() ?? string.Empty,
+                Difficulty = GetCurrentLevelDifficulty(index),
+            };
+
+            _logger.Info($"[AppFlow] Nạp màn {index} (AddressKey='{context.AddressKey}')");
+            await _flow.ResetLevelAsync(context);
         }
 
-        public void SetLastResult(LevelResultEvent result) => _lastResult = result;
+        /// <summary>Cheat nhảy màn: ghi thẳng CurrentLevel vào save.</summary>
+        public void SetCurrentLevelIndex(int index)
+        {
+            if (_saveManager == null)
+            {
+                _logger.Warn("[AppFlow] Không có ISaveManager — bỏ qua SetCurrentLevelIndex.");
+                return;
+            }
+
+            LevelProgressData progress = _saveManager.Load<LevelProgressData>() ?? new LevelProgressData();
+            progress.CurrentLevel = index < 0 ? 0 : index;
+            _saveManager.Save(progress);
+            _logger.Info($"[AppFlow] Cheat: CurrentLevel = {progress.CurrentLevel}");
+        }
+
+        private LevelDifficulty GetCurrentLevelDifficulty(int index)
+        {
+            if (_levelCatalog == null || _levelCatalog.Entries == null || _levelCatalog.Entries.Length == 0)
+                return LevelDifficulty.Normal;
+
+            // Clamp như aquapark: index vượt catalog thì lấy entry cuối, QA không crash.
+            int count = _levelCatalog.Entries.Length;
+            int clamped = index < count ? index : count - 1;
+            return _levelCatalog.Entries[clamped].Difficulty;
+        }
+
+        public void SetLastResult(GameplayResultViewData result) => _lastResult = result;
 
         // --- Screens ----------------------------------------------------------
 
@@ -98,7 +163,9 @@ namespace WordStack.Meta.AppFlow
         // --- Popups -----------------------------------------------------------
 
         public Awaitable ShowResultPopupAsync()
-            => _lastResult.IsWin ? ShowCompletedPopupAsync() : ShowFailedPopupAsync();
+            => _lastResult != null && _lastResult.IsWin
+                ? ShowCompletedPopupAsync()
+                : ShowFailedPopupAsync();
 
         public void DismissActivePopup() => _uiManager.DismissCurrentPopup();
 
@@ -106,8 +173,7 @@ namespace WordStack.Meta.AppFlow
         {
             CompletedPopupArgs args = new CompletedPopupArgs
             {
-                // _lastResult.LevelIndex là màn VỪA chơi — CurrentLevel lúc này đã tăng.
-                LevelTitle = $"Level {_lastResult.LevelIndex + 1}",
+                LevelTitle = $"Level {_playingLevelIndex + 1}",
                 RewardCoinAmount = _coinReward != null ? _coinReward.LastAwardedAmount : 0,
                 OnClaim = () => TriggerDeferred(new NextLevelTrigger()),
             };
@@ -121,7 +187,7 @@ namespace WordStack.Meta.AppFlow
         {
             FailedPopupArgs args = new FailedPopupArgs
             {
-                LevelTitle = $"Level {_lastResult.LevelIndex + 1}",
+                LevelTitle = $"Level {_playingLevelIndex + 1}",
                 OnTryAgain = () => TriggerDeferred(new RetryTrigger()),
                 OnGoHome = () => TriggerDeferred(new ReturnToMainMenuTrigger()),
             };

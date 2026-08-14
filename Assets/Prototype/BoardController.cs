@@ -77,10 +77,13 @@ namespace WordStack.Prototype
         [SerializeField] float mergeSpin = 140f;       // thẻ mới xoay bao nhiêu độ lúc nở (0 = tắt)
 
         Game g;
-        readonly List<string> levelJsons = new List<string>();
+        // Nội dung màn hiện tại — do BoardInitializerView đưa qua LevelCommands
+        // (Addressables, address = LevelId trong catalog). Board không còn danh
+        // sách level riêng; cache lại để phím R nạp lại được.
         int levelIndex;
-        LevelDifficulty levelDifficulty = LevelDifficulty.Normal;
+        string levelJson;
         bool resultReported;               // mỗi màn chỉ báo kết quả cho tầng meta một lần
+        bool firstInteractionRaised;       // Ready → Playing chỉ bắn một lần mỗi màn
 
         Camera cam;
         Transform root;
@@ -115,17 +118,11 @@ namespace WordStack.Prototype
             root = new GameObject("Board").transform;
             root.SetParent(transform, false);
 
-            foreach (var ta in Resources.LoadAll<TextAsset>("Levels").OrderBy(t => t.name, StringComparer.Ordinal))
-                levelJsons.Add(ta.text);
-
-#if UNITY_EDITOR
-            // Cùng bộ assert với ./selfcheck.sh — chạy luôn lúc Play để bắt drift sớm.
-            try { SelfCheck.Run(Debug.Log, levelJsons, HasArt); }
-            catch (Exception e) { Debug.LogError("SelfCheck FAIL: " + e.Message); }
-#endif
-            // KHÔNG tự Load(0) nữa — AppFlow sở hữu vòng đời màn chơi và ra lệnh
-            // qua LevelCommands. Không có AppFlow trong scene thì bàn đứng trống,
-            // đó là chủ ý: chỉ một bên được quyết định màn nào đang chơi.
+            // KHÔNG tự nạp level nữa — Resources.LoadAll đã bỏ, AppFlow sở hữu vòng
+            // đời màn chơi: catalog → AddressKey → BoardInitializerView nạp JSON qua
+            // Addressables rồi đưa xuống đây. Không có AppFlow trong scene thì bàn
+            // đứng trống, đó là chủ ý. (Self-check toàn bộ level giờ chỉ còn chạy
+            // ngoài Unity qua ./selfcheck.sh — nó đọc thẳng thư mục level trên đĩa.)
             LevelCommands.LoadRequested += OnLoadRequested;
         }
 
@@ -134,9 +131,11 @@ namespace WordStack.Prototype
             LevelCommands.LoadRequested -= OnLoadRequested;
         }
 
-        void OnLoadRequested(int levelIndex)
+        void OnLoadRequested(int index, string json)
         {
-            Load(levelIndex);
+            levelIndex = index;
+            levelJson = json;
+            Load();
         }
 
         bool RefsOk()
@@ -175,22 +174,20 @@ namespace WordStack.Prototype
             return Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         }
 
-        void Load(int i)
+        void Load()
         {
             StopAllCoroutines();
             DestroyBoard();
             locked = false;
-            if (levelJsons.Count == 0)
+            if (string.IsNullOrEmpty(levelJson))
             {
-                Debug.LogError("Không thấy level nào trong Assets/Prototype/Resources/Levels/");
+                Debug.LogError("Chưa có JSON level — BoardInitializerView phải nạp qua Addressables trước.");
                 return;
             }
-            levelIndex = ((i % levelJsons.Count) + levelJsons.Count) % levelJsons.Count;
             try
             {
-                var lv = LevelData.Parse(levelJsons[levelIndex]);
+                var lv = LevelData.Parse(levelJson);
                 lv.Validate(HasArt);
-                levelDifficulty = lv.Difficulty;
                 g = Game.Build(lv);
             }
             catch (Exception e)
@@ -201,7 +198,8 @@ namespace WordStack.Prototype
             }
             BuildBoard();
             resultReported = false;
-            LevelSignals.RaiseStarted(levelIndex, levelDifficulty);   // tầng meta trừ tim + đổi sprite khung
+            firstInteractionRaised = false;
+            LevelSignals.RaiseStarted(levelIndex);          // tầng meta trừ tim ở đây
             StartCoroutine(Settle());          // hộp nạp sẵn nhóm đủ phải nổ ngay lúc load
         }
 
@@ -222,6 +220,12 @@ namespace WordStack.Prototype
             if (g.Status != GameStatus.Playing) return;
 
             if (locked) return;
+
+            if (p.press.wasPressedThisFrame && !firstInteractionRaised)
+            {
+                firstInteractionRaised = true;
+                LevelSignals.RaiseFirstInteraction();       // tầng meta: Ready → Playing
+            }
 
             if (p.press.wasPressedThisFrame && ghost == null)
             {
@@ -247,17 +251,14 @@ namespace WordStack.Prototype
             }
         }
 
-        // Phím tắt dev: nạp bàn TRỰC TIẾP, không đi qua AppFlow nên KHÔNG đổi
-        // LevelProgressData.CurrentLevel. Lần chuyển màn kế tiếp do AppFlow điều
-        // khiển sẽ kéo về đúng màn đã lưu. Chấp nhận được cho việc thử nhanh.
+        // Phím tắt dev: R nạp lại JSON đang cache — không qua AppFlow nên KHÔNG đổi
+        // LevelProgressData.CurrentLevel. N và 1-9 đã bỏ: board không còn danh sách
+        // level để nhảy tới, muốn đổi màn thì đi qua AppFlow (hoặc cheat panel sau này).
         void HandleKeys()
         {
             var k = Keyboard.current;
             if (k == null) return;
-            if (k.rKey.wasPressedThisFrame) { Load(levelIndex); return; }
-            if (k.nKey.wasPressedThisFrame) { Load(levelIndex + 1); return; }
-            for (int i = 0; i < Math.Min(9, levelJsons.Count); i++)
-                if (k[Key.Digit1 + i].wasPressedThisFrame) { Load(i); return; }
+            if (k.rKey.wasPressedThisFrame) Load();
         }
 
         Tile FindTile(string uid)
@@ -345,6 +346,7 @@ namespace WordStack.Prototype
             RefreshColors(to);
             RefreshZones();
             RefreshHud();
+            LevelSignals.RaiseMoveCommitted(g.Moves);       // tầng meta: vào phase Evaluating
             StartCoroutine(Settle(flyDur));                 // để thẻ hạ cánh rồi mới cascade
         }
 
@@ -443,11 +445,13 @@ namespace WordStack.Prototype
         IEnumerator Settle(float delay = 0f)
         {
             locked = true;
+            bool hadCascade = false;
             if (delay > 0f) yield return new WaitForSeconds(delay);
             for (;;)
             {
                 var ev = g.SettleStep(Rules.RemoveEmptyNonBottomBox);
                 if (ev.Kind == SettleKind.None) break;
+                hadCascade = true;
 
                 if (ev.Kind == SettleKind.Clear)
                 {
@@ -474,6 +478,17 @@ namespace WordStack.Prototype
             RefreshHud();
             CheckInvariant("settle");
             locked = false;
+
+            // Cascade đã tính xong. hadCascade = có animation vừa chạy → tầng meta
+            // vào Animating, rồi RaiseAnimationCompleted đưa về Playing.
+            // Thắng/thua thì phase đi thẳng Win/Lose, lời gọi dưới thành no-op.
+            LevelSignals.RaiseEvaluationCompleted(
+                isWin: g != null && g.Status == GameStatus.Won,
+                isLose: g != null && g.Status == GameStatus.Stuck,
+                hasPendingAnimation: hadCascade,
+                movesUsed: g != null ? g.Moves : 0);
+
+            LevelSignals.RaiseAnimationCompleted();
         }
 
         Sequence RemoveTiles(string[] uids)

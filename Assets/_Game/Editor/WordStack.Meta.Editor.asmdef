@@ -9,7 +9,9 @@
         "LogosMeta.Progression",
         "Core.EventBus",
         "WordStack.Contracts",
-        "Reflex"
+        "Reflex",
+        "Unity.Addressables.Editor",
+        "Unity.Addressables"
     ],
     "includePlatforms": [
         "Editor"

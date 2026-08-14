@@ -649,7 +649,7 @@ GameObject:
   - component: {fileID: 3386655873428242268}
   - component: {fileID: 9198876335463740240}
   - component: {fileID: 373783213502107987}
-  - component: {fileID: 5947427099525929791}
+  - component: {fileID: 6020197434666914895}
   m_Layer: 5
   m_Name: 'GamePlayUIRoot '
   m_TagString: Untagged
@@ -706,7 +706,7 @@ MonoBehaviour:
   - {fileID: 7173165357556246436}
   - {fileID: 1282824177002252907}
   - {fileID: 3534767698244628043}
---- !u!114 &5947427099525929791
+--- !u!114 &6020197434666914895
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -715,17 +715,18 @@ MonoBehaviour:
   m_GameObject: {fileID: 1370929299907206905}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 383e2dd6e5a604f4ea84ea4cb496c4fc, type: 3}
+  m_Script: {fileID: 11500000, guid: c6105225a23094cac95652205fb8d631, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: WordStack.Meta::WordStack.Meta.UI.GameplayHudView
+  m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Gameplay.Views.GameplayHudView
   _coinText: {fileID: 1901399060377946862}
-  _heartText: {fileID: 0}
+  _coinBoxRoot: {fileID: 8879632789239863750}
   _levelTitleText: {fileID: 5904091883292428917}
+  _settingsButton: {fileID: 5291099633957980350}
+  _forceLoseButton: {fileID: 0}
   _levelBoxImage: {fileID: 5665021694995899140}
-  _normalSprite: {fileID: 0}
-  _hardSprite: {fileID: 0}
-  _crazySprite: {fileID: 0}
-  _homeButton: {fileID: 0}
+  _normalSprite: {fileID: 21300000, guid: 9da22fb43304f2444a296f0a517735b5, type: 3}
+  _hardSprite: {fileID: 21300000, guid: 75b005e959bd3d44c9bcd525f9fb3ce0, type: 3}
+  _crazySprite: {fileID: 21300000, guid: 7af220b454f8462409df6d88d53d6227, type: 3}
 --- !u!1 &1855724200870053756
 GameObject:
   m_ObjectHideFlags: 0

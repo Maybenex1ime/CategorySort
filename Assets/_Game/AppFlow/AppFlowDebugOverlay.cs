@@ -1,3 +1,4 @@
+using LogosGame.Features.Gameplay.Services;
 using LogosMeta.Economy;
 using LogosMeta.Progression;
 using LogosSDK.Core.Events;
@@ -22,10 +23,10 @@ namespace WordStack.Meta.AppFlow
         [Inject] private readonly ISaveManager _saveManager;
         [Inject] private readonly ICurrencyService _currencyService;
         [Inject] private readonly IHeartService _heartService;
+        [Inject] private readonly IDifficultyStateProvider _difficultyProvider;
 
         private AppFlowPhase _phase = AppFlowPhase.None;
         private int _levelIndex = -1;
-        private LevelDifficulty _difficulty = LevelDifficulty.Normal;
         private GUIStyle _style;
 
         private void Awake()
@@ -52,7 +53,6 @@ namespace WordStack.Meta.AppFlow
         private void OnLevelStarted(LevelStartedEvent evt)
         {
             _levelIndex = evt.LevelIndex;
-            _difficulty = evt.Difficulty;
         }
 
         private void OnGUI()
@@ -68,7 +68,10 @@ namespace WordStack.Meta.AppFlow
             string saved = _saveManager != null
                 ? _saveManager.Load<LevelProgressData>()?.CurrentLevel.ToString() ?? "?"
                 : "n/a";
-            string board = _levelIndex >= 0 ? $"{_levelIndex} ({_difficulty})" : "-";
+            LevelDifficulty difficulty = _difficultyProvider != null
+                ? _difficultyProvider.Difficulty.CurrentValue
+                : LevelDifficulty.Normal;
+            string board = _levelIndex >= 0 ? $"{_levelIndex} ({difficulty})" : "-";
             string coins = _currencyService != null ? _currencyService.Coins.CurrentValue.ToString() : "n/a";
             string hearts = _heartService != null ? _heartService.Current.CurrentValue.ToString() : "n/a";
 

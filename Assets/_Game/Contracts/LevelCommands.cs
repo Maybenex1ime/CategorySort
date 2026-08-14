@@ -10,13 +10,16 @@ namespace WordStack.Contracts
     // Không có người nghe thì không xảy ra gì — gameplay chạy độc lập được.
 
     /// <summary>
-    /// AppFlow ra lệnh cho gameplay nạp một màn. BoardController là bên nghe.
+    /// AppFlow (qua BoardInitializerView) đưa NỘI DUNG level cho gameplay.
+    /// Board không còn tự nạp từ Resources — nó nhận JSON của đúng một màn,
+    /// kèm chỉ số màn để báo ngược qua LevelSignals.
     /// </summary>
     public static class LevelCommands
     {
-        public static event Action<int> LoadRequested;
+        public static event Action<int, string> LoadRequested;
 
-        public static void RequestLoad(int levelIndex) => LoadRequested?.Invoke(levelIndex);
+        public static void RequestLoad(int levelIndex, string levelJson)
+            => LoadRequested?.Invoke(levelIndex, levelJson);
 
         // Event static sống sót qua lần Play kế tiếp khi Domain Reload tắt —
         // cùng lý do với LevelSignals.ResetStaticState.

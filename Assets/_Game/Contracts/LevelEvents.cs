@@ -17,13 +17,35 @@ namespace WordStack.Contracts
     {
         public int LevelIndex { get; }
 
-        /// <summary>Đọc từ field "difficulty" của file level. HUD dùng để chọn sprite khung.</summary>
-        public LevelDifficulty Difficulty { get; }
-
-        public LevelStartedEvent(int levelIndex, LevelDifficulty difficulty)
+        // Difficulty đã rời khỏi event này: runtime đọc độ khó từ catalog
+        // (GameplayStartContext → IDifficultyStateProvider), file level chỉ còn
+        // là nguồn seed cho tool build catalog.
+        public LevelStartedEvent(int levelIndex)
         {
             LevelIndex = levelIndex;
-            Difficulty = difficulty;
+        }
+    }
+
+    /// <summary>
+    /// Kết quả một lượt tính (cascade xong). Khác LevelResultEvent: cái này bắn
+    /// SAU MỖI nước đi, còn LevelResultEvent chỉ bắn một lần cuối màn.
+    /// </summary>
+    public readonly struct LevelEvaluationEvent
+    {
+        public bool IsWin { get; }
+        public bool IsLose { get; }
+
+        /// <summary>Có cascade chạy trong lượt này → còn animation đang diễn.</summary>
+        public bool HasPendingAnimation { get; }
+
+        public int MovesUsed { get; }
+
+        public LevelEvaluationEvent(bool isWin, bool isLose, bool hasPendingAnimation, int movesUsed)
+        {
+            IsWin = isWin;
+            IsLose = isLose;
+            HasPendingAnimation = hasPendingAnimation;
+            MovesUsed = movesUsed;
         }
     }
 
@@ -51,11 +73,35 @@ namespace WordStack.Contracts
         public static event Action<LevelStartedEvent> Started;
         public static event Action<LevelResultEvent> Finished;
 
-        public static void RaiseStarted(int levelIndex, LevelDifficulty difficulty)
-            => Started?.Invoke(new LevelStartedEvent(levelIndex, difficulty));
+        /// <summary>Chạm đầu tiên trong màn — tầng meta dùng để tắt overlay "sẵn sàng".</summary>
+        public static event Action FirstInteraction;
+
+        /// <summary>Vừa đi xong một nước (chưa cascade). Tham số: tổng số nước đã dùng.</summary>
+        public static event Action<int> MoveCommitted;
+
+        /// <summary>Cascade tính xong.</summary>
+        public static event Action<LevelEvaluationEvent> EvaluationCompleted;
+
+        /// <summary>Chuỗi animation của lượt vừa rồi đã chạy hết.</summary>
+        public static event Action AnimationCompleted;
+
+        public static void RaiseStarted(int levelIndex)
+            => Started?.Invoke(new LevelStartedEvent(levelIndex));
 
         public static void RaiseFinished(bool isWin, int levelIndex, int movesUsed)
             => Finished?.Invoke(new LevelResultEvent(isWin, levelIndex, movesUsed));
+
+        public static void RaiseFirstInteraction()
+            => FirstInteraction?.Invoke();
+
+        public static void RaiseMoveCommitted(int movesUsed)
+            => MoveCommitted?.Invoke(movesUsed);
+
+        public static void RaiseEvaluationCompleted(bool isWin, bool isLose, bool hasPendingAnimation, int movesUsed)
+            => EvaluationCompleted?.Invoke(new LevelEvaluationEvent(isWin, isLose, hasPendingAnimation, movesUsed));
+
+        public static void RaiseAnimationCompleted()
+            => AnimationCompleted?.Invoke();
 
         // Event static sống sót qua lần Play kế tiếp khi Domain Reload bị tắt, khiến
         // người nghe cũ bị gọi lại và coin cộng hai lần. Xoá sạch lúc khởi động.
@@ -64,6 +110,10 @@ namespace WordStack.Contracts
         {
             Started = null;
             Finished = null;
+            FirstInteraction = null;
+            MoveCommitted = null;
+            EvaluationCompleted = null;
+            AnimationCompleted = null;
         }
     }
 }

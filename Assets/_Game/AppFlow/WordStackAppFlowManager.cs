@@ -1,4 +1,5 @@
 using System;
+using LogosGame.Features.Gameplay.Flow;
 using LogosSDK.Core.AppFlow;
 using LogosSDK.Core.Events;
 using LogosSDK.Core.FSM;
@@ -6,7 +7,6 @@ using LogosSDK.Core.Logging;
 using LogosSDK.Save;
 using LogosSDK.UI.Core;
 using UnityEngine;
-using WordStack.Contracts;
 using WordStack.Meta.AppFlow.Triggers;
 using ILogger = LogosSDK.Core.Logging.ILogger;
 
@@ -33,18 +33,28 @@ namespace WordStack.Meta.AppFlow
             UIManager uiManager,
             float minLoadingSeconds = 2f,
             ISaveManager saveManager = null,
-            ICoinRewardService coinReward = null)
+            ICoinRewardService coinReward = null,
+            IGameplayFlowController flow = null,
+            LogosMeta.Progression.ILevelService levelService = null,
+            LogosGame.Features.Gameplay.Content.LevelCatalog levelCatalog = null)
         {
             if (uiManager == null)
                 throw new ArgumentNullException(nameof(uiManager));
 
             _stateMachine = new StateMachine<IAppFlowState, IAppFlowTrigger>();
-            _context = new AppFlowContext(this, uiManager, minLoadingSeconds, saveManager, coinReward);
+            _context = new AppFlowContext(this, uiManager, minLoadingSeconds,
+                saveManager, coinReward, flow, levelService, levelCatalog);
 
-            // MetaSession chuyển tiếp LevelSignals.Finished lên bus. Nó lo tim/coin/
-            // progression; AppFlow chỉ nghe để chuyển sang Result — hai bên không đụng nhau.
-            Bus.Global.On<LevelResultEvent>(OnLevelResult);
+            // Nguồn kết quả DUY NHẤT của AppFlow là ViewModel — nó công bố sau khi
+            // máy phase chốt Win/Lose. MetaSession vẫn nghe LevelSignals.Finished
+            // riêng cho tim/coin/progression; hai bên không đụng nhau.
+            //
+            // Nhờ đi qua ViewModel, nút debug "ép thua" trên HUD cũng vào được
+            // ResultState mà không phải giả lập tín hiệu từ board.
+            Bus.Global.On<GameplayOutcomePublishedEvent>(OnOutcomePublished);
             Bus.Global.On<ReturnToMainMenuRequestedEvent>(OnReturnToMainMenuRequested);
+            Bus.Global.On<RestartRequestedEvent>(OnRestartRequested);
+            Bus.Global.On<JumpToLevelRequestedEvent>(OnJumpToLevelRequested);
         }
 
         public AppFlowPhase CurrentPhase { get; private set; }
@@ -112,8 +122,10 @@ namespace WordStack.Meta.AppFlow
 
         public void Dispose()
         {
-            Bus.Global.Off<LevelResultEvent>(OnLevelResult);
+            Bus.Global.Off<GameplayOutcomePublishedEvent>(OnOutcomePublished);
             Bus.Global.Off<ReturnToMainMenuRequestedEvent>(OnReturnToMainMenuRequested);
+            Bus.Global.Off<RestartRequestedEvent>(OnRestartRequested);
+            Bus.Global.Off<JumpToLevelRequestedEvent>(OnJumpToLevelRequested);
         }
 
         internal void SetPhase(AppFlowPhase phase)
@@ -137,16 +149,53 @@ namespace WordStack.Meta.AppFlow
             return didTransition;
         }
 
-        private void OnLevelResult(LevelResultEvent evt)
+        private void OnOutcomePublished(GameplayOutcomePublishedEvent evt)
         {
             if (CurrentPhase != AppFlowPhase.Gameplay)
             {
-                _logger.Warn($"[AppFlow] Bỏ qua LevelResultEvent ngoài phase Gameplay (đang {CurrentPhase}).");
+                _logger.Warn($"[AppFlow] Bỏ qua kết quả ngoài phase Gameplay (đang {CurrentPhase}).");
                 return;
             }
 
-            _context.SetLastResult(evt);
+            _context.SetLastResult(evt.Result);
             _context.TriggerDeferred(new LevelFinishedTrigger());
+        }
+
+        private void OnRestartRequested(RestartRequestedEvent evt)
+        {
+            if (CurrentPhase != AppFlowPhase.Gameplay && CurrentPhase != AppFlowPhase.Result)
+            {
+                _logger.Warn($"[AppFlow] Bỏ qua yêu cầu chơi lại ở phase {CurrentPhase}.");
+                return;
+            }
+
+            _context.TriggerDeferred(new RetryTrigger());
+        }
+
+        private void OnJumpToLevelRequested(JumpToLevelRequestedEvent evt)
+        {
+            int index = evt.OneBasedLevelNumber - 1;
+            if (index < 0) index = 0;
+
+            switch (CurrentPhase)
+            {
+                case AppFlowPhase.MainMenu:
+                    _context.SetCurrentLevelIndex(index);
+                    _context.TriggerDeferred(new StartGameplayTrigger());
+                    break;
+
+                case AppFlowPhase.Gameplay:
+                case AppFlowPhase.Result:
+                    _context.SetCurrentLevelIndex(index);
+                    // GameplayState nhận RetryTrigger bằng instance mới → OnEnter
+                    // chạy lại → StartCurrentLevelAsync đọc CurrentLevel vừa ghi.
+                    _context.TriggerDeferred(new RetryTrigger());
+                    break;
+
+                default:
+                    _logger.Warn($"[AppFlow] Bỏ qua JumpToLevel ở phase {CurrentPhase}.");
+                    break;
+            }
         }
 
         private void OnReturnToMainMenuRequested(ReturnToMainMenuRequestedEvent evt)

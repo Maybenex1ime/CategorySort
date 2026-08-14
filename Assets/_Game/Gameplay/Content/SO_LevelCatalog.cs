@@ -6,7 +6,7 @@ using WordStack.Contracts;
 
 namespace LogosGame.Features.Gameplay.Content
 {
-    [CreateAssetMenu(fileName = "SO_LevelCatalog", menuName = "Aquapark/Config/Level Catalog")]
+    [CreateAssetMenu(fileName = "SO_LevelCatalog", menuName = "WordStack/Level Catalog")]
     public sealed class LevelCatalog : ScriptableObject, ILevelCatalog
     {
         [Serializable]

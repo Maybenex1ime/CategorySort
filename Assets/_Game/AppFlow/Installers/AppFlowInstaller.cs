@@ -1,3 +1,8 @@
+using LogosGame.Features.Gameplay.Boosters.Services;
+using LogosGame.Features.Gameplay.Boosters.Services.Impl;
+using LogosGame.Features.Gameplay.Boosters.ViewModels;
+using LogosGame.Features.Gameplay.Flow;
+using LogosGame.Features.Gameplay.Services;
 using LogosSDK.Core.AppFlow;
 using LogosSDK.Save;
 using LogosSDK.UI.Core;
@@ -16,14 +21,73 @@ namespace WordStack.Meta.AppFlow.Installers
 
         public void InstallBindings(ContainerBuilder builder)
         {
+            // Một instance, hai contract (ISP): HUD lấy IGameplayFlowController,
+            // GameplayHudView lấy IDifficultyStateProvider. Gộp vì độ khó đến cùng
+            // lúc với level qua GameplayStartContext.
+            builder.RegisterType(typeof(WordStackGameplayViewModel),
+                new[] { typeof(IGameplayFlowController), typeof(IDifficultyStateProvider) },
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Lazy);
+
+            builder.RegisterType(typeof(NullFeedbackDispatcher),
+                new[] { typeof(IFeedbackDispatcher) },
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Lazy);
+
+            // Booster: 4 ViewModel bọc BoosterModule, view inject theo kiểu cụ thể.
+            // Lazy được — các *BoosterButtonView inject nên chúng tự bị dựng khi
+            // prefab HUD xuất hiện.
+            foreach (System.Type vm in new[]
+                     {
+                         typeof(HandBoosterViewModel),
+                         typeof(HammerBoosterViewModel),
+                         typeof(AddQueueBoosterViewModel),
+                         typeof(AddBeltBoosterViewModel),
+                     })
+            {
+                builder.RegisterType(vm, new[] { vm, typeof(System.IDisposable) },
+                    Reflex.Enums.Lifetime.Singleton, Reflex.Enums.Resolution.Lazy);
+            }
+
+            builder.RegisterType(typeof(BoosterUiAnchors),
+                new[] { typeof(IBoosterUiAnchors) },
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Lazy);
+
+            // Eager BẮT BUỘC: không ai inject adapter này, toàn bộ việc của nó nằm
+            // trong constructor (đăng ký nghe LevelSignals). Để Lazy là nó không bao
+            // giờ được dựng và gameplay không báo gì cho ViewModel — im lặng, không lỗi.
+            builder.RegisterType(typeof(GameplayFlowAdapter),
+                new[] { typeof(GameplayFlowAdapter), typeof(System.IDisposable) },
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Eager);
+
             // Lazy: UIManager do UIInstaller đăng ký, thứ tự component trên
             // SceneScope không đảm bảo. AppBootstrap resolve ở Start nên đủ trễ.
             builder.RegisterFactory<IAppFlowManager>(
-                c => new WordStackAppFlowManager(
-                    c.Resolve<UIManager>(),
-                    _minLoadingSeconds,
-                    c.Resolve<ISaveManager>(),
-                    c.Resolve<ICoinRewardService>()),
+                c =>
+                {
+                    // Catalog/LevelService chỉ tồn tại khi ProgressionInstaller được
+                    // gán asset — resolve tùy chọn để thiếu asset không sập cả app
+                    // (AppFlow vẫn lên menu, lỗi hiện rõ lúc nạp màn).
+                    LogosGame.Features.Gameplay.Content.LevelCatalog catalog =
+                        c.TryGetResolver<LogosGame.Features.Gameplay.Content.LevelCatalog>(out _)
+                            ? c.Resolve<LogosGame.Features.Gameplay.Content.LevelCatalog>()
+                            : null;
+                    LogosMeta.Progression.ILevelService levelService =
+                        c.TryGetResolver<LogosMeta.Progression.ILevelService>(out _)
+                            ? c.Resolve<LogosMeta.Progression.ILevelService>()
+                            : null;
+
+                    return new WordStackAppFlowManager(
+                        c.Resolve<UIManager>(),
+                        _minLoadingSeconds,
+                        c.Resolve<ISaveManager>(),
+                        c.Resolve<ICoinRewardService>(),
+                        c.Resolve<IGameplayFlowController>(),
+                        levelService,
+                        catalog);
+                },
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
         }

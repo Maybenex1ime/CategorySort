@@ -224,11 +224,9 @@ namespace WordStack.Prototype
 
     public class LevelData
     {
+        // Field "difficulty" trong JSON KHÔNG parse ở đây nữa: runtime lấy độ khó
+        // từ SO_LevelCatalog (tool CatalogBuilder seed từ JSON lúc edit-time).
         public string Id, Title, Note;
-
-        // Không bắt buộc trong JSON — thiếu thì Normal, để level cũ vẫn parse được.
-        public WordStack.Contracts.LevelDifficulty Difficulty =
-            WordStack.Contracts.LevelDifficulty.Normal;
         public List<GroupDef> Groups = new List<GroupDef>();
         public List<StackDef> Stacks = new List<StackDef>();
 
@@ -246,19 +244,6 @@ namespace WordStack.Prototype
                 Title = Json.AsStr(Json.Get(root, "title"), "title"),
                 Note = Json.AsStr(Json.Get(root, "note"), "note"),
             };
-
-            object rawDifficulty = Json.Get(root, "difficulty");
-            if (rawDifficulty != null)
-            {
-                string d = Json.AsStr(rawDifficulty, "difficulty");
-                switch (d)
-                {
-                    case "Normal": lv.Difficulty = WordStack.Contracts.LevelDifficulty.Normal; break;
-                    case "Hard":   lv.Difficulty = WordStack.Contracts.LevelDifficulty.Hard;   break;
-                    case "Crazy":  lv.Difficulty = WordStack.Contracts.LevelDifficulty.Crazy;  break;
-                    default: throw new Exception("difficulty phải là Normal/Hard/Crazy, nhận '" + d + "'");
-                }
-            }
 
             var meaning = Json.AsObj(Json.Get(root, "meaning"), "meaning");
             foreach (var o in Json.AsArr(Json.Get(meaning, "groups"), "meaning.groups"))
