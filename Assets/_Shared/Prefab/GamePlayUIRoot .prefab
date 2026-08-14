@@ -722,7 +722,6 @@ MonoBehaviour:
   _coinBoxRoot: {fileID: 8879632789239863750}
   _levelTitleText: {fileID: 5904091883292428917}
   _settingsButton: {fileID: 5291099633957980350}
-  _forceLoseButton: {fileID: 0}
   _levelBoxImage: {fileID: 5665021694995899140}
   _normalSprite: {fileID: 21300000, guid: 9da22fb43304f2444a296f0a517735b5, type: 3}
   _hardSprite: {fileID: 21300000, guid: 75b005e959bd3d44c9bcd525f9fb3ce0, type: 3}
@@ -2883,13 +2882,13 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e7494d2896e3a4bb19ae686f9ec5619c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BoosterModule::BoosterModule.BoosterSlotView
-  _id: 0
+  _id: 4
   _animationDuration: 0.2
   _punchScale: 1.2
   _iconImage: {fileID: 0}
-  _countText: {fileID: 0}
+  _countText: {fileID: 7666375760757271743}
   _canvasGroup: {fileID: 0}
-  _button: {fileID: 0}
+  _button: {fileID: 2762211870533406288}
 --- !u!1 &7062536524641846949
 GameObject:
   m_ObjectHideFlags: 0
@@ -3214,7 +3213,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e7494d2896e3a4bb19ae686f9ec5619c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BoosterModule::BoosterModule.BoosterSlotView
-  _id: 0
+  _id: 1
   _animationDuration: 0.2
   _punchScale: 1.2
   _iconImage: {fileID: 6634243023150925340}

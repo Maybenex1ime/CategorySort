@@ -135,6 +135,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordStack.Meta::WordStack.Meta.CurrencyInstaller
   _initialCoins: 0
   _coinsPerWin: 50
+  _catalog: {fileID: 11400000, guid: 8b82d5fd5925cb845a972ed71bb40c4a, type: 2}
 --- !u!114 &5149418319263063496
 MonoBehaviour:
   m_ObjectHideFlags: 0

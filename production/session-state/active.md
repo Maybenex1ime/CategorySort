@@ -41,9 +41,18 @@ thiếu asset là IPurchaseService vắng mặt, flow rơi về stub log, không
 aquapark: không có BoosterGrantEvent trung gian); popup tự disable nút Mua khi thiếu coin.
 `TransactionIds` đổi stub `booster.hand` → bộ id thật `t_booster_*` khớp catalog (NoHeartsPopup
 theo const nên tự đúng). `MetaWiring` học thêm: gán catalog vào CurrencyInstaller trên ProjectScope.
-**CÒN 2 CLICK EDITOR** (bridge chết cả phiên: pipe stale PID 25724 đã xoá, instance sống không trả
-lời — nghi mất focus/modal): focus Unity chờ compile → **WordStack ▸ Setup ▸ Wire meta components**
-(gán catalog) → **WordStack ▸ Build UI Addressables** (address cho BoosterPurchasePopup).
+
+**HUD booster THẬT là 2 nút `BoosterSlotView` (module), KHÔNG phải 4 view aquapark** — phát hiện khi
+user báo "không popup, không −1": 2 nút trong `GamePlayUIRoot ▸ Booster Root` đều `_id: None`, nút (1)
+`_button` null → mọi click chết im lặng (guard `IsUsable` nuốt). Đã sửa 3 tầng: (a) module
+`BoosterSlotViewModel.RequestUse` bấm-lúc-hết giờ bắn `BoosterExhaustedEvent`; (b)
+`BoosterPurchaseFlow` nghe event đó mở popup (cả 2 kiểu view đều vào luồng mua — view aquapark vẫn
+bắn `PurchaseRequestedEvent`); (c) `BoosterManager` log khi trừ lượt. Qua bridge (sống lại khi user
+focus; pipe stale PID 25724 đã xoá): gán `_id` = **Hand** (nút 1) / **Hammer** (nút 2) + wire
+`_button`/`_countText` null vào prefab, scene instance kế thừa; catalog đã gán vào CurrencyInstaller;
+address `BoosterPurchasePopup` user đã tự chạy menu. **Đổi booster của nút = dropdown `_id` trong
+Inspector.** Nút slot count > 0 → `BoosterUseEvent` → manager trừ thật (khác 4 view aquapark instant:
+vẫn log-không-trừ vì hiệu ứng rỗng — chúng chưa nằm trong UI nào). Icon 2 nút chưa gán (cosmetic).
 
 **Stack module meta đã vào repo và compile sạch** (2026-08-10): user copy `Assets/_Modules/`
 (CheatPanel · Economy Currency/Hearts/Purchase · Inventory · Progression, namespace `LogosMeta.*`)

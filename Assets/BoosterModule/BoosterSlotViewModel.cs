@@ -23,6 +23,11 @@ namespace BoosterModule
             {
                 Bus.Global.Fire(new BoosterUseEvent(Id));
             }
+            else
+            {
+                // Clicked while empty: let the game react (e.g. open a purchase flow).
+                Bus.Global.Fire(new BoosterExhaustedEvent(Id, Count));
+            }
         }
 
         private void HandleInventoryChanged(BoosterInventoryChangedEvent evt)

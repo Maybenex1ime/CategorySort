@@ -39,11 +39,21 @@ namespace LogosGame.Features.Currency.UI.Impl
             _currencyService = currencyService;
             _unlockSchedule = unlockSchedule;
             Bus.Global.On<PurchaseRequestedEvent>(OnPurchaseRequested);
+            Bus.Global.On<BoosterExhaustedEvent>(OnBoosterExhausted);
         }
 
         public void Dispose()
         {
             Bus.Global.Off<PurchaseRequestedEvent>(OnPurchaseRequested);
+            Bus.Global.Off<BoosterExhaustedEvent>(OnBoosterExhausted);
+        }
+
+        // Nút BoosterSlotView (module) bấm lúc hết lượt đi đường này; nút
+        // *BoosterButtonView (kiểu aquapark) bắn PurchaseRequestedEvent trực tiếp.
+        private void OnBoosterExhausted(BoosterExhaustedEvent evt)
+        {
+            if (evt.Id == BoosterId.None) return;
+            ShowForBooster(evt.Id);
         }
 
         private void OnPurchaseRequested(PurchaseRequestedEvent evt)

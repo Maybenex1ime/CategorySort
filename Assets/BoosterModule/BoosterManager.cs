@@ -60,7 +60,8 @@ namespace BoosterModule
 
             _inventory[evt.Id] = count - 1;
             SaveInventory();
-            
+            Debug.Log($"[BoosterManager] {evt.Id} used, remaining {count - 1}.");
+
             Bus.Global.Fire(new BoosterInventoryChangedEvent(evt.Id, _inventory[evt.Id]));
             Bus.Global.Fire(new BoosterActivatedEvent(evt.Id));
         }
