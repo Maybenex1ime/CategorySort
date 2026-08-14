@@ -72,6 +72,11 @@ namespace LogosGame.Features.Currency.UI.Impl
             Sprite icon = null;
             _unlockSchedule?.TryGetBoosterInfo(boosterId, out displayName, out description, out icon);
 
+            // Nút booster chỉ sống trong HUD gameplay → popup luôn đè lên bàn đang chơi.
+            // Gate như PausePopup (AppFlowContext): block trước khi mở, unblock ở MỌI
+            // đường thoát — popup gọi đúng một trong hai callback dưới khi Dismiss.
+            WordStack.Contracts.LevelCommands.SetInputBlocked(true);
+
             BoosterPurchasePopupArgs args = new BoosterPurchasePopupArgs
             {
                 Icon = icon,
@@ -79,9 +84,13 @@ namespace LogosGame.Features.Currency.UI.Impl
                 Description = description,
                 Price = 0,
                 Coins = _currencyService?.Coins,
-                OnPurchaseConfirmed = () => _logger.Info(
-                    $"[BoosterPurchaseFlow] Mua {boosterId}: hệ mua chưa có — chưa trừ coin, chưa cộng booster."),
-                OnClose = null
+                OnPurchaseConfirmed = () =>
+                {
+                    WordStack.Contracts.LevelCommands.SetInputBlocked(false);
+                    _logger.Info(
+                        $"[BoosterPurchaseFlow] Mua {boosterId}: hệ mua chưa có — chưa trừ coin, chưa cộng booster.");
+                },
+                OnClose = () => WordStack.Contracts.LevelCommands.SetInputBlocked(false)
             };
 
             ShowPopupInBackground(args);
@@ -89,7 +98,17 @@ namespace LogosGame.Features.Currency.UI.Impl
 
         private async void ShowPopupInBackground(BoosterPurchasePopupArgs args)
         {
-            await _uiManager.ShowPopupImmediate<BoosterPurchasePopup, BoosterPurchasePopupArgs>(args);
+            try
+            {
+                await _uiManager.ShowPopupImmediate<BoosterPurchasePopup, BoosterPurchasePopupArgs>(args);
+            }
+            catch (Exception e)
+            {
+                // Mở fail (vd prefab chưa đăng ký address) mà không unblock là bàn
+                // khoá vĩnh viễn — trả input rồi mới báo lỗi.
+                WordStack.Contracts.LevelCommands.SetInputBlocked(false);
+                _logger.Error($"[BoosterPurchaseFlow] Không mở được BoosterPurchasePopup: {e.Message}");
+            }
         }
     }
 }
