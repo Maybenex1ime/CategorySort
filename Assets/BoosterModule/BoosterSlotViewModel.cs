@@ -14,6 +14,9 @@ namespace BoosterModule
         public BoosterSlotViewModel(BoosterId id)
         {
             Id = id;
+            // Đọc count hiện tại ngay lúc dựng — không chờ event "changed" đầu tiên,
+            // nếu không HUD hiện 0 sau restart dù save có booster.
+            Count = BoosterManager.Instance != null ? BoosterManager.Instance.GetCount(id) : 0;
             Bus.Global.On<BoosterInventoryChangedEvent>(HandleInventoryChanged);
         }
 

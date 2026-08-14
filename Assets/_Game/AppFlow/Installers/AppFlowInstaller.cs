@@ -42,6 +42,15 @@ namespace WordStack.Meta.AppFlow.Installers
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
 
+            // Inventory booster: plain C# thay cho MonoBehaviour singleton cũ —
+            // bản cũ không ai đặt vào scene nên BoosterAddedEvent sau khi mua rơi
+            // vào hư không (coin mất, count đứng im). Eager BẮT BUỘC: không ai
+            // inject nó, toàn bộ việc nằm ở constructor (load save + nghe bus).
+            builder.RegisterType(typeof(BoosterModule.BoosterManager),
+                new[] { typeof(BoosterModule.BoosterManager), typeof(System.IDisposable) },
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Eager);
+
             // Booster: 4 ViewModel bọc BoosterModule, view inject theo kiểu cụ thể.
             // Lazy được — các *BoosterButtonView inject nên chúng tự bị dựng khi
             // prefab HUD xuất hiện.

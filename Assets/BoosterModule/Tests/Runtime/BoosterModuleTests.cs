@@ -1,68 +1,110 @@
-using System.Collections;
 using NUnit.Framework;
 using UnityEngine;
-using UnityEngine.TestTools;
 using LogosSDK.Core.Events;
-using BoosterModule;
 
 namespace BoosterModule.Tests
 {
+    // BoosterManager giờ là plain C# — test sync, không cần GameObject/yield.
     public class BoosterModuleTests
     {
-        [UnitySetUp]
-        public IEnumerator Setup()
-        {
-            PlayerPrefs.DeleteAll();
-            // Clean up any existing instance
-            if (BoosterManager.Instance != null)
-                Object.DestroyImmediate(BoosterManager.Instance.gameObject);
+        private BoosterManager _manager;
 
-            var go = new GameObject("BoosterManager");
-            go.AddComponent<BoosterManager>();
-            
-            yield return null; // Wait for Awake/OnEnable
-            
-            Assert.IsNotNull(BoosterManager.Instance, "BoosterManager.Instance should be set after initialization");
+        [SetUp]
+        public void Setup()
+        {
+            PlayerPrefs.DeleteKey("BoosterModule_Inventory");
+            _manager = new BoosterManager();
         }
 
-        [UnityTearDown]
-        public IEnumerator Teardown()
+        [TearDown]
+        public void Teardown()
         {
-            if (BoosterManager.Instance != null)
-                Object.DestroyImmediate(BoosterManager.Instance.gameObject);
-            
-            yield return null;
+            _manager.Dispose();
+            PlayerPrefs.DeleteKey("BoosterModule_Inventory");
         }
 
-        [UnityTest]
-        public IEnumerator BoosterAdded_IncrementsInventory()
+        [Test]
+        public void Added_IncrementsInventory_AndFiresChanged()
         {
             int receivedCount = -1;
-            Bus.Global.On<BoosterInventoryChangedEvent>(evt => 
+            System.Action<BoosterInventoryChangedEvent> handler = evt => receivedCount = evt.CurrentCount;
+            Bus.Global.On(handler);
+            try
             {
-                receivedCount = evt.CurrentCount;
-            });
+                Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Hand, 5));
 
-            Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Hand, 5));
-
-            yield return null; // Ensure event is processed
-
-            Assert.AreEqual(5, receivedCount);
+                Assert.AreEqual(5, receivedCount);
+                Assert.AreEqual(5, _manager.GetCount(BoosterId.Hand));
+            }
+            finally
+            {
+                Bus.Global.Off(handler);
+            }
         }
 
-        [UnityTest]
-        public IEnumerator UseBooster_DecrementsInventoryAndTriggers()
+        [Test]
+        public void Use_Decrements_AndFiresActivated()
         {
-            Bus.Global.Fire(new BoosterAddedEvent(BoosterId.AddQueue, 1));
-            yield return null;
+            Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Hand, 1));
 
-            bool triggered = false;
-            Bus.Global.On<BoosterActivatedEvent>(evt => triggered = true);
+            bool activated = false;
+            System.Action<BoosterActivatedEvent> handler = evt => activated = true;
+            Bus.Global.On(handler);
+            try
+            {
+                Bus.Global.Fire(new BoosterUseEvent(BoosterId.Hand));
 
-            Bus.Global.Fire(new BoosterUseEvent(BoosterId.Hand));
-            yield return null;
+                Assert.IsTrue(activated);
+                Assert.AreEqual(0, _manager.GetCount(BoosterId.Hand));
+            }
+            finally
+            {
+                Bus.Global.Off(handler);
+            }
+        }
 
-            Assert.IsTrue(triggered);
+        [Test]
+        public void Use_WhenEmpty_FiresExhausted_NotActivated()
+        {
+            bool exhausted = false, activated = false;
+            System.Action<BoosterExhaustedEvent> onExhausted = evt => exhausted = true;
+            System.Action<BoosterActivatedEvent> onActivated = evt => activated = true;
+            Bus.Global.On(onExhausted);
+            Bus.Global.On(onActivated);
+            try
+            {
+                Bus.Global.Fire(new BoosterUseEvent(BoosterId.Hammer));
+
+                Assert.IsTrue(exhausted);
+                Assert.IsFalse(activated);
+            }
+            finally
+            {
+                Bus.Global.Off(onExhausted);
+                Bus.Global.Off(onActivated);
+            }
+        }
+
+        [Test]
+        public void NewManager_LoadsPersistedInventory_AndSlotViewModelSeesIt()
+        {
+            Bus.Global.Fire(new BoosterAddedEvent(BoosterId.AddBelt, 3));
+            _manager.Dispose();
+
+            _manager = new BoosterManager();
+            Assert.AreEqual(3, _manager.GetCount(BoosterId.AddBelt));
+
+            // Initial sync: viewmodel dựng SAU manager phải thấy count ngay,
+            // không chờ event changed đầu tiên.
+            var vm = new BoosterSlotViewModel(BoosterId.AddBelt);
+            try
+            {
+                Assert.AreEqual(3, vm.Count);
+            }
+            finally
+            {
+                vm.Dispose();
+            }
         }
     }
 }

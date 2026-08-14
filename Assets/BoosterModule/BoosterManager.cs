@@ -1,31 +1,44 @@
+using System;
 using System.Collections.Generic;
 using UnityEngine;
 using LogosSDK.Core.Events;
 
 namespace BoosterModule
 {
-    public class BoosterManager : SingletonComp<BoosterManager>
+    /// <summary>
+    /// Inventory booster — plain C# service, KHÔNG phải MonoBehaviour nên không cần
+    /// (và không thể quên) đặt vào scene. Game đăng ký nó Eager trong DI: toàn bộ
+    /// việc nằm ở constructor (load save + subscribe bus), Dispose gỡ subscribe.
+    /// </summary>
+    public sealed class BoosterManager : IDisposable
     {
-        private Dictionary<BoosterId, int> _inventory = new();
+        // ponytail: static bridge cho BoosterSlotViewModel đọc count lúc khởi tạo —
+        // view tự new viewmodel không qua DI. Nếu sau này viewmodel được inject
+        // container thì bỏ static này đi.
+        public static BoosterManager Instance { get; private set; }
 
-        protected override void RightAfterAwake()
+        private readonly Dictionary<BoosterId, int> _inventory = new();
+
+        public BoosterManager()
         {
-            base.RightAfterAwake();
             LoadInventory();
-        }
-
-        private void OnEnable()
-        {
             Bus.Global.On<BoosterAddedEvent>(OnBoosterAdded);
             Bus.Global.On<BoosterUseEvent>(OnUseBooster);
             Bus.Global.On<BoosterSetEvent>(OnBoosterSet);
+            Instance = this;
         }
 
-        private void OnDisable()
+        public void Dispose()
         {
             Bus.Global.Off<BoosterAddedEvent>(OnBoosterAdded);
             Bus.Global.Off<BoosterUseEvent>(OnUseBooster);
             Bus.Global.Off<BoosterSetEvent>(OnBoosterSet);
+            if (Instance == this) Instance = null;
+        }
+
+        public int GetCount(BoosterId id)
+        {
+            return _inventory.TryGetValue(id, out int count) ? count : 0;
         }
 
         // Cheat: ghi đè số lượng, không cộng dồn.
@@ -41,10 +54,10 @@ namespace BoosterModule
         private void OnBoosterAdded(BoosterAddedEvent evt)
         {
             if (evt.Id == BoosterId.None) return;
-            
+
             _inventory.TryGetValue(evt.Id, out int count);
             _inventory[evt.Id] = count + evt.Count;
-            
+
             SaveInventory();
             Bus.Global.Fire(new BoosterInventoryChangedEvent(evt.Id, _inventory[evt.Id]));
         }
@@ -66,7 +79,7 @@ namespace BoosterModule
             Bus.Global.Fire(new BoosterActivatedEvent(evt.Id));
         }
 
-        [System.Serializable]
+        [Serializable]
         private class InventoryData
         {
             public List<BoosterId> IDs = new();
@@ -94,7 +107,7 @@ namespace BoosterModule
 
             string json = PlayerPrefs.GetString(SaveKey);
             var data = JsonUtility.FromJson<InventoryData>(json);
-            
+
             for (int i = 0; i < data.IDs.Count; i++)
             {
                 _inventory[data.IDs[i]] = data.Counts[i];

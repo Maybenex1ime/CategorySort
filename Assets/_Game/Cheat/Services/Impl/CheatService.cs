@@ -17,8 +17,8 @@ namespace LogosGame.Features.Cheat.Services.Impl
     /// nối khác:
     ///   economy → IHeartService / ICurrencyService (như cũ)
     ///   booster → BoosterModule qua Bus (aquapark cần bridge sang scene Gameplay;
-    ///             BoosterManager ở đây là singleton sống xuyên scene nên khỏi bridge,
-    ///             AreBoostersAvailable luôn true)
+    ///             BoosterManager ở đây là service DI Eager trong AppFlowInstaller
+    ///             nghe cùng bus nên khỏi bridge, AreBoostersAvailable luôn true)
     ///   level   → JumpToLevelRequestedEvent, AppFlow ghi save + vào gameplay
     /// </summary>
     public sealed class CheatService : ICheatService, IDisposable
