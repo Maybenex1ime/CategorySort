@@ -17,6 +17,7 @@ namespace WordStack.Meta
     public sealed class ProgressionInstaller : MonoBehaviour, IInstaller
     {
         [SerializeField] private LevelCatalog _levelCatalog;
+        [SerializeField] private SO_UnlockSchedule _unlockSchedule;
 
         public void InstallBindings(ContainerBuilder builder)
         {
@@ -25,10 +26,17 @@ namespace WordStack.Meta
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
 
+            // Lịch mở khoá booster — BoosterPurchaseFlow lấy tên/mô tả/icon cho popup
+            // mua từ đây. Chưa gán thì nó tự rơi về tên trong SO_TransactionCatalog và
+            // popup không có icon, KHÔNG phải lỗi — nên bỏ qua im lặng. Đăng ký TRƯỚC
+            // nhánh return của catalog để thiếu level catalog không kéo theo cái này.
+            if (_unlockSchedule != null)
+                builder.RegisterValue(_unlockSchedule, new[] { typeof(IUnlockSchedule) });
+
             if (_levelCatalog == null)
             {
                 // Quên gán asset thì AppFlow vẫn chạy nhưng AddressKey rỗng —
-                // BoardInitializerView sẽ báo lỗi rõ thay vì đứng im.
+                // BoardInitializer sẽ báo lỗi rõ thay vì đứng im.
                 Debug.LogError("[ProgressionInstaller] Chưa gán SO_LevelCatalog — bàn chơi sẽ không nạp được.");
                 return;
             }

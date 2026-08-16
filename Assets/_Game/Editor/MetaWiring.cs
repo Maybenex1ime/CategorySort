@@ -67,6 +67,31 @@ namespace WordStack.Meta.Editor
                 }
             }
 
+            // Lịch mở khoá booster: gán y như catalog ở trên. Thiếu asset thì
+            // BoosterPurchaseFlow chỉ mất icon + tên riêng, không sập — nên chỉ warn.
+            var progression = root.GetComponent<ProgressionInstaller>();
+            if (progression != null)
+            {
+                var so = new SerializedObject(progression);
+                var scheduleProp = so.FindProperty("_unlockSchedule");
+                if (scheduleProp != null && scheduleProp.objectReferenceValue == null)
+                {
+                    var schedule = AssetDatabase.LoadAssetAtPath<LogosGame.Features.Gameplay.Content.SO_UnlockSchedule>(
+                        "Assets/_Game/Content/SO_UnlockSchedule.asset");
+                    if (schedule != null)
+                    {
+                        scheduleProp.objectReferenceValue = schedule;
+                        so.ApplyModifiedPropertiesWithoutUndo();
+                        added = true;
+                        Debug.Log("WIRE: gán SO_UnlockSchedule vào ProgressionInstaller.");
+                    }
+                    else
+                    {
+                        Debug.LogWarning("WIRE: không thấy Assets/_Game/Content/SO_UnlockSchedule.asset — popup mua booster sẽ thiếu icon.");
+                    }
+                }
+            }
+
             if (added)
             {
                 PrefabUtility.SaveAsPrefabAsset(root, ScopePath);

@@ -1,0 +1,42 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 0eccbb25a37994c528a9d82d88b29d27, type: 3}
+  m_Name: SO_UnlockSchedule
+  m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Gameplay.Content.SO_UnlockSchedule
+  _boosterUnlocks:
+  - LevelIndex: 100
+    BoosterId: 1
+    DisplayName: Hand
+    Description: 
+    Icon: {fileID: 0}
+    InitialCount: 0
+  - LevelIndex: 100
+    BoosterId: 1
+    DisplayName: Hand
+    Description: 
+    Icon: {fileID: 0}
+    InitialCount: 0
+  - LevelIndex: 100
+    BoosterId: 1
+    DisplayName: Hand
+    Description: 
+    Icon: {fileID: 0}
+    InitialCount: 0
+  - LevelIndex: 100
+    BoosterId: 1
+    DisplayName: Hand
+    Description: 
+    Icon: {fileID: 0}
+    InitialCount: 0
+  _mechanicUnlocks: []
+  _cheatGrantBoosters: 0
+  _cheatGrantAmount: 5
