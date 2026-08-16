@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Chạy SelfCheck của prototype NGOÀI Unity — vòng phản hồi nhanh nhất khi sửa luật.
+# Chạy SelfCheck của luật bàn chơi NGOÀI Unity — vòng phản hồi nhanh nhất khi sửa luật.
 # Dùng Roslyn đi kèm Unity Hub, không cần cài .NET SDK riêng, không cần mở Editor.
 #
 #   ./selfcheck.sh
@@ -29,8 +29,10 @@ mkdir -p "$OUT"
     case "$f" in *Native*.dll) continue ;; esac      # dll native, không có managed metadata
     [ -f "$f" ] && echo "-r:\"$(cygpath -w "$f")\""
   done
-  echo "\"$(cygpath -w "$PWD/Assets/Prototype/PrototypeDomain.cs")\""
-  echo "\"$(cygpath -w "$PWD/Assets/Prototype/PrototypeSelfCheckMain.cs")\""
+  # Cả thư mục Domain/ — nó cố ý không import UnityEngine nên csc nuốt được nguyên khối.
+  find "$PWD/Assets/_Game/Board/Domain" -name '*.cs' | while read -r f; do
+    echo "\"$(cygpath -w "$f")\""
+  done
 } > "$OUT/csc.rsp"
 
 cat > "$OUT/selfcheck.runtimeconfig.json" <<EOF

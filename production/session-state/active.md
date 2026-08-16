@@ -1,8 +1,19 @@
 # Session State
 
-> Cập nhật cuối: 2026-08-14. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
+> Cập nhật cuối: 2026-08-15. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
 
 ## Đang ở đâu
+
+**Prototype đã productionize (2026-08-15, CHƯA commit — user test trong Editor trước).**
+`Assets/Prototype/` không còn: luật + view dời vào `Assets/_Game/Board/` thành assembly
+**`WordStack.Board`** (`Domain/` C# thuần · `Views/` MonoBehaviour · `Editor/` tool ·
+`Tests/` EditMode), namespace `WordStack.Prototype` → `WordStack.Board`. File .cs đi kèm .meta
+nên GUID không đổi — `Main.unity` và 5 prefab vẫn trỏ đúng. Art giả dời sang
+`Assets/_Game/Content/Resources/Art/` (giữ `Resources.Load("Art/…")`), bản sao level trong
+`Prototype/Resources/Levels` xoá (trùng `_Game/Content/Levels`). Xoá hẳn: `PrototypeView.cs`
+(view cũ vẽ bằng code, không nằm trong scene nào) và `PrefabBuilder.cs` (menu của nó dựng lại
+`Main.unity` — chạy nhầm là mất toàn bộ wiring AppFlow). Ranh giới cũ giữ nguyên: bàn chỉ nói
+chuyện với meta qua `WordStack.Contracts`.
 
 **Port hệ meta aquapark HOÀN TẤT — `main` = `8dfb879`, đã push** (4 commit 13–14/08:
 `92f771c` AppFlow FSM + BoosterModule → `473c7de` HUD + level pipeline + cheat →
@@ -177,7 +188,7 @@ một cờ, solver kiểm cả hai chế độ. Mở lại khi làm Undo.
    + `BoardController.cs`. Ba chỗ bắt buộc mang nguyên (co chữ `CharW=0.085` không auto-wrap ·
    invariant check · **hai** hộp đổi màu mỗi nước) đều đã ở trong code.
 3. ~~Dựng prefab + scene~~ — xong, chạy qua MCP bridge, đã commit.
-4. **User kéo thử 3 level** *(đang chờ)*, rồi tôi xoá `PrototypeView.cs`.
+4. ~~Xoá `PrototypeView.cs`~~ — xong 2026-08-15 khi productionize (xem mục đầu file).
 
 Ba chỗ lệch so với draft, đã ghi ở **Mục 8** của doc: thẻ thật bay (xoá hẳn object "fly" tạm) ·
 root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, không làm sườn vứt đi).
@@ -187,16 +198,16 @@ root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, 
 | File | Nội dung |
 |------|----------|
 | `demo/wordstack-clear-demo.html` + `demo/check.mjs` | Bản tham chiếu hành vi + bộ check (`node demo/check.mjs`) |
-| `Assets/Prototype/PrototypeDomain.cs` | Luật + validate + beam solver + SelfCheck. **Không import UnityEngine** |
-| `Assets/Prototype/PrototypeView.cs` | View runtime cũ (vẽ bằng code). **Chờ xoá** sau khi bàn prefab nghiệm thu xong; tới lúc đó vẫn Play được để đối chiếu |
-| `Assets/Prototype/BoardController.cs` + `Views/*.cs` | View mới: retained-mode, dựng từ prefab. **Đang chạy** trong `Main.unity` |
-| `Assets/Prefabs/*.prefab` + `Assets/Scenes/Main.unity` + `Assets/Prototype/Sprites/white.png` | Sinh bằng `PrefabBuilder`, đã commit kèm .meta |
-| `Assets/Prototype/Editor/LevelEditorWindow.cs` | Tool xếp level (`WordStack ▸ Level Editor`) |
-| `Assets/Prototype/Editor/PrefabBuilder.cs` | `WordStack ▸ Build Prefabs + Scene` — dựng 5 prefab + Main.unity. **Chạy lại ghi đè prefab**, mất chỉnh tay |
-| `Assets/Prototype/Resources/Levels/lv-00{1,2,3}.json` | 3 level, solver khớp demo (6/6/9/9/2/2 nước) |
-| `Assets/Prototype/Resources/Art/*.png` | 12 placeholder **có nhãn**; meta đã commit (GUID ổn định) |
+| `Assets/_Game/Board/Domain/*.cs` | Luật + validate + beam solver + SelfCheck. **Không import UnityEngine** (`Rules` · `LevelJson` · `LevelData` · `Game` · `Solver` · `SelfCheck` + `SelfCheckMain` cho console) |
+| `Assets/_Game/Board/Views/BoardController.cs` + `{ViewText,TileView,BoxView,StackView,GhostView,HudView}.cs` | View retained-mode dựng từ prefab. **Đang chạy** trong `Main.unity` |
+| `Assets/_Game/Board/WordStack.Board.asmdef` | Assembly bàn chơi — chỉ ref `WordStack.Contracts` + `Unity.InputSystem`. **Không được ref `WordStack.Meta`** (gotcha #5) |
+| `Assets/Prefabs/*.prefab` + `Assets/Scenes/Main.unity` + `Assets/_Game/Board/Sprites/white.png` | Sinh bằng `PrefabBuilder` (đã xoá), giờ chỉnh tay; commit kèm .meta |
+| `Assets/_Game/Board/Editor/LevelEditorWindow.cs` | Tool xếp level (`WordStack ▸ Level Editor`) |
+| `Assets/_Game/Board/Editor/BoardTestDriver.cs` | `WordStack ▸ Test ▸ Play 4 moves on lv-001` — chạy chuỗi nước đi qua `BoardController.DebugMove`, ghi `Temp/testdrive.{txt,png}` |
+| `Assets/_Game/Board/Tests/BoardRulesTests.cs` | EditMode: nước đi hợp lệ/bị từ chối, CLEAR + xoá hộp, cascade, thắng/kẹt. Bộ đầy đủ vẫn ở `SelfCheck` |
+| `Assets/_Game/Content/Levels/lv-00{1..6}.json` | 6 level (Addressable, address = `id`), solver khớp demo |
+| `Assets/_Game/Content/Resources/Art/*.png` | 12 placeholder **có nhãn**; runtime nạp `Resources.Load("Art/" + key)` |
 | `Assets/Plugins/Demigiant/` | DOTween 843K, commit vào repo theo quyết định của user |
-| `Assets/Prototype/Editor/BoardTestDriver.cs` | `WordStack ▸ Test ▸ Play 4 moves on lv-001` — chạy chuỗi nước đi qua `BoardController.DebugMove`, ghi `Temp/testdrive.{txt,png}` |
 | `docs/architecture/view-prefabs.md` | Thiết kế prefab — **Approved**; Mục 6 = dựng bằng menu, Mục 8 = chỗ lệch draft, Mục 9 = feel lấy từ Balatro-Feel |
 | `docs/wordstack-rules.md` | Luật chơi tự đủ nghĩa — đưa cho model/người mới đọc |
 

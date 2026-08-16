@@ -1,10 +1,9 @@
 # Thiết kế View bằng Prefab — WordStack
 
 > Status: **Approved** (user duyệt 2026-08-03). Q1 retained-mode · Q2 TextMesh · Q3 DOTween.
-> Script view **đã viết xong** (compile sạch, chưa có prefab nào): `Assets/Prototype/Views/*.cs`
-> + `Assets/Prototype/BoardController.cs`. Việc kế tiếp là **bạn dựng 5 prefab + scene theo
-> checklist Mục 6**; xong thì tôi Play nghiệm thu và xoá `PrototypeView.cs`.
-> Domain (`PrototypeDomain.cs`) **không đổi một dòng** — thiết kế này chỉ đụng lớp view.
+> Script view đã port sang production: `Assets/_Game/Board/Views/*.cs` (assembly
+> `WordStack.Board`); 5 prefab ở `Assets/Prefabs/` đã dựng và chỉnh tay xong.
+> Domain (`Assets/_Game/Board/Domain/`) **không đổi một dòng** — thiết kế này chỉ đụng lớp view.
 >
 > Ba chỗ lệch so với bản draft, quyết lúc viết code (Mục 8).
 
@@ -222,31 +221,16 @@ Sorting order giữ nguyên bảng hiện tại (peek −13…−10 · box 0-2 �
 **Tôi:**
 1. ~~Viết 5 script view + `BoardController`~~ — **xong 2026-08-03**, viết thẳng bản Instantiate
    (không có sườn trung gian, xem Mục 8). `./compilecheck.sh` + `./selfcheck.sh` đều pass.
-2. Sau khi bạn dựng xong prefab: Play nghiệm thu cả 3 level, rà lại prefab YAML, xoá `PrototypeView.cs`.
-3. `PrototypeView.cs` **còn nguyên và vẫn tự Play được** cho tới bước đó — có cái để đối chiếu hành vi.
-   Nó tự nhường sân khi scene đã có `BoardController`, nên `Main.unity` không bị hai bàn chồng nhau.
+2. ~~Dựng prefab + nghiệm thu, xoá `PrototypeView.cs`~~ — xong; view cũ vẽ-bằng-code đã xoá.
 
-**Bạn:** bấm menu ở Mục 6 rồi Play. Việc dựng tay đã chuyển thành `PrefabBuilder.cs` — Unity tự
-serialize thì GUID/tham chiếu luôn đúng, và dựng lại được khi thiết kế đổi.
+## 6. Dựng prefab — đã dựng, giờ sửa tay
 
-## 6. Dựng prefab — bằng menu, không dựng tay
-
-`Assets/Prototype/Editor/PrefabBuilder.cs` chép Mục 2 + 3 thành code Editor:
-
-**Đã chạy 2026-08-03** — 5 prefab + scene + sprite trắng đã sinh và commit. Phần dưới là cách chạy
-lại khi thiết kế đổi.
-
-1. Mở project bằng Unity, đợi compile xong.
-2. Menu **WordStack ▸ Build Prefabs + Scene** → bấm "Dựng".
-3. Nó tạo: `Assets/Prefabs/{Tile,Box,Stack,Ghost,Hud}.prefab` · `Assets/Scenes/Main.unity`
-   (camera + `Game` đã kéo sẵn 5 prefab) · `Assets/Prototype/Sprites/white.png` (sprite trắng
-   PixelsPerUnit=1, tự sinh để khỏi phụ thuộc GUID asset builtin của Unity) · thêm scene vào
-   Build Settings.
-4. Bấm Play.
-
-**Chạy lại thì GHI ĐÈ 5 prefab** — hình thù chỉnh tay và số feel chỉnh trong Inspector sẽ mất.
-Sau khi đã tinh chỉnh bằng mắt thì đừng chạy lại; muốn đổi hình thù thì sửa doc + `PrefabBuilder`
-rồi mới chạy. Prefab sinh ra là asset bình thường, sửa tay tiếp được như mọi prefab khác.
+5 prefab `Assets/Prefabs/{Tile,Box,Stack,Ghost,Hud}.prefab` + `Assets/Scenes/Main.unity` +
+`Assets/_Game/Board/Sprites/white.png` sinh một lần bằng tool `PrefabBuilder` (2026-08-03),
+sau đó **chỉnh tay trong Inspector**. Tool đã XOÁ khi port sang production: nó dựng lại cả
+`Main.unity`, mà scene đó giờ mang toàn bộ wiring AppFlow/DI — chạy lại là mất sạch. Cần dựng
+lại từ đầu thì lấy file trong lịch sử git (`Assets/Prototype/Editor/PrefabBuilder.cs`) và bỏ
+phần `BuildScene`. Số hình thù nguồn vẫn là Mục 2 + 3 dưới đây.
 
 Hai thứ Console sẽ nói khi sai, biết trước cho đỡ mất thời gian:
 
@@ -293,5 +277,5 @@ Không lấy: `shakeParent` riêng (mình punch thẳng lên hộp), `Swap` punc
 tay bài (không có tay bài). Số của họ tính bằng pixel UI nên **đừng chép thẳng** — `rotAmount` mình
 70 so với 20 của họ vì đơn vị world nhỏ hơn nhiều.
 
-Ngoài ra `compilecheck.sh` giờ gom `Assets/Prototype/**/*.cs` bằng `find` (thêm file khỏi phải
+Ngoài ra `compilecheck.sh` giờ gom `Assets/_Game/Board/**/*.cs` bằng `find` (thêm file khỏi phải
 sửa script) và mượn `Unity.InputSystem.dll` của repo chính khi worktree chưa có `Library/`.

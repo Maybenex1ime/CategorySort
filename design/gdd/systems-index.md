@@ -37,7 +37,7 @@ Cột **Code**: ✅ đã có và đã kiểm chứng · ⚠️ có một phần 
 | 2 | Level Validator | Technical | 12 luật chạy lúc load; sai là ném lỗi rõ ràng, không để level hỏng tới tay người chơi | Explicit | ✅ |
 | 3 | Save System | Technical | Level đã qua + settings (PlayerPrefs/JSON) | Implicit | ❌ |
 | 4 | Stack/Box Board | Gameplay | Hộp `BoxCapacity` slot xếp chồng thành stack; chỉ hộp trên cùng hoạt động; hộp đáy không bao giờ biến mất | Explicit | ✅ |
-| 5 | Move Rules | Gameplay | Nước đi duy nhất: kéo thẻ từ hộp trên cùng sang hộp trên cùng stack khác, vào **slot trống đầu tiên**; hộp đầy → từ chối | Explicit | ✅ |
+| 5 | Move Rules | Gameplay | Nước đi duy nhất: kéo thẻ từ hộp trên cùng sang hộp trên cùng stack khác, vào **slot thả trúng nếu trống, không thì slot trống đầu tiên**; hộp đầy → từ chối | Explicit | ✅ |
 | 6 | CLEAR Rules | Gameplay | Đủ 4 thành viên một group trong cùng một hộp → 4 thẻ biến mất; hộp rỗng không phải đáy thì bị xoá, hộp dưới lộ ra | Explicit | ✅ |
 | 7 | Cascade Resolver | Gameplay | `SettleStep` từng nhịp (~350ms) tới khi bàn đứng yên; view có nhịp, input bị khoá | Explicit | ✅ |
 | 8 | Win/Stuck Rules | Gameplay | Sạch bàn = thắng. Mọi hộp trên cùng đầy và không nhóm nào hoàn thành được = kẹt. **Không có màn Thua** | Explicit | ✅ |

@@ -38,9 +38,8 @@ namespace WordStack.Meta.Editor
             if (!AssetDatabase.IsValidFolder(LevelsFolder))
             {
                 Debug.LogError($"[LevelCatalogBuilder] Không thấy '{LevelsFolder}'. " +
-                               "Kéo thư mục level JSON (đang ở Assets/Prototype/Resources/Levels) " +
-                               "sang đó trong Project window trước — file trong Resources không đánh " +
-                               "Addressable được.");
+                               "Level JSON phải nằm đúng thư mục đó — file trong Resources không " +
+                               "đánh Addressable được.");
                 return;
             }
 
@@ -78,7 +77,7 @@ namespace WordStack.Meta.Editor
                 }
 
                 AddressableAssetEntry entry = settings.CreateOrMoveEntry(guid, settings.DefaultGroup);
-                entry.address = dto.id;   // BoardInitializerView nạp bằng đúng chuỗi này
+                entry.address = dto.id;   // BoardInitializer nạp bằng đúng chuỗi này
 
                 rows.Add((dto.id, string.IsNullOrEmpty(dto.title) ? dto.id : dto.title, ParseDifficulty(dto.difficulty, path)));
             }

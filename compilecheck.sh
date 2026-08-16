@@ -4,9 +4,11 @@
 #
 #   ./compilecheck.sh
 #
-# Tách làm 2 assembly đúng như Unity: Assembly-CSharp (domain + view, cần DOTween) và
-# Assembly-CSharp-Editor (tool level, cần UnityEditor). Không tách thì xung khắc reference:
-# DOTween.dll build theo mscorlib, còn UnityEditor.dll theo netstandard.
+# Tách làm 3 assembly đúng như Unity: WordStack.Board (domain + view, cần DOTween),
+# WordStack.Board.Editor (tool level, cần UnityEditor) và WordStack.Meta (thế giới
+# netstandard2.1: R3/Reflex/EventBus). Không tách thì xung khắc reference: DOTween.dll
+# build theo mscorlib, còn UnityEditor.dll/R3.dll theo netstandard.
+# Tên target giữ nguyên game/editor/meta cho quen tay.
 set -euo pipefail
 cd "$(dirname "$0")"
 
@@ -30,7 +32,7 @@ INPUTSYS="$PWD/Library/ScriptAssemblies/Unity.InputSystem.dll"
 
 w() { cygpath -w "$1"; }
 
-# ---- Assembly-CSharp: domain + view (+ DOTween) ----
+# ---- WordStack.Board: domain + view (+ DOTween) ----
 {
   echo "-nologo"; echo "-target:library"; echo "-langversion:latest"; echo "-nostdlib"
   echo "-define:UNITY_EDITOR;UNITY_5_3_OR_NEWER"
@@ -40,18 +42,19 @@ w() { cygpath -w "$1"; }
   for f in "$MAN"/UnityEngine*.dll; do echo "-r:\"$(w "$f")\""; done
   echo "-r:\"$(w "$INPUTSYS")\""
   echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
-  # mọi .cs dưới Assets/Prototype trừ Editor/ — đúng cách Unity gom Assembly-CSharp.
-  # Kèm Contracts vì BoardController báo kết quả màn qua LevelSignals. Contracts cố ý
-  # KHÔNG phụ thuộc gì nên nhập thẳng vào thế giới mscorlib này được; kéo EventBus hay
-  # WordStack.Meta vào đây thì hỏng (EventBus cần ValueTask — không có trong 4.7.1-api;
-  # R3/Reflex là netstandard2.1, xung khắc DOTween). Đó là lý do có target meta riêng.
-  find "$PWD/Assets/Prototype" "$PWD/Assets/_Game/Contracts" -name '*.cs' -not -path '*/Editor/*' | while read -r f; do
+  # mọi .cs dưới Assets/_Game/Board trừ Editor/ và Tests/ — đúng cách Unity gom asmdef
+  # WordStack.Board. Kèm Contracts vì BoardController báo kết quả màn qua LevelSignals.
+  # Contracts cố ý KHÔNG phụ thuộc gì nên nhập thẳng vào thế giới mscorlib này được; kéo
+  # EventBus hay WordStack.Meta vào đây thì hỏng (EventBus cần ValueTask — không có trong
+  # 4.7.1-api; R3/Reflex là netstandard2.1, xung khắc DOTween). Đó là lý do có target meta riêng.
+  find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" -name '*.cs' \
+       -not -path '*/Editor/*' -not -path '*/Tests/*' | while read -r f; do
     echo "\"$(w "$f")\""
   done
 } > "$OUT/game.rsp"
 
-# ---- Assembly-CSharp-Editor: tool xếp level + dựng prefab ----
-# Editor script giờ đụng tới view (PrefabBuilder dựng prefab từ TileView/BoxView/...), nên gom
+# ---- WordStack.Board.Editor: tool xếp level + driver test ----
+# Editor script đụng tới runtime (BoardTestDriver gọi BoardController.DebugMove), nên gom
 # CẢ source runtime vào đây. Đã thử cách đúng-Unity hơn — tham chiếu game.dll thay vì source —
 # nhưng game.dll build theo mscorlib còn ref set của UnityEditor là netstandard, csc đòi mscorlib
 # cho mọi chữ ký mượn từ nó (CS0012). Rẻ hơn là compile hai lần trong CÙNG một thế giới ref.
@@ -64,7 +67,8 @@ w() { cygpath -w "$1"; }
   for f in "$MAN"/UnityEngine*.dll "$MAN"/UnityEditor*.dll; do echo "-r:\"$(w "$f")\""; done
   echo "-r:\"$(w "$INPUTSYS")\""
   echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
-  find "$PWD/Assets/Prototype" "$PWD/Assets/_Game/Contracts" -name '*.cs' | while read -r f; do
+  find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" -name '*.cs' \
+       -not -path '*/Tests/*' | while read -r f; do
     echo "\"$(w "$f")\""
   done
 } > "$OUT/editor.rsp"
@@ -116,8 +120,11 @@ if [ "$meta_ready" = 1 ]; then
     [ -n "$NJ" ] && echo "-r:\"$(w "$NJ")\""
     # DOTween/Modules đi kèm vì CheatToastView dùng DOFade/DOAnchorPosY trên UI
     # Bỏ Tests/: chúng cần NUnit + TestRunner, chỉ Unity mới dựng nổi ref đó.
+    # Bỏ _Game/Board: đó là assembly WordStack.Board (target `game` ở trên) — nó sống ở
+    # thế giới mscorlib, trộn vào đây là xoá mất chính ranh giới compilecheck đang canh.
     find "$PWD/Assets/_StudioSDK" "$PWD/Assets/_Modules" "$PWD/Assets/_Game" "$PWD/Assets/BoosterModule" \
-         "$PWD/Assets/Plugins/Demigiant/DOTween/Modules" -name '*.cs' -not -path '*/Tests/*' | while read -r f; do
+         "$PWD/Assets/Plugins/Demigiant/DOTween/Modules" -name '*.cs' \
+         -not -path '*/Tests/*' -not -path '*/_Game/Board/*' | while read -r f; do
       echo "\"$(w "$f")\""
     done
   } > "$OUT/meta.rsp"
