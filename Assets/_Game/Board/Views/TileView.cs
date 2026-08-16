@@ -1,9 +1,8 @@
 // Một thẻ. Component mỏng: giữ tham chiếu + bind hiển thị. KHÔNG chứa luật, không gọi domain.
 //
-// Kích thước Bg và Art author THẲNG TRONG PREFAB — Bind() không còn đụng scale của chúng
-// (đổi 2026-08-06: chỉnh bằng Inspector mà không bị code ghi đè mỗi lần bind). Root vẫn giữ
-// scale 1 để tween scale (hover / nhấc lên / CLEAR) đọc thẳng 0..1 không phải nhân hằng nào.
-// `slotSize` giờ chỉ còn lo VỊ TRÍ ảnh/chữ và bề rộng co chữ, không lo kích thước nữa.
+// Thẻ chỉ còn ảnh (bỏ label chữ + vành outline 2026-08-17 — hướng art mới là icon thuần).
+// Kích thước và vị trí Bg/Art author THẲNG TRONG PREFAB, code không đụng scale — root giữ
+// scale 1 để tween (hover / nhấc lên / CLEAR) đọc thẳng 0..1.
 using UnityEngine;
 
 namespace WordStack.Board
@@ -12,53 +11,57 @@ namespace WordStack.Board
     {
         [SerializeField] SpriteRenderer bg;
         [SerializeField] SpriteRenderer art;
-        [SerializeField] TextMesh label;
-        // Vành ngoài: cùng sprite với bg, tô màu viền, phóng to vài % và nằm sau. Bỏ trống cũng
-        // chạy. Màu và độ dày author thẳng trong prefab — code không đụng, chỉ lo sorting order
-        // để lúc thẻ bay lên (FlyOrder) vành không bị bỏ lại dưới bàn.
-        [SerializeField] SpriteRenderer outline;
+
+        // Nền theo số thẻ CÙNG NHÓM trong hộp. Field nào null = giữ sprite hiện tại.
+        // Màu bg luôn trắng (Bind) — sprite tự mang màu, hệ tint palette cũ đã bỏ.
+        [Header("Nền theo trạng thái trùng nhóm")]
+        [SerializeField] Sprite bgAlone;        // không thẻ nào khác trùng nhóm
+        [SerializeField] Sprite bgPairFirst;    // Option 1 — CẶP THỨ NHẤT trong hộp (cả 2 thẻ của cặp)
+        [SerializeField] Sprite bgPairSecond;   // Option 2 — cặp thứ hai, khi hộp có 2 cặp
+        [SerializeField] Sprite bgTriple;       // có 2 thẻ khác trùng nhóm
+        [SerializeField] Sprite bgFull;         // có 3 thẻ khác — đủ bộ, chỉ thoáng qua trước CLEAR
+        // Placeholder: nền cho thẻ sinh ra từ COLLAPSE (4 thẻ nhỏ gộp lại).
+        // CHƯA có logic gán — chờ chốt luật COLLAPSE, đừng xoá field.
+        [SerializeField] Sprite bgCollapsed;
 
         public string Uid { get; private set; }
 
-        // Ba trường hợp như demo: chỉ ảnh / chỉ chữ / cả hai.
-        public void Bind(Tile t, Sprite sprite, Color bgColor, int order, float slotSize)
+        // Card không có art (text-only trong level data) → thẻ chỉ hiện nền trống.
+        public void Bind(Tile t, Sprite sprite, int order)
         {
             Uid = t != null ? t.Uid : null;
 
-            bg.color = bgColor;
+            bg.color = Color.white;   // sprite trạng thái tự mang màu, không tint gì thêm
 
             bool hasArt = t != null && sprite != null;
-            bool hasText = t != null && t.Text != null;
-            bool both = hasArt && hasText;
-
             art.gameObject.SetActive(hasArt);
             if (hasArt)
             {
                 art.sprite = sprite;
-                art.transform.localPosition = new Vector3(0f, both ? slotSize * 0.14f : 0f, 0f);
-            }
-
-            label.gameObject.SetActive(hasText);
-            if (hasText)
-            {
-                label.transform.localPosition = new Vector3(0f, both ? -slotSize * 0.26f : 0f, 0f);
-                ViewText.Apply(label, t.Text, both ? 0.85f : 1.10f, slotSize * 0.92f);
+                art.transform.localPosition = Vector3.zero;
             }
 
             SetOrder(order);
         }
 
-        public void SetColor(Color c) { bg.color = c; }
+        // groupCountInBox = tổng thẻ cùng nhóm trong hộp (kể cả thẻ này);
+        // groupOrdinal = thứ tự NHÓM của thẻ giữa các nhóm ≥2 thẻ trong hộp, theo
+        // thứ tự xuất hiện (BoxColorIndices) — hộp có 2 cặp thì cặp đầu 0, cặp sau 1.
+        public void SetMatchState(int groupCountInBox, int groupOrdinal)
+        {
+            Sprite next =
+                groupCountInBox <= 1 ? bgAlone
+                : groupCountInBox == 2 ? (groupOrdinal == 0 ? bgPairFirst : bgPairSecond)
+                : groupCountInBox == 3 ? bgTriple
+                : bgFull;
+            if (next != null) bg.sprite = next;
+        }
 
         // Thẻ đang bay được kéo lên trên mọi thứ rồi trả về order thường khi hạ cánh.
         public void SetOrder(int order)
         {
             bg.sortingOrder = order;
             art.sortingOrder = order + 1;
-            ViewText.Order(label, order + 1);
-            // order-1 nên lúc thẻ nằm yên vành trùng order với bóng đáy slot. Hoà nhau ở đây vô
-            // hại: cả hai đều bị mặt thẻ đục che kín, mà bóng chỉ đen 14%.
-            if (outline != null) outline.sortingOrder = order - 1;
         }
     }
 }

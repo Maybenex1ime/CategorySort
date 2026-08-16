@@ -97,16 +97,20 @@ Dây chuyền cũng chạy **ngay khi nạp level**, phòng trường hợp dữ
   hộp trên cùng nào) → không nước đi nào hợp lệ nữa.
 - **Không có màn Thua.** Kẹt chỉ hiện một toast gợi ý bấm Restart.
 
-## 7. Màu gợi ý nhóm
+## 7. Gợi ý trùng nhóm
 
-- Mặc định thẻ nền xám trắng.
-- **Trong cùng một hộp**, nhóm nào đang có **≥2 thẻ** thì các thẻ đó được tô cùng một màu. Thẻ
-  đứng một mình giữ nền mặc định.
-- Màu cấp phát **cục bộ theo từng hộp**, theo thứ tự nhóm xuất hiện trong hộp (slot 0→3), lấy
-  lần lượt trong bảng 6 màu. **Không cố định theo nhóm trên toàn bàn** — cố ý: màu toàn cục thì
-  liếc hai hộp là biết ngay chúng cùng nhóm, mất hết phần suy luận.
-- Hệ quả cần nhớ khi làm view: **một nước đi làm HAI hộp đổi màu**, không chỉ hộp đích — hộp
-  nguồn mất một thẻ thì cặp ở đó có thể tan, thẻ còn lại quay về nền mặc định.
+> **Đổi cơ chế 2026-08-17:** view không tô màu nữa — **sprite nền thẻ đổi theo số thẻ cùng
+> nhóm trong hộp**: đứng lẻ / cặp / ba thẻ / đủ bộ (thoáng qua trước CLEAR). Cặp có 2 sprite
+> Option: cặp nhận Option **lúc hình thành** (ordinal trống thấp nhất; hai cặp sinh cùng lúc
+> thì theo thứ tự slot) và **giữ nguyên đến khi tan** — cặp đứng trước biến mất, cặp còn lại
+> KHÔNG đổi sprite (sticky, state thuần view trong BoardController.pairOrdinals). Tan rồi tái
+> lập thì cấp lại từ đầu. Nền luôn trắng, art tự mang màu.
+
+- (Luật domain, không còn hiển thị) Trong cùng một hộp, nhóm có ≥2 thẻ nhận cùng một chỉ số màu;
+  cấp phát cục bộ theo hộp, theo thứ tự nhóm xuất hiện (slot 0→3), bảng 6 màu; không cố định
+  toàn bàn.
+- Hệ quả vẫn đúng với sprite: **một nước đi làm HAI hộp đổi trạng thái**, không chỉ hộp đích —
+  hộp nguồn mất một thẻ thì cặp ở đó tan, thẻ còn lại tụt về sprite đứng lẻ.
 
 ## 8. Định dạng dữ liệu level (JSON)
 

@@ -45,7 +45,6 @@ namespace WordStack.Board
         const float HoverPunchAngle = 5f;
         const int HoverPunchId = 2;            // để Kill cú punch trước, không đụng tween scale
 
-        static readonly Color TileBg = Hex(0xDEDEDE);
 
         [Header("Prefabs")]
         [SerializeField] StackView stackPrefab;
@@ -53,12 +52,10 @@ namespace WordStack.Board
         [SerializeField] TileView tilePrefab;
         [SerializeField] GhostView ghostPrefab;
 
-        [Header("Palette (GDD §9.1) — domain trả index vào mảng này")]
-        [SerializeField] Color[] palette =
-        {
-            Hex(0xF4B740), Hex(0x5BC98C), Hex(0xEF7C8E),
-            Hex(0x4FA8E8), Hex(0xB48CE8), Hex(0xE88C4F),
-        };
+        // Tint palette (GDD §9.1 cũ) đã bỏ 2026-08-17: sprite trạng thái trùng nhóm
+        // (TileView.SetMatchState) thay vai trò gợi ý — bg luôn trắng. Ordinal cặp
+        // (Option 1/2) là state sticky của view (pairOrdinals), KHÔNG dùng
+        // BoxColorIndices — domain giữ nó cùng test phòng khi quay lại tint.
 
         [Header("Nhịp")]
         [SerializeField] float flyDur = 0.16f;
@@ -308,7 +305,7 @@ namespace WordStack.Board
             ghost.Begin(pt);
             var gt = Instantiate(tilePrefab, ghost.TileAnchor, false);
             gt.transform.localPosition = Vector3.zero;
-            gt.Bind(t, ArtOf(t), TileBg, GhostTileOrder, SlotSize);
+            gt.Bind(t, ArtOf(t), GhostTileOrder);
 
             DOTween.Kill(HoverPunchId, true);             // trả góc quay về 0 trước khi nhấc
             TileView tv;
@@ -351,8 +348,8 @@ namespace WordStack.Board
                 FlyTo(tv, boxViews[to].Slot(slot), fromWorld);
 
             // HAI hộp đổi màu, không chỉ hộp đích: hộp nguồn mất thẻ → cặp có thể tan.
-            RefreshColors(from);
-            RefreshColors(to);
+            RefreshTileVisuals(from);
+            RefreshTileVisuals(to);
             RefreshZones();
             ReportResultIfFinished();
             LevelSignals.RaiseMoveCommitted(g.Moves);       // tầng meta: vào phase Evaluating
@@ -454,12 +451,12 @@ namespace WordStack.Board
                 {
                     var seq = RemoveTiles(ev.DoomedUids);   // 4 thẻ co về 0, lệch nhau clearStagger
                     if (seq != null) yield return seq.WaitForCompletion();
-                    RefreshColors(ev.Stack);
+                    RefreshTileVisuals(ev.Stack);
                 }
                 if (ev.Kind == SettleKind.Collapse)
                 {
                     yield return MergeTiles(ev.Stack, ev.DoomedUids, ev.NewTileUid);
-                    RefreshColors(ev.Stack);
+                    RefreshTileVisuals(ev.Stack);
                 }
                 if (ev.BoxRemoved)
                 {
@@ -581,14 +578,17 @@ namespace WordStack.Board
         {
             var box = g.TopBox(s);
             if (box == null) return;
-            var colors = Game.BoxColorIndices(box);
+            pairOrdinals.Remove(s);   // hộp mới (dựng bàn / lộ hộp dưới) → sticky làm lại từ đầu
+            var counts = GroupCountsIn(box);
+            var ordinals = PairOrdinalsFor(s, box, counts);
             for (int i = 0; i < box.Slots.Length; i++)
             {
                 var t = box.Slots[i];
                 if (t == null) continue;
                 var tv = Instantiate(tilePrefab, boxViews[s].Slot(i), false);
                 tv.transform.localPosition = Vector3.zero;
-                tv.Bind(t, ArtOf(t), ColorOf(colors, t.Uid), TileOrder, SlotSize);
+                tv.Bind(t, ArtOf(t), TileOrder);
+                tv.SetMatchState(counts[t.GroupId], OrdinalOf(ordinals, t.GroupId));
                 tiles[t.Uid] = tv;
             }
         }
@@ -602,10 +602,11 @@ namespace WordStack.Board
             int i = Array.FindIndex(box.Slots, t => t != null && t.Uid == uid);
             if (i < 0) return;
             var t = box.Slots[i];
-            var colors = Game.BoxColorIndices(box);
             var tv = Instantiate(tilePrefab, boxViews[s].Slot(i), false);
             tv.transform.localPosition = Vector3.zero;
-            tv.Bind(t, ArtOf(t), ColorOf(colors, t.Uid), TileOrder, SlotSize);
+            tv.Bind(t, ArtOf(t), TileOrder);
+            var cc = GroupCountsIn(box);
+            tv.SetMatchState(cc[t.GroupId], OrdinalOf(PairOrdinalsFor(s, box, cc), t.GroupId));
             tv.transform.localScale = Vector3.zero;
 
             var go = tv.gameObject;
@@ -619,24 +620,79 @@ namespace WordStack.Board
             tiles[t.Uid] = tv;
         }
 
-        void RefreshColors(int s)
+        // Sprite nền theo số thẻ cùng nhóm — refresh sau nước đi (cả 2 hộp) và sau
+        // mỗi bước cascade.
+        void RefreshTileVisuals(int s)
         {
             var box = g.TopBox(s);
             if (box == null) return;
-            var colors = Game.BoxColorIndices(box);
-            foreach (var t in box.Slots)
+            var counts = GroupCountsIn(box);
+            var ordinals = PairOrdinalsFor(s, box, counts);
+            for (int i = 0; i < box.Slots.Length; i++)
             {
+                var t = box.Slots[i];
                 if (t == null) continue;
                 TileView tv;
-                if (tiles.TryGetValue(t.Uid, out tv) && tv != null) tv.SetColor(ColorOf(colors, t.Uid));
+                if (tiles.TryGetValue(t.Uid, out tv) && tv != null)
+                    tv.SetMatchState(counts[t.GroupId], OrdinalOf(ordinals, t.GroupId));
             }
         }
 
-        Color ColorOf(Dictionary<string, int> colors, string uid)
+        // Option cặp STICKY: cặp giữ nguyên Option đã nhận cho đến khi tan — cặp đứng
+        // trước biến mất thì cặp sau KHÔNG đổi sprite. State thuần view (domain không
+        // biết): map gid→ordinal theo stack, reset khi hộp đổi (SpawnTiles) / bàn huỷ.
+        readonly Dictionary<int, Dictionary<string, int>> pairOrdinals =
+            new Dictionary<int, Dictionary<string, int>>();
+
+        Dictionary<string, int> PairOrdinalsFor(int s, Box box, Dictionary<string, int> counts)
         {
-            int ci;
-            if (!colors.TryGetValue(uid, out ci) || ci >= palette.Length) return TileBg;
-            return palette[ci];
+            Dictionary<string, int> map;
+            if (!pairOrdinals.TryGetValue(s, out map))
+            {
+                map = new Dictionary<string, int>();
+                pairOrdinals[s] = map;
+            }
+
+            // Thả ordinal của nhóm không còn là cặp (tan, hoặc lớn thành bộ ba).
+            List<string> stale = null;
+            foreach (var kv in map)
+            {
+                int c;
+                if (!counts.TryGetValue(kv.Key, out c) || c != 2)
+                    (stale = stale ?? new List<string>()).Add(kv.Key);
+            }
+            if (stale != null) foreach (var gid in stale) map.Remove(gid);
+
+            // Cấp ordinal trống thấp nhất cho cặp mới — hai cặp sinh cùng lúc thì
+            // theo thứ tự xuất hiện trong hộp (duyệt slot 0→3).
+            foreach (var t in box.Slots)
+            {
+                if (t == null) continue;
+                if (counts[t.GroupId] != 2 || map.ContainsKey(t.GroupId)) continue;
+                map[t.GroupId] = map.ContainsValue(0) ? 1 : 0;
+            }
+            return map;
+        }
+
+        static int OrdinalOf(Dictionary<string, int> ordinals, string gid)
+        {
+            int ord;
+            return ordinals.TryGetValue(gid, out ord) ? ord : 0;
+        }
+
+        // gid → số thẻ của nhóm đó trong hộp. Đếm ở view vì đây là dẫn xuất hiển thị
+        // thuần, không phải luật (khác BoxColorIndices — cấp màu có quy tắc riêng ở domain).
+        static Dictionary<string, int> GroupCountsIn(Box box)
+        {
+            var counts = new Dictionary<string, int>();
+            foreach (var t in box.Slots)
+            {
+                if (t == null) continue;
+                int n;
+                counts.TryGetValue(t.GroupId, out n);
+                counts[t.GroupId] = n + 1;
+            }
+            return counts;
         }
 
         void RefreshZones()
@@ -719,6 +775,7 @@ namespace WordStack.Board
                 foreach (Transform c in root) Destroy(c.gameObject);
             tiles.Clear();
             zones.Clear();
+            pairOrdinals.Clear();
             stackViews = null;
             boxViews = null;
         }
@@ -749,11 +806,6 @@ namespace WordStack.Board
         }
 
         static Rect RectAt(Vector2 center, Vector2 size) { return new Rect(center - size / 2f, size); }
-
-        static Color Hex(int rgb)
-        {
-            return new Color(((rgb >> 16) & 0xFF) / 255f, ((rgb >> 8) & 0xFF) / 255f, (rgb & 0xFF) / 255f);
-        }
 
         // --------------------------------------------------------- invariant
         // Thay cho sự an toàn mà rebuild cho không: "màn hình là hàm thuần của state".
