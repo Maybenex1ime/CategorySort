@@ -36,9 +36,9 @@ Mỗi luật dưới đây có assert tương ứng trong `demo/check.mjs` và t
 
 - Kéo **một thẻ bất kỳ trong hộp trên cùng** sang **hộp trên cùng của stack khác**.
 - Hợp lệ khi hộp đích còn ≥1 slot trống; đầy → từ chối, thẻ bay về chỗ cũ.
-- Thẻ rơi vào **slot trống đầu tiên** (trái→phải, trên→dưới). Người chơi không chọn slot.
+- Thẻ rơi vào **đúng slot người chơi thả trúng** nếu slot đó trống; slot bị chiếm (hoặc thả trúng khe/mép) → **slot trống đầu tiên** (trái→phải, trên→dưới).
 - Thả về chính hộp cũ = huỷ. Không kéo/thả được với hộp bị che.
-- **Không giới hạn số nước đi. Không timer.**
+- **Mỗi màn có số nước tối đa** (mặc định 20, chưa per-level) — hết nước chưa thắng là thua. **Không timer.**
 
 **Hoàn thành nhóm → CLEAR**
 

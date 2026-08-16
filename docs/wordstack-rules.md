@@ -1,7 +1,7 @@
 # WordStack — Luật chơi
 
 > File này **tự đủ nghĩa**: đọc một mình nó là hiểu game, không cần xem code hay tài liệu khác.
-> Mô tả **luật đang chạy thật** trong bản prototype Unity (`Assets/Prototype/PrototypeDomain.cs`),
+> Mô tả **luật đang chạy thật** trong Unity (`Assets/_Game/Board/Domain/`),
 > không phải ý định thiết kế. Chỗ nào luật chạy khác tài liệu gốc (GDD) đều được nói rõ.
 >
 > Cập nhật: 2026-08-04.
@@ -39,10 +39,17 @@ Kéo **một thẻ bất kỳ trong hộp trên cùng** sang **hộp trên cùng
 - **Hợp lệ** khi hộp đích còn ≥1 slot trống.
 - Hộp đích đầy → **từ chối**, thẻ bay về chỗ cũ (hộp đích rung để báo).
 - Thả về **chính stack cũ**, hoặc thả ra ngoài bàn → huỷ thao tác, không tính là nước đi.
-- Thẻ rơi vào **slot trống đầu tiên** của hộp đích, quét trái→phải rồi trên→dưới (index 0,1,2,3).
-  **Người chơi không chọn được slot.**
+- Thẻ rơi vào **đúng slot người chơi thả trúng**, nếu slot đó trống. Thả trúng slot đã có thẻ,
+  hoặc trúng khe giữa các slot / mép hộp → rơi về **slot trống đầu tiên**, quét trái→phải rồi
+  trên→dưới (index 0,1,2,3).
+- Slot nào **không đổi luật gom nhóm** (CLEAR đếm thành viên trong hộp, không quan tâm vị trí)
+  — nên solver cố tình bỏ qua lựa chọn slot, chỉ đi bản "slot trống đầu tiên".
 - Thẻ rút đi để lại **ô trống tại chỗ** — các thẻ còn lại trong hộp nguồn **không dồn lại**.
-- Không giới hạn số nước đi. Không timer. Bộ đếm nước đi chỉ để hiển thị, không ảnh hưởng luật.
+- Mỗi màn có **số nước tối đa** (đổi 2026-08-17; hiện là mặc định 20 cho mọi màn —
+  `GameplayStartContext.StartingMoves`, chưa cấu hình per-level). Hết nước mà bàn chưa
+  thắng → **thua**. Luật này sống ở tầng meta (`GameplayFlowAdapter`), KHÔNG trong domain:
+  `CheckStatus`/solver/selfcheck không biết move cap, số nút beam search vẫn khớp
+  `demo/check.mjs`. Không timer.
 
 ## 3. Hoàn thành nhóm → CLEAR
 

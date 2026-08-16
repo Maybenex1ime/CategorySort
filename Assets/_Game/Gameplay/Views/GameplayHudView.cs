@@ -1,3 +1,4 @@
+using LogosGame.Features.Gameplay.Flow;
 using LogosGame.Features.Gameplay.Services;
 using LogosMeta.Economy;
 using R3;
@@ -14,6 +15,11 @@ namespace LogosGame.Features.Gameplay.Views
         [Inject] private readonly IFeedbackDispatcher _feedbackDispatcher;
         [Inject] private readonly ICurrencyService _currencyService;
         [Inject] private readonly IDifficultyStateProvider _difficultyProvider;
+        [Inject] private readonly IGameplayFlowController _flowController;
+
+        // Placeholder — chưa nằm trong prefab, kéo TMP text vào là chạy. Bỏ trống
+        // thì HUD đơn giản là không hiện số nước, không lỗi.
+        [SerializeField] private TextMeshProUGUI _movesText;
 
         [SerializeField] private TextMeshProUGUI _coinText;
         [SerializeField] private GameObject _coinBoxRoot;
@@ -49,6 +55,13 @@ namespace LogosGame.Features.Gameplay.Views
             {
                 _difficultyProvider.Difficulty
                     .Subscribe(ApplyDifficultySprite)
+                    .AddTo(ref _disposables);
+            }
+
+            if (_flowController != null && _movesText != null)
+            {
+                _flowController.RemainingMoves
+                    .Subscribe(value => _movesText.text = value.ToString())
                     .AddTo(ref _disposables);
             }
         }

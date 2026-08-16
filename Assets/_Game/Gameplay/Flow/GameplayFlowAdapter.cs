@@ -23,6 +23,13 @@ namespace LogosGame.Features.Gameplay.Flow
         // Chốt mốc lúc màn bắt đầu, khi RemainingMoves vẫn đang bằng StartingMoves.
         private int _startingMoves;
 
+        // Luật thua hết nước sống Ở ĐÂY, không trong domain: CheckStatus của board
+        // không biết move cap (đổi nó là solver/selfcheck lệch demo/check.mjs).
+        // Vì board không tự bắn Finished (status còn Playing), adapter phải bắn
+        // kênh meta thay — cùng khuôn ForceOutcomeAsync của AppFlowContext.
+        private int _levelIndex;
+        private bool _outOfMovesReported;
+
         public GameplayFlowAdapter(IGameplayFlowController flow)
         {
             _flow = flow;
@@ -46,6 +53,8 @@ namespace LogosGame.Features.Gameplay.Flow
         private void OnLevelStarted(LevelStartedEvent evt)
         {
             _startingMoves = _flow.RemainingMoves.CurrentValue;
+            _levelIndex = evt.LevelIndex;
+            _outOfMovesReported = false;
         }
 
         private void OnFirstInteraction() => Fire(() => _flow.NotifyFirstInteractionAsync());
@@ -60,10 +69,22 @@ namespace LogosGame.Features.Gameplay.Flow
 
         private void OnEvaluationCompleted(LevelEvaluationEvent evt)
         {
+            // Hết nước mà bàn chưa ngã ngũ → thua. Guard _startingMoves > 0 để màn
+            // chưa cấu hình moves (mốc 0) không thành thua-ngay-nước-đầu.
+            bool loseByMoves = !evt.IsWin && !evt.IsLose && !_outOfMovesReported
+                               && _startingMoves > 0 && Remaining(evt.MovesUsed) <= 0;
+            if (loseByMoves)
+            {
+                _outOfMovesReported = true;
+                // Kênh meta trước (trừ tim, progression) rồi mới báo ViewModel —
+                // cùng thứ tự với kết quả thật từ board và với ForceOutcomeAsync.
+                LevelSignals.RaiseFinished(false, _levelIndex, evt.MovesUsed);
+            }
+
             Fire(() => _flow.NotifyEvaluationCompletedAsync(new GameplayEvaluationResult
             {
                 IsWin = evt.IsWin,
-                IsLose = evt.IsLose,
+                IsLose = evt.IsLose || loseByMoves,
                 HasPendingAnimation = evt.HasPendingAnimation,
                 RemainingMoves = Remaining(evt.MovesUsed),
                 CanRetry = true,

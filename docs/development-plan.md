@@ -15,7 +15,7 @@
 
 - Bàn chơi là các **stack**, mỗi stack là nhiều **hộp 4 slot xếp chồng**. Chỉ **hộp trên cùng** tương tác được; hộp dưới đã có sẵn thẻ nhưng bị che, chỉ lộ mép viền.
 - Mỗi thẻ thuộc đúng 1 **group** (4 thành viên). Thẻ hiện ra bằng **chữ, hình, hoặc cả hai** — match bằng ngữ nghĩa, xuyên cả hai phương thức.
-- **Chỉ 1 loại nước đi**: kéo thẻ bất kỳ trong hộp trên cùng sang hộp trên cùng của stack khác, vào **slot trống đầu tiên**. Hộp đích đầy → từ chối. **Không giới hạn nước đi, không timer.**
+- **Chỉ 1 loại nước đi**: kéo thẻ bất kỳ trong hộp trên cùng sang hộp trên cùng của stack khác, vào **đúng slot thả trúng nếu slot đó trống, không thì slot trống đầu tiên**. Hộp đích đầy → từ chối. **Mỗi màn có số nước tối đa (mặc định 20), hết nước chưa thắng là thua; không timer.**
 - Gom đủ **4 thành viên của một group vào cùng một hộp** → **CLEAR**: 4 thẻ biến mất; hộp rỗng mà không phải hộp đáy thì bị xoá, hộp dưới lộ ra. Sau mỗi nước đi engine chạy **dây chuyền** tới khi bàn đứng yên.
 - **Màu gợi ý**: trong cùng một hộp, group có ≥2 thẻ được tô cùng màu; cấp phát cục bộ theo từng hộp, không cố định toàn cục.
 - **Thắng**: dọn sạch bàn. **Kẹt**: mọi hộp trên cùng đầy và không nhóm nào hoàn thành được — không có màn Thua, chỉ toast + Restart.
@@ -59,16 +59,16 @@ Skill dùng ngoài luồng khi cần: `unity-bug-root-cause` (khi có bug), `ccg
 - **MVP**: chỉ kết cục CLEAR, không ads/IAP/meta.
 - **Scope tiers**: MVP (CLEAR) → COLLAPSE + Undo/Hint + nhiều level → polish phát hành.
 
-## Giai đoạn 1b — Prototype vứt đi (đang làm)
+## Giai đoạn 1b — Prototype (xong)
 
-Hai bước, bước 1 xong:
+Ba bước:
 
 **Bước 1 — demo HTML (xong, đã duyệt).** `demo/wordstack-clear-demo.html`: 1 file self-contained,
 đủ luật core, 2 level, chơi được bằng chuột lẫn ngón tay. `demo/check.mjs` trích engine thẳng từ
 file HTML nên test đúng code đang chạy; có beam-search solver chứng minh cả 2 level giải được ở
 **cả hai** cách đọc luật xoá hộp. Mục tiêu "core loop có vui không?" — đã trả lời.
 
-**Bước 2 — port sang Unity (đang làm).** Vẫn đúng 3 file trong `Assets/Prototype/`, không thêm
+**Bước 2 — port sang Unity (xong).** Đúng 3 file trong `Assets/Prototype/`, không thêm
 file `.cs` nào, không thêm package nào.
 
 | Phase | Việc | Xong khi |
@@ -80,9 +80,15 @@ file `.cs` nào, không thêm package nào.
 | P3 | Kéo thả: zone mới + tái dùng khối game-feel sẵn có | Kéo tay đúng luật, hộp đầy rung + snap-back |
 | P4 | Coroutine cascade + khoá input + toast/overlay + settle ngay sau load | Chơi tay thắng cả 2 level trong Editor |
 
-Code này không mang sang production. Ràng buộc quan trọng nhất: `PrototypeDomain.cs`
-**không import UnityEngine**, nên luật kiểm được bằng `./selfcheck.sh` trong ~2 giây thay vì
-mở Editor — đó là vòng phản hồi nhanh nhất khi sửa luật hoặc sửa level.
+**Bước 3 — productionize (xong 2026-08-15).** Luật chơi vui thật nên code được giữ chứ không vứt:
+cả prototype dời vào `Assets/_Game/Board/` thành assembly **`WordStack.Board`** — `Domain/`
+(C# thuần, không UnityEngine) · `Views/` (MonoBehaviour adapter) · `Editor/` (tool level +
+driver test) · `Tests/` (EditMode). `Assets/Prototype/` đã xoá; view vẽ-bằng-code cũ
+(`PrototypeView.cs`) và `PrefabBuilder.cs` xoá theo. Luật **không đổi một dòng**.
+
+Ràng buộc quan trọng nhất giữ nguyên: `Domain/` **không import UnityEngine**, nên luật kiểm được
+bằng `./selfcheck.sh` trong ~2 giây thay vì mở Editor — đó là vòng phản hồi nhanh nhất khi sửa
+luật hoặc sửa level.
 
 ## Giai đoạn 2 — Systems Design (`ccgs-map-systems` → `ccgs-design-system`) (2-3 ngày)
 
