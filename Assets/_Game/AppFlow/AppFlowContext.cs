@@ -94,7 +94,7 @@ namespace WordStack.Meta.AppFlow
 
         /// <summary>
         /// Nạp màn hiện tại theo đường aquapark: dựng GameplayStartContext từ catalog,
-        /// đưa vào ViewModel → nó publish AddressKey → BoardInitializerView nạp JSON
+        /// đưa vào ViewModel → nó publish AddressKey → BoardInitializer nạp JSON
         /// qua Addressables → LevelCommands đưa xuống BoardController.
         ///
         /// Luôn dùng ResetLevelAsync (không phải StartLevelAsync): chơi lại cùng màn

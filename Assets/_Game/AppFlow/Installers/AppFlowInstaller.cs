@@ -99,6 +99,14 @@ namespace WordStack.Meta.AppFlow.Installers
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Eager);
 
+            // Nạp level: nghe AddressKey → Addressables → LevelCommands.RequestLoad.
+            // Eager BẮT BUỘC cùng lý do trên; bản MonoBehaviour cũ (BoardInitializerView)
+            // chưa từng nằm trong scene nào nên bàn không bao giờ nạp.
+            builder.RegisterType(typeof(BoardInitializer),
+                new[] { typeof(BoardInitializer), typeof(System.IDisposable) },
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Eager);
+
             // Lazy: UIManager do UIInstaller đăng ký, thứ tự component trên
             // SceneScope không đảm bảo. AppBootstrap resolve ở Start nên đủ trễ.
             builder.RegisterFactory<IAppFlowManager>(

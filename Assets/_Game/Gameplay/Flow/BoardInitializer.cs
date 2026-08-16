@@ -1,47 +1,45 @@
-using LogosGame.Features.Gameplay.Flow;
+using System;
 using LogosMeta.Progression;
 using LogosSDK.Core.Logging;
 using LogosSDK.Save;
 using R3;
-using Reflex.Attributes;
 using UnityEngine;
 using UnityEngine.AddressableAssets;
 using UnityEngine.ResourceManagement.AsyncOperations;
 using WordStack.Contracts;
 using ILogger = LogosSDK.Core.Logging.ILogger;
 
-namespace LogosGame.Features.Gameplay.Views
+namespace LogosGame.Features.Gameplay.Flow
 {
     /// <summary>
-    /// Port ý tưởng BoardInitializerView của aquapark: nghe AddressKey từ ViewModel,
-    /// nạp level qua Addressables, đưa cho gameplay.
+    /// Nghe AddressKey từ ViewModel, nạp level qua Addressables, đưa cho gameplay
+    /// qua LevelCommands (C# thuần — board ở WordStack.Board, Meta không ref nó).
     ///
-    /// Khác bản gốc: level WordStack là TextAsset JSON (không phải BoardDefinition),
-    /// và board nằm ở Assembly-CSharp không inject được — nên bước cuối đi qua
-    /// LevelCommands (C# thuần) thay vì gọi IGameplayLifecycle.
-    ///
-    /// Đặt trong Main.unity, cùng scene với SceneScope.
+    /// Plain C# đăng ký Eager trong AppFlowInstaller, KHÔNG phải MonoBehaviour:
+    /// bản Mono cũ (BoardInitializerView) chưa từng được đặt vào scene nào nên
+    /// AddressKey publish vào hư không và bàn không bao giờ nạp — cùng lớp bug
+    /// với BoosterManager trước đây.
     /// </summary>
-    public sealed class BoardInitializerView : MonoBehaviour
+    public sealed class BoardInitializer : IDisposable
     {
-        private static readonly ILogger _logger = LogManager.GetLogger<BoardInitializerView>();
+        private static readonly ILogger _logger = LogManager.GetLogger<BoardInitializer>();
 
-        [Inject] private readonly IGameplayFlowController _flow;
-        [Inject] private readonly ISaveManager _saveManager;
+        private readonly ISaveManager _saveManager;
 
         private DisposableBag _disposables;
         private AsyncOperationHandle<TextAsset> _handle;
         private bool _hasHandle;
 
-        private void Start()
+        public BoardInitializer(IGameplayFlowController flow, ISaveManager saveManager)
         {
-            _flow.AddressKey
+            _saveManager = saveManager;
+            flow.AddressKey
                 .Where(key => !string.IsNullOrEmpty(key))   // ResetLevelAsync xoá key trước khi set — bỏ qua nhịp rỗng
                 .Subscribe(LoadLevelInBackground)
                 .AddTo(ref _disposables);
         }
 
-        private void OnDestroy()
+        public void Dispose()
         {
             _disposables.Dispose();
             ReleaseHandle();
@@ -77,7 +75,7 @@ namespace LogosGame.Features.Gameplay.Views
                 _logger.Info($"[BoardInitializer] '{addressKey}' → màn {levelIndex} ({asset.text.Length} ký tự JSON)");
                 LevelCommands.RequestLoad(levelIndex, asset.text);
             }
-            catch (System.Exception ex)
+            catch (Exception ex)
             {
                 _logger.Error(ex, $"[BoardInitializer] Nạp '{addressKey}' thất bại.");
             }

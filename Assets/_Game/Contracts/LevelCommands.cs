@@ -10,7 +10,7 @@ namespace WordStack.Contracts
     // Không có người nghe thì không xảy ra gì — gameplay chạy độc lập được.
 
     /// <summary>
-    /// AppFlow (qua BoardInitializerView) đưa NỘI DUNG level cho gameplay.
+    /// AppFlow (qua BoardInitializer) đưa NỘI DUNG level cho gameplay.
     /// Board không còn tự nạp từ Resources — nó nhận JSON của đúng một màn,
     /// kèm chỉ số màn để báo ngược qua LevelSignals.
     /// </summary>
