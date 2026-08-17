@@ -1,0 +1,67 @@
+{
+  "id": "lv-007",
+  "title": "Thap 5 tang",
+  "difficulty": "Hard",
+  "note": "Map 3x3 du 9 stack. Stack [0,0] la thap 5 hop: 4/3/2/1 tile + hop day rong. Moi nhom rai deu cac tang de phai boc dan tung lop. 6 nhom phang, khong collapse.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["apple","dog","car","guitar"] },
+          { "slots": ["banana","cat","airplane",null] },
+          { "slots": ["orange","bear",null,null] },
+          { "slots": ["grape",null,null,null] },
+          { "slots": [null,null,null,null] }
+      ]},
+      { "pos": [1,0], "boxes": [ { "slots": ["soccer","tennis","chess",null] } ]},
+      { "pos": [2,0], "boxes": [ { "slots": ["swim","red","blue",null] } ]},
+      { "pos": [0,1], "boxes": [ { "slots": ["green","yellow",null,null] } ]},
+      { "pos": [1,1], "boxes": [ { "slots": ["rabbit","bicycle",null,null] } ]},
+      { "pos": [2,1], "boxes": [ { "slots": ["bus","piano",null,null] } ]},
+      { "pos": [0,2], "boxes": [ { "slots": ["violin",null,null,null] } ]},
+      { "pos": [1,2], "boxes": [ { "slots": ["drum",null,null,null] } ]},
+      { "pos": [2,2], "boxes": [ { "slots": [null,null,null,null] } ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"fruit", "text":"Fruit", "cards": [
+          { "id":"apple",  "art":"apple"  },
+          { "id":"banana", "art":"banana" },
+          { "id":"orange", "art":"orange" },
+          { "id":"grape",  "text":"Nho"   }
+      ]},
+      { "id":"animal", "text":"Animal", "cards": [
+          { "id":"dog",    "art":"dog"    },
+          { "id":"cat",    "art":"cat"    },
+          { "id":"bear",   "art":"bear"   },
+          { "id":"rabbit", "text":"Tho"   }
+      ]},
+      { "id":"vehicle", "text":"Vehicle", "cards": [
+          { "id":"car",      "art":"car"      },
+          { "id":"airplane", "art":"airplane" },
+          { "id":"bicycle",  "art":"bicycle"  },
+          { "id":"bus",      "text":"Xe buyt" }
+      ]},
+      { "id":"instrument", "text":"Instrument", "cards": [
+          { "id":"guitar", "art":"guitar" },
+          { "id":"piano",  "art":"piano"  },
+          { "id":"violin", "art":"violin" },
+          { "id":"drum",   "text":"Trong" }
+      ]},
+      { "id":"sport", "text":"Sport", "cards": [
+          { "id":"soccer", "text":"Bong da"  },
+          { "id":"tennis", "text":"Tennis"   },
+          { "id":"chess",  "text":"Co vua"   },
+          { "id":"swim",   "text":"Boi loi"  }
+      ]},
+      { "id":"color", "text":"Color", "cards": [
+          { "id":"red",    "text":"Do"    },
+          { "id":"blue",   "text":"Xanh"  },
+          { "id":"green",  "text":"Luc"   },
+          { "id":"yellow", "text":"Vang"  }
+      ]}
+    ]
+  }
+}
