@@ -33,8 +33,10 @@ namespace LogosGame.Features.Gameplay.Services.Impl
         public void Play(HapticLevel level)
         {
             if (!_isEnabled) return;
-            if (!Application.isMobilePlatform) return;
+            // Handheld chỉ tồn tại trên build mobile — Standalone/Editor không có class này.
+#if UNITY_ANDROID || UNITY_IOS
             Handheld.Vibrate();
+#endif
         }
 
         private void LoadEnabledFromSettings()
