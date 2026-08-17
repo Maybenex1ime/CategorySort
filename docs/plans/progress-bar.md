@@ -1,6 +1,7 @@
 # Kế hoạch: Progress bar trong màn (Cleared / TotalGroups)
 
-> Viết 2026-08-17, chưa thực thi. Giả định: bar = tiến độ TRONG màn (nhóm đã gom /
+> Viết 2026-08-17, **đã thực thi cùng ngày** (commit `98afb11`; còn thiếu wiring Editor —
+> user tự đặt Bar - Under/Upper vào prefab). Giả định: bar = tiến độ TRONG màn (nhóm đã gom /
 > tổng nhóm) — khớp art `Bar - Under.png` / `Bar - Upper.png` trong `_Game/Art/Sprites/`.
 > Nếu muốn progression giữa các màn (map) thì kế hoạch này không áp dụng.
 
