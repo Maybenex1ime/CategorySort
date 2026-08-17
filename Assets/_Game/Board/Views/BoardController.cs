@@ -36,7 +36,7 @@ namespace WordStack.Board
         static float PitchY { get { return BoxSize + 0.62f; } }   // chừa chỗ cho lớp lấp ló
 
         // ---- Sorting order (bảng đầy đủ ở Mục 4 của doc) ----
-        const int TileOrder = 3;
+        const int TileOrder = 10;   // bg 10, art 11 (TileView cộng +1) — trên thân box/peek
         const int FlyOrder = 90;
         const int GhostTileOrder = 100;
 
