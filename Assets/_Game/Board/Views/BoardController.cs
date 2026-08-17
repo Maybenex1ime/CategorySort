@@ -304,6 +304,7 @@ namespace WordStack.Board
             var gt = Instantiate(tilePrefab, ghost.TileAnchor, false);
             gt.transform.localPosition = Vector3.zero;
             gt.Bind(t, ArtOf(t));
+            gt.SetFlying(true);      // thẻ đang kéo = thẻ đang bay: nổi trên mọi hộp/thẻ trên bàn
 
             DOTween.Kill(HoverPunchId, true);             // trả góc quay về 0 trước khi nhấc
             TileView tv;
