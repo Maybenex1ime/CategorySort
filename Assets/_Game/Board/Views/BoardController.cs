@@ -33,7 +33,7 @@ namespace WordStack.Board
         const float SlotGap = 0.08f;
         static float SlotSize { get { return (BoxSize - 2f * BoxPad - SlotGap) / 2f; } }
         static float PitchX { get { return BoxSize + 0.28f; } }
-        static float PitchY { get { return BoxSize + 1.02f; } }   // chừa chỗ cho lớp lấp ló + tile marker
+        static float PitchY { get { return BoxSize + 1.32f; } }   // chừa chỗ cho lớp lấp ló + tile marker
 
         // Sorting order KHÔNG set từ code nữa — author hết trong prefab
         // (Tile.prefab bg 10 / art 11, Ghost.prefab, Stack.prefab...).
