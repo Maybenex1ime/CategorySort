@@ -80,6 +80,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b313541080c31794db30a8c74c679426
+    m_Address: lv-007
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: fa5749f73709146bcb819009979221e8
     m_Address: FailedPopup
     m_ReadOnly: 0

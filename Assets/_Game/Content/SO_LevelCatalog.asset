@@ -49,3 +49,9 @@ MonoBehaviour:
     Difficulty: 2
     HideSettingsButton: 0
     HideCoinBox: 0
+  - LevelId: lv-007
+    AddressKey: lv-007
+    DisplayName: Thap 5 tang
+    Difficulty: 2
+    HideSettingsButton: 0
+    HideCoinBox: 0
