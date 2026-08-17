@@ -781,10 +781,17 @@ namespace WordStack.Board
             boxViews = null;
         }
 
+        // Khung nhìn CỐ ĐỊNH theo lưới 3x3: mọi màn cùng cỡ khung, màn ít hộp không bị
+        // zoom to. Pos trong JSON giờ là tọa độ tuyệt đối trong lưới 0..2.
+        const int GridCols = 3, GridRows = 3;
+
         void FitCamera()
         {
-            float minX = g.Stacks.Min(s => (float)s.X), maxX = g.Stacks.Max(s => (float)s.X);
-            float minY = g.Stacks.Min(s => (float)s.Y), maxY = g.Stacks.Max(s => (float)s.Y);
+            // Union khung 3x3 với pos thực tế — level lỡ đặt ngoài lưới vẫn không bị cắt.
+            float minX = Mathf.Min(0f, (float)g.Stacks.Min(s => s.X));
+            float maxX = Mathf.Max(GridCols - 1f, (float)g.Stacks.Max(s => s.X));
+            float minY = Mathf.Min(0f, (float)g.Stacks.Min(s => s.Y));
+            float maxY = Mathf.Max(GridRows - 1f, (float)g.Stacks.Max(s => s.Y));
             float cx = (minX + maxX) / 2f * PitchX;
             float cy = -(minY + maxY) / 2f * PitchY;
             float halfW = (maxX - minX) / 2f * PitchX + BoxSize / 2f + 0.4f;
