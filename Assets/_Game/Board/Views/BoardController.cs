@@ -571,7 +571,7 @@ namespace WordStack.Board
         void RevealBox(int s)
         {
             boxViews[s].ResetVisual();
-            stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1);
+            stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1, TilesInSecondBox(g.Stacks[s]));
             SpawnTiles(s);                                 // thẻ của hộp vừa lộ
         }
 
@@ -756,7 +756,7 @@ namespace WordStack.Board
                 bv.transform.localPosition = Vector3.zero;
                 boxViews[s] = bv;
 
-                sv.ShowDepth(st.Boxes.Count - 1);
+                sv.ShowDepth(st.Boxes.Count - 1, TilesInSecondBox(st));
                 SpawnTiles(s);
             }
 
@@ -798,6 +798,13 @@ namespace WordStack.Board
             float halfH = (maxY - minY) / 2f * PitchY + BoxSize / 2f + 1.5f;   // chừa HUD trên + gợi ý dưới
             cam.transform.position = new Vector3(cx, cy, -10f);
             cam.orthographicSize = Mathf.Max(halfH, halfW / Mathf.Max(cam.aspect, 0.01f));
+        }
+
+        // Ruột hộp nằm dưới không bao giờ đổi khi đang nằm dưới (nước đi chỉ đụng top box),
+        // nên chỉ cần tính ở đúng 2 chỗ gọi ShowDepth: dựng bàn + lộ hộp mới.
+        static int TilesInSecondBox(Stack st)
+        {
+            return st.Boxes.Count > 1 ? Rules.BoxCapacity - Game.FreeCount(st.Boxes[1]) : 0;
         }
 
         static Vector2 StackWorldPos(Stack st)
