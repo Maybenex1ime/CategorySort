@@ -1,3 +1,4 @@
+using DG.Tweening;
 using LogosGame.Features.Gameplay.Flow;
 using LogosGame.Features.Gameplay.Services;
 using LogosMeta.Economy;
@@ -20,6 +21,13 @@ namespace LogosGame.Features.Gameplay.Views
         // Placeholder — chưa nằm trong prefab, kéo TMP text vào là chạy. Bỏ trống
         // thì HUD đơn giản là không hiện số nước, không lỗi.
         [SerializeField] private TextMeshProUGUI _movesText;
+
+        [Header("Progress bar (Cleared/TotalGroups)")]
+        // _progressFill: sprite `Bar - Upper`, Image type Filled/Horizontal.
+        // _progressRoot: cụm để ẩn khi total = 0; bỏ trống thì ẩn mỗi _progressFill.
+        [SerializeField] private Image _progressFill;
+        [SerializeField] private TextMeshProUGUI _progressText;
+        [SerializeField] private GameObject _progressRoot;
 
         [SerializeField] private TextMeshProUGUI _coinText;
         [SerializeField] private GameObject _coinBoxRoot;
@@ -63,6 +71,46 @@ namespace LogosGame.Features.Gameplay.Views
                 _flowController.RemainingMoves
                     .Subscribe(value => _movesText.text = value.ToString())
                     .AddTo(ref _disposables);
+            }
+
+            if (_flowController != null && (_progressFill != null || _progressText != null))
+            {
+                _flowController.GroupsCleared.Subscribe(_ => RefreshProgress()).AddTo(ref _disposables);
+                _flowController.TotalGroups.Subscribe(_ => RefreshProgress()).AddTo(ref _disposables);
+            }
+        }
+
+        private void RefreshProgress()
+        {
+            int cleared = _flowController.GroupsCleared.CurrentValue;
+            int total = _flowController.TotalGroups.CurrentValue;
+
+            GameObject root = _progressRoot != null
+                ? _progressRoot
+                : (_progressFill != null ? _progressFill.gameObject : null);
+            if (root != null)
+            {
+                root.SetActive(total > 0);
+            }
+            if (total <= 0) return;
+
+            if (_progressFill != null)
+            {
+                float target = (float)cleared / total;
+                _progressFill.DOKill();
+                if (cleared == 0)
+                {
+                    _progressFill.fillAmount = 0f;   // vào màn/chơi lại: snap, khỏi tween tụt về 0
+                }
+                else
+                {
+                    _progressFill.DOFillAmount(target, 0.25f);
+                }
+            }
+
+            if (_progressText != null)
+            {
+                _progressText.text = $"{cleared}/{total}";
             }
         }
 

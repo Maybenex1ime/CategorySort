@@ -17,12 +17,17 @@ namespace WordStack.Contracts
     {
         public int LevelIndex { get; }
 
+        // Mẫu số của progress bar. Phải đi đường này chứ không phải
+        // GameplayStartContext: chỉ board parse JSON mới biết số nhóm.
+        public int TotalGroups { get; }
+
         // Difficulty đã rời khỏi event này: runtime đọc độ khó từ catalog
         // (GameplayStartContext → IDifficultyStateProvider), file level chỉ còn
         // là nguồn seed cho tool build catalog.
-        public LevelStartedEvent(int levelIndex)
+        public LevelStartedEvent(int levelIndex, int totalGroups)
         {
             LevelIndex = levelIndex;
+            TotalGroups = totalGroups;
         }
     }
 
@@ -40,12 +45,16 @@ namespace WordStack.Contracts
 
         public int MovesUsed { get; }
 
-        public LevelEvaluationEvent(bool isWin, bool isLose, bool hasPendingAnimation, int movesUsed)
+        /// <summary>Số nhóm đã gom xong (Game.Cleared) — tử số của progress bar.</summary>
+        public int GroupsCleared { get; }
+
+        public LevelEvaluationEvent(bool isWin, bool isLose, bool hasPendingAnimation, int movesUsed, int groupsCleared)
         {
             IsWin = isWin;
             IsLose = isLose;
             HasPendingAnimation = hasPendingAnimation;
             MovesUsed = movesUsed;
+            GroupsCleared = groupsCleared;
         }
     }
 
@@ -85,8 +94,8 @@ namespace WordStack.Contracts
         /// <summary>Chuỗi animation của lượt vừa rồi đã chạy hết.</summary>
         public static event Action AnimationCompleted;
 
-        public static void RaiseStarted(int levelIndex)
-            => Started?.Invoke(new LevelStartedEvent(levelIndex));
+        public static void RaiseStarted(int levelIndex, int totalGroups)
+            => Started?.Invoke(new LevelStartedEvent(levelIndex, totalGroups));
 
         public static void RaiseFinished(bool isWin, int levelIndex, int movesUsed)
             => Finished?.Invoke(new LevelResultEvent(isWin, levelIndex, movesUsed));
@@ -97,8 +106,8 @@ namespace WordStack.Contracts
         public static void RaiseMoveCommitted(int movesUsed)
             => MoveCommitted?.Invoke(movesUsed);
 
-        public static void RaiseEvaluationCompleted(bool isWin, bool isLose, bool hasPendingAnimation, int movesUsed)
-            => EvaluationCompleted?.Invoke(new LevelEvaluationEvent(isWin, isLose, hasPendingAnimation, movesUsed));
+        public static void RaiseEvaluationCompleted(bool isWin, bool isLose, bool hasPendingAnimation, int movesUsed, int groupsCleared)
+            => EvaluationCompleted?.Invoke(new LevelEvaluationEvent(isWin, isLose, hasPendingAnimation, movesUsed, groupsCleared));
 
         public static void RaiseAnimationCompleted()
             => AnimationCompleted?.Invoke();

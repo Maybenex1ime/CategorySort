@@ -191,7 +191,7 @@ namespace WordStack.Board
             BuildBoard();
             resultReported = false;
             firstInteractionRaised = false;
-            LevelSignals.RaiseStarted(levelIndex);          // tầng meta trừ tim ở đây
+            LevelSignals.RaiseStarted(levelIndex, g.TotalGroups);   // tầng meta trừ tim ở đây
             StartCoroutine(Settle());          // hộp nạp sẵn nhóm đủ phải nổ ngay lúc load
         }
 
@@ -480,7 +480,8 @@ namespace WordStack.Board
                 isWin: g != null && g.Status == GameStatus.Won,
                 isLose: g != null && g.Status == GameStatus.Stuck,
                 hasPendingAnimation: hadCascade,
-                movesUsed: g != null ? g.Moves : 0);
+                movesUsed: g != null ? g.Moves : 0,
+                groupsCleared: g != null ? g.Cleared : 0);
 
             LevelSignals.RaiseAnimationCompleted();
         }

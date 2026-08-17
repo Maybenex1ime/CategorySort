@@ -171,6 +171,8 @@ namespace WordStack.Meta.AppFlow
                 IsWin = isWin,
                 IsLose = !isWin,
                 RemainingMoves = remaining,
+                // Cheat không có số thật: ép thắng cho bar đầy, ép thua giữ nguyên.
+                GroupsCleared = isWin ? _flow.TotalGroups.CurrentValue : _flow.GroupsCleared.CurrentValue,
                 CanRetry = true,
                 CanContinueToNext = isWin,
             });

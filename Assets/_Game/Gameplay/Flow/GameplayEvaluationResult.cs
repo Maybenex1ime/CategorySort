@@ -4,6 +4,7 @@ namespace LogosGame.Features.Gameplay.Flow
     {
         public int CurrentScore { get; set; }
         public int RemainingMoves { get; set; }
+        public int GroupsCleared { get; set; }
         public bool HasPendingAnimation { get; set; }
         public bool IsWin { get; set; }
         public bool IsLose { get; set; }

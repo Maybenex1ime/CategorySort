@@ -55,6 +55,9 @@ namespace LogosGame.Features.Gameplay.Flow
             _startingMoves = _flow.RemainingMoves.CurrentValue;
             _levelIndex = evt.LevelIndex;
             _outOfMovesReported = false;
+
+            // Mẫu số progress bar — chỉ board biết (parse JSON), nên đi đường này.
+            Fire(() => _flow.NotifyLevelContentReadyAsync(evt.TotalGroups));
         }
 
         private void OnFirstInteraction() => Fire(() => _flow.NotifyFirstInteractionAsync());
@@ -87,6 +90,7 @@ namespace LogosGame.Features.Gameplay.Flow
                 IsLose = evt.IsLose || loseByMoves,
                 HasPendingAnimation = evt.HasPendingAnimation,
                 RemainingMoves = Remaining(evt.MovesUsed),
+                GroupsCleared = evt.GroupsCleared,
                 CanRetry = true,
                 CanContinueToNext = evt.IsWin,
             }));

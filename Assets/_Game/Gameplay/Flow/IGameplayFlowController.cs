@@ -18,6 +18,12 @@ namespace LogosGame.Features.Gameplay.Flow
 
         ReadOnlyReactiveProperty<GameplayPhase> CurrentPhase { get; }
         ReadOnlyReactiveProperty<int> RemainingMoves { get; }
+
+        // Progress bar trong màn: nhóm đã gom / tổng nhóm. Total = 0 nghĩa là
+        // board chưa báo (HUD ẩn bar).
+        ReadOnlyReactiveProperty<int> GroupsCleared { get; }
+        ReadOnlyReactiveProperty<int> TotalGroups { get; }
+
         ReadOnlyReactiveProperty<string> LevelTitle { get; }
         ReadOnlyReactiveProperty<string> LevelId { get; }
         ReadOnlyReactiveProperty<string> AddressKey { get; }
@@ -55,6 +61,12 @@ namespace LogosGame.Features.Gameplay.Flow
 
         /// <summary>Chạm đầu tiên: Ready → Playing. Đây là thứ tắt overlay "sẵn sàng".</summary>
         Awaitable NotifyFirstInteractionAsync();
+
+        /// <summary>
+        /// Board dựng bàn xong, báo tổng số nhóm (mẫu số progress bar). Bắn TRƯỚC
+        /// nước đi đầu — GameplayStartContext không biết số này, chỉ board parse JSON biết.
+        /// </summary>
+        Awaitable NotifyLevelContentReadyAsync(int totalGroups);
 
         /// <summary>Vừa đi một nước: cập nhật moves, vào Evaluating (khoá input).</summary>
         Awaitable NotifyPlayerActionCommittedAsync(GameplayActionContext context);

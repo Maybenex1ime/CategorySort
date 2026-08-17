@@ -26,6 +26,8 @@ namespace LogosGame.Features.Gameplay.Flow
 
         private readonly ReactiveProperty<GameplayPhase> _currentPhase = new(GameplayPhase.Ready);
         private readonly ReactiveProperty<int> _remainingMoves = new(0);
+        private readonly ReactiveProperty<int> _groupsCleared = new(0);
+        private readonly ReactiveProperty<int> _totalGroups = new(0);
         private readonly ReactiveProperty<string> _levelTitle = new(string.Empty);
         private readonly ReactiveProperty<string> _levelId = new(string.Empty);
         private readonly ReactiveProperty<string> _addressKey = new(string.Empty);
@@ -46,6 +48,8 @@ namespace LogosGame.Features.Gameplay.Flow
 
         public ReadOnlyReactiveProperty<GameplayPhase> CurrentPhase => _currentPhase;
         public ReadOnlyReactiveProperty<int> RemainingMoves => _remainingMoves;
+        public ReadOnlyReactiveProperty<int> GroupsCleared => _groupsCleared;
+        public ReadOnlyReactiveProperty<int> TotalGroups => _totalGroups;
         public ReadOnlyReactiveProperty<string> LevelTitle => _levelTitle;
         public ReadOnlyReactiveProperty<string> LevelId => _levelId;
         public ReadOnlyReactiveProperty<string> AddressKey => _addressKey;
@@ -75,6 +79,10 @@ namespace LogosGame.Features.Gameplay.Flow
             _showCoinBox.Value = _currentStartContext.ShowCoinBox;
 
             _remainingMoves.Value = _currentStartContext.StartingMoves;
+
+            // 0/0 = board chưa báo, HUD ẩn bar. Total thật đến qua NotifyLevelContentReadyAsync.
+            _groupsCleared.Value = 0;
+            _totalGroups.Value = 0;
 
             ApplyPhase(GameplayPhase.Ready);
             return Completed();
@@ -114,6 +122,12 @@ namespace LogosGame.Features.Gameplay.Flow
             return Completed();
         }
 
+        public Awaitable NotifyLevelContentReadyAsync(int totalGroups)
+        {
+            _totalGroups.Value = totalGroups;
+            return Completed();
+        }
+
         public Awaitable NotifyPlayerActionCommittedAsync(GameplayActionContext context)
         {
             if (_currentPhase.Value != GameplayPhase.Playing || context == null)
@@ -130,6 +144,7 @@ namespace LogosGame.Features.Gameplay.Flow
                 return Completed();
 
             _remainingMoves.Value = result.RemainingMoves;
+            _groupsCleared.Value = result.GroupsCleared;
 
             if (result.IsWin)
             {
