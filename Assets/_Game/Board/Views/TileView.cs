@@ -27,7 +27,8 @@ namespace WordStack.Board
         public string Uid { get; private set; }
 
         // Card không có art (text-only trong level data) → thẻ chỉ hiện nền trống.
-        public void Bind(Tile t, Sprite sprite, int order)
+        // Sorting order KHÔNG set từ code — author trong Tile.prefab (bg 10, art 11).
+        public void Bind(Tile t, Sprite sprite)
         {
             Uid = t != null ? t.Uid : null;
 
@@ -40,8 +41,6 @@ namespace WordStack.Board
                 art.sprite = sprite;
                 art.transform.localPosition = Vector3.zero;
             }
-
-            SetOrder(order);
         }
 
         // groupCountInBox = tổng thẻ cùng nhóm trong hộp (kể cả thẻ này);
@@ -55,13 +54,6 @@ namespace WordStack.Board
                 : groupCountInBox == 3 ? bgTriple
                 : bgFull;
             if (next != null) bg.sprite = next;
-        }
-
-        // Thẻ đang bay được kéo lên trên mọi thứ rồi trả về order thường khi hạ cánh.
-        public void SetOrder(int order)
-        {
-            bg.sortingOrder = order;
-            art.sortingOrder = order + 1;
         }
     }
 }

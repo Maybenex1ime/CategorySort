@@ -35,10 +35,8 @@ namespace WordStack.Board
         static float PitchX { get { return BoxSize + 0.28f; } }
         static float PitchY { get { return BoxSize + 0.62f; } }   // chừa chỗ cho lớp lấp ló
 
-        // ---- Sorting order (bảng đầy đủ ở Mục 4 của doc) ----
-        const int TileOrder = 10;   // bg 10, art 11 (TileView cộng +1) — trên thân box/peek
-        const int FlyOrder = 90;
-        const int GhostTileOrder = 100;
+        // Sorting order KHÔNG set từ code nữa — author hết trong prefab
+        // (Tile.prefab bg 10 / art 11, Ghost.prefab, Stack.prefab...).
 
         // Feel hover (tham chiếu D:\Balatro-Feel CardVisual.cs): phồng + giật một cái.
         const float HoverScale = 1.07f;
@@ -305,7 +303,7 @@ namespace WordStack.Board
             ghost.Begin(pt);
             var gt = Instantiate(tilePrefab, ghost.TileAnchor, false);
             gt.transform.localPosition = Vector3.zero;
-            gt.Bind(t, ArtOf(t), GhostTileOrder);
+            gt.Bind(t, ArtOf(t));
 
             DOTween.Kill(HoverPunchId, true);             // trả góc quay về 0 trước khi nhấc
             TileView tv;
@@ -391,10 +389,8 @@ namespace WordStack.Board
             tv.transform.SetParent(anchor, false);
             tv.transform.position = fromWorld;
             tv.transform.localScale = Vector3.one;
-            tv.SetOrder(FlyOrder);
             tv.transform.DOLocalMove(Vector3.zero, flyDur).SetEase(Ease.OutCubic)
-              .SetLink(tv.gameObject)
-              .OnComplete(() => { if (tv != null) tv.SetOrder(TileOrder); });
+              .SetLink(tv.gameObject);
         }
 
         void Hover(Vector2 pt)
@@ -532,7 +528,6 @@ namespace WordStack.Board
                 if (!tiles.TryGetValue(doomedUids[i], out tv) || tv == null) continue;
                 tiles.Remove(doomedUids[i]);
                 var go = tv.gameObject;
-                tv.SetOrder(FlyOrder);                       // đang bay thì nổi lên trên hộp
                 float at = i * mergeStagger;
 
                 // InBack: nhích ra ngoài một chút rồi mới lao vào — cú lấy đà làm chuyển động
@@ -588,7 +583,7 @@ namespace WordStack.Board
                 if (t == null) continue;
                 var tv = Instantiate(tilePrefab, boxViews[s].Slot(i), false);
                 tv.transform.localPosition = Vector3.zero;
-                tv.Bind(t, ArtOf(t), TileOrder);
+                tv.Bind(t, ArtOf(t));
                 tv.SetMatchState(counts[t.GroupId], OrdinalOf(ordinals, t.GroupId));
                 tiles[t.Uid] = tv;
             }
@@ -605,7 +600,7 @@ namespace WordStack.Board
             var t = box.Slots[i];
             var tv = Instantiate(tilePrefab, boxViews[s].Slot(i), false);
             tv.transform.localPosition = Vector3.zero;
-            tv.Bind(t, ArtOf(t), TileOrder);
+            tv.Bind(t, ArtOf(t));
             var cc = GroupCountsIn(box);
             tv.SetMatchState(cc[t.GroupId], OrdinalOf(PairOrdinalsFor(s, box, cc), t.GroupId));
             tv.transform.localScale = Vector3.zero;
