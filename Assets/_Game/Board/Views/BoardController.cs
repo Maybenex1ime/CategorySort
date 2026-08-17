@@ -389,8 +389,10 @@ namespace WordStack.Board
             tv.transform.SetParent(anchor, false);
             tv.transform.position = fromWorld;
             tv.transform.localScale = Vector3.one;
+            tv.SetFlying(true);
             tv.transform.DOLocalMove(Vector3.zero, flyDur).SetEase(Ease.OutCubic)
-              .SetLink(tv.gameObject);
+              .SetLink(tv.gameObject)
+              .OnComplete(() => { if (tv != null) tv.SetFlying(false); });
         }
 
         void Hover(Vector2 pt)
@@ -528,6 +530,7 @@ namespace WordStack.Board
                 if (!tiles.TryGetValue(doomedUids[i], out tv) || tv == null) continue;
                 tiles.Remove(doomedUids[i]);
                 var go = tv.gameObject;
+                tv.SetFlying(true);                          // bay chụm về ô đích thì nổi lên trên hộp
                 float at = i * mergeStagger;
 
                 // InBack: nhích ra ngoài một chút rồi mới lao vào — cú lấy đà làm chuyển động

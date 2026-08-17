@@ -55,5 +55,22 @@ namespace WordStack.Board
                 : bgFull;
             if (next != null) bg.sprite = next;
         }
+
+        // Thẻ đang bay nổi lên trên mọi hộp/thẻ, hạ cánh thì trả về order author trong prefab.
+        // Đây là chỗ DUY NHẤT code còn đụng sortingOrder — mọi giá trị tĩnh sống ở prefab.
+        const int FlyOrder = 90;
+        int bgOrder, artOrder;
+
+        void Awake()
+        {
+            bgOrder = bg.sortingOrder;
+            artOrder = art.sortingOrder;
+        }
+
+        public void SetFlying(bool flying)
+        {
+            bg.sortingOrder = flying ? FlyOrder : bgOrder;
+            art.sortingOrder = flying ? FlyOrder + 1 : artOrder;
+        }
     }
 }
