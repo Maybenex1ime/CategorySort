@@ -1671,41 +1671,41 @@ function rawToGame(raw){
       errors.push(`Stack ${si + 1} có box ${bi + 1} rỗng nhưng không phải box đáy — game cấm.`);
   }));
 
-  // Mỗi ảnh một chủ
-  const artOwner = new Map();
-  const claimArt = (icon, who) => {
-    if (!icon) return;
-    if (artOwner.has(icon)) errors.push(`Icon ${icon} dùng cho cả ${artOwner.get(icon)} và ${who} — game bắt mỗi ảnh một chủ.`);
-    else artOwner.set(icon, who);
-  };
-  for (const g of groups){
-    claimArt(icons[g.name], `nhóm "${g.name}"`);
-    for (const w of g.words || []) if (w && !topicNames.has(w)) claimArt(icons[w], `"${w}"`);
-  }
+  // Tên ảnh suy từ TÊN thẻ/nhóm: thẻ "Poodle" → poodle.png, nhóm "dog" → dog.png —
+  // đúng lối đặt tên trong Resources/Art. Emoji chỉ là hình xem trước lúc xếp bàn,
+  // không đi vào file level. Muốn tên file khác nhãn (thẻ "Ice cream" mà file là
+  // ice_cream.png) thì gõ thẳng tên file vào ô icon, tool dùng nguyên chuỗi đó.
+  const artKeyFor = (label, icon) =>
+    (icon && /^[\x20-\x7e]+$/.test(icon)) ? icon : slugify(label);
 
-  // Mọi thẻ phải có ảnh, và ảnh đó phải có file thật. Nhóm CON cũng hoá thành một
-  // thẻ lúc COLLAPSE nên cũng cần ảnh; nhóm GỐC thì không — đủ bộ là tan, không
-  // sinh thẻ nào.
-  const artOf = new Map();
+  // Nhóm CON hoá thành một thẻ lúc COLLAPSE nên cũng cần ảnh; nhóm GỐC thì không —
+  // đủ bộ là tan, không sinh thẻ nào. Gán ảnh cho nhóm gốc vẫn được, và vẫn phải có
+  // file thật vì game kiểm mọi art được khai.
+  const cardArt = new Map(), groupArt = new Map(), artOf = new Map(), artOwner = new Map();
+  const claimArt = (who, key) => {
+    if (artOwner.has(key)) errors.push(`Ảnh "${key}" dùng cho cả ${artOwner.get(key)} và ${who} — game bắt mỗi ảnh một chủ.`);
+    else { artOwner.set(key, who); artOf.set(who, key); }
+  };
   for (const w of placeable){
-    if (!icons[w]) errors.push(`Thẻ "${w}" chưa có ảnh.`);
-    else artOf.set(`Thẻ "${w}"`, emojiArtKey(icons[w]));
+    const k = artKeyFor(w, icons[w]);
+    cardArt.set(w, k);
+    claimArt(`Thẻ "${w}"`, k);
   }
   for (const g of groups){
-    // Khai ảnh rồi thì ảnh phải có file — game kiểm mọi art được khai, kể cả của
-    // nhóm gốc (ảnh đó không hiện thành thẻ, nhưng trỏ sai vẫn làm level chết).
-    if (icons[g.name]) artOf.set(`Nhóm "${g.name}"`, emojiArtKey(icons[g.name]));
-    else if (parentOf[g.id]) errors.push(`Nhóm "${g.name}" sẽ COLLAPSE thành một thẻ nhưng chưa có ảnh.`);
+    if (!parentOf[g.id] && !icons[g.name]) continue;
+    const k = artKeyFor(g.name, icons[g.name]);
+    groupArt.set(g.id, k);
+    claimArt(`Nhóm "${g.name}"`, k);
   }
 
   const artDir = artIndex();
   if (!artDir)
-    warnings.push('Chưa nạp thư mục ảnh nên chưa kiểm được ảnh có file thật hay không — bấm "🖼 Thư mục ảnh…" rồi chọn Assets/_Game/Content/Resources/Art.');
+    warnings.push('Chưa nạp thư mục ảnh nên chưa kiểm được thẻ nào thiếu ảnh — bấm "🖼 Thư mục ảnh…" rồi chọn Assets/_Game/Content/Resources/Art.');
   else
     for (const [who, key] of artOf){
       const hits = artHits(artDir, key);
       if (!hits)
-        errors.push(`${who} trỏ ảnh "${key}" nhưng ${artDir.dir} không có file nào tên vậy.`);
+        errors.push(`${who} cần ảnh "${key}.png" nhưng ${artDir.dir} không có file nào tên vậy — thêm ảnh đó, hoặc gõ đúng tên file vào ô icon.`);
       else if (hits.length > 1)
         errors.push(`${hits.length} ảnh trùng tên "${key}" (${hits.join(', ')}) — phải đổi tên cho khác nhau, game nạp ảnh bằng tên file nên không phân biệt được.`);
     }
@@ -1735,10 +1735,10 @@ function rawToGame(raw){
   })) };
   gameLv.meaning = { groups: groups.map(g => {
     const o = { id: g.id, text: g.name };
-    if (icons[g.name]) o.art = emojiArtKey(icons[g.name]);
+    if (groupArt.has(g.id)) o.art = groupArt.get(g.id);
     if (parentOf[g.id]) o.group = parentOf[g.id];
-    o.cards = (g.words || []).filter(w => w && !topicNames.has(w)).map(w =>
-      icons[w] ? { id: idOf.get(w), art: emojiArtKey(icons[w]) } : { id: idOf.get(w), text: w });
+    o.cards = (g.words || []).filter(w => w && !topicNames.has(w))
+      .map(w => ({ id: idOf.get(w), art: cardArt.get(w) }));
     return o;
   }) };
 
