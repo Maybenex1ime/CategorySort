@@ -1692,9 +1692,10 @@ function rawToGame(raw){
     else artOf.set(`Thẻ "${w}"`, emojiArtKey(icons[w]));
   }
   for (const g of groups){
-    if (!parentOf[g.id]) continue;
-    if (!icons[g.name]) errors.push(`Nhóm "${g.name}" sẽ COLLAPSE thành một thẻ nhưng chưa có ảnh.`);
-    else artOf.set(`Nhóm "${g.name}"`, emojiArtKey(icons[g.name]));
+    // Khai ảnh rồi thì ảnh phải có file — game kiểm mọi art được khai, kể cả của
+    // nhóm gốc (ảnh đó không hiện thành thẻ, nhưng trỏ sai vẫn làm level chết).
+    if (icons[g.name]) artOf.set(`Nhóm "${g.name}"`, emojiArtKey(icons[g.name]));
+    else if (parentOf[g.id]) errors.push(`Nhóm "${g.name}" sẽ COLLAPSE thành một thẻ nhưng chưa có ảnh.`);
   }
 
   const artDir = artIndex();
