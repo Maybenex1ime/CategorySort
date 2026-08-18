@@ -24,6 +24,6 @@ MonoBehaviour:
     AddressKey: lv-002
     DisplayName: The world around me
     Difficulty: 0
-    Moves: 0
+    Moves: 200
     HideSettingsButton: 0
     HideCoinBox: 0
