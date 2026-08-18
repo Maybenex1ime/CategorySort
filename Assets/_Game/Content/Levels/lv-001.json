@@ -2,305 +2,78 @@
   "id": "lv-001",
   "title": "Hobbies",
   "moves": 30,
+
   "layout": {
     "stacks": [
-      {
-        "pos": [
-          0,
-          0
-        ],
-        "boxes": [
-          {
-            "slots": [
-              null,
-              "pigeon",
-              "yellow",
-              "corgi"
-            ]
-          },
-          {
-            "slots": [
-              "doll",
-              null,
-              "ball",
-              "travel"
-            ]
-          }
-        ]
-      },
-      {
-        "pos": [
-          1,
-          0
-        ],
-        "boxes": [
-          {
-            "slots": [
-              "sparrow",
-              "bengal",
-              null,
-              "parrot"
-            ]
-          }
-        ]
-      },
-      {
-        "pos": [
-          2,
-          0
-        ],
-        "boxes": [
-          {
-            "slots": [
-              "kite",
-              "husky",
-              null,
-              "music"
-            ]
-          }
-        ]
-      },
-      {
-        "pos": [
-          0,
-          1
-        ],
-        "boxes": [
-          {
-            "slots": [
-              "sport",
-              "poodle",
-              null,
-              null
-            ]
-          }
-        ]
-      },
-      {
-        "pos": [
-          1,
-          1
-        ],
-        "boxes": [
-          {
-            "slots": [
-              null,
-              "siamese",
-              "eagle",
-              null
-            ]
-          },
-          {
-            "slots": [
-              "robot",
-              "green",
-              null,
-              "chihuahua"
-            ]
-          }
-        ]
-      },
-      {
-        "pos": [
-          2,
-          1
-        ],
-        "boxes": [
-          {
-            "slots": [
-              null,
-              null,
-              "persian",
-              "red"
-            ]
-          }
-        ]
-      },
-      {
-        "pos": [
-          0,
-          2
-        ],
-        "boxes": [
-          {
-            "slots": [
-              "fish",
-              null,
-              "tabby",
-              "blue"
-            ]
-          }
-        ]
-      },
-      {
-        "pos": [
-          1,
-          2
-        ],
-        "boxes": [
-          {
-            "slots": [
-              null,
-              null,
-              null,
-              null
-            ]
-          }
-        ]
-      }
+      { "pos": [0,0], "boxes": [
+          { "slots": [null,"pigeon","yellow","corgi"] },
+          { "slots": ["doll",null,"ball","travel"] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["sparrow","bengal",null,"parrot"] }
+      ]},
+      { "pos": [2,0], "boxes": [
+          { "slots": ["kite","husky",null,"music"] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["sport","poodle",null,null] }
+      ]},
+      { "pos": [1,1], "boxes": [
+          { "slots": [null,"siamese","eagle",null] },
+          { "slots": ["robot","green",null,"chihuahua"] }
+      ]},
+      { "pos": [2,1], "boxes": [
+          { "slots": [null,null,"persian","red"] }
+      ]},
+      { "pos": [0,2], "boxes": [
+          { "slots": ["fish",null,"tabby","blue"] }
+      ]},
+      { "pos": [1,2], "boxes": [
+          { "slots": [null,null,null,null] }
+      ]}
     ]
   },
+
   "meaning": {
     "groups": [
-      {
-        "id": "g_dog",
-        "text": "dog",
-        "art": "dog",
-        "group": "g_pet",
-        "cards": [
-          {
-            "id": "poodle",
-            "art": "poodle"
-          },
-          {
-            "id": "corgi",
-            "art": "corgi"
-          },
-          {
-            "id": "husky",
-            "art": "husky"
-          },
-          {
-            "id": "chihuahua",
-            "art": "chihuahua"
-          }
-        ]
-      },
-      {
-        "id": "g_cat",
-        "text": "cat",
-        "art": "cat",
-        "group": "g_pet",
-        "cards": [
-          {
-            "id": "tabby",
-            "art": "tabby"
-          },
-          {
-            "id": "persian",
-            "art": "persian"
-          },
-          {
-            "id": "siamese",
-            "art": "siamese"
-          },
-          {
-            "id": "bengal",
-            "art": "bengal"
-          }
-        ]
-      },
-      {
-        "id": "g_bird",
-        "text": "bird",
-        "art": "bird",
-        "group": "g_pet",
-        "cards": [
-          {
-            "id": "sparrow",
-            "art": "sparrow"
-          },
-          {
-            "id": "pigeon",
-            "art": "pigeon"
-          },
-          {
-            "id": "eagle",
-            "art": "eagle"
-          },
-          {
-            "id": "parrot",
-            "art": "parrot"
-          }
-        ]
-      },
-      {
-        "id": "g_pet",
-        "text": "pet",
-        "art": "pet",
-        "group": "g_hobby",
-        "cards": [
-          {
-            "id": "fish",
-            "art": "fish"
-          }
-        ]
-      },
-      {
-        "id": "g_hobby",
-        "text": "hobby",
-        "art": "hobby",
-        "cards": [
-          {
-            "id": "music",
-            "art": "music"
-          },
-          {
-            "id": "sport",
-            "art": "sport"
-          },
-          {
-            "id": "travel",
-            "art": "travel"
-          }
-        ]
-      },
-      {
-        "id": "g_color",
-        "text": "color",
-        "art": "color",
-        "cards": [
-          {
-            "id": "red",
-            "art": "red"
-          },
-          {
-            "id": "blue",
-            "art": "blue"
-          },
-          {
-            "id": "green",
-            "art": "green"
-          },
-          {
-            "id": "yellow",
-            "art": "yellow"
-          }
-        ]
-      },
-      {
-        "id": "g_toy",
-        "text": "toy",
-        "art": "toy",
-        "cards": [
-          {
-            "id": "ball",
-            "art": "ball"
-          },
-          {
-            "id": "kite",
-            "art": "kite"
-          },
-          {
-            "id": "doll",
-            "art": "doll"
-          },
-          {
-            "id": "robot",
-            "art": "robot"
-          }
-        ]
-      }
+      { "id":"g_dog", "text":"dog", "art":"dog", "group":"g_pet", "cards": [
+          { "id":"poodle", "art":"poodle" },
+          { "id":"corgi", "art":"corgi" },
+          { "id":"husky", "art":"husky" },
+          { "id":"chihuahua", "art":"chihuahua" }
+      ]},
+      { "id":"g_cat", "text":"cat", "art":"cat", "group":"g_pet", "cards": [
+          { "id":"tabby", "art":"tabby" },
+          { "id":"persian", "art":"persian" },
+          { "id":"siamese", "art":"siamese" },
+          { "id":"bengal", "art":"bengal" }
+      ]},
+      { "id":"g_bird", "text":"bird", "art":"bird", "group":"g_pet", "cards": [
+          { "id":"sparrow", "art":"sparrow" },
+          { "id":"pigeon", "art":"pigeon" },
+          { "id":"eagle", "art":"eagle" },
+          { "id":"parrot", "art":"parrot" }
+      ]},
+      { "id":"g_pet", "text":"pet", "art":"pet", "group":"g_hobby", "cards": [
+          { "id":"fish", "art":"fish" }
+      ]},
+      { "id":"g_hobby", "text":"hobby", "art":"hobby", "cards": [
+          { "id":"music", "art":"music" },
+          { "id":"sport", "art":"sport" },
+          { "id":"travel", "art":"travel" }
+      ]},
+      { "id":"g_color", "text":"color", "art":"color", "cards": [
+          { "id":"red", "art":"red" },
+          { "id":"blue", "art":"blue" },
+          { "id":"green", "art":"green" },
+          { "id":"yellow", "art":"yellow" }
+      ]},
+      { "id":"g_toy", "text":"toy", "art":"toy", "cards": [
+          { "id":"ball", "art":"ball" },
+          { "id":"kite", "art":"kite" },
+          { "id":"doll", "art":"doll" },
+          { "id":"robot", "art":"robot" }
+      ]}
     ]
   }
 }

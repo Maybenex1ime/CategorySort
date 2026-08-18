@@ -1522,6 +1522,55 @@ function artKeyToIcon(key){
   try { return String.fromCodePoint(...cps); } catch (e){ return key; }
 }
 
+// Ghi JSON theo ĐÚNG lối trình bày của file level trong game (bản C#
+// LevelEditorWindow.ToJson): mỗi box một dòng, mỗi card một dòng, mảng không xuống
+// dòng từng phần tử. JSON.stringify đúng nội dung nhưng dàn ra quá thưa, đọc và
+// diff đều cực, nên tự ghi.
+function gameJson(lv){
+  const S = s => JSON.stringify(s);
+  const o = [];
+  o.push('{');
+  o.push('  "id": ' + S(lv.id) + ',');
+  o.push('  "title": ' + S(lv.title) + ',');
+  if (lv.difficulty) o.push('  "difficulty": ' + S(lv.difficulty) + ',');
+  if (lv.moves)      o.push('  "moves": ' + lv.moves + ',');
+  if (lv.note)       o.push('  "note": ' + S(lv.note) + ',');
+  o.push('');
+  o.push('  "layout": {');
+  o.push('    "stacks": [');
+  lv.layout.stacks.forEach((st, i) => {
+    o.push('      { "pos": [' + st.pos.join(',') + '], "boxes": [');
+    st.boxes.forEach((b, k) => {
+      const slots = b.slots.map(x => x === null || x === undefined ? 'null' : S(x)).join(',');
+      o.push('          { "slots": [' + slots + '] }' + (k < st.boxes.length - 1 ? ',' : ''));
+    });
+    o.push('      ]}' + (i < lv.layout.stacks.length - 1 ? ',' : ''));
+  });
+  o.push('    ]');
+  o.push('  },');
+  o.push('');
+  o.push('  "meaning": {');
+  o.push('    "groups": [');
+  lv.meaning.groups.forEach((g, i) => {
+    let head = '      { "id":' + S(g.id);
+    if (g.text != null)  head += ', "text":' + S(g.text);
+    if (g.art != null)   head += ', "art":' + S(g.art);
+    if (g.group != null) head += ', "group":' + S(g.group);
+    o.push(head + ', "cards": [');
+    g.cards.forEach((c, k) => {
+      let line = '          { "id":' + S(c.id);
+      if (c.text != null) line += ', "text":' + S(c.text);
+      if (c.art != null)  line += ', "art":' + S(c.art);
+      o.push(line + ' }' + (k < g.cards.length - 1 ? ',' : ''));
+    });
+    o.push('      ]}' + (i < lv.meaning.groups.length - 1 ? ',' : ''));
+  });
+  o.push('    ]');
+  o.push('  }');
+  o.push('}');
+  return o.join('\n');
+}
+
 // Nội bộ (groups/words/tiles) → format game. Trả { json, warnings, artFiles }
 // hoặc { errors } nếu level chưa đạt luật game.
 function rawToGame(raw){
@@ -1617,7 +1666,7 @@ function rawToGame(raw){
     const k = emojiArtKey(ic);
     return k + '.png' + (k === ic ? '' : ' (' + ic + ')');
   });
-  return { json: JSON.stringify(gameLv, null, 2), warnings, artFiles };
+  return { json: gameJson(gameLv), warnings, artFiles };
 }
 
 // Format game → nội bộ, để "Nhập JSON" đọc được cả file trong Content/Levels/.
@@ -2238,11 +2287,12 @@ $('#csvExport').onclick = () => {
   for (const o of good){
     const r = rawToGame(o.raw);
     if (r.errors) bad.push(`${o.raw.title || o.raw.id}: ${r.errors[0]}` + (r.errors.length > 1 ? ` (+${r.errors.length - 1} lỗi nữa)` : ''));
-    else out.push(JSON.parse(r.json));
+    else out.push(r.json);
   }
   let html = '';
   if (out.length){
-    downloadFile('wordstack-levels.json', JSON.stringify(out, null, 2), 'application/json;charset=utf-8', false);
+    // Giữ nguyên lối trình bày của từng level để copy 1 phần tử ra file là dùng được ngay.
+    downloadFile('wordstack-levels.json', '[\n' + out.join(',\n') + '\n]\n', 'application/json;charset=utf-8', false);
     html += `<div class="msg ok">✅ Đã tải ${out.length} level đúng format game. Tách mỗi level thành 1 file <code>lv-NNN.json</code> (đổi cả field "id" khớp tên file) vào Assets/_Game/Content/Levels/, chạy ./selfcheck.sh rồi WordStack ▸ Build Level Catalog.</div>`;
   }
   if (bad.length)
