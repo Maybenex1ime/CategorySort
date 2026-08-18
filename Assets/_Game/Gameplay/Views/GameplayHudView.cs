@@ -73,6 +73,16 @@ namespace LogosGame.Features.Gameplay.Views
                     .AddTo(ref _disposables);
             }
 
+            // Tên màn ("Level N", N = số màn hiện tại) tự nghe thẳng ViewModel. Trước
+            // đây chỉ GameplayUiRoot gọi SetLevelTitle, mà component đó không nằm trong
+            // prefab/scene nào — nên ô LevelTxt đứng im ở chuỗi author sẵn trong prefab.
+            if (_flowController != null && _levelTitleText != null)
+            {
+                _flowController.LevelTitle
+                    .Subscribe(SetLevelTitle)
+                    .AddTo(ref _disposables);
+            }
+
             if (_flowController != null && (_progressFill != null || _progressText != null))
             {
                 _flowController.GroupsCleared.Subscribe(_ => RefreshProgress()).AddTo(ref _disposables);
