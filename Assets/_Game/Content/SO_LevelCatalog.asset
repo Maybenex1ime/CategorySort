@@ -17,11 +17,13 @@ MonoBehaviour:
     AddressKey: lv-001
     DisplayName: Hobbies
     Difficulty: 0
+    Moves: 30
     HideSettingsButton: 0
     HideCoinBox: 0
   - LevelId: lv-002
     AddressKey: lv-002
     DisplayName: The world around me
     Difficulty: 0
+    Moves: 0
     HideSettingsButton: 0
     HideCoinBox: 0

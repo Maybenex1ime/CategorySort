@@ -250,6 +250,7 @@ textarea{min-height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;font
         <label class="f">Tên<input type="text" id="edTitle"></label>
         <label class="f" style="max-width:110px">Mã<input type="text" id="edId"></label>
         <label class="f" style="max-width:96px">Slot/box<input type="number" id="edCap" min="2" max="16"></label>
+        <label class="f" style="max-width:96px">Nước đi<input type="number" id="edMoves" min="0" max="999" placeholder="mặc định"></label>
       </div>
       <div class="row" style="margin-top:9px">
         <select id="edPresetSel" style="flex:1;min-width:120px"></select>
@@ -1289,6 +1290,7 @@ function edRender(){
   $('#edTitle').value = ed.title || '';
   $('#edId').value    = ed.id || '';
   $('#edCap').value   = ed.boxCapacity;
+  $('#edMoves').value = ed.moves || '';
 
   /* --- nhóm --- */
   const gc = $('#edGroups'); gc.innerHTML = '';
@@ -1355,6 +1357,11 @@ function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt
 /* --- sự kiện editor --- */
 $('#edTitle').oninput = e => ed.title = e.target.value;
 $('#edId').oninput    = e => ed.id = e.target.value;
+// Số nước cho phép. Để trống ⇒ không ghi vào JSON ⇒ game dùng mặc định của nó.
+$('#edMoves').onchange = e => {
+  const n = parseInt(e.target.value);
+  if (Number.isInteger(n) && n > 0) ed.moves = n; else { delete ed.moves; e.target.value = ''; }
+};
 $('#edCap').onchange  = e => {
   const c = Math.max(2, Math.min(16, parseInt(e.target.value) || 4));
   ed.boxCapacity = c;
@@ -1587,6 +1594,7 @@ function rawToGame(raw){
   const gameLv = { id: raw.id, title: raw.title || raw.id };
   const diff = { easy:'Normal', normal:'Normal', hard:'Hard', crazy:'Crazy' }[String(raw.difficulty || '').toLowerCase()];
   if (diff) gameLv.difficulty = diff;
+  if (raw.moves > 0) gameLv.moves = raw.moves;
   if (raw.note) gameLv.note = raw.note;
   gameLv.layout = { stacks: (raw.stacks || []).map((st, i) => ({
     pos: [i % cols, Math.floor(i / cols)],
@@ -1638,6 +1646,7 @@ function gameToRaw(gv){
   })) }));
   const raw = { id: gv.id, title: gv.title, boxCapacity: 4, cols, groups, stacks, icons };
   if (gv.difficulty) raw.difficulty = gv.difficulty;
+  if (gv.moves > 0) raw.moves = gv.moves;
   if (gv.note) raw.note = gv.note;
   return raw;
 }

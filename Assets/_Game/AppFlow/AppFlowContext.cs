@@ -120,8 +120,16 @@ namespace WordStack.Meta.AppFlow
                 LevelTitle = $"Level {index + 1}",
                 LevelId = _levelService?.GetCurrentLevelId() ?? string.Empty,
                 AddressKey = _levelService?.GetCurrentLevelAddressKey() ?? string.Empty,
-                Difficulty = GetCurrentLevelDifficulty(index),
             };
+
+            // Catalog là nguồn của cả độ khó lẫn số nước; file level chỉ seed lúc
+            // edit-time qua WordStack ▸ Build Level Catalog.
+            if (TryGetLevelEntry(index, out LevelCatalog.Entry entry))
+            {
+                context.Difficulty = entry.Difficulty;
+                // 0 = màn chưa khai moves → giữ mặc định của GameplayStartContext.
+                if (entry.Moves > 0) context.StartingMoves = entry.Moves;
+            }
 
             _logger.Info($"[AppFlow] Nạp màn {index} (AddressKey='{context.AddressKey}')");
             await _flow.ResetLevelAsync(context);
@@ -193,15 +201,17 @@ namespace WordStack.Meta.AppFlow
             _logger.Info($"[AppFlow] Cheat: CurrentLevel = {progress.CurrentLevel}");
         }
 
-        private LevelDifficulty GetCurrentLevelDifficulty(int index)
+        // Clamp như aquapark: index vượt catalog thì lấy entry cuối, QA không crash.
+        // false = chưa có catalog → bên gọi giữ nguyên mặc định của context.
+        private bool TryGetLevelEntry(int index, out LevelCatalog.Entry entry)
         {
+            entry = default;
             if (_levelCatalog == null || _levelCatalog.Entries == null || _levelCatalog.Entries.Length == 0)
-                return LevelDifficulty.Normal;
+                return false;
 
-            // Clamp như aquapark: index vượt catalog thì lấy entry cuối, QA không crash.
             int count = _levelCatalog.Entries.Length;
-            int clamped = index < count ? index : count - 1;
-            return _levelCatalog.Entries[clamped].Difficulty;
+            entry = _levelCatalog.Entries[index < count ? (index < 0 ? 0 : index) : count - 1];
+            return true;
         }
 
         public void SetLastResult(GameplayResultViewData result) => _lastResult = result;

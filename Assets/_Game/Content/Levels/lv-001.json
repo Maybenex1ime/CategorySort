@@ -1,6 +1,7 @@
 {
   "id": "lv-001",
   "title": "Hobbies",
+  "moves": 30,
   "layout": {
     "stacks": [
       {

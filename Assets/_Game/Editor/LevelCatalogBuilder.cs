@@ -23,13 +23,15 @@ namespace WordStack.Meta.Editor
         private const string LevelsFolder = "Assets/_Game/Content/Levels";
         private const string CatalogPath = "Assets/_Game/Content/SO_LevelCatalog.asset";
 
-        // JsonUtility bỏ qua field lạ nên DTO chỉ cần 3 field cần seed.
+        // JsonUtility bỏ qua field lạ nên DTO chỉ cần mấy field cần seed.
+        // moves khuyết trong JSON → 0 → runtime rơi về mặc định GameplayStartContext.
         [Serializable]
         private sealed class LevelDto
         {
             public string id;
             public string title;
             public string difficulty;
+            public int moves;
         }
 
         [MenuItem("WordStack/Build Level Catalog")]
@@ -61,7 +63,7 @@ namespace WordStack.Meta.Editor
             }
 
             LevelCatalog catalog = LoadOrCreateCatalog();
-            var rows = new List<(string id, string title, LevelDifficultyProxy diff)>();
+            var rows = new List<(string id, string title, LevelDifficultyProxy diff, int moves)>();
 
             foreach (string guid in guids)
             {
@@ -79,7 +81,14 @@ namespace WordStack.Meta.Editor
                 AddressableAssetEntry entry = settings.CreateOrMoveEntry(guid, settings.DefaultGroup);
                 entry.address = dto.id;   // BoardInitializer nạp bằng đúng chuỗi này
 
-                rows.Add((dto.id, string.IsNullOrEmpty(dto.title) ? dto.id : dto.title, ParseDifficulty(dto.difficulty, path)));
+                if (dto.moves < 0)
+                {
+                    Debug.LogWarning($"[LevelCatalogBuilder] '{path}': moves = {dto.moves} âm — dùng mặc định.");
+                    dto.moves = 0;
+                }
+
+                rows.Add((dto.id, string.IsNullOrEmpty(dto.title) ? dto.id : dto.title,
+                          ParseDifficulty(dto.difficulty, path), dto.moves));
             }
 
             WriteEntries(catalog, rows);
@@ -101,7 +110,7 @@ namespace WordStack.Meta.Editor
         }
 
         // Ghi qua SerializedObject vì _entries là private — cùng cách LevelAssetRegistrar làm.
-        private static void WriteEntries(LevelCatalog catalog, List<(string id, string title, LevelDifficultyProxy diff)> rows)
+        private static void WriteEntries(LevelCatalog catalog, List<(string id, string title, LevelDifficultyProxy diff, int moves)> rows)
         {
             var so = new SerializedObject(catalog);
             SerializedProperty entries = so.FindProperty("_entries");
@@ -114,6 +123,7 @@ namespace WordStack.Meta.Editor
                 e.FindPropertyRelative("AddressKey").stringValue = rows[i].id;
                 e.FindPropertyRelative("DisplayName").stringValue = rows[i].title;
                 e.FindPropertyRelative("Difficulty").enumValueIndex = (int)rows[i].diff;
+                e.FindPropertyRelative("Moves").intValue = rows[i].moves;
             }
 
             so.ApplyModifiedPropertiesWithoutUndo();

@@ -18,6 +18,10 @@ namespace LogosGame.Features.Gameplay.Content
             public LevelDifficulty Difficulty;
             // public TutorialConfig TutorialConfig;   // tạm tắt cùng using ở đầu file
 
+            [Tooltip("Số nước đi cho phép. 0 = dùng mặc định của GameplayStartContext " +
+                     "(đừng chép số mặc định vào đây, hai chỗ sẽ trôi khỏi nhau).")]
+            public int Moves;
+
             [Tooltip("Hide the in-game settings button for this level (e.g. onboarding levels).")]
             public bool HideSettingsButton;
 
