@@ -258,6 +258,11 @@ textarea{min-height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;font
         <button class="btn sm ghost" id="edImport">⇩ Nhập JSON</button>
         <button class="btn sm ghost" id="edExport">⇧ Xuất JSON</button>
       </div>
+      <div class="row" style="margin-top:9px">
+        <button class="btn sm ghost" id="edArtPick">🖼 Thư mục ảnh…</button>
+        <input type="file" id="edArtDir" webkitdirectory directory multiple class="hidden">
+      </div>
+      <div class="hintline" id="edArtInfo"></div>
     </div>
 
     <div class="panel">
@@ -1499,7 +1504,7 @@ $('#edDelete').onclick = () => {
      key ASCII ("apple") giữ nguyên để dùng sprite có sẵn;
    - stack thứ i → pos [i % cols, floor(i / cols)].
    Chỉ xuất khi qua HẾT luật game (capacity 4, nhóm đúng 4 từ, đủ từ trên bàn,
-   không box rỗng giữa chừng, ≥1 thẻ chỉ-ảnh + ≥1 thẻ chỉ-chữ, mỗi ảnh một chủ) —
+   không box rỗng giữa chừng, mỗi ảnh một chủ) —
    file tải về là để thả thẳng vào Content/Levels rồi chạy ./selfcheck.sh. */
 function slugify(s){
   s = String(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
@@ -1571,6 +1576,54 @@ function gameJson(lv){
   return o.join('\n');
 }
 
+/* ---------- Chỉ mục thư mục ảnh của repo ----------
+   Trang web không tự đọc được ổ đĩa, nên người dùng chọn thư mục
+   Assets/_Game/Content/Resources/Art một lần; tool nhớ DANH SÁCH TÊN FILE (không
+   đọc nội dung ảnh) vào localStorage để lần sau khỏi chọn lại. Có danh sách này
+   thì lúc xuất mới nói được "ảnh này không có file" và "hai file trùng tên". */
+const ART_LS = 'wordstack.artfiles';
+const ART_EXT = /\.(png|jpe?g|webp)$/i;
+
+function artIndex(){
+  try {
+    const o = JSON.parse(localStorage.getItem(ART_LS) || 'null');
+    return o && o.files ? o : null;
+  } catch (e){ return null; }
+}
+function artHits(a, key){
+  return Object.prototype.hasOwnProperty.call(a.files, key) ? a.files[key] : null;
+}
+function artInfoRender(){
+  const a = artIndex(), el = $('#edArtInfo');
+  if (!el) return;
+  if (!a){
+    el.textContent = 'Chưa nạp thư mục ảnh — bấm "🖼 Thư mục ảnh…" rồi chọn Assets/_Game/Content/Resources/Art để tool kiểm được ảnh của từng thẻ.';
+    return;
+  }
+  const names = Object.keys(a.files);
+  const dup = names.filter(k => a.files[k].length > 1);
+  el.innerHTML = `Thư mục ảnh: <code>${esc(a.dir)}</code> — ${names.length} tên ảnh` +
+    (dup.length ? ` · <b>${dup.length} tên bị trùng</b>: ${esc(dup.slice(0, 6).join(', '))}${dup.length > 6 ? '…' : ''}` : '');
+}
+
+$('#edArtPick').onclick = () => $('#edArtDir').click();
+$('#edArtDir').onchange = e => {
+  const files = [...e.target.files].filter(f => ART_EXT.test(f.name));
+  if (!files.length){ edMsg('err', 'Thư mục vừa chọn không có ảnh nào (.png/.jpg/.webp).'); return; }
+  const map = {};
+  let dir = '';
+  for (const f of files){
+    const rel = f.webkitRelativePath || f.name;
+    if (!dir) dir = rel.split('/')[0];
+    const key = f.name.replace(ART_EXT, '');
+    (map[key] = map[key] || []).push(rel);
+  }
+  localStorage.setItem(ART_LS, JSON.stringify({ dir, files: map }));
+  artInfoRender();
+  edMsg('ok', `Đã nạp ${files.length} ảnh từ "${dir}" — tool chỉ ghi nhớ tên file, không đọc nội dung.`);
+};
+artInfoRender();
+
 // Nội bộ (groups/words/tiles) → format game. Trả { json, warnings, artFiles }
 // hoặc { errors } nếu level chưa đạt luật game.
 function rawToGame(raw){
@@ -1629,6 +1682,32 @@ function rawToGame(raw){
     claimArt(icons[g.name], `nhóm "${g.name}"`);
     for (const w of g.words || []) if (w && !topicNames.has(w)) claimArt(icons[w], `"${w}"`);
   }
+
+  // Mọi thẻ phải có ảnh, và ảnh đó phải có file thật. Nhóm CON cũng hoá thành một
+  // thẻ lúc COLLAPSE nên cũng cần ảnh; nhóm GỐC thì không — đủ bộ là tan, không
+  // sinh thẻ nào.
+  const artOf = new Map();
+  for (const w of placeable){
+    if (!icons[w]) errors.push(`Thẻ "${w}" chưa có ảnh.`);
+    else artOf.set(`Thẻ "${w}"`, emojiArtKey(icons[w]));
+  }
+  for (const g of groups){
+    if (!parentOf[g.id]) continue;
+    if (!icons[g.name]) errors.push(`Nhóm "${g.name}" sẽ COLLAPSE thành một thẻ nhưng chưa có ảnh.`);
+    else artOf.set(`Nhóm "${g.name}"`, emojiArtKey(icons[g.name]));
+  }
+
+  const artDir = artIndex();
+  if (!artDir)
+    warnings.push('Chưa nạp thư mục ảnh nên chưa kiểm được ảnh có file thật hay không — bấm "🖼 Thư mục ảnh…" rồi chọn Assets/_Game/Content/Resources/Art.');
+  else
+    for (const [who, key] of artOf){
+      const hits = artHits(artDir, key);
+      if (!hits)
+        errors.push(`${who} trỏ ảnh "${key}" nhưng ${artDir.dir} không có file nào tên vậy.`);
+      else if (hits.length > 1)
+        errors.push(`${hits.length} ảnh trùng tên "${key}" (${hits.join(', ')}) — phải đổi tên cho khác nhau, game nạp ảnh bằng tên file nên không phân biệt được.`);
+    }
 
   if (errors.length) return { errors };
 
