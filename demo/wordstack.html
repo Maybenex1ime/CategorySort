@@ -1,0 +1,2324 @@
+﻿<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+<title>WordStack — Prototype</title>
+<style>
+/* ============================================================
+   WordStack prototype — bảng màu theo GDD §9.1
+   ============================================================ */
+:root{
+  --bg:#3A2E5F;
+  --header:#6A5BA5;
+  --box:#6B5CA8;
+  --box-border:#A5A5A5;
+  --tile:#DEDEDE;
+  --ink:#000;
+  --panel:#4A3C77;
+  --panel-2:#57478A;
+  --txt:#EDE9F8;
+  --muted:#B9AEDC;
+  --ok:#5BC98C;
+  --warn:#F4B740;
+  --err:#EF7C8E;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;padding:0;height:100%}
+body{
+  background:var(--bg);color:var(--txt);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  overscroll-behavior:none;
+  -webkit-user-select:none;user-select:none;
+}
+button{font:inherit;color:inherit;cursor:pointer;border:none;background:none}
+input,select,textarea{font:inherit}
+
+#app{max-width:520px;margin:0 auto;min-height:100%;display:flex;flex-direction:column;padding:8px 10px calc(80px + env(safe-area-inset-bottom));}
+
+/* ---------- Tabs ---------- */
+.tabs{display:flex;gap:6px;background:rgba(0,0,0,.22);padding:5px;border-radius:16px;margin-bottom:8px}
+.tabs button{flex:1;padding:9px 8px;border-radius:12px;font-weight:700;font-size:14px;color:var(--muted);transition:.15s}
+.tabs button.active{background:var(--header);color:#fff;box-shadow:0 2px 0 rgba(0,0,0,.25)}
+
+/* ---------- Header bar (§9.2) ---------- */
+.header{
+  background:var(--header);border-radius:24px;padding:10px 14px;
+  display:flex;align-items:center;gap:10px;box-shadow:0 4px 0 rgba(0,0,0,.22);
+}
+.header .title{font-weight:800;font-size:15px;line-height:1.15;flex:0 0 auto;max-width:34%}
+.header .title small{display:block;font-weight:600;font-size:11px;color:#D8CEFF;opacity:.9}
+.header .progress{flex:1;text-align:center}
+.header .progress b{font-size:16px}
+.header .progress .bar{height:6px;border-radius:99px;background:rgba(0,0,0,.25);margin-top:5px;overflow:hidden}
+.header .progress .bar i{display:block;height:100%;background:var(--ok);width:0;transition:width .35s ease-out}
+.header .tools{display:flex;gap:6px}
+.header .tools button{
+  width:38px;height:38px;border-radius:12px;background:rgba(0,0,0,.2);
+  font-size:17px;display:grid;place-items:center;transition:.12s;position:relative
+}
+.header .tools button:active{transform:scale(.92)}
+.header .tools button:disabled{opacity:.35}
+.header .tools button b{position:absolute;bottom:1px;right:4px;font-size:9px;opacity:.8}
+
+.levelbar{display:flex;gap:8px;align-items:center;margin:8px 0 4px}
+.levelbar select{flex:1;background:var(--panel);color:var(--txt);border:1px solid rgba(255,255,255,.15);border-radius:12px;padding:9px 10px;font-size:13px;font-weight:600}
+.levelbar .chip{font-size:11px;color:var(--muted);white-space:nowrap}
+
+/* ---------- Board ---------- */
+.board{
+  display:grid;gap:16px 12px;margin-top:14px;
+  grid-template-columns:repeat(var(--cols,2),minmax(0,1fr));
+  align-items:start;
+}
+.stack{position:relative;padding-bottom:22px}
+.stack .under{
+  position:absolute;left:10px;right:10px;height:18px;border-radius:0 0 16px 16px;
+  background:var(--box);border:6px solid var(--box-border);border-top:none;
+  transition:.2s;
+}
+.stack .depth-badge{
+  position:absolute;right:2px;bottom:-2px;background:var(--header);color:#fff;
+  font-size:10px;font-weight:800;padding:2px 6px;border-radius:99px;border:2px solid rgba(0,0,0,.25)
+}
+.box{
+  position:relative;background:var(--box);border:8px solid var(--box-border);border-radius:16px;
+  padding:7px;display:grid;gap:7px;grid-template-columns:repeat(var(--bcols,2),minmax(0,1fr));
+  transition:transform .18s,box-shadow .18s,border-color .18s,opacity .25s;
+}
+.box.drop-ok{border-color:#FFFFFF;box-shadow:0 0 0 3px rgba(255,255,255,.35),0 0 18px rgba(255,255,255,.45)}
+.box.drop-bad{border-color:var(--err)}
+.box.shake{animation:shake .28s}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-6px)}45%{transform:translateX(6px)}70%{transform:translateX(-4px)}}
+.box.removing{animation:boxout .25s forwards}
+@keyframes boxout{to{transform:scale(.9);opacity:0}}
+.box.revealed{animation:boxin .28s}
+@keyframes boxin{from{transform:scale(.94)}to{transform:scale(1)}}
+.box.is-bottom{border-style:dashed}
+
+.slot{
+  aspect-ratio:3/4;border-radius:10px;background:rgba(0,0,0,.16);
+  display:grid;place-items:center;position:relative;
+  container-type:inline-size;      /* để cỡ chữ co theo bề rộng ô, xem .tile.has-icon */
+}
+.tile{
+  position:absolute;inset:0;border-radius:10px;background:var(--tile);color:var(--ink);
+  font-weight:800;display:grid;place-items:center;text-align:center;padding:3px;
+  line-height:1.12;word-break:break-word;hyphens:auto;overflow:hidden;
+  box-shadow:0 2px 0 rgba(0,0,0,.25);
+  transition:background-color .15s,transform .15s,box-shadow .15s;
+  touch-action:none;
+}
+.tile.topic{box-shadow:0 2px 0 rgba(0,0,0,.25),inset 0 0 0 3px rgba(0,0,0,.35)}
+/* Ô có icon: cỡ chữ tính theo % bề rộng ô (cqw) chứ không phải px cố định —
+   cùng một thang dùng được cho bàn 2 cột (ô ~60px) lẫn 3 cột (ô ~44px).
+   --lbk do render() đặt theo độ dài từ. */
+.has-icon{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:1px;padding:2px}
+.has-icon .ic{font-size:44cqw;line-height:1;filter:drop-shadow(0 1px 0 rgba(0,0,0,.15))}
+.has-icon .lb{font-size:calc(var(--lbk,26) * 1cqw);line-height:1.08}
+#ghost{container-type:inline-size}   /* ghost nằm ngoài .slot nên phải tự làm container */
+
+/* Bàn dày (3 cột trở lên): thu gọn viền/đệm để trả bề rộng lại cho ô từ */
+.board.dense{gap:10px 8px}
+.board.dense .box{border-width:5px;padding:5px;gap:5px;border-radius:13px}
+.board.dense .under{border-width:5px;left:8px;right:8px}
+.tile.dragging{opacity:.22}
+.tile.pop{animation:pop .22s}
+@keyframes pop{from{transform:scale(0)}to{transform:scale(1)}}
+.tile.matched{animation:pulse .16s}
+@keyframes pulse{50%{transform:scale(1.04)}}
+.tile.clearing{animation:clearout .28s forwards}
+@keyframes clearout{to{transform:scale(0);opacity:0}}
+.tile.collapsing{animation:collapsein .3s forwards}
+@keyframes collapsein{to{transform:scale(.2);opacity:0;filter:brightness(2.2)}}
+.tile.hint{animation:hintblink .6s 4}
+@keyframes hintblink{50%{box-shadow:0 0 0 4px #fff,0 0 16px #fff}}
+.stack.hint-dst .box{border-color:#fff;box-shadow:0 0 0 3px rgba(255,255,255,.4)}
+
+#ghost{
+  position:fixed;z-index:80;pointer-events:none;border-radius:10px;background:var(--tile);color:var(--ink);
+  font-weight:800;display:grid;place-items:center;text-align:center;padding:3px;line-height:1.12;
+  box-shadow:0 10px 22px rgba(0,0,0,.45);transform:scale(1.06);opacity:.95;word-break:break-word;
+}
+#ghost.returning{transition:left .2s ease-out,top .2s ease-out,transform .2s}
+
+/* ---------- Toast / overlay ---------- */
+#toast{
+  position:fixed;left:50%;bottom:96px;transform:translateX(-50%) translateY(20px);
+  background:#221A3C;color:#fff;padding:11px 16px;border-radius:14px;font-size:13px;font-weight:600;
+  box-shadow:0 8px 24px rgba(0,0,0,.5);opacity:0;pointer-events:none;transition:.25s;z-index:90;
+  max-width:88vw;text-align:center;border:1px solid rgba(255,255,255,.15)
+}
+#toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+
+#win{position:fixed;inset:0;background:rgba(24,17,48,.86);display:none;place-items:center;z-index:100;backdrop-filter:blur(3px)}
+#win.show{display:grid}
+#win .card{background:var(--panel);border-radius:24px;padding:26px 22px;text-align:center;max-width:300px;box-shadow:0 20px 50px rgba(0,0,0,.5)}
+#win h2{margin:0 0 6px;font-size:26px}
+#win p{margin:0 0 18px;color:var(--muted);font-size:13px}
+#win button{display:block;width:100%;margin-top:8px;padding:12px;border-radius:14px;background:var(--ok);color:#0C2418;font-weight:800}
+#win button.ghost{background:rgba(255,255,255,.12);color:#fff}
+.confetti{position:fixed;top:-20px;width:9px;height:14px;z-index:99;pointer-events:none;animation:fall linear forwards}
+@keyframes fall{to{transform:translateY(105vh) rotate(720deg);opacity:.2}}
+
+/* ---------- Editor ---------- */
+.ed{display:none;flex-direction:column;gap:10px}
+.ed.show{display:flex}
+.panel{background:var(--panel);border-radius:16px;padding:12px}
+.panel h3{margin:0 0 9px;font-size:13px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted)}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.row.tight{gap:6px}
+.grow{flex:1;min-width:0}
+label.f{display:flex;flex-direction:column;gap:4px;font-size:11px;color:var(--muted);flex:1;min-width:90px}
+input[type=text],input[type=number],select,textarea{
+  background:rgba(0,0,0,.25);border:1px solid rgba(255,255,255,.14);border-radius:10px;
+  padding:8px 9px;color:var(--txt);font-size:13px;width:100%;
+}
+input:focus,select:focus,textarea:focus{outline:2px solid var(--header);outline-offset:0}
+textarea{min-height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;font-size:11px;resize:vertical}
+.btn{background:var(--header);padding:9px 12px;border-radius:12px;font-weight:700;font-size:13px;transition:.12s}
+.btn:active{transform:scale(.96)}
+.btn.sm{padding:6px 9px;font-size:12px;border-radius:10px}
+.btn.ghost{background:rgba(255,255,255,.1)}
+.btn.danger{background:#8B3A4C}
+.btn.go{background:var(--ok);color:#0C2418}
+.gcard{background:var(--panel-2);border-radius:12px;padding:10px;margin-bottom:8px}
+.gcard .words{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:7px}
+.stackcard{background:var(--panel-2);border-radius:12px;padding:10px;margin-bottom:8px}
+.boxrow{background:rgba(0,0,0,.2);border-radius:10px;padding:8px;margin-top:7px}
+.boxrow .lbl{font-size:10px;color:var(--muted);margin-bottom:6px;display:flex;justify-content:space-between;align-items:center;font-weight:700;letter-spacing:.04em}
+.boxrow .slots{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.boxrow select{font-size:11px;padding:6px}
+.bank{display:flex;flex-wrap:wrap;gap:5px}
+.bank span{background:rgba(0,0,0,.28);border-radius:8px;padding:4px 8px;font-size:11px;font-weight:600}
+.bank span.topicw{background:rgba(244,183,64,.2);color:var(--warn)}
+.msg{font-size:12px;line-height:1.5;border-radius:10px;padding:9px 11px;margin-top:8px;white-space:pre-wrap}
+.msg.err{background:rgba(239,124,142,.16);color:#FFC9D2;border-left:3px solid var(--err)}
+.msg.warn{background:rgba(244,183,64,.14);color:#FFE1A8;border-left:3px solid var(--warn)}
+.msg.ok{background:rgba(91,201,140,.14);color:#BEF2D6;border-left:3px solid var(--ok)}
+.hidden{display:none!important}
+.hintline{font-size:11px;color:var(--muted);line-height:1.5;margin-top:6px}
+.hintline code,.meta code{background:rgba(0,0,0,.32);padding:1px 5px;border-radius:5px;font-family:ui-monospace,Consolas,monospace}
+
+/* ---------- Kết quả sinh level từ CSV ---------- */
+.rescard{background:var(--panel-2);border-radius:12px;padding:10px;margin-bottom:8px;border-left:3px solid var(--ok)}
+.rescard.bad{border-left-color:var(--err)}
+.rescard .top{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.rescard .top b{font-size:13px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.rescard .meta{font-size:11px;color:var(--muted);line-height:1.6;margin-top:5px}
+.rescard .meta b{color:var(--txt)}
+</style>
+</head>
+<body>
+
+<div id="app">
+  <div class="tabs">
+    <button id="tabPlay" class="active">🎮 Chơi</button>
+    <button id="tabEdit">🛠️ Xếp level</button>
+    <button id="tabCsv">📄 CSV</button>
+  </div>
+
+  <!-- ============ PLAY ============ -->
+  <div id="playView">
+    <div class="header">
+      <div class="title"><span id="hTitle">—</span><small id="hMoves">0 nước</small></div>
+      <div class="progress">
+        <b id="hProg">0/0</b> <span style="font-size:11px;opacity:.8">nhóm</span>
+        <div class="bar"><i id="hBar"></i></div>
+      </div>
+      <div class="tools">
+        <button id="btnUndo" title="Hoàn tác">↺</button>
+        <button id="btnRestart" title="Chơi lại">⟳</button>
+        <button id="btnHint" title="Gợi ý">💡<b id="hintN"></b></button>
+      </div>
+    </div>
+
+    <div class="levelbar">
+      <select id="levelSel"></select>
+      <span class="chip" id="capChip"></span>
+    </div>
+
+    <div class="board" id="board"></div>
+    <div class="hintline" id="playNote"></div>
+  </div>
+
+  <!-- ============ EDITOR ============ -->
+  <div id="editView" class="ed">
+    <div class="panel">
+      <h3>Thông tin level</h3>
+      <div class="row">
+        <label class="f">Tên<input type="text" id="edTitle"></label>
+        <label class="f" style="max-width:110px">Mã<input type="text" id="edId"></label>
+        <label class="f" style="max-width:96px">Slot/box<input type="number" id="edCap" min="2" max="16"></label>
+      </div>
+      <div class="row" style="margin-top:9px">
+        <select id="edPresetSel" style="flex:1;min-width:120px"></select>
+        <button class="btn sm ghost" id="edLoadPreset">📥 Nạp</button>
+        <button class="btn sm ghost" id="edImport">⇩ Nhập JSON</button>
+        <button class="btn sm ghost" id="edExport">⇧ Xuất JSON</button>
+      </div>
+    </div>
+
+    <div class="panel">
+      <h3>Nhóm từ <span style="text-transform:none;font-weight:600">— 4 từ + 1 tên chủ đề</span></h3>
+      <div id="edGroups"></div>
+      <button class="btn sm" id="edAddGroup">+ Thêm nhóm</button>
+      <div class="hintline">Tên chủ đề trùng với 1 từ của nhóm khác ⇒ nhóm đó <b>COLLAPSE</b> (gộp thành ô mới). Ngược lại ⇒ <b>CLEAR</b> (biến mất).</div>
+    </div>
+
+    <div class="panel">
+      <h3>Bàn chơi</h3>
+      <div id="edStacks"></div>
+      <div class="row">
+        <button class="btn sm" id="edAddStack">+ Thêm stack</button>
+        <button class="btn sm ghost" id="edAutoFill">🎲 Rải tự động</button>
+        <button class="btn sm ghost" id="edClearBoard">✕ Dọn bàn</button>
+      </div>
+      <h3 style="margin-top:12px">Từ chưa đặt</h3>
+      <div class="bank" id="edBank"></div>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <button class="btn go grow" id="edCheck">✓ Kiểm tra &amp; thử giải</button>
+        <button class="btn grow" id="edPlay">▶ Chơi thử</button>
+      </div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn sm ghost grow" id="edSave">💾 Lưu vào danh sách</button>
+        <button class="btn sm danger" id="edDelete">Xoá level đã lưu</button>
+      </div>
+      <div id="edMsg"></div>
+    </div>
+
+    <div class="panel hidden" id="edJsonPanel">
+      <h3>JSON</h3>
+      <textarea id="edJson" spellcheck="false"></textarea>
+      <div class="row" style="margin-top:8px">
+        <button class="btn sm go" id="edJsonApply">Áp dụng</button>
+        <button class="btn sm" id="edJsonSave">💾 Tải file</button>
+        <button class="btn sm ghost" id="edJsonClose">Đóng</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ CSV ============ -->
+  <div id="csvView" class="ed">
+    <div class="panel">
+      <h3>Thư viện bộ từ (CSV)</h3>
+      <div class="row">
+        <button class="btn sm ghost" id="csvPick">📂 Chọn file…</button>
+        <button class="btn sm ghost" id="csvSample">⬇ Tải CSV mẫu</button>
+        <button class="btn sm ghost" id="csvDemo">📋 Dán mẫu vào ô</button>
+        <input type="file" id="csvFile" accept=".csv,.txt,text/csv" class="hidden">
+      </div>
+      <textarea id="csvText" spellcheck="false" style="margin-top:8px"
+        placeholder="set,title,difficulty,groups_per_level,capacity,topic,words&#10;thanh-pho,Thành phố,normal,4,,Bệnh viện,Bác sĩ|Y tá|Xe cứu thương|Bệnh nhân&#10;thanh-pho,,,,,Trường học,Giáo viên|Học sinh|Bảng đen|Cặp sách"></textarea>
+      <div class="hintline">
+        Bạn biên soạn theo <b>bộ</b>, không theo bàn. Cột bắt buộc: <code>set</code>, <code>topic</code>, <code>words</code> — các từ ngăn bằng <code>|</code>.<br>
+        <b>Icon:</b> viết <code>Từ=emoji</code>, dùng được cho cả <code>topic</code> lẫn từng từ —
+        ví dụ <code>Trái cây=🧺</code> và <code>Táo=🍎|Chuối=🍌</code>. Tên chủ đề có icon thì
+        ô sinh ra sau COLLAPSE cũng mang icon đó.<br>
+        Tham số riêng của từng bộ, <b>chỉ điền ở dòng đầu tiên</b> của bộ đó:
+        <code>title</code> ·
+        <code>difficulty</code> (easy/normal/hard, mặc định normal) ·
+        <code>groups_per_level</code> (số nhóm mỗi bàn, 2–24, mặc định 4) ·
+        <code>capacity</code> (slot mỗi box 4–6, để trống thì tự suy từ nhóm dài nhất).<br>
+        Lưu ý: bàn từ ~10 nhóm trở lên thì bộ giải best-first sẽ rất chậm hoặc treo —
+        bàn lớn nên rải và kiểm chứng riêng, đừng dựa vào nút “Sinh level”.<br>
+        Generator chia các nhóm trong bộ thành nhiều bàn, mỗi nhóm dùng đúng một lần, theo thứ tự dòng trong file —
+        muốn nhóm nào chung bàn thì xếp cạnh nhau.<br>
+        Quan hệ COLLAPSE tự suy: tên chủ đề của nhóm này nằm trong danh sách từ của nhóm kia ⇒ nhóm đó gộp lại thay vì biến mất.
+        Cả chuỗi COLLAPSE luôn được giữ chung một bàn.<br>
+        Trong Excel hãy lưu bằng <b>CSV UTF-8</b> để không hỏng dấu tiếng Việt. Dòng trống và dòng bắt đầu bằng <code>#</code> được bỏ qua.
+      </div>
+    </div>
+
+    <div class="panel">
+      <div class="row">
+        <button class="btn grow" id="csvCheck">✓ Kiểm tra</button>
+        <button class="btn go grow" id="csvGen">⚙ Sinh level</button>
+      </div>
+      <div id="csvProgress" class="hintline"></div>
+      <div id="csvMsg"></div>
+    </div>
+
+    <div class="panel hidden" id="csvResultPanel">
+      <h3>Kết quả</h3>
+      <div id="csvResults"></div>
+      <div class="row" style="margin-top:8px">
+        <button class="btn sm go grow" id="csvSaveAll">💾 Lưu tất cả vào danh sách</button>
+        <button class="btn sm ghost" id="csvExport">⇧ Tải JSON</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+<div id="win"><div class="card">
+  <h2>🎉 Hoàn thành!</h2>
+  <p id="winSub"></p>
+  <button id="winNext">Level tiếp theo →</button>
+  <button id="winReplay" class="ghost">Chơi lại</button>
+</div></div>
+
+<script>
+"use strict";
+/* ==========================================================================
+   PHẦN 1 — ENGINE (thuần hàm, không đụng DOM)   [GDD §6, §7]
+   ========================================================================== */
+const DEFAULT_CAPACITY = 4;
+const PALETTE = ['#F4B740','#5BC98C','#EF7C8E','#4FA8E8','#B48CE8','#E88C4F'];
+
+let _uid = 0;
+const uid = p => p + '_' + (++_uid).toString(36);
+const makeTile = (label, groupId, isTopic) => ({ id: uid('t'), label, groupId, isTopic: !!isTopic });
+
+class LevelError extends Error {
+  constructor(errors){ super(errors.join('\n')); this.errors = errors; }
+}
+
+/* ---------- Truy vấn cơ bản ---------- */
+const topBox      = (state, stackId) => (state.stacks.find(s => s.id === stackId) || {boxes:[]}).boxes[0] || null;
+const freeSlots   = box => box.tiles.reduce((n,t) => n + (t ? 0 : 1), 0);
+const boxTiles    = box => box.tiles.filter(Boolean);
+const isEmptyBox  = box => box.tiles.every(t => !t);
+const totalTiles  = state => state.stacks.reduce((n,s) => n + s.boxes.reduce((m,b) => m + boxTiles(b).length, 0), 0);
+
+function placeInFirstFreeSlot(box, tile){
+  const i = box.tiles.findIndex(t => !t);
+  if (i < 0) return false;
+  box.tiles[i] = tile;
+  return true;
+}
+
+function cloneState(s){
+  return {
+    levelId: s.levelId, title: s.title, groups: s.groups, capacity: s.capacity, icons: s.icons, cols: s.cols,
+    stacks: s.stacks.map(st => ({
+      id: st.id,
+      boxes: st.boxes.map(b => ({ id: b.id, capacity: b.capacity, isBottom: b.isBottom, tiles: b.tiles.slice() }))
+    })),
+    movesUsed: s.movesUsed, status: s.status,
+    solved: new Set(s.solved), totalGroups: s.totalGroups, hintsUsed: s.hintsUsed
+  };
+}
+
+/* ---------- Quan hệ nhóm cha/con [GDD §R4] ---------- */
+// Nhóm G sẽ COLLAPSE nếu G.name là một từ của nhóm khác.
+function findParentGroup(g, groups){
+  for (const id in groups){
+    if (id === g.id) continue;
+    if (groups[id].words.includes(g.name)) return groups[id];
+  }
+  return null;
+}
+
+/* ---------- Nhóm hoàn thành trong 1 box [GDD §R3] ---------- */
+function findCompletedGroup(box, groups){
+  const count = new Map();
+  for (const t of box.tiles) if (t) count.set(t.groupId, (count.get(t.groupId) || 0) + 1);
+  for (const [gid, n] of count){
+    const g = groups[gid];
+    if (g && n === g.words.length) return g;
+  }
+  return null;
+}
+
+/* ---------- Cấp phát màu gợi ý [GDD §R2, §7.1] ---------- */
+function boxTileColors(box, globalColors, groupOrder){
+  const colors = new Map();
+  const byGroup = new Map();
+  for (const t of box.tiles) if (t){
+    if (!byGroup.has(t.groupId)) byGroup.set(t.groupId, []);
+    byGroup.get(t.groupId).push(t);
+  }
+  let i = 0;
+  for (const [gid, tiles] of byGroup){
+    if (tiles.length >= 2 || globalColors){
+      const c = globalColors
+        ? PALETTE[groupOrder.indexOf(gid) % PALETTE.length]
+        : PALETTE[(i++) % PALETTE.length];
+      tiles.forEach(t => colors.set(t.id, c));
+    }
+  }
+  return colors;
+}
+
+/* ---------- Giải quyết bàn chơi + cascade [GDD §R4, §R5, §R6] ---------- */
+function resolveBoard(state, steps){
+  let guard = 0;
+  while (guard++ < 500){
+    // Bước A: xử lý mọi nhóm hoàn thành ở các top box
+    const evA = [];
+    for (const stack of state.stacks){
+      const box = stack.boxes[0];
+      if (!box) continue;
+      const g = findCompletedGroup(box, state.groups);
+      if (!g) continue;
+
+      const ids = [];
+      for (let i = 0; i < box.tiles.length; i++){
+        const t = box.tiles[i];
+        if (t && t.groupId === g.id){ ids.push(t.id); box.tiles[i] = null; }
+      }
+      state.solved.add(g.id);
+
+      const parent = findParentGroup(g, state.groups);
+      if (parent){
+        const nt = makeTile(g.name, parent.id, true);
+        placeInFirstFreeSlot(box, nt);
+        evA.push({ type:'collapse', stackId:stack.id, boxId:box.id, tileIds:ids, newTileId:nt.id, label:g.name });
+      } else {
+        evA.push({ type:'clear', stackId:stack.id, boxId:box.id, tileIds:ids, label:g.name });
+      }
+    }
+    if (evA.length && steps) steps.push({ state: cloneState(state), events: evA });
+
+    // Bước B: box rỗng & không phải đáy → xoá, lộ box dưới [GDD §R4 quy tắc tổng quát + §R5]
+    const evB = [];
+    for (const stack of state.stacks){
+      const box = stack.boxes[0];
+      if (box && !box.isBottom && isEmptyBox(box)){
+        stack.boxes.shift();
+        evB.push({ type:'removeBox', stackId:stack.id, boxId:box.id });
+      }
+    }
+    if (evB.length && steps) steps.push({ state: cloneState(state), events: evB });
+
+    if (!evA.length && !evB.length) break;
+  }
+  state.status = checkStatus(state);
+  return state;
+}
+
+/* ---------- Nước đi [GDD §R1] ---------- */
+function applyMove(state, fromStackId, tileId, toStackId, collectSteps){
+  const s   = cloneState(state);
+  const src = topBox(s, fromStackId);
+  const dst = topBox(s, toStackId);
+  if (!src || !dst)     return { ok:false, reason:'Box bị che' };
+  if (src.id === dst.id) return { ok:false, reason:'Cùng một box' };
+  const i = src.tiles.findIndex(t => t && t.id === tileId);
+  if (i < 0)            return { ok:false, reason:'Không tìm thấy ô từ' };
+  if (freeSlots(dst) === 0) return { ok:false, reason:'Box đích đã đầy' };
+
+  const tile = src.tiles[i];
+  src.tiles[i] = null;
+  placeInFirstFreeSlot(dst, tile);
+  s.movesUsed++;
+
+  const steps = collectSteps ? [{ state: cloneState(s), events:[{ type:'move', tileId, toStackId }] }] : null;
+  resolveBoard(s, steps);
+  if (steps) steps[steps.length - 1].state = cloneState(s);   // đảm bảo status ở bước cuối
+  return { ok:true, state:s, steps };
+}
+
+/* ---------- Trạng thái thắng / bế tắc [GDD §R7, E8] ---------- */
+function checkStatus(state){
+  if (totalTiles(state) === 0) return 'won';
+  return hasAnyProgress(state) ? 'playing' : 'stuck';
+}
+
+// Bế tắc thật sự = (a) không nhóm nào có thể gom đủ ở tầng đang mở, VÀ
+//                 (b) không box nào (không phải đáy) có thể dọn rỗng để lộ box dưới.
+function hasAnyProgress(state){
+  const tops = state.stacks.map(s => s.boxes[0]).filter(Boolean);
+  const freeTotal = tops.reduce((n,b) => n + freeSlots(b), 0);
+
+  // (a) gom một nhóm
+  for (const gid in state.groups){
+    const g = state.groups[gid];
+    let visible = 0;
+    for (const b of tops) for (const t of b.tiles) if (t && t.groupId === gid) visible++;
+    if (visible < g.words.length) continue;
+    for (const b of tops){
+      const mine   = boxTiles(b).filter(t => t.groupId === gid).length;
+      const others = boxTiles(b).length - mine;
+      const need   = g.words.length - mine;                 // số ô phải mang vào
+      const room   = b.capacity - mine - others;            // slot trống của box đích
+      const evict  = Math.max(0, need - room);              // số ô lạ phải chuyển đi
+      if (evict <= others && evict <= freeTotal - freeSlots(b)) return true;
+    }
+  }
+  // (b) dọn rỗng một box để lộ box dưới
+  for (const st of state.stacks){
+    const b = st.boxes[0];
+    if (!b || b.isBottom) continue;
+    const n = boxTiles(b).length;
+    if (n <= freeTotal - freeSlots(b)) return true;
+  }
+  return false;
+}
+
+/* ==========================================================================
+   PHẦN 2 — LOADER + VALIDATE  [GDD §6.2, E12]
+   ========================================================================== */
+function loadLevel(raw){
+  const { state, errors } = parseLevel(raw);
+  if (errors.length) throw new LevelError(errors);
+  return state;
+}
+
+function parseLevel(raw){
+  const errors = [], warnings = [];
+  if (!raw || typeof raw !== 'object') return { state:null, errors:['Dữ liệu level rỗng.'], warnings };
+
+  const cap = raw.boxCapacity || DEFAULT_CAPACITY;
+  if (!Number.isInteger(cap) || cap < 2 || cap > 16) errors.push(`boxCapacity không hợp lệ: ${raw.boxCapacity}`);
+
+  /* --- Nhóm --- */
+  const groups = {}, owner = new Map();
+  const list = Array.isArray(raw.groups) ? raw.groups : [];
+  if (!list.length) errors.push('Level phải có ít nhất 1 nhóm từ.');
+  for (const g of list){
+    const id = (g && g.id || '').trim();
+    if (!id){ errors.push('Có nhóm thiếu mã (id).'); continue; }
+    if (groups[id]){ errors.push(`Trùng mã nhóm: "${id}".`); continue; }
+    const name  = String(g.name || '').trim();
+    const words = (Array.isArray(g.words) ? g.words : []).map(w => String(w || '').trim()).filter(Boolean);
+    if (!name) errors.push(`Nhóm "${id}" thiếu tên chủ đề.`);
+    if (words.length < 2)   errors.push(`Nhóm "${name || id}" chỉ có ${words.length} từ (cần ≥ 2).`);
+    if (words.length > cap) errors.push(`Nhóm "${name || id}" có ${words.length} từ, vượt sức chứa box (${cap}).`);
+    if (new Set(words).size !== words.length) errors.push(`Nhóm "${name || id}" có từ lặp lại.`);
+    if (words.includes(name)) errors.push(`Nhóm "${name}" chứa chính tên chủ đề của nó.`);
+    for (const w of words){
+      if (owner.has(w) && owner.get(w) !== id) errors.push(`Từ "${w}" thuộc 2 nhóm: "${owner.get(w)}" và "${id}".`);
+      else owner.set(w, id);
+    }
+    groups[id] = { id, name, words };
+  }
+  const names = new Map();
+  for (const id in groups){
+    const n = groups[id].name;
+    if (names.has(n)) errors.push(`Hai nhóm cùng tên chủ đề "${n}".`);
+    names.set(n, id);
+  }
+  // Từ chỉ sinh ra qua COLLAPSE ⇒ không được đặt sẵn trên bàn [§6.2 quy ước 3]
+  const topicWords = new Set();
+  for (const id in groups) if (findParentGroup(groups[id], groups)) topicWords.add(groups[id].name);
+
+  /* --- Bàn chơi --- */
+  const seen = new Map();
+  const stacks = [];
+  const rawStacks = Array.isArray(raw.stacks) ? raw.stacks : [];
+  if (!rawStacks.length) errors.push('Level phải có ít nhất 1 stack.');
+  rawStacks.forEach((rs, si) => {
+    const rboxes = Array.isArray(rs && rs.boxes) ? rs.boxes : [];
+    if (!rboxes.length){ errors.push(`Stack ${si+1} không có box nào.`); return; }
+    const stack = { id: uid('s'), boxes: [] };
+    rboxes.forEach((rb, bi) => {
+      const arr = Array.isArray(rb && rb.tiles) ? rb.tiles : [];
+      if (arr.length > cap) errors.push(`Stack ${si+1} / box ${bi} có ${arr.length} ô > sức chứa ${cap}.`);
+      const box = { id: uid('b'), capacity: cap, isBottom: bi === rboxes.length - 1, tiles: new Array(cap).fill(null) };
+      arr.slice(0, cap).forEach((label, k) => {
+        if (label === null || label === undefined || label === '') return;
+        const w = String(label).trim();
+        const gid = owner.get(w);
+        if (!gid){ errors.push(`Từ "${w}" (stack ${si+1}, box ${bi}) không thuộc nhóm nào.`); return; }
+        if (seen.has(w)){ errors.push(`Từ "${w}" xuất hiện nhiều lần trên bàn.`); return; }
+        seen.set(w, true);
+        if (topicWords.has(w)) errors.push(`Từ "${w}" là tên chủ đề của một nhóm khác — chỉ được sinh ra qua COLLAPSE, không đặt sẵn trên bàn.`);
+        box.tiles[k] = makeTile(w, gid, false);
+      });
+      stack.boxes.push(box);
+    });
+    stacks.push(stack);
+  });
+
+  /* --- Cảnh báo thiết kế [GDD §10.1] --- */
+  const placed = seen.size;
+  let bottomCap = 0, topFree = 0, topTiles = 0;
+  for (const st of stacks){
+    if (st.boxes.length) bottomCap += st.boxes[st.boxes.length - 1].capacity;
+    const t = st.boxes[0];
+    if (t){ topFree += freeSlots(t); topTiles += boxTiles(t).length; }
+  }
+  for (const id in groups){
+    const missing = groups[id].words.filter(w => !seen.has(w) && !topicWords.has(w));
+    if (missing.length) warnings.push(`Nhóm "${groups[id].name}" thiếu trên bàn: ${missing.join(', ')}.`);
+  }
+  if (topFree < 3) warnings.push(`Tầng trên chỉ còn ${topFree} slot trống — rất dễ bế tắc (khuyến nghị ≥ 3).`);
+  if (placed > bottomCap) warnings.push(`Có ${placed} ô từ nhưng tổng sức chứa các box đáy chỉ ${bottomCap}. Nếu mọi box trên đều bị xoá trước khi kịp gom nhóm thì bàn sẽ kẹt.`);
+  if (!stacks.some(st => st.boxes.length === 1 && boxTiles(st.boxes[0]).length === 0))
+    warnings.push('Không có stack trống làm không gian trung chuyển (GDD §10.1 khuyến nghị nên có).');
+
+  if (errors.length) return { state:null, errors, warnings };
+
+  const state = {
+    levelId: raw.id || 'lv', title: raw.title || 'Không tên',
+    groups, capacity: cap, stacks, icons: (raw.icons && typeof raw.icons === 'object') ? raw.icons : {},
+    cols: (Number.isInteger(raw.cols) && raw.cols >= 1 && raw.cols <= 4) ? raw.cols : 2,
+    movesUsed: 0, status: 'playing',
+    solved: new Set(), totalGroups: Object.keys(groups).length, hintsUsed: 0
+  };
+  state.status = checkStatus(state);
+  return { state, errors, warnings };
+}
+
+/* ==========================================================================
+   PHẦN 3 — BỘ GIẢI (greedy best-first, có ngân sách)
+   Dùng cho: nút Gợi ý + kiểm tra level trong trình xếp màn.
+   ========================================================================== */
+function stateKey(s){
+  return s.stacks.map(st =>
+    st.boxes.map(b => boxTiles(b).map(t => t.label).sort().join(',')).join('|')
+  ).join('#');
+}
+
+function heuristic(s){
+  let h = totalTiles(s) * 12;
+  const tops = s.stacks.map(x => x.boxes[0]).filter(Boolean);
+  const spread = new Map();          // group -> số top box đang chứa nó
+  const buried = new Map();          // group -> số ô còn nằm trong box bị che
+  for (const st of s.stacks){
+    st.boxes.forEach((b, i) => {
+      for (const t of b.tiles) if (t){
+        if (i === 0) spread.set(t.groupId, (spread.get(t.groupId) || 0) + 0);
+        else buried.set(t.groupId, (buried.get(t.groupId) || 0) + 1);
+      }
+    });
+  }
+  for (const b of tops){
+    const gs = new Set(boxTiles(b).map(t => t.groupId));
+    for (const g of gs) spread.set(g, (spread.get(g) || 0) + 1);
+  }
+  for (const [, n] of spread) h += (n - 1) * 4;
+  for (const [, n] of buried) h += n * 3;
+  return h;
+}
+
+function legalMoves(s){
+  const out = [];
+  for (let i = 0; i < s.stacks.length; i++){
+    const src = s.stacks[i].boxes[0];
+    if (!src) continue;
+    for (let j = 0; j < s.stacks.length; j++){
+      if (i === j) continue;
+      const dst = s.stacks[j].boxes[0];
+      if (!dst || freeSlots(dst) === 0) continue;
+      for (const t of src.tiles) if (t) out.push({ from: s.stacks[i].id, tileId: t.id, to: s.stacks[j].id, label: t.label });
+    }
+  }
+  return out;
+}
+
+// Hàng đợi ưu tiên (binary min-heap) — bắt buộc, nếu quét tuyến tính thì
+// tìm kiếm 20k trạng thái sẽ mất hàng chục giây và treo UI.
+class MinHeap {
+  constructor(){ this.a = []; }
+  get size(){ return this.a.length; }
+  push(item){
+    const a = this.a; a.push(item);
+    let i = a.length - 1;
+    while (i > 0){
+      const p = (i - 1) >> 1;
+      if (a[p].f <= a[i].f) break;
+      [a[p], a[i]] = [a[i], a[p]]; i = p;
+    }
+  }
+  pop(){
+    const a = this.a, top = a[0], last = a.pop();
+    if (a.length){
+      a[0] = last;
+      let i = 0;
+      for (;;){
+        const l = 2*i + 1, r = l + 1;
+        let m = i;
+        if (l < a.length && a[l].f < a[m].f) m = l;
+        if (r < a.length && a[r].f < a[m].f) m = r;
+        if (m === i) break;
+        [a[m], a[i]] = [a[i], a[m]]; i = m;
+      }
+    }
+    return top;
+  }
+}
+
+function solve(start, budget){
+  budget = budget || 20000;
+  if (start.status === 'won') return { solved:true, moves:[], expanded:0 };
+  const nodes   = [{ s: start, parent: -1, mv: null }];
+  const open    = new MinHeap();
+  open.push({ i: 0, f: heuristic(start) });
+  const visited = new Set([stateKey(start)]);
+  let expanded  = 0;
+
+  while (open.size && expanded < budget){
+    const cur = open.pop();
+    const node = nodes[cur.i];
+    expanded++;
+
+    for (const mv of legalMoves(node.s)){
+      const r = applyMove(node.s, mv.from, mv.tileId, mv.to, false);
+      if (!r.ok) continue;
+      const key = stateKey(r.state);
+      if (visited.has(key)) continue;
+      visited.add(key);
+      const idx = nodes.push({ s: r.state, parent: cur.i, mv }) - 1;
+      if (r.state.status === 'won'){
+        const path = [];
+        let p = idx;
+        while (p > 0){ path.unshift(nodes[p].mv); p = nodes[p].parent; }
+        return { solved:true, moves:path, expanded };
+      }
+      open.push({ i: idx, f: heuristic(r.state) + nodes[idx].s.movesUsed * 0.5 });
+    }
+    if (nodes.length > budget * 3) break;
+  }
+  return { solved:false, moves:[], expanded };
+}
+
+/* ==========================================================================
+   PHẦN 4 — LEVEL DỰNG SẴN
+   ========================================================================== */
+const BUILTIN = [
+/* ---- Level 1: tutorial, chỉ CLEAR [GDD §10.2] ---- */
+{
+  id:'lv-001', title:'Khởi động', boxCapacity:4,
+  groups:[
+    { id:'g_fruit',    name:'Trái cây',  words:['Táo','Chuối','Nho','Cam'] },
+    { id:'g_planet',   name:'Hành tinh', words:['Sao Thuỷ','Sao Hoả','Sao Kim','Sao Mộc'] },
+    { id:'g_hospital', name:'Bệnh viện', words:['Bác sĩ','Y tá','Xe cứu thương','Bệnh nhân'] }
+  ],
+  stacks:[
+    { boxes:[ { tiles:['Bác sĩ','Táo','Sao Thuỷ',null] }, { tiles:['Nho','Cam',null,null] } ] },
+    { boxes:[ { tiles:['Y tá','Chuối','Sao Hoả',null] },  { tiles:['Sao Kim','Sao Mộc',null,null] } ] },
+    { boxes:[ { tiles:['Xe cứu thương','Bệnh nhân',null,null] }, { tiles:[null,null,null,null] } ] }
+  ]
+},
+/* ---- Level 2: giới thiệu COLLAPSE [GDD §10.3] ----
+   Đã sửa bố cục so với §6.2: bản gốc không thể thắng (xem README). ---- */
+{
+  id:'lv-002', title:'Thành phố', boxCapacity:4,
+  groups:[
+    { id:'g_hospital', name:'Bệnh viện',  words:['Bác sĩ','Y tá','Xe cứu thương','Bệnh nhân'] },
+    { id:'g_school',   name:'Trường học', words:['Giáo viên','Học sinh','Bảng đen','Cặp sách'] },
+    { id:'g_airport',  name:'Sân bay',    words:['Phi công','Hành khách','Máy bay','Vé'] },
+    { id:'g_building', name:'Công trình', words:['Bệnh viện','Trường học','Sân bay','Nhà hát'] }
+  ],
+  stacks:[
+    { boxes:[ { tiles:['Bác sĩ','Máy bay','Cặp sách',null] }, { tiles:['Y tá','Vé','Nhà hát','Học sinh'] } ] },
+    { boxes:[ { tiles:['Bệnh nhân','Giáo viên',null,null] },  { tiles:['Phi công','Bảng đen','Hành khách','Xe cứu thương'] } ] },
+    { boxes:[ { tiles:[null,null,null,null] } ] },
+    { boxes:[ { tiles:[null,null,null,null] } ] }
+  ]
+},
+/* ---- Level 3: ba tầng [GDD §10.4] ---- */
+{
+  id:'lv-003', title:'Sở thích', boxCapacity:4,
+  groups:[
+    { id:'g_dog',   name:'Chó',      words:['Poodle','Corgi','Husky','Chihuahua'] },
+    { id:'g_cat',   name:'Mèo',      words:['Mèo mướp','Mèo Ba Tư','Mèo Anh','Mèo Xiêm'] },
+    { id:'g_bird',  name:'Chim',     words:['Sẻ','Bồ câu','Đại bàng','Vẹt'] },
+    { id:'g_pet',   name:'Thú cưng', words:['Chó','Mèo','Chim','Cá'] },
+    { id:'g_hobby', name:'Sở thích', words:['Thú cưng','Âm nhạc','Thể thao','Du lịch'] }
+  ],
+  stacks:[
+    { boxes:[ { tiles:['Poodle','Corgi','Husky',null] },     { tiles:['Mèo Ba Tư','Vẹt','Cá','Âm nhạc'] } ] },
+    { boxes:[ { tiles:['Chihuahua','Mèo mướp','Sẻ',null] },  { tiles:['Mèo Anh','Mèo Xiêm','Bồ câu','Đại bàng'] } ] },
+    { boxes:[ { tiles:['Thể thao','Du lịch',null,null] } ] },
+    { boxes:[ { tiles:[null,null,null,null] } ] }
+  ]
+},
+/* ---- Level 4: Thế giới quanh ta — 20 nhóm trên MỘT bàn, 8 quan hệ COLLAPSE ----
+   Layout 3x3 = 9 stack, khay 4 slot, sâu 4 khay (36 khay, 144 slot, 72 ô).
+
+   RẢI TÁN (bản khó): 35/36 khay chứa toàn từ KHÁC NHÓM nhau, tối đa 2 ô cùng
+   nhóm trong một khay. Bản trước xếp 3 ô cùng nhóm vào một khay nên 14 nhóm
+   gần như xong sẵn — giải chỉ mất 67 nước. Bản này bắt phải gom từ 4 khay rời
+   và đào nhiều tầng: đường thắng ngắn nhất tìm được là 165 nước.
+
+   Nguồn nội dung: levels/level-04.csv. Bố cục rải bằng seed 22, kiểm chứng bằng
+   replay độc lập từ parseLevel mới -> status 'won', 0 ô còn lại, 20/20 nhóm.
+   Bộ giải best-first ở Phần 3 KHÔNG dùng được ở quy mô này (branching ~288
+   nước/trạng thái, sẽ treo UI) — nếu sửa bố cục thì phải kiểm chứng lại bằng
+   planner có mục tiêu, đừng bấm "Kiểm tra & thử giải".
+
+   Lưu ý khi chỉnh: rải tán HOÀN TOÀN (không khay nào có 2 ô cùng nhóm) ở mật độ
+   này làm bàn gần như không giải nổi — đã thử, 0/20 bàn có lời giải. Mức 2 ô là
+   ngưỡng vừa khó vừa còn giải được. */
+{
+  id:'lv-004', title:'Thế giới quanh ta', boxCapacity:4, cols:3,
+  groups:[
+    { id:'g_trai_cay_0',   name:'Trái cây',   words:['Táo','Chuối','Nho','Dứa'] },
+    { id:'g_rau_cu_1',     name:'Rau củ',     words:['Cà rốt','Bắp ngô','Cà chua','Khoai tây'] },
+    { id:'g_thuc_pham_2',  name:'Thực phẩm',  words:['Trái cây','Rau củ','Thịt','Cá'] },
+    { id:'g_do_uong_3',    name:'Đồ uống',    words:['Cà phê','Trà','Sữa','Nước cam'] },
+    { id:'g_banh_ngot_4',  name:'Bánh ngọt',  words:['Bánh kem','Bánh quy','Kem','Sô cô la'] },
+    { id:'g_thu_rung_5',   name:'Thú rừng',   words:['Hổ','Voi','Gấu','Hươu'] },
+    { id:'g_chim_troi_6',  name:'Chim trời',  words:['Đại bàng','Cú mèo','Công','Vẹt'] },
+    { id:'g_muong_thu_7',  name:'Muông thú',  words:['Thú rừng','Chim trời','Rắn','Cá sấu'] },
+    { id:'g_nong_trai_8',  name:'Nông trại',  words:['Bò','Heo','Gà','Cừu'] },
+    { id:'g_duoi_bien_9',  name:'Dưới biển',  words:['Cá heo','Cá voi','Bạch tuộc','Tôm'] },
+    { id:'g_xe_co_10',     name:'Xe cộ',      words:['Ô tô','Xe máy','Xe đạp','Xe buýt'] },
+    { id:'g_tau_thuyen_11',name:'Tàu thuyền', words:['Thuyền buồm','Tàu thuỷ','Ca nô','Phà'] },
+    { id:'g_giao_thong_12',name:'Giao thông', words:['Xe cộ','Tàu thuyền','Máy bay','Tàu hoả'] },
+    { id:'g_benh_vien_13', name:'Bệnh viện',  words:['Giường bệnh','Kim tiêm','Băng gạc','Thuốc'] },
+    { id:'g_truong_hoc_14',name:'Trường học', words:['Sách','Bút chì','Cặp sách','Thước kẻ'] },
+    { id:'g_thoi_tiet_15', name:'Thời tiết',  words:['Mưa','Nắng','Gió','Tuyết'] },
+    { id:'g_thien_the_16', name:'Thiên thể',  words:['Mặt trăng','Mặt trời','Sao','Sao chổi'] },
+    { id:'g_bau_troi_17',  name:'Bầu trời',   words:['Thời tiết','Thiên thể','Cầu vồng','Mây'] },
+    { id:'g_cay_coi_18',   name:'Cây cối',    words:['Cây thông','Hoa hồng','Lá cây','Nấm'] },
+    { id:'g_dia_hinh_19',  name:'Địa hình',   words:['Núi','Sa mạc','Đảo','Bãi biển'] }
+  ],
+  stacks:[
+    { boxes:[ { tiles:[null,'Phà',null,'Bắp ngô'] }, { tiles:['Mây',null,'Gấu',null] }, { tiles:['Bạch tuộc',null,'Hoa hồng',null] }, { tiles:['Tôm','Voi',null,null] } ] },
+    { boxes:[ { tiles:['Thước kẻ',null,'Mặt trăng',null] }, { tiles:['Thuyền buồm',null,null,'Vẹt'] }, { tiles:[null,'Gió',null,'Nắng'] }, { tiles:['Cá heo','Táo',null,null] } ] },
+    { boxes:[ { tiles:['Dứa',null,'Cà phê',null] }, { tiles:[null,'Mưa','Đại bàng',null] }, { tiles:['Cá sấu',null,'Cừu',null] }, { tiles:['Cặp sách',null,null,'Bò'] } ] },
+    { boxes:[ { tiles:['Cà rốt',null,'Cầu vồng',null] }, { tiles:['Công','Khoai tây',null,null] }, { tiles:[null,'Tuyết','Cú mèo',null] }, { tiles:[null,'Bánh quy',null,'Đảo'] } ] },
+    { boxes:[ { tiles:['Sao',null,null,'Băng gạc'] }, { tiles:[null,null,'Sô cô la','Trà'] }, { tiles:[null,'Máy bay','Kim tiêm',null] }, { tiles:['Thuốc',null,'Cá voi',null] } ] },
+    { boxes:[ { tiles:[null,'Núi','Lá cây',null] }, { tiles:[null,'Cây thông',null,'Nước cam'] }, { tiles:['Xe buýt',null,null,'Hươu'] }, { tiles:['Ca nô',null,null,'Ô tô'] } ] },
+    { boxes:[ { tiles:[null,'Sa mạc',null,'Sách'] }, { tiles:['Gà','Tàu hoả',null,null] }, { tiles:[null,'Xe máy','Heo',null] }, { tiles:[null,'Cá','Mặt trời',null] } ] },
+    { boxes:[ { tiles:[null,null,'Bánh kem','Bãi biển'] }, { tiles:['Bút chì',null,null,'Cà chua'] }, { tiles:[null,null,'Rắn','Xe đạp'] }, { tiles:[null,'Nấm','Giường bệnh',null] } ] },
+    { boxes:[ { tiles:[null,null,'Thịt','Sữa'] }, { tiles:[null,null,'Sao chổi','Kem'] }, { tiles:[null,null,'Tàu thuỷ','Nho'] }, { tiles:[null,null,'Hổ','Chuối'] } ] }
+  ],
+  icons:{ 'Trái cây':'🧺','Táo':'🍎','Chuối':'🍌','Nho':'🍇','Dứa':'🍍','Rau củ':'🥬','Cà rốt':'🥕','Bắp ngô':'🌽','Cà chua':'🍅','Khoai tây':'🥔','Thực phẩm':'🍱','Thịt':'🥩','Cá':'🐟','Đồ uống':'🧋','Cà phê':'☕','Trà':'🍵','Sữa':'🥛','Nước cam':'🧃','Bánh ngọt':'🍰','Bánh kem':'🎂','Bánh quy':'🍪','Kem':'🍨','Sô cô la':'🍫','Thú rừng':'🐾','Hổ':'🐯','Voi':'🐘','Gấu':'🐻','Hươu':'🦌','Chim trời':'🪶','Đại bàng':'🦅','Cú mèo':'🦉','Công':'🦚','Vẹt':'🦜','Muông thú':'🦁','Rắn':'🐍','Cá sấu':'🐊','Nông trại':'🚜','Bò':'🐄','Heo':'🐷','Gà':'🐔','Cừu':'🐑','Dưới biển':'🌊','Cá heo':'🐬','Cá voi':'🐳','Bạch tuộc':'🐙','Tôm':'🦐','Xe cộ':'🚙','Ô tô':'🚗','Xe máy':'🏍️','Xe đạp':'🚲','Xe buýt':'🚌','Tàu thuyền':'⚓','Thuyền buồm':'⛵','Tàu thuỷ':'🚢','Ca nô':'🛶','Phà':'⛴️','Giao thông':'🚦','Máy bay':'✈️','Tàu hoả':'🚆','Bệnh viện':'🏥','Giường bệnh':'🛏️','Kim tiêm':'💉','Băng gạc':'🩹','Thuốc':'💊','Trường học':'🏫','Sách':'📖','Bút chì':'✏️','Cặp sách':'🎒','Thước kẻ':'📏','Thời tiết':'🌦️','Mưa':'🌧️','Nắng':'☀️','Gió':'💨','Tuyết':'❄️','Thiên thể':'🔭','Mặt trăng':'🌙','Mặt trời':'🌞','Sao':'🌟','Sao chổi':'☄️','Bầu trời':'🌌','Cầu vồng':'🌈','Mây':'☁️','Cây cối':'🌳','Cây thông':'🌲','Hoa hồng':'🌹','Lá cây':'🍃','Nấm':'🍄','Địa hình':'🗺️','Núi':'⛰️','Sa mạc':'🏜️','Đảo':'🏝️','Bãi biển':'🏖️' }
+}
+];
+
+// Bản gốc §6.2 — giữ lại làm ví dụ cho bộ kiểm tra level (KHÔNG giải được).
+const GDD_SAMPLE = {
+  id:'lv-002-gdd', title:'Thành phố (bản GDD §6.2)', boxCapacity:4,
+  groups: BUILTIN[1].groups,
+  stacks:[
+    { boxes:[ { tiles:['Bác sĩ','Máy bay','Cặp sách',null] }, { tiles:['Y tá','Vé','Nhà hát','Học sinh'] } ] },
+    { boxes:[ { tiles:['Bệnh nhân','Giáo viên',null,null] },  { tiles:['Phi công','Bảng đen','Hành khách','Xe cứu thương'] } ] },
+    { boxes:[ { tiles:[null,null,null,null] } ] }
+  ]
+};
+
+/* ==========================================================================
+   PHẦN 5 — UI CHƠI
+   ========================================================================== */
+const $  = s => document.querySelector(s);
+const wait = ms => new Promise(r => setTimeout(r, ms));
+
+const boardEl = $('#board');
+let state = null, rawLevel = null, history = [], busy = false, easyColors = false;
+let stuckWarned = false;
+
+function customLevels(){
+  try { return JSON.parse(localStorage.getItem('wordstack.levels') || '[]'); } catch(e){ return []; }
+}
+function saveCustom(list){ localStorage.setItem('wordstack.levels', JSON.stringify(list)); }
+function allLevels(){ return BUILTIN.concat(customLevels()); }
+
+function refreshLevelSelect(keepId){
+  const sel = $('#levelSel');
+  const list = allLevels();
+  sel.innerHTML = '';
+  list.forEach((lv, i) => {
+    const o = document.createElement('option');
+    o.value = i;
+    o.textContent = (i < BUILTIN.length ? `${i+1}. ` : '★ ') + lv.title;
+    sel.appendChild(o);
+  });
+  const idx = keepId ? list.findIndex(l => l.id === keepId) : -1;
+  sel.value = idx >= 0 ? idx : 0;
+  return list[sel.value];
+}
+
+function startLevel(raw){
+  try {
+    rawLevel = raw;
+    state = loadLevel(raw);
+    history = []; stuckWarned = false;
+    $('#capChip').textContent = `${state.capacity} slot/box · ${state.totalGroups} nhóm`;
+    render(true);
+  } catch (e){
+    boardEl.innerHTML = '';
+    toast('⚠ Level lỗi: ' + (e.errors ? e.errors[0] : e.message), 5000);
+  }
+}
+
+/* ---------- Render ---------- */
+function fontFor(label){
+  const n = label.length;
+  if (n <= 3)  return 20;
+  if (n <= 6)  return 16;
+  if (n <= 10) return 14;
+  if (n <= 14) return 12;
+  return 11;
+}
+// Ô có icon: trả về hệ số cỡ chữ tính theo % bề rộng ô (cqw), không phải px —
+// nhờ vậy ô 60px (bàn 2 cột) và ô 44px (bàn 3 cột) đều vừa chữ. [bố cục A]
+function labelScale(label){
+  const n = label.length;
+  if (n <= 3)  return 32;
+  if (n <= 6)  return 26;
+  if (n <= 9)  return 21;
+  if (n <= 12) return 18;
+  return 15;
+}
+
+function render(fresh){
+  if (!state) return;
+  $('#hTitle').textContent = state.title;
+  $('#hMoves').textContent = state.movesUsed + ' nước';
+  $('#hProg').textContent  = `${state.solved.size}/${state.totalGroups}`;
+  $('#hBar').style.width   = (state.totalGroups ? state.solved.size / state.totalGroups * 100 : 0) + '%';
+  $('#btnUndo').disabled   = history.length === 0;
+  $('#hintN').textContent  = state.hintsUsed ? state.hintsUsed : '';
+
+  const cols = Math.min(state.cols || 2, state.stacks.length);
+  boardEl.style.setProperty('--cols', cols);
+  boardEl.classList.toggle('dense', cols >= 3);
+  const groupOrder = Object.keys(state.groups);
+  const prevBoxes  = new Set([...boardEl.querySelectorAll('.box')].map(e => e.dataset.boxId));
+
+  boardEl.innerHTML = '';
+  for (const st of state.stacks){
+    const sEl = document.createElement('div');
+    sEl.className = 'stack';
+    sEl.dataset.stackId = st.id;
+
+    const depth = st.boxes.length - 1;
+    for (let d = Math.min(3, depth); d >= 1; d--){
+      const u = document.createElement('div');
+      u.className = 'under';
+      u.style.bottom = (22 - d * 7) + 'px';
+      u.style.opacity = 1 - d * 0.18;
+      sEl.appendChild(u);
+    }
+    if (depth > 3){
+      const b = document.createElement('div');
+      b.className = 'depth-badge';
+      b.textContent = '+' + (depth - 3);
+      sEl.appendChild(b);
+    }
+
+    const box = st.boxes[0];
+    const bEl = document.createElement('div');
+    bEl.className = 'box' + (box.isBottom ? ' is-bottom' : '');
+    bEl.dataset.boxId  = box.id;
+    bEl.dataset.stackId = st.id;
+    bEl.style.setProperty('--bcols', Math.ceil(Math.sqrt(box.capacity)));
+    if (!fresh && !prevBoxes.has(box.id)) bEl.classList.add('revealed');
+
+    const colors = boxTileColors(box, easyColors, groupOrder);
+    box.tiles.forEach(t => {
+      const slot = document.createElement('div');
+      slot.className = 'slot';
+      if (t){
+        const tEl = document.createElement('div');
+        const icon = state.icons[t.label] || '';
+        tEl.className = 'tile' + (t.isTopic ? ' topic' : '') + (icon ? ' has-icon' : '');
+        tEl.dataset.tileId = t.id;
+        tEl.dataset.stackId = st.id;
+        if (icon){
+          tEl.style.setProperty('--lbk', labelScale(t.label));
+          const icEl = document.createElement('span');
+          icEl.className = 'ic'; icEl.textContent = icon;
+          const lbEl = document.createElement('span');
+          lbEl.className = 'lb'; lbEl.textContent = t.label;
+          tEl.append(icEl, lbEl);
+        } else {
+          tEl.textContent = t.label;
+          tEl.style.fontSize = fontFor(t.label) + 'px';
+        }
+        if (colors.has(t.id)) tEl.style.background = colors.get(t.id);
+        slot.appendChild(tEl);
+      }
+      bEl.appendChild(slot);
+    });
+    sEl.appendChild(bEl);
+    boardEl.appendChild(sEl);
+  }
+
+  const note = $('#playNote');
+  if (state.status === 'won') note.textContent = '';
+  else if (state.status === 'stuck') note.textContent = '⚠ Hết nước đi — dùng ↺ Hoàn tác hoặc ⟳ Chơi lại.';
+  else note.textContent = 'Kéo ô từ sang box khác. Ô cùng màu = cùng nhóm (chỉ hiện khi có ≥2 ô cùng nhóm trong 1 box).';
+
+  if (state.status === 'won') showWin();
+  else if (state.status === 'stuck' && !stuckWarned){ stuckWarned = true; toast('😵 Hết nước đi! Thử ↺ Hoàn tác hoặc ⟳ Chơi lại.', 3500); }
+}
+
+/* ---------- Phát animation theo events [GDD §9.3] ---------- */
+async function playSteps(steps){
+  busy = true;
+  for (let k = 0; k < steps.length; k++){
+    const st = steps[k];
+    const anim = st.events.some(e => e.type !== 'move');
+    if (anim){
+      for (const ev of st.events){
+        if (ev.type === 'clear' || ev.type === 'collapse'){
+          ev.tileIds.forEach(id => {
+            const el = boardEl.querySelector(`.tile[data-tile-id="${id}"]`);
+            if (el) el.classList.add(ev.type === 'clear' ? 'clearing' : 'collapsing');
+          });
+        } else if (ev.type === 'removeBox'){
+          const el = boardEl.querySelector(`.box[data-box-id="${ev.boxId}"]`);
+          if (el) el.classList.add('removing');
+        }
+      }
+      await wait(300);
+    }
+    state = st.state;
+    render(false);
+    if (k === 0){
+      const ev = st.events.find(e => e.type === 'move');
+      if (ev){
+        const el = boardEl.querySelector(`.tile[data-tile-id="${ev.tileId}"]`);
+        if (el) el.classList.add('pop');
+      }
+      await wait(120);
+    } else if (anim){
+      // ô topic mới sinh ra
+      for (const ev of st.events) if (ev.type === 'collapse'){
+        const el = boardEl.querySelector(`.tile[data-tile-id="${ev.newTileId}"]`);
+        if (el) el.classList.add('pop');
+      }
+      await wait(220);
+    }
+  }
+  busy = false;
+}
+
+function doMove(fromStackId, tileId, toStackId){
+  const snapshot = cloneState(state);
+  const r = applyMove(state, fromStackId, tileId, toStackId, true);
+  if (!r.ok) return r;
+  history.push(snapshot);
+  if (history.length > 20) history.shift();
+  playSteps(r.steps);
+  return r;
+}
+
+/* ---------- Kéo thả bằng Pointer Events [GDD §11] ---------- */
+let drag = null;
+const ghost = document.createElement('div');
+ghost.id = 'ghost'; ghost.style.display = 'none';
+document.body.appendChild(ghost);
+
+boardEl.addEventListener('pointerdown', e => {
+  if (busy || !state || state.status === 'won') return;
+  const tile = e.target.closest('.tile');
+  if (!tile) return;
+  const rect = tile.getBoundingClientRect();
+  drag = {
+    el: tile, tileId: tile.dataset.tileId, fromStack: tile.dataset.stackId,
+    x: e.clientX, y: e.clientY, ox: e.clientX - rect.left, oy: e.clientY - rect.top,
+    w: rect.width, h: rect.height, startX: e.clientX, startY: e.clientY, active: false,
+    pid: e.pointerId
+  };
+  try { boardEl.setPointerCapture(e.pointerId); } catch (err){ /* pointer đã mất */ }
+});
+
+boardEl.addEventListener('pointermove', e => {
+  if (!drag) return;
+  drag.x = e.clientX; drag.y = e.clientY;
+  if (!drag.active){
+    if (Math.hypot(e.clientX - drag.startX, e.clientY - drag.startY) < 6) return;
+    drag.active = true;
+    drag.el.classList.add('dragging');
+    const hasIcon = drag.el.classList.contains('has-icon');
+    ghost.innerHTML = drag.el.innerHTML;
+    ghost.classList.toggle('has-icon', hasIcon);
+    // --lbk phải mang theo: cỡ chữ nhãn tính bằng cqw dựa trên biến này
+    ghost.style.setProperty('--lbk', drag.el.style.getPropertyValue('--lbk') || '26');
+    ghost.style.cssText += `;display:${hasIcon ? 'flex' : 'grid'};` +
+      `width:${drag.w}px;height:${drag.h}px;font-size:${drag.el.style.fontSize};background:${getComputedStyle(drag.el).backgroundColor}`;
+    ghost.classList.remove('returning');
+  }
+  ghost.style.left = (e.clientX - drag.ox) + 'px';
+  ghost.style.top  = (e.clientY - drag.oy) + 'px';
+
+  boardEl.querySelectorAll('.box').forEach(b => b.classList.remove('drop-ok','drop-bad'));
+  const t = dropTarget(e.clientX, e.clientY);
+  if (t && t.dataset.stackId !== drag.fromStack){
+    const box = topBox(state, t.dataset.stackId);
+    t.classList.add(box && freeSlots(box) > 0 ? 'drop-ok' : 'drop-bad');
+  }
+  e.preventDefault();
+}, { passive:false });
+
+function dropTarget(x, y){
+  // giấu ghost để elementFromPoint thấy được box bên dưới, rồi TRẢ LẠI đúng
+  // display cũ — ô có icon dùng flex, ô chỉ có chữ dùng grid.
+  const keep = ghost.style.display;
+  ghost.style.display = 'none';
+  const el = document.elementFromPoint(x, y);
+  if (drag && drag.active) ghost.style.display = keep === 'none' ? 'grid' : keep;
+  return el ? el.closest('.box') : null;
+}
+
+boardEl.addEventListener('pointerup', endDrag);
+boardEl.addEventListener('pointercancel', endDrag);
+
+function endDrag(e){
+  if (!drag) return;
+  const d = drag; drag = null;
+  boardEl.querySelectorAll('.box').forEach(b => b.classList.remove('drop-ok','drop-bad'));
+  if (!d.active){ ghost.style.display = 'none'; d.el.classList.remove('dragging'); return; }
+
+  const target = dropTarget(e.clientX, e.clientY);
+  const toStack = target && target.dataset.stackId;
+
+  const finish = () => { ghost.style.display = 'none'; ghost.classList.remove('returning'); };
+
+  if (toStack && toStack !== d.fromStack){
+    const r = doMove(d.fromStack, d.tileId, toStack);
+    if (r.ok){ finish(); return; }
+    target.classList.add('shake');
+    setTimeout(() => target.classList.remove('shake'), 300);
+    toast('⛔ ' + r.reason, 1400);
+  }
+  // huỷ: bay về chỗ cũ [E1, E2]
+  const rect = d.el.getBoundingClientRect();
+  ghost.classList.add('returning');
+  ghost.style.left = rect.left + 'px';
+  ghost.style.top  = rect.top + 'px';
+  ghost.style.transform = 'scale(1)';
+  setTimeout(() => { finish(); ghost.style.transform = 'scale(1.06)'; d.el.classList.remove('dragging'); }, 210);
+}
+
+/* ---------- Nút điều khiển ---------- */
+$('#btnUndo').onclick = () => {
+  if (busy || !history.length) return;
+  state = history.pop(); stuckWarned = false;
+  $('#win').classList.remove('show');
+  render(true); toast('↺ Đã hoàn tác', 1000);
+};
+$('#btnRestart').onclick = () => {
+  if (busy) return;
+  $('#win').classList.remove('show');
+  startLevel(rawLevel); toast('⟳ Chơi lại', 1000);
+};
+$('#btnHint').onclick = () => {
+  if (busy || !state || state.status === 'won') return;
+  toast('💡 Đang tìm nước đi…', 700);
+  setTimeout(() => {
+    const r = solve(state, 6000);
+    state.hintsUsed++;
+    if (r.solved && r.moves.length){
+      const mv = r.moves[0];
+      const tEl = boardEl.querySelector(`.tile[data-tile-id="${mv.tileId}"]`);
+      const sEl = boardEl.querySelector(`.stack[data-stack-id="${mv.to}"]`);
+      if (tEl) tEl.classList.add('hint');
+      if (sEl) sEl.classList.add('hint-dst');
+      setTimeout(() => { if (tEl) tEl.classList.remove('hint'); if (sEl) sEl.classList.remove('hint-dst'); }, 2600);
+      toast(`💡 Kéo "${mv.label}" sang box được viền trắng`, 2600);
+    } else {
+      const pair = naiveHint();
+      if (pair){ toast(`💡 "${pair[0]}" và "${pair[1]}" cùng nhóm đấy`, 2600); }
+      else toast('💡 Không tìm được gợi ý — có thể bàn đã bế tắc.', 2600);
+    }
+    render(false);
+  }, 60);
+};
+function naiveHint(){
+  const tops = state.stacks.map(s => s.boxes[0]).filter(Boolean);
+  const map = new Map();
+  tops.forEach((b, i) => boxTiles(b).forEach(t => {
+    if (!map.has(t.groupId)) map.set(t.groupId, []);
+    map.get(t.groupId).push({ label:t.label, box:i });
+  }));
+  for (const [, arr] of map){
+    if (arr.length >= 2 && arr[0].box !== arr[1].box) return [arr[0].label, arr[1].label];
+  }
+  return null;
+}
+
+$('#levelSel').onchange = e => startLevel(allLevels()[e.target.value]);
+
+/* ---------- Win ---------- */
+function showWin(){
+  $('#winSub').textContent = `${state.title} — ${state.movesUsed} nước đi, ${state.totalGroups} nhóm.`;
+  $('#win').classList.add('show');
+  for (let i = 0; i < 44; i++){
+    const c = document.createElement('div');
+    c.className = 'confetti';
+    c.style.left = Math.random() * 100 + 'vw';
+    c.style.background = PALETTE[i % PALETTE.length];
+    c.style.animationDuration = (1.6 + Math.random() * 1.4) + 's';
+    c.style.animationDelay = (Math.random() * .6) + 's';
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 3600);
+  }
+}
+$('#winReplay').onclick = () => { $('#win').classList.remove('show'); startLevel(rawLevel); };
+$('#winNext').onclick = () => {
+  $('#win').classList.remove('show');
+  const list = allLevels();
+  const i = list.findIndex(l => l.id === rawLevel.id);
+  const next = list[(i + 1) % list.length];
+  $('#levelSel').value = (i + 1) % list.length;
+  startLevel(next);
+};
+
+let toastT = null;
+function toast(msg, ms){
+  const el = $('#toast');
+  el.textContent = msg; el.classList.add('show');
+  clearTimeout(toastT);
+  toastT = setTimeout(() => el.classList.remove('show'), ms || 1800);
+}
+
+/* ==========================================================================
+   PHẦN 6 — TRÌNH XẾP LEVEL
+   ========================================================================== */
+let ed = null;   // level thô đang chỉnh
+
+const clone = o => JSON.parse(JSON.stringify(o));
+
+function edInit(raw){
+  ed = clone(raw || BUILTIN[0]);
+  ed.boxCapacity = ed.boxCapacity || 4;
+  edRender();
+}
+
+function edPlaceableWords(){
+  // Mọi từ, trừ những từ là tên chủ đề của nhóm khác (chỉ sinh qua COLLAPSE)
+  const topicNames = new Set();
+  const all = [];
+  (ed.groups || []).forEach(g => (g.words || []).forEach(w => { if (w) all.push(w); }));
+  (ed.groups || []).forEach(g => {
+    if (!g.name) return;
+    if (all.includes(g.name)) topicNames.add(g.name);
+  });
+  return { words: all.filter(w => !topicNames.has(w)), topicNames };
+}
+function edUsedWords(){
+  const s = new Set();
+  (ed.stacks || []).forEach(st => (st.boxes || []).forEach(b => (b.tiles || []).forEach(t => { if (t) s.add(t); })));
+  return s;
+}
+
+function edRender(){
+  $('#edTitle').value = ed.title || '';
+  $('#edId').value    = ed.id || '';
+  $('#edCap').value   = ed.boxCapacity;
+
+  /* --- nhóm --- */
+  const gc = $('#edGroups'); gc.innerHTML = '';
+  (ed.groups || []).forEach((g, gi) => {
+    const card = document.createElement('div'); card.className = 'gcard';
+    const willCollapse = (ed.groups || []).some((o, oi) => oi !== gi && (o.words || []).includes(g.name));
+    card.innerHTML = `
+      <div class="row tight">
+        <label class="f grow">Tên chủ đề<input type="text" data-g="${gi}" data-k="name" value="${esc(g.name||'')}"></label>
+        <label class="f" style="max-width:100px">Mã<input type="text" data-g="${gi}" data-k="id" value="${esc(g.id||'')}"></label>
+        <button class="btn sm danger" data-delg="${gi}">✕</button>
+      </div>
+      <div class="words">${(g.words||[]).map((w,wi)=>
+        `<input type="text" data-g="${gi}" data-w="${wi}" value="${esc(w||'')}" placeholder="từ ${wi+1}">`).join('')}</div>
+      <div class="hintline">${willCollapse ? '🔁 <b>COLLAPSE</b> — gộp thành ô “'+esc(g.name||'')+'”' : '💥 <b>CLEAR</b> — 4 ô biến mất'}
+        <button class="btn sm ghost" data-addw="${gi}" style="margin-left:6px">+từ</button>
+        <button class="btn sm ghost" data-delw="${gi}">−từ</button></div>`;
+    gc.appendChild(card);
+  });
+
+  /* --- bàn chơi --- */
+  const { words, topicNames } = edPlaceableWords();
+  const used = edUsedWords();
+  const sc = $('#edStacks'); sc.innerHTML = '';
+  (ed.stacks || []).forEach((st, si) => {
+    const card = document.createElement('div'); card.className = 'stackcard';
+    let html = `<div class="row" style="justify-content:space-between">
+        <b style="font-size:13px">Stack ${si+1} <span style="font-weight:500;color:var(--muted)">· sâu ${st.boxes.length}</span></b>
+        <span class="row tight">
+          <button class="btn sm ghost" data-addbox="${si}">+ box</button>
+          <button class="btn sm danger" data-delstack="${si}">✕</button>
+        </span></div>`;
+    st.boxes.forEach((b, bi) => {
+      const tag = bi === 0 ? 'TOP — đang mở' : (bi === st.boxes.length - 1 ? 'ĐÁY (không bao giờ xoá)' : 'bị che');
+      html += `<div class="boxrow"><div class="lbl"><span>Box ${bi} · ${tag}</span>
+        ${st.boxes.length > 1 ? `<button class="btn sm danger" data-delbox="${si}.${bi}">✕</button>` : ''}</div>
+        <div class="slots">`;
+      for (let k = 0; k < ed.boxCapacity; k++){
+        const cur = (b.tiles || [])[k] || '';
+        html += `<select data-slot="${si}.${bi}.${k}"><option value="">— trống —</option>` +
+          words.map(w => {
+            const disabled = used.has(w) && w !== cur;
+            return `<option value="${esc(w)}"${w === cur ? ' selected' : ''}${disabled ? ' disabled' : ''}>${esc(w)}</option>`;
+          }).join('') + `</select>`;
+      }
+      html += `</div></div>`;
+    });
+    card.innerHTML = html;
+    sc.appendChild(card);
+  });
+
+  /* --- word bank --- */
+  const bank = $('#edBank'); bank.innerHTML = '';
+  words.filter(w => !used.has(w)).forEach(w => {
+    const s = document.createElement('span'); s.textContent = w; bank.appendChild(s);
+  });
+  topicNames.forEach(w => {
+    const s = document.createElement('span'); s.className = 'topicw'; s.textContent = w + ' 🔁'; bank.appendChild(s);
+  });
+  if (!bank.children.length) bank.innerHTML = '<span style="opacity:.6">(đã đặt hết)</span>';
+}
+function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+/* --- sự kiện editor --- */
+$('#edTitle').oninput = e => ed.title = e.target.value;
+$('#edId').oninput    = e => ed.id = e.target.value;
+$('#edCap').onchange  = e => {
+  const c = Math.max(2, Math.min(16, parseInt(e.target.value) || 4));
+  ed.boxCapacity = c;
+  ed.stacks.forEach(st => st.boxes.forEach(b => {
+    b.tiles = (b.tiles || []).slice(0, c);
+    while (b.tiles.length < c) b.tiles.push(null);
+  }));
+  edRender();
+};
+
+$('#edGroups').addEventListener('input', e => {
+  const t = e.target;
+  if (t.dataset.g === undefined) return;
+  const g = ed.groups[+t.dataset.g];
+  if (t.dataset.k) g[t.dataset.k] = t.value;
+  else if (t.dataset.w !== undefined) g.words[+t.dataset.w] = t.value;
+});
+$('#edGroups').addEventListener('change', () => edRender());
+$('#edGroups').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.delg !== undefined) ed.groups.splice(+b.dataset.delg, 1);
+  if (b.dataset.addw !== undefined) ed.groups[+b.dataset.addw].words.push('');
+  if (b.dataset.delw !== undefined) ed.groups[+b.dataset.delw].words.pop();
+  edRender();
+});
+$('#edAddGroup').onclick = () => {
+  ed.groups = ed.groups || [];
+  ed.groups.push({ id:'g_' + (ed.groups.length + 1), name:'', words:['','','',''] });
+  edRender();
+};
+
+$('#edStacks').addEventListener('change', e => {
+  const sel = e.target.closest('select'); if (!sel) return;
+  const [si, bi, k] = sel.dataset.slot.split('.').map(Number);
+  const b = ed.stacks[si].boxes[bi];
+  b.tiles = b.tiles || [];
+  while (b.tiles.length < ed.boxCapacity) b.tiles.push(null);
+  b.tiles[k] = sel.value || null;
+  edRender();
+});
+$('#edStacks').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.addbox !== undefined)
+    ed.stacks[+b.dataset.addbox].boxes.push({ tiles:new Array(ed.boxCapacity).fill(null) });
+  if (b.dataset.delstack !== undefined) ed.stacks.splice(+b.dataset.delstack, 1);
+  if (b.dataset.delbox !== undefined){
+    const [si, bi] = b.dataset.delbox.split('.').map(Number);
+    ed.stacks[si].boxes.splice(bi, 1);
+  }
+  edRender();
+});
+$('#edAddStack').onclick = () => {
+  ed.stacks = ed.stacks || [];
+  ed.stacks.push({ boxes:[{ tiles:new Array(ed.boxCapacity).fill(null) }] });
+  edRender();
+};
+$('#edClearBoard').onclick = () => {
+  ed.stacks.forEach(st => st.boxes.forEach(b => b.tiles = new Array(ed.boxCapacity).fill(null)));
+  edRender();
+};
+$('#edAutoFill').onclick = () => {
+  const { words } = edPlaceableWords();
+  const used = edUsedWords();
+  const pool = words.filter(w => !used.has(w));
+  for (let i = pool.length - 1; i > 0; i--){ const j = Math.floor(Math.random() * (i + 1)); [pool[i], pool[j]] = [pool[j], pool[i]]; }
+  // ưu tiên rót vào các box bị che trước, chừa slot trống ở tầng top [GDD §10.1]
+  const slots = [];
+  ed.stacks.forEach((st, si) => st.boxes.forEach((b, bi) => {
+    b.tiles = b.tiles || new Array(ed.boxCapacity).fill(null);
+    for (let k = 0; k < ed.boxCapacity; k++) if (!b.tiles[k]) slots.push({ si, bi, k, depth: bi });
+  }));
+  slots.sort((a, c) => c.depth - a.depth);
+  const topSlots = slots.filter(s => s.depth === 0);
+  const reserve = Math.min(topSlots.length, 4);            // chừa ≥4 slot trống ở tầng trên
+  const usable = slots.slice(0, slots.length - reserve);
+  pool.forEach((w, i) => { const s = usable[i]; if (s) ed.stacks[s.si].boxes[s.bi].tiles[s.k] = w; });
+  if (pool.length > usable.length) edMsg('warn', `Không đủ chỗ: còn ${pool.length - usable.length} từ chưa đặt. Thêm box hoặc stack.`);
+  edRender();
+};
+
+function edMsg(kind, text){
+  $('#edMsg').innerHTML = `<div class="msg ${kind}">${esc(text)}</div>`;
+}
+function edMsgHTML(html){ $('#edMsg').innerHTML = html; }
+
+$('#edCheck').onclick = () => {
+  const { state: st, errors, warnings } = parseLevel(ed);
+  let html = '';
+  if (errors.length)   html += `<div class="msg err"><b>❌ ${errors.length} lỗi</b>\n• ${errors.map(esc).join('\n• ')}</div>`;
+  if (warnings.length) html += `<div class="msg warn"><b>⚠ ${warnings.length} cảnh báo</b>\n• ${warnings.map(esc).join('\n• ')}</div>`;
+  if (!errors.length){
+    edMsgHTML(html + `<div class="msg ok">⏳ Đang thử giải…</div>`);
+    setTimeout(() => {
+      const r = solve(st, 25000);
+      const tail = r.solved
+        ? `<div class="msg ok"><b>✅ Giải được</b> trong ${r.moves.length} nước (duyệt ${r.expanded} trạng thái).\nLời giải mẫu: ${esc(r.moves.map(m => m.label).join(' → '))}</div>`
+        : `<div class="msg err"><b>❌ Không tìm ra lời giải</b> sau ${r.expanded} trạng thái.\nLevel có thể không giải được, hoặc quá khó cho bộ tìm kiếm. Thử thêm 1 stack trống làm không gian trung chuyển.</div>`;
+      edMsgHTML(html + tail);
+    }, 40);
+  } else edMsgHTML(html);
+};
+
+$('#edPlay').onclick = () => {
+  const { errors } = parseLevel(ed);
+  if (errors.length){ edMsg('err', 'Không chơi được — còn ' + errors.length + ' lỗi. Bấm Kiểm tra để xem chi tiết.'); return; }
+  switchTab('play');
+  startLevel(clone(ed));
+  toast('▶ Đang chơi thử level của bạn', 1600);
+};
+
+$('#edSave').onclick = () => {
+  const { errors } = parseLevel(ed);
+  if (errors.length){ edMsg('err', 'Chưa lưu được — còn ' + errors.length + ' lỗi.'); return; }
+  const list = customLevels();
+  const i = list.findIndex(l => l.id === ed.id);
+  if (i >= 0) list[i] = clone(ed); else list.push(clone(ed));
+  saveCustom(list);
+  refreshLevelSelect(ed.id); refreshPresetSel();
+  edMsg('ok', `💾 Đã lưu "${ed.title}". Level xuất hiện trong danh sách ở tab Chơi (★).`);
+};
+$('#edDelete').onclick = () => {
+  const list = customLevels().filter(l => l.id !== ed.id);
+  saveCustom(list); refreshLevelSelect(); refreshPresetSel();
+  edMsg('ok', 'Đã xoá khỏi danh sách đã lưu.');
+};
+
+/* ---------- File level = format game (meaning/layout) ----------
+   Tool làm việc nội bộ bằng cấu trúc words/tiles cho nhẹ, nhưng FILE JSON ra/vào
+   (Xuất JSON / Nhập JSON / Tải JSON ở tab CSV) là ĐÚNG format game đọc trong
+   Assets/_Game/Content/Levels/:
+   - label → card id kebab không dấu ("Xe cứu thương" → "xe-cuu-thuong");
+   - COLLAPSE suy từ tên chủ đề → field "group" (id nhóm cha) tường minh;
+   - icon emoji ↔ art key theo mã codepoint ("🍎" ↔ "1f34e", bỏ FE0F — trùng tên
+     file pack kiểu Twemoji, thả 1f34e.png vào Assets/_Game/Content/Resources/Art/);
+     key ASCII ("apple") giữ nguyên để dùng sprite có sẵn;
+   - stack thứ i → pos [i % cols, floor(i / cols)].
+   Chỉ xuất khi qua HẾT luật game (capacity 4, nhóm đúng 4 từ, đủ từ trên bàn,
+   không box rỗng giữa chừng, ≥1 thẻ chỉ-ảnh + ≥1 thẻ chỉ-chữ, mỗi ảnh một chủ) —
+   file tải về là để thả thẳng vào Content/Levels rồi chạy ./selfcheck.sh. */
+function slugify(s){
+  s = String(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return s || 'card';
+}
+function emojiArtKey(icon){
+  if (/^[\x20-\x7e]+$/.test(icon)) return icon;             // key ASCII: giữ nguyên
+  return Array.from(icon).map(c => c.codePointAt(0))
+    .filter(cp => cp !== 0xFE0F)
+    .map(cp => cp.toString(16)).join('-');
+}
+function artKeyToIcon(key){
+  // Chỉ giải mã khi chắc là mã codepoint (có '-', hoặc nằm vùng emoji ≥ U+1F000) —
+  // tên sprite thường ("cafe", "dad") tuy toàn hex nhưng không được đụng vào.
+  if (!/^[0-9a-f]+(-[0-9a-f]+)*$/.test(key)) return key;
+  const cps = key.split('-').map(h => parseInt(h, 16));
+  if (cps.length === 1 && cps[0] < 0x1F000) return key;
+  try { return String.fromCodePoint(...cps); } catch (e){ return key; }
+}
+
+// Nội bộ (groups/words/tiles) → format game. Trả { json, warnings, artFiles }
+// hoặc { errors } nếu level chưa đạt luật game.
+function rawToGame(raw){
+  const errors = [], warnings = [], parsed = parseLevel(raw);
+  errors.push(...parsed.errors);
+  if (errors.length) return { errors };
+  warnings.push(...parsed.warnings);
+
+  if ((raw.boxCapacity || 4) !== 4)
+    errors.push(`Game cố định 4 slot/box — level đang để ${raw.boxCapacity}.`);
+  if (!/^lv-\d{3}$/.test(raw.id || ''))
+    warnings.push(`Mã level nên theo dạng lv-NNN (vd lv-008) — đang là "${raw.id || ''}". Game dùng mã này làm address Addressables và tên file.`);
+
+  const groups = raw.groups || [];
+  const icons = raw.icons || {};
+  // COLLAPSE: nhóm G có tên nằm trong words của P ⇒ G là con của P
+  const parentOf = {};
+  for (const g of groups){
+    const p = groups.find(o => o.id !== g.id && (o.words || []).includes(g.name));
+    if (p) parentOf[g.id] = p.id;
+  }
+  if (groups.length && Object.keys(parentOf).length === groups.length)
+    errors.push('Không có nhóm gốc nào (mọi nhóm đều là con qua COLLAPSE) — không thẻ nào biến mất được.');
+  const topicNames = new Set(groups.filter(g => parentOf[g.id]).map(g => g.name));
+
+  for (const g of groups){
+    const n = (g.words || []).filter(Boolean).length;
+    if (n !== 4) errors.push(`Nhóm "${g.name || g.id}" có ${n} từ — game cần đúng 4 (tên nhóm con cũng tính là 1 từ).`);
+  }
+
+  // Game coi từ vắng mặt trên bàn là LỖI (tool chỉ cảnh báo)
+  const used = new Set();
+  (raw.stacks || []).forEach(st => (st.boxes || []).forEach(b => (b.tiles || []).forEach(t => { if (t) used.add(t); })));
+  const placeable = [];
+  for (const g of groups)
+    for (const w of (g.words || []).filter(Boolean))
+      if (!topicNames.has(w)){
+        placeable.push(w);
+        if (!used.has(w)) errors.push(`Từ "${w}" chưa được đặt lên bàn — game bắt buộc đủ mặt.`);
+      }
+
+  // Box rỗng không phải đáy: game cấm (hộp dưới không bao giờ lộ được)
+  (raw.stacks || []).forEach((st, si) => (st.boxes || []).forEach((b, bi) => {
+    if (bi < st.boxes.length - 1 && !(b.tiles || []).some(Boolean))
+      errors.push(`Stack ${si + 1} có box ${bi + 1} rỗng nhưng không phải box đáy — game cấm.`);
+  }));
+
+  // Luật "chữ và ảnh ngang vai" của game
+  const iconed = placeable.filter(w => icons[w]);
+  if (placeable.length){
+    if (!iconed.length) errors.push('Game cần ≥1 thẻ chỉ-ảnh — gắn icon cho ít nhất 1 từ.');
+    if (iconed.length === placeable.length) errors.push('Game cần ≥1 thẻ chỉ-chữ — bỏ icon của ít nhất 1 từ.');
+  }
+
+  // Mỗi ảnh một chủ
+  const artOwner = new Map();
+  const claimArt = (icon, who) => {
+    if (!icon) return;
+    if (artOwner.has(icon)) errors.push(`Icon ${icon} dùng cho cả ${artOwner.get(icon)} và ${who} — game bắt mỗi ảnh một chủ.`);
+    else artOwner.set(icon, who);
+  };
+  for (const g of groups){
+    claimArt(icons[g.name], `nhóm "${g.name}"`);
+    for (const w of g.words || []) if (w && !topicNames.has(w)) claimArt(icons[w], `"${w}"`);
+  }
+
+  if (errors.length) return { errors };
+
+  // ---- dựng JSON game ----
+  const idOf = new Map(), taken = new Set(groups.map(g => g.id));
+  for (const w of placeable){
+    let s = slugify(w), k = s, n = 2;
+    while (taken.has(k)) k = s + '-' + (n++);
+    taken.add(k); idOf.set(w, k);
+  }
+  const cols = Math.max(1, Math.min(4, raw.cols || 2));
+  const gameLv = { id: raw.id, title: raw.title || raw.id };
+  const diff = { easy:'Normal', normal:'Normal', hard:'Hard', crazy:'Crazy' }[String(raw.difficulty || '').toLowerCase()];
+  if (diff) gameLv.difficulty = diff;
+  if (raw.note) gameLv.note = raw.note;
+  gameLv.layout = { stacks: (raw.stacks || []).map((st, i) => ({
+    pos: [i % cols, Math.floor(i / cols)],
+    boxes: (st.boxes || []).map(b => {
+      const slots = (b.tiles || []).slice(0, 4).map(t => t ? idOf.get(t) : null);
+      while (slots.length < 4) slots.push(null);
+      return { slots };
+    })
+  })) };
+  gameLv.meaning = { groups: groups.map(g => {
+    const o = { id: g.id, text: g.name };
+    if (icons[g.name]) o.art = emojiArtKey(icons[g.name]);
+    if (parentOf[g.id]) o.group = parentOf[g.id];
+    o.cards = (g.words || []).filter(w => w && !topicNames.has(w)).map(w =>
+      icons[w] ? { id: idOf.get(w), art: emojiArtKey(icons[w]) } : { id: idOf.get(w), text: w });
+    return o;
+  }) };
+
+  const artFiles = [...artOwner.keys()].map(ic => {
+    const k = emojiArtKey(ic);
+    return k + '.png' + (k === ic ? '' : ' (' + ic + ')');
+  });
+  return { json: JSON.stringify(gameLv, null, 2), warnings, artFiles };
+}
+
+// Format game → nội bộ, để "Nhập JSON" đọc được cả file trong Content/Levels/.
+function gameToRaw(gv){
+  const groups = [], icons = {};
+  const label = {};                                  // card id → label hiển thị
+  const mGroups = (gv.meaning && gv.meaning.groups) || [];
+  for (const g of mGroups)
+    for (const c of g.cards || []){
+      label[c.id] = c.text || c.id;
+      if (c.art) icons[label[c.id]] = artKeyToIcon(c.art);
+    }
+  const nameOf = {};
+  for (const g of mGroups) nameOf[g.id] = g.text || g.id;
+  for (const g of mGroups){
+    const words = (g.cards || []).map(c => label[c.id]);
+    for (const o of mGroups) if (o.group === g.id) words.push(nameOf[o.id]);   // nhóm con = 1 từ của cha
+    if (g.art) icons[nameOf[g.id]] = artKeyToIcon(g.art);
+    groups.push({ id: g.id, name: nameOf[g.id], words });
+  }
+  const sts = ((gv.layout && gv.layout.stacks) || []).slice()
+    .sort((a, b) => (a.pos[1] - b.pos[1]) || (a.pos[0] - b.pos[0]));
+  const cols = Math.max(1, Math.min(4, 1 + Math.max(0, ...sts.map(s => Math.round(s.pos[0])))));
+  const stacks = sts.map(s => ({ boxes: (s.boxes || []).map(b => ({
+    tiles: (b.slots || []).map(id => id ? (label[id] || id) : null)
+  })) }));
+  const raw = { id: gv.id, title: gv.title, boxCapacity: 4, cols, groups, stacks, icons };
+  if (gv.difficulty) raw.difficulty = gv.difficulty;
+  if (gv.note) raw.note = gv.note;
+  return raw;
+}
+
+$('#edExport').onclick = () => {
+  const r = rawToGame(ed);
+  if (r.errors){
+    edMsgHTML(`<div class="msg err"><b>❌ Chưa xuất được — ${r.errors.length} lỗi theo luật game</b>\n• ${r.errors.map(esc).join('\n• ')}</div>`);
+    return;
+  }
+  $('#edJsonPanel').classList.remove('hidden');
+  $('#edJson').value = r.json;
+  $('#edJson').scrollIntoView({ behavior:'smooth' });
+  let html = `<div class="msg ok">✅ JSON đúng format game. Bấm 💾 Tải file → thả vào Assets/_Game/Content/Levels/ → chạy ./selfcheck.sh (solver kiểm CẢ 2 chế độ, nặng hơn bộ giải ở đây) → Unity: WordStack ▸ Build Level Catalog.</div>`;
+  if (r.artFiles.length)
+    html += `<div class="msg warn"><b>Art phải có trong Assets/_Game/Content/Resources/Art/</b>\n• ${r.artFiles.map(esc).join('\n• ')}</div>`;
+  if (r.warnings.length)
+    html += `<div class="msg warn"><b>⚠ ${r.warnings.length} cảnh báo</b>\n• ${r.warnings.map(esc).join('\n• ')}</div>`;
+  edMsgHTML(html);
+};
+$('#edImport').onclick = () => {
+  $('#edJsonPanel').classList.remove('hidden');
+  $('#edJson').value = $('#edJson').value || '';
+  $('#edJson').focus();
+};
+$('#edJsonClose').onclick = () => $('#edJsonPanel').classList.add('hidden');
+$('#edJsonSave').onclick = () => {
+  const txt = $('#edJson').value;
+  if (!txt.trim()){ edMsg('err', 'Ô JSON đang trống.'); return; }
+  let name = 'level.json';
+  try { name = (JSON.parse(txt.replace(/^\s*\/\/.*$/gm, '')).id || 'level') + '.json'; } catch (e){}
+  downloadFile(name, txt, 'application/json;charset=utf-8', false);
+};
+$('#edJsonApply').onclick = () => {
+  try {
+    // cho phép JSONC đơn giản: bỏ comment //
+    const txt = $('#edJson').value.replace(/^\s*\/\/.*$/gm, '');
+    const o = JSON.parse(txt);
+    // file format game (meaning/layout) hay cấu trúc nội bộ cũ đều nạp được
+    ed = (o && o.meaning && o.layout) ? gameToRaw(o) : o;
+    ed.boxCapacity = ed.boxCapacity || 4;
+    edRender(); edMsg('ok', 'Đã nạp JSON' + (o && o.meaning ? ' (format game)' : '') + '.');
+  } catch (e){ edMsg('err', 'JSON sai cú pháp: ' + e.message); }
+};
+function presetList(){ return BUILTIN.concat([GDD_SAMPLE], customLevels()); }
+function refreshPresetSel(){
+  const sel = $('#edPresetSel'), cur = sel.value;
+  sel.innerHTML = '';
+  presetList().forEach((l, i) => {
+    const o = document.createElement('option');
+    o.value = i; o.textContent = l.title;
+    sel.appendChild(o);
+  });
+  if (cur && sel.options[cur]) sel.value = cur;
+}
+$('#edLoadPreset').onclick = () => {
+  const lv = presetList()[+$('#edPresetSel').value];
+  if (lv){ edInit(lv); refreshPresetSel(); edMsg('ok', `Đã nạp "${lv.title}".`); }
+};
+
+/* ==========================================================================
+   PHẦN 7 — NHẬP BỘ TỪ TỪ CSV → SINH LEVEL
+   CSV chỉ mô tả NỘI DUNG (nhóm + từ). Bố cục bàn do máy rải, rồi bộ giải ở
+   PHẦN 3 kiểm chứng — không nhận level nào chưa chứng minh được là giải được.
+   ========================================================================== */
+
+/* ---------- 7.1 Preset độ khó ---------- */
+// reserve = số slot trống chừa lại ở tầng đang mở CỦA CÁC STACK CÓ TỪ.
+// Các stack trống (spare) đã góp thêm spare×capacity slot trống nữa, nên
+// reserve chỉ cần nhỏ — để to sẽ đẩy số stack lên và làm bàn phẳng ra.
+const DIFF = {
+  easy:   { depth:2, spare:2, reserve:2, moves:[0, 16]  },
+  normal: { depth:2, spare:1, reserve:2, moves:[8, 28]  },
+  hard:   { depth:3, spare:1, reserve:1, moves:[16, 1e9] }
+};
+const SOLVE_BUDGET = 6000;
+
+/* ---------- 7.2 RNG có seed (import lại cùng file ⇒ ra cùng bàn) ---------- */
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    let t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+function hashStr(s){
+  let h = 2166136261;
+  for (let i = 0; i < s.length; i++){ h ^= s.charCodeAt(i); h = Math.imul(h, 16777619); }
+  return h >>> 0;
+}
+function slugId(s, i){
+  const base = String(s).normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+    .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+    .replace(/[^A-Za-z0-9]+/g, '_').replace(/^_+|_+$/g, '').toLowerCase();
+  return 'g_' + (base || 'x') + '_' + i;
+}
+
+/* ---------- 7.3 Parser CSV (RFC 4180 + tự nhận dấu phân cách) ---------- */
+function detectDelim(line){
+  let best = ',', bestN = -1;
+  for (const d of [',', ';', '\t']){
+    let n = 0, q = false;
+    for (const ch of line){
+      if (ch === '"') q = !q;
+      else if (ch === d && !q) n++;
+    }
+    if (n > bestN){ bestN = n; best = d; }
+  }
+  return best;
+}
+
+function parseCSV(text){
+  text = String(text).replace(/^\uFEFF/, '').replace(/\r\n?/g, '\n');
+  const probe = text.split('\n').find(l => l.trim() && !l.trim().startsWith('#')) || '';
+  const D = detectDelim(probe);
+
+  const rows = [];
+  let cell = '', row = [], q = false, line = 1, start = 1;
+  for (let i = 0; i < text.length; i++){
+    const c = text[i];
+    if (q){
+      if (c === '"'){
+        if (text[i+1] === '"'){ cell += '"'; i++; } else q = false;
+      } else { if (c === '\n') line++; cell += c; }
+      continue;
+    }
+    if (c === '"'){ q = true; continue; }
+    if (c === D){ row.push(cell); cell = ''; continue; }
+    if (c === '\n'){
+      row.push(cell); rows.push({ line: start, cells: row });
+      row = []; cell = ''; line++; start = line; continue;
+    }
+    cell += c;
+  }
+  if (cell !== '' || row.length){ row.push(cell); rows.push({ line: start, cells: row }); }
+
+  return rows.filter(r =>
+    r.cells.join('').trim() && !String(r.cells[0] || '').trim().startsWith('#'));
+}
+
+/* ---------- 7.4 CSV → bộ từ ----------
+   Đơn vị biên soạn là BỘ (set), không phải level. Mỗi bộ có tham số riêng;
+   generator chia các nhóm trong bộ thành nhiều bàn, mỗi nhóm dùng đúng 1 lần.  */
+const CSV_ALIAS = {
+  set:        ['set', 'set_id', 'bo', 'bộ', 'bo tu', 'bộ từ', 'ma bo', 'mã bộ', 'pack'],
+  title:      ['title', 'ten', 'tên', 'ten bo', 'tên bộ', 'set_title'],
+  difficulty: ['difficulty', 'diff', 'do kho', 'độ khó', 'dokho'],
+  gpl:        ['groups_per_level', 'gpl', 'nhom_moi_ban', 'nhóm mỗi bàn', 'so nhom', 'số nhóm'],
+  capacity:   ['capacity', 'cap', 'slot', 'slot_box', 'slot/box'],
+  topic:      ['topic', 'chu de', 'chủ đề', 'chude', 'ten chu de', 'tên chủ đề'],
+  words:      ['words', 'word', 'tu', 'từ', 'cac tu', 'các từ']
+};
+const tidy  = s => String(s == null ? '' : s).replace(/\s+/g, ' ').trim();
+const lower = s => tidy(s).toLowerCase();
+
+/* ---------- 7.3b Cú pháp icon "Từ=emoji" ----------
+   Icon là hậu tố sau dấu "=" cuối cùng, không chứa khoảng trắng (đủ cho
+   emoji kể cả tổ hợp ZWJ/variation selector). Không có "=" ⇒ không có icon. */
+function splitIcon(raw){
+  const m = /^(.*)=(\S+)$/.exec(raw);
+  return m ? { text: tidy(m[1]), icon: m[2] } : { text: tidy(raw), icon: '' };
+}
+
+function csvToSets(text){
+  const errors = [], warnings = [], sets = [], levels = [];
+  const rows = parseCSV(text);
+  if (!rows.length) return { sets, levels, errors:['File CSV rỗng — chưa có dòng dữ liệu nào.'], warnings };
+
+  /* --- ánh xạ cột --- */
+  const heads = rows[0].cells.map(lower);
+  const idx = {};
+  for (const key in CSV_ALIAS){
+    const i = heads.findIndex(h => CSV_ALIAS[key].includes(h));
+    if (i >= 0) idx[key] = i;
+  }
+  for (const k of ['set', 'topic', 'words']){
+    if (idx[k] === undefined)
+      errors.push(`Thiếu cột bắt buộc "${k}". Dòng tiêu đề đang là: ${rows[0].cells.join(' | ')}`);
+  }
+  if (errors.length) return { sets, levels, errors, warnings };
+
+  /* --- tham số của bộ: chỉ đọc lần xuất hiện đầu tiên --- */
+  const num = (raw, line, label, lo, hi, set, key) => {
+    if (!raw) return;
+    const n = Number(raw);
+    if (!Number.isInteger(n) || n < lo || n > hi)
+      errors.push(`Dòng ${line}: ${label} "${raw}" không hợp lệ — số nguyên từ ${lo} đến ${hi}.`);
+    else set[key] = n;
+  };
+
+  const byId = new Map();
+  for (let r = 1; r < rows.length; r++){
+    const { line, cells } = rows[r];
+    const at = k => idx[k] === undefined ? '' : tidy(cells[idx[k]]);
+
+    const sid = at('set');
+    const topicRaw = at('topic');
+    const topicP = splitIcon(topicRaw);
+    const topic = topicP.text;
+    const wordsRaw = at('words').split(/[|]/).map(tidy).filter(Boolean);
+    if (!sid && !topic && !wordsRaw.length) continue;
+    if (!sid){ errors.push(`Dòng ${line}: thiếu mã bộ (set).`); continue; }
+
+    if (!byId.has(sid)){
+      byId.set(sid, { id: sid, title: '', difficulty: '', gpl: 0, capacity: 0, groups: [], icons: new Map(), line });
+      sets.push(byId.get(sid));
+    }
+    const S = byId.get(sid);
+    if (topicP.icon) S.icons.set(topic, topicP.icon);
+    const words = wordsRaw.map(w => {
+      const p = splitIcon(w);
+      if (p.icon) S.icons.set(p.text, p.icon);
+      else warnings.push(`[${sid}] dòng ${line}: từ "${p.text}" chưa có icon (dùng dạng "Từ=emoji").`);
+      return p.text;
+    });
+
+    const ttl = at('title');
+    if (ttl && !S.title) S.title = ttl;
+    const dif = lower(at('difficulty'));
+    if (dif && !S.difficulty){
+      if (!DIFF[dif]) errors.push(`Dòng ${line}: difficulty "${at('difficulty')}" không hợp lệ — dùng easy / normal / hard.`);
+      else S.difficulty = dif;
+    }
+    if (!S.gpl)      num(at('gpl'),      line, 'groups_per_level', 2, 24, S, 'gpl');
+    if (!S.capacity) num(at('capacity'), line, 'capacity',         4, 6, S, 'capacity');
+
+    if (!topic && !words.length) continue;
+    if (!topic){ errors.push(`Dòng ${line}: có từ nhưng thiếu tên chủ đề (topic).`); continue; }
+    if (!words.length){ errors.push(`Dòng ${line}: nhóm "${topic}" không có từ nào.`); continue; }
+    S.groups.push({ name: topic, words, line });
+  }
+
+  for (const S of sets){
+    validateSet(S, errors, warnings);
+    if (S.ok) levels.push(...splitSet(S, errors, warnings));
+  }
+  return { sets, levels, errors, warnings };
+}
+
+/* ---------- 7.4b Chia bộ thành các bàn ----------
+   Các nhóm dính nhau qua quan hệ COLLAPSE phải nằm chung một bàn, nếu không
+   cơ chế gộp sẽ không bao giờ xảy ra. Ngoài ràng buộc đó thì cứ theo thứ tự
+   dòng trong CSV — muốn nhóm nào chung bàn thì xếp cạnh nhau.               */
+function splitSet(S, errors, warnings){
+  const gs = S.groups;
+  const byName = new Map(gs.map(g => [g.name, g]));
+
+  const root = new Map(gs.map(g => [g.name, g.name]));
+  const find  = x => { while (root.get(x) !== x) x = root.get(x); return x; };
+  const union = (a, b) => { const ra = find(a), rb = find(b); if (ra !== rb) root.set(rb, ra); };
+  for (const g of gs) for (const w of g.words) if (byName.has(w)) union(g.name, w);
+
+  const families = [], bucket = new Map();
+  for (const g of gs){                       // giữ nguyên thứ tự xuất hiện trong file
+    const r = find(g.name);
+    if (!bucket.has(r)){ bucket.set(r, []); families.push(bucket.get(r)); }
+    bucket.get(r).push(g);
+  }
+
+  const gpl = S.gpl;
+  const tooBig = families.filter(f => f.length > gpl);
+  for (const f of tooBig)
+    errors.push(`[${S.id}] chuỗi COLLAPSE "${f.map(g => g.name).join(' → ')}" gồm ${f.length} nhóm phải nằm chung một bàn, ` +
+                `nhưng groups_per_level = ${gpl}. Tăng groups_per_level lên ít nhất ${f.length}.`);
+  if (tooBig.length) return [];
+
+  const chunks = [];
+  let cur = [];
+  for (const f of families){
+    if (cur.length && cur.length + f.length > gpl){ chunks.push(cur); cur = []; }
+    cur.push(...f);
+    if (cur.length >= gpl){ chunks.push(cur); cur = []; }
+  }
+  if (cur.length){
+    if (cur.length === 1 && chunks.length){
+      chunks[chunks.length - 1].push(cur[0]);
+      warnings.push(`[${S.id}] dư 1 nhóm ("${cur[0].name}") — đã gộp vào bàn cuối, bàn đó có ${chunks[chunks.length-1].length} nhóm.`);
+    } else chunks.push(cur);
+  }
+
+  const many = chunks.length > 1;
+  const base = S.title || S.id;
+  return chunks.map((groups, i) => ({
+    id:    many ? `${S.id}-${String(i + 1).padStart(2, '0')}` : S.id,
+    title: many ? `${base} ${i + 1}` : base,
+    difficulty: S.difficulty || 'normal',
+    capacity: S.capacity,
+    setId: S.id, index: i + 1, of: chunks.length,
+    groups, icons: Object.fromEntries(S.icons)
+  }));
+}
+
+/* ---------- 7.5 Kiểm tra một bộ từ (báo lỗi kèm số dòng) ---------- */
+function validateSet(S, errors, warnings){
+  const L = `[${S.id}]`;
+  const before = errors.length;
+  if (!S.groups.length){ errors.push(`${L} không có nhóm từ nào.`); S.ok = false; return; }
+
+  S.gpl = S.gpl || 4;
+  const longest = Math.max(...S.groups.map(g => g.words.length));
+  if (S.capacity){
+    if (S.capacity < longest)
+      errors.push(`${L} capacity = ${S.capacity} nhưng nhóm dài nhất có ${longest} từ — box không chứa nổi.`);
+  } else {
+    S.capacity = Math.min(6, Math.max(4, longest));   // tự suy từ nhóm dài nhất
+  }
+  const cap = S.capacity;
+  if (S.groups.length < S.gpl)
+    warnings.push(`${L} chỉ có ${S.groups.length} nhóm, ít hơn groups_per_level = ${S.gpl} — cả bộ ra đúng 1 bàn.`);
+
+  const nameAt = new Map();   // tên chủ đề -> dòng
+  const owner  = new Map();   // từ -> {name, line}
+  for (const g of S.groups){
+    const at = `dòng ${g.line}`;
+    if (g.words.length < 2)   errors.push(`${L} ${at}: nhóm "${g.name}" chỉ có ${g.words.length} từ (cần ít nhất 2).`);
+    if (g.words.length > cap) errors.push(`${L} ${at}: nhóm "${g.name}" có ${g.words.length} từ, vượt sức chứa box (${cap}).`);
+    if (new Set(g.words).size !== g.words.length) errors.push(`${L} ${at}: nhóm "${g.name}" có từ lặp lại.`);
+    if (g.words.includes(g.name)) errors.push(`${L} ${at}: nhóm "${g.name}" chứa chính tên chủ đề của nó.`);
+
+    if (nameAt.has(g.name)) errors.push(`${L} ${at}: tên chủ đề "${g.name}" đã dùng ở dòng ${nameAt.get(g.name)}.`);
+    else nameAt.set(g.name, g.line);
+
+    for (const w of g.words){
+      const o = owner.get(w);
+      if (o && o.name !== g.name)
+        errors.push(`${L} ${at}: từ "${w}" thuộc cả nhóm "${o.name}" (dòng ${o.line}) lẫn nhóm "${g.name}".`);
+      else owner.set(w, { name: g.name, line: g.line });
+      if (w.length > 14) warnings.push(`${L} từ "${w}" dài ${w.length} ký tự — chữ sẽ rất nhỏ trong ô.`);
+    }
+  }
+
+  // vòng lặp COLLAPSE: A là con của B và B lại là con của A
+  const parent = new Map();
+  for (const g of S.groups){
+    const p = S.groups.find(o => o !== g && o.words.includes(g.name));
+    if (p) parent.set(g.name, p.name);
+  }
+  for (const childName of parent.keys())
+    if (!S.icons.has(childName))
+      warnings.push(`${L} nhóm "${childName}" sẽ COLLAPSE nhưng chưa có icon cho tên chủ đề "${childName}" — ô mới sinh ra sẽ không có icon.`);
+  const done = new Set();
+  for (const startName of parent.keys()){
+    if (done.has(startName)) continue;
+    const path = [];
+    let cur = startName;
+    while (cur && !path.includes(cur) && !done.has(cur)){ path.push(cur); cur = parent.get(cur); }
+    if (cur && path.includes(cur)){
+      const cyc = path.slice(path.indexOf(cur)).concat(cur);
+      errors.push(`${L} vòng lặp COLLAPSE: ${cyc.join(' → ')}. Một nhóm không thể vừa là cha vừa là con.`);
+    }
+    path.forEach(n => done.add(n));
+  }
+
+  S.ok = errors.length === before;
+}
+
+/* ---------- 7.6 Rải từ lên bàn ---------- */
+function buildRaw(spec, seed, plan){
+  const rnd = mulberry32(seed);
+  const cap = spec.capacity;
+  const { depth, reserve } = plan;
+
+  const groups = spec.groups.map((g, i) => ({ id: slugId(g.name, i), name: g.name, words: g.words.slice() }));
+
+  // từ nào là tên chủ đề của nhóm khác thì chỉ sinh ra qua COLLAPSE ⇒ không đặt sẵn
+  const names = new Set(groups.map(g => g.name));
+  const pool = [];
+  for (const g of groups) for (const w of g.words) if (!names.has(w)) pool.push(w);
+  if (!pool.length) return null;
+
+  // Số stack có từ: ít nhất có thể, để các tầng box được xếp đầy theo chiều sâu
+  // thay vì bè ngang (bè ngang ⇒ tầng trên rỗng ⇒ bị cắt ⇒ mất cơ chế lật box).
+  let filled = Math.max(1, Math.ceil(pool.length / (cap * depth)));
+  while (filled * cap * depth - Math.min(filled * cap, reserve) < pool.length && filled < 64) filled++;
+
+  const stacks = [];
+  for (let i = 0; i < filled; i++)
+    stacks.push({ boxes: Array.from({ length: depth }, () => ({ tiles: new Array(cap).fill(null) })) });
+
+  const arr = pool.slice();
+  for (let i = arr.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [arr[i], arr[j]] = [arr[j], arr[i]]; }
+
+  // rót vào box bị che trước, chừa `reserve` slot trống ở tầng đang mở [GDD §10.1]
+  const slots = [];
+  stacks.forEach((st, si) => st.boxes.forEach((b, bi) => {
+    for (let k = 0; k < cap; k++) slots.push({ si, bi, k, d: bi, r: rnd() });
+  }));
+  slots.sort((a, b) => (b.d - a.d) || (a.r - b.r));
+  const topN   = slots.filter(s => s.d === 0).length;
+  const usable = slots.slice(0, slots.length - Math.min(topN, reserve));
+  if (arr.length > usable.length) return null;
+  arr.forEach((w, i) => { const s = usable[i]; stacks[s.si].boxes[s.bi].tiles[s.k] = w; });
+
+  // box trên cùng rỗng hoàn toàn sẽ tự biến mất ngay khi vào bàn ⇒ bỏ luôn cho gọn
+  for (const st of stacks)
+    while (st.boxes.length > 1 && st.boxes[0].tiles.every(t => !t)) st.boxes.shift();
+
+  // stack trống làm không gian trung chuyển, đồng thời bảo đảm
+  // tổng sức chứa các box đáy ≥ số ô trên bàn (nếu không sẽ kẹt ở cuối màn)
+  const spareN = Math.max(plan.spare, Math.ceil(pool.length / cap) - stacks.length);
+  for (let i = 0; i < spareN; i++) stacks.push({ boxes: [{ tiles: new Array(cap).fill(null) }] });
+
+  for (let i = stacks.length - 1; i > 0; i--){ const j = Math.floor(rnd() * (i + 1)); [stacks[i], stacks[j]] = [stacks[j], stacks[i]]; }
+
+  return { id: spec.id, title: spec.title || spec.id, difficulty: spec.difficulty || '', boxCapacity: cap, groups, stacks, icons: spec.icons, _tiles: pool.length };
+}
+
+/* ---------- 7.7 Sinh + kiểm chứng bằng bộ giải ---------- */
+async function generateLevel(spec, onTry){
+  const cfg = DIFF[spec.difficulty || 'normal'];
+  const base = hashStr(spec.id);
+  const plans = [
+    { spare: cfg.spare,     depth: cfg.depth,                  reserve: cfg.reserve,     tries: 30 },
+    { spare: cfg.spare + 1, depth: cfg.depth,                  reserve: cfg.reserve + 2, tries: 15 },
+    { spare: cfg.spare + 1, depth: Math.max(1, cfg.depth - 1), reserve: cfg.reserve + 2, tries: 15 }
+  ];
+
+  let n = 0;
+  for (let p = 0; p < plans.length; p++){
+    const plan = plans[p];
+    for (let t = 0; t < plan.tries; t++){
+      n++;
+      if (onTry) onTry(n);
+      await wait(0);
+      const raw = buildRaw(spec, base + n * 7919, plan);
+      if (!raw) continue;
+      const chk = parseLevel(raw);
+      if (chk.errors.length) continue;
+      const r = solve(chk.state, SOLVE_BUDGET);
+      if (!r.solved) continue;
+      const tiles = raw._tiles; delete raw._tiles;
+      return {
+        ok: true, spec, raw, tiles, attempts: n, relaxed: p > 0,
+        moves: r.moves.length,
+        depth: Math.max(...raw.stacks.map(s => s.boxes.length)),
+        warnings: chk.warnings
+      };
+    }
+  }
+  return { ok: false, spec, attempts: n };
+}
+
+/* ---------- 7.8 Giao diện tab CSV ---------- */
+let csvOut = [], csvBusy = false;
+
+function csvMsgHTML(html){ $('#csvMsg').innerHTML = html || ''; }
+function csvReport(errors, warnings){
+  let html = '';
+  if (errors.length)   html += `<div class="msg err"><b>❌ ${errors.length} lỗi</b>\n• ${errors.map(esc).join('\n• ')}</div>`;
+  if (warnings.length) html += `<div class="msg warn"><b>⚠ ${warnings.length} cảnh báo</b>\n• ${warnings.map(esc).join('\n• ')}</div>`;
+  return html;
+}
+
+function downloadFile(name, text, mime, bom){
+  const blob = new Blob([(bom ? '\uFEFF' : '') + text], { type: mime || 'text/plain;charset=utf-8' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob); a.download = name;
+  document.body.appendChild(a); a.click();
+  setTimeout(() => { URL.revokeObjectURL(a.href); a.remove(); }, 0);
+}
+
+$('#csvPick').onclick = () => $('#csvFile').click();
+$('#csvFile').onchange = e => {
+  const f = e.target.files && e.target.files[0];
+  if (!f) return;
+  const rd = new FileReader();
+  rd.onload = () => { $('#csvText').value = rd.result; toast(`📂 Đã nạp ${f.name}`, 1600); };
+  rd.readAsText(f, 'utf-8');
+  e.target.value = '';
+};
+$('#csvSample').onclick = () => downloadFile('wordstack-bo-tu-mau.csv', SAMPLE_CSV, 'text/csv;charset=utf-8', true);
+$('#csvDemo').onclick   = () => { $('#csvText').value = SAMPLE_CSV; toast('📋 Đã dán bộ từ mẫu', 1400); };
+
+$('#csvCheck').onclick = () => {
+  const { sets, levels, errors, warnings } = csvToSets($('#csvText').value);
+  let html = csvReport(errors, warnings);
+  if (!errors.length){
+    const lines = sets.map(s => {
+      const mine = levels.filter(l => l.setId === s.id);
+      return `• ${s.title || s.id} — ${s.groups.length} nhóm · ${s.difficulty || 'normal'} · ` +
+             `${s.gpl} nhóm/bàn · ${s.capacity} slot/box ⇒ ${mine.length} bàn`;
+    });
+    html += `<div class="msg ok"><b>✅ Bộ từ hợp lệ</b>\n` +
+            `${sets.length} bộ · ${sets.reduce((n,s)=>n+s.groups.length,0)} nhóm ⇒ ${levels.length} level\n` +
+            `${lines.join('\n')}\nBấm “Sinh level” để rải bàn và kiểm chứng bằng bộ giải.</div>`;
+  }
+  csvMsgHTML(html);
+};
+
+$('#csvGen').onclick = async () => {
+  if (csvBusy) return;
+  const { levels, errors, warnings } = csvToSets($('#csvText').value);
+  if (errors.length){ csvMsgHTML(csvReport(errors, warnings)); return; }
+
+  csvBusy = true;
+  $('#csvGen').disabled = true;
+  csvMsgHTML(csvReport([], warnings));
+  csvOut = [];
+  $('#csvResultPanel').classList.remove('hidden');
+  $('#csvResults').innerHTML = '';
+
+  for (let i = 0; i < levels.length; i++){
+    const spec = levels[i];
+    $('#csvProgress').textContent = `⏳ ${i+1}/${levels.length} — đang sinh “${spec.title}”…`;
+    const res = await generateLevel(spec, n => {
+      $('#csvProgress').textContent = `⏳ ${i+1}/${levels.length} — đang sinh “${spec.title}” (thử ${n})…`;
+    });
+    csvOut.push(res);
+    csvRenderResults();
+  }
+
+  const ok = csvOut.filter(o => o.ok).length;
+  $('#csvProgress').textContent = '';
+  csvMsgHTML(csvReport([], warnings) +
+    `<div class="msg ${ok === csvOut.length ? 'ok' : 'warn'}">Sinh xong: <b>${ok}/${csvOut.length}</b> level giải được.</div>`);
+  csvBusy = false;
+  $('#csvGen').disabled = false;
+};
+
+function csvRenderResults(){
+  const box = $('#csvResults');
+  box.innerHTML = '';
+  csvOut.forEach((o, i) => {
+    const c = document.createElement('div');
+    c.className = 'rescard' + (o.ok ? '' : ' bad');
+    if (o.ok){
+      const cfg = DIFF[o.spec.difficulty || 'normal'];
+      const d = o.spec.difficulty || 'normal';
+      const notes = [];
+      if (o.relaxed)          notes.push('đã phải nới tham số để bàn giải được');
+      if (o.depth < cfg.depth) notes.push(`chỉ đủ từ cho ${o.depth}/${cfg.depth} tầng box — thêm nhóm để bàn sâu hơn`);
+      if (o.moves < cfg.moves[0]) notes.push(`${o.moves} nước, nhẹ hơn mức “${d}”`);
+      if (o.moves > cfg.moves[1]) notes.push(`${o.moves} nước, nặng hơn mức “${d}”`);
+      c.innerHTML =
+        `<div class="top"><b>${esc(o.raw.title)}</b><span class="row tight">
+           <button class="btn sm go" data-cplay="${i}">▶</button>
+           <button class="btn sm ghost" data-cedit="${i}">🛠️</button>
+         </span></div>
+         <div class="meta">bộ <code>${esc(o.spec.setId)}</code> · bàn ${o.spec.index}/${o.spec.of} ·
+           <code>${esc(o.raw.id)}</code> · ${d} · ${o.raw.groups.length} nhóm · ${o.tiles} ô ·
+           ${o.raw.stacks.length} stack · ${o.depth} tầng · ${o.raw.boxCapacity} slot/box<br>
+           ✅ giải được trong <b>${o.moves}</b> nước (sinh ở lần thử ${o.attempts})</div>` +
+        (notes.length ? `<div class="meta" style="color:var(--warn)">⚠ ${notes.map(esc).join(' · ')}</div>` : '');
+    } else {
+      c.innerHTML =
+        `<div class="top"><b>${esc(o.spec.title)}</b></div>
+         <div class="meta" style="color:#FFC9D2">❌ không rải được bàn nào giải được sau ${o.attempts} lần thử.
+           Thử giảm <code>groups_per_level</code> của bộ <code>${esc(o.spec.setId)}</code>,
+           hoặc đặt <code>difficulty</code> = <code>easy</code>.</div>`;
+    }
+    box.appendChild(c);
+  });
+}
+
+$('#csvResults').addEventListener('click', e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.cplay !== undefined){
+    const o = csvOut[+b.dataset.cplay];
+    switchTab('play');
+    const i = allLevels().findIndex(l => l.id === o.raw.id);   // đồng bộ ô chọn level nếu đã lưu
+    if (i >= 0) $('#levelSel').value = i;
+    startLevel(clone(o.raw)); toast('▶ Đang chơi thử', 1400);
+  }
+  if (b.dataset.cedit !== undefined){
+    const o = csvOut[+b.dataset.cedit];
+    switchTab('edit'); refreshPresetSel(); edInit(clone(o.raw)); toast('🛠️ Đã mở trong trình xếp level', 1600);
+  }
+});
+
+$('#csvSaveAll').onclick = () => {
+  const good = csvOut.filter(o => o.ok);
+  if (!good.length){ csvMsgHTML('<div class="msg err">Chưa có level nào để lưu.</div>'); return; }
+  const list = customLevels();
+  for (const o of good){
+    const i = list.findIndex(l => l.id === o.raw.id);
+    if (i >= 0) list[i] = clone(o.raw); else list.push(clone(o.raw));
+  }
+  saveCustom(list);
+  refreshLevelSelect(); refreshPresetSel();
+  csvMsgHTML(`<div class="msg ok">💾 Đã lưu ${good.length} level. Chúng xuất hiện với dấu ★ trong danh sách ở tab Chơi.</div>`);
+};
+
+$('#csvExport').onclick = () => {
+  const good = csvOut.filter(o => o.ok);
+  if (!good.length){ csvMsgHTML('<div class="msg err">Chưa có level nào để xuất.</div>'); return; }
+  // Tải về theo ĐÚNG format game (mảng level — tách mỗi phần tử ra 1 file lv-NNN.json)
+  const out = [], bad = [];
+  for (const o of good){
+    const r = rawToGame(o.raw);
+    if (r.errors) bad.push(`${o.raw.title || o.raw.id}: ${r.errors[0]}` + (r.errors.length > 1 ? ` (+${r.errors.length - 1} lỗi nữa)` : ''));
+    else out.push(JSON.parse(r.json));
+  }
+  let html = '';
+  if (out.length){
+    downloadFile('wordstack-levels.json', JSON.stringify(out, null, 2), 'application/json;charset=utf-8', false);
+    html += `<div class="msg ok">✅ Đã tải ${out.length} level đúng format game. Tách mỗi level thành 1 file <code>lv-NNN.json</code> (đổi cả field "id" khớp tên file) vào Assets/_Game/Content/Levels/, chạy ./selfcheck.sh rồi WordStack ▸ Build Level Catalog.</div>`;
+  }
+  if (bad.length)
+    html += `<div class="msg err"><b>❌ ${bad.length} level chưa đạt luật game, không nằm trong file tải về</b>\n• ${bad.map(esc).join('\n• ')}</div>`;
+  csvMsgHTML(html);
+};
+
+/* ---------- 7.9 Bộ từ mẫu ---------- */
+const SAMPLE_CSV = `# WordStack — thư viện bộ từ
+# Cột bắt buộc: set, topic, words (các từ ngăn bằng dấu |)
+# Tham số của bộ — title, difficulty, groups_per_level, capacity —
+# chỉ cần điền ở DÒNG ĐẦU TIÊN của mỗi bộ, các dòng sau để trống.
+# Nhóm nào dính nhau qua COLLAPSE thì luôn được xếp chung một bàn.
+set,title,difficulty,groups_per_level,capacity,topic,words
+
+# 6 nhóm rời, 3 nhóm mỗi bàn ⇒ 2 bàn. capacity 5 cho box rộng rãi.
+khoi-dong,Khởi động,easy,3,5,Trái cây vườn,Cam|Chuối|Nho|Lê
+khoi-dong,,,,,Hành tinh,Sao Thuỷ|Sao Hoả|Sao Kim|Sao Mộc
+khoi-dong,,,,,Màu sắc,Đỏ|Xanh|Vàng|Tím
+khoi-dong,,,,,Gia vị,Muối|Đường|Tiêu|Ớt
+khoi-dong,,,,,Đồ bếp,Nồi|Chảo|Dao|Thớt
+khoi-dong,,,,,Rau xanh,Cải xanh|Rau muống|Mồng tơi|Xà lách
+
+# "Thú cưng" chứa Chó cảnh / Mèo cảnh / Chim cảnh ⇒ 4 nhóm này là một chuỗi
+# COLLAPSE, luôn chung bàn. 4 nhóm rời còn lại dồn sang bàn 2.
+dong-vat,Động vật,normal,4,,Chó cảnh,Poodle|Corgi|Husky|Chihuahua
+dong-vat,,,,,Mèo cảnh,Mèo mướp|Mèo Ba Tư|Mèo Anh|Mèo Xiêm
+dong-vat,,,,,Chim cảnh,Sẻ|Bồ câu|Vẹt|Yến
+dong-vat,,,,,Thú cưng,Chó cảnh|Mèo cảnh|Chim cảnh|Cá cảnh
+dong-vat,,,,,Côn trùng,Kiến|Ong|Bướm|Chuồn chuồn
+dong-vat,,,,,Bò sát,Rắn|Thằn lằn|Cá sấu|Rùa
+dong-vat,,,,,Thú rừng,Hổ|Voi|Gấu|Hươu
+dong-vat,,,,,Chim trời,Đại bàng|Cú mèo|Hạc|Chim ưng
+
+thanh-pho,Thành phố,normal,4,,Bệnh viện,Bác sĩ|Y tá|Xe cứu thương|Bệnh nhân
+thanh-pho,,,,,Trường học,Giáo viên|Học sinh|Bảng đen|Cặp sách
+thanh-pho,,,,,Sân bay,Phi công|Hành khách|Máy bay|Vé
+thanh-pho,,,,,Công trình,Bệnh viện|Trường học|Sân bay|Nhà hát
+thanh-pho,,,,,Đường phố,Vỉa hè|Ngã tư|Đèn đỏ|Cột điện
+thanh-pho,,,,,Chợ búa,Sạp hàng|Người bán|Cái cân|Tiền lẻ
+thanh-pho,,,,,Công viên,Ghế đá|Đài phun|Đường chạy|Bồn hoa
+thanh-pho,,,,,Bến xe,Xe khách|Quầy vé|Hành lý|Bảng giờ
+
+# Cả 6 nhóm nối thành một chuỗi COLLAPSE ba tầng
+# (Trái cây → Thực phẩm → Nhà bếp) nên phải để groups_per_level = 6.
+nha-bep,Nhà bếp,hard,6,,Trái cây,Táo|Xoài|Dứa|Ổi
+nha-bep,,,,,Rau củ,Cà rốt|Bí đỏ|Su hào|Cải thảo
+nha-bep,,,,,Thực phẩm,Trái cây|Rau củ|Thịt|Cá
+nha-bep,,,,,Nồi niêu,Nồi|Chảo|Xoong|Ấm
+nha-bep,,,,,Dao thớt,Dao gọt|Dao phay|Thớt gỗ|Kéo
+nha-bep,,,,,Nhà bếp,Thực phẩm|Nồi niêu|Dao thớt|Tủ lạnh
+
+# Không khai capacity — "Khuôn mặt" có 5 từ nên box tự nới thành 5 slot.
+co-the,Cơ thể người,normal,4,,Khuôn mặt,Mắt|Mũi|Miệng|Tai|Trán
+co-the,,,,,Bàn tay,Ngón cái|Ngón trỏ|Móng tay|Cổ tay
+co-the,,,,,Nội tạng,Tim|Phổi|Gan|Thận
+co-the,,,,,Cơ thể,Khuôn mặt|Bàn tay|Nội tạng|Đôi chân
+`;
+
+/* ==========================================================================
+   PHẦN 8 — KHỞI ĐỘNG
+   ========================================================================== */
+function switchTab(which){
+  $('#playView').style.display = which === 'play' ? '' : 'none';
+  $('#editView').classList.toggle('show', which === 'edit');
+  $('#csvView').classList.toggle('show',  which === 'csv');
+  $('#tabPlay').classList.toggle('active', which === 'play');
+  $('#tabEdit').classList.toggle('active', which === 'edit');
+  $('#tabCsv').classList.toggle('active',  which === 'csv');
+  window.scrollTo(0, 0);
+}
+$('#tabPlay').onclick = () => switchTab('play');
+$('#tabEdit').onclick = () => { switchTab('edit'); refreshPresetSel(); if (!ed) edInit(rawLevel || BUILTIN[0]); };
+$('#tabCsv').onclick  = () => switchTab('csv');
+
+document.addEventListener('contextmenu', e => { if (e.target.closest('#board')) e.preventDefault(); });
+
+startLevel(refreshLevelSelect());
+</script>
+</body>
+</html>
