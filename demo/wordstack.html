@@ -1562,13 +1562,6 @@ function rawToGame(raw){
       errors.push(`Stack ${si + 1} có box ${bi + 1} rỗng nhưng không phải box đáy — game cấm.`);
   }));
 
-  // Luật "chữ và ảnh ngang vai" của game
-  const iconed = placeable.filter(w => icons[w]);
-  if (placeable.length){
-    if (!iconed.length) errors.push('Game cần ≥1 thẻ chỉ-ảnh — gắn icon cho ít nhất 1 từ.');
-    if (iconed.length === placeable.length) errors.push('Game cần ≥1 thẻ chỉ-chữ — bỏ icon của ít nhất 1 từ.');
-  }
-
   // Mỗi ảnh một chủ
   const artOwner = new Map();
   const claimArt = (icon, who) => {

@@ -177,10 +177,6 @@ namespace WordStack.Board
                     artOwner[c.Art] = "card \"" + c.Id + "\"";
                 }
 
-            // "text và ảnh ngang vai" là thuộc tính của level, không chỉ của schema.
-            if (!AllCards().Any(c => c.Art != null && c.Text == null)) die("level không có thẻ nào chỉ-ảnh");
-            if (!AllCards().Any(c => c.Text != null && c.Art == null)) die("level không có thẻ nào chỉ-chữ");
-
             if (Stacks.Count == 0) die("layout không có stack nào");
             var seen = new HashSet<string>();
             var poses = new HashSet<string>();

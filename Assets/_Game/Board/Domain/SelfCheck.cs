@@ -26,10 +26,42 @@ namespace WordStack.Board
           ""meaning"": { ""groups"": [
             { ""id"":""leaf"", ""text"":""Leaf"", ""group"":""root"", ""cards"":[
               { ""id"":""l1"",""text"":""L1"" },{ ""id"":""l2"",""text"":""L2"" },
-              { ""id"":""l3"",""text"":""L3"" },{ ""id"":""l4"",""art"":""apple"" } ]},
+              { ""id"":""l3"",""text"":""L3"" },{ ""id"":""l4"",""text"":""L4"" } ]},
             { ""id"":""root"", ""text"":""Root"", ""cards"":[
               { ""id"":""r1"",""text"":""R1"" },{ ""id"":""r2"",""text"":""R2"" },
               { ""id"":""r3"",""text"":""R3"" } ]}
+          ]}
+        }";
+
+        // Level dựng riêng cho phần kiểm LUẬT (validate, nước đi, CLEAR, thắng/kẹt).
+        // Trước đây mấy phần đó chạy trên level ship đầu tiên — đổi bố cục một level là test
+        // đỏ dù luật chẳng sai gì (đúng lý do BoardRulesTests.cs đã tự chứa fixture từ đầu).
+        // Hình dạng ở đây phục vụ đúng các giả định bên dưới:
+        //   stack 0: hộp trên ĐÚNG 2 thẻ (dọn rỗng được) + hộp đáy có thẻ bị che
+        //   stack 1: hộp đáy ĐẦY nhưng KHÔNG đủ bộ (thả vào phải bị từ chối, không CLEAR sẵn)
+        //   stack 2: vừa có thẻ vừa còn chỗ (đích của nước đi hợp lệ)
+        //   stack 4: rỗng hoàn toàn (chỗ trung chuyển)
+        // Toàn thẻ chỉ-chữ nên không phụ thuộc thư mục art.
+        const string RulesLv = @"{
+          ""id"":""t-rules"", ""title"":""t"", ""note"":"""",
+          ""layout"": { ""stacks"": [
+            { ""pos"":[0,0], ""boxes"":[ { ""slots"":[""c1"",""c2"",null,null] },
+                                          { ""slots"":[""c3"",""c4"",null,null] } ] },
+            { ""pos"":[1,0], ""boxes"":[ { ""slots"":[""d1"",""d2"",""d3"",""e1""] } ] },
+            { ""pos"":[0,1], ""boxes"":[ { ""slots"":[""d4"",""e2"",null,null] } ] },
+            { ""pos"":[1,1], ""boxes"":[ { ""slots"":[""e3"",""e4"",null,null] } ] },
+            { ""pos"":[0,2], ""boxes"":[ { ""slots"":[null,null,null,null] } ] }
+          ]},
+          ""meaning"": { ""groups"": [
+            { ""id"":""ga"", ""text"":""A"", ""cards"":[
+              { ""id"":""c1"",""text"":""C1"" },{ ""id"":""c2"",""text"":""C2"" },
+              { ""id"":""c3"",""text"":""C3"" },{ ""id"":""c4"",""text"":""C4"" } ]},
+            { ""id"":""gb"", ""text"":""B"", ""cards"":[
+              { ""id"":""d1"",""text"":""D1"" },{ ""id"":""d2"",""text"":""D2"" },
+              { ""id"":""d3"",""text"":""D3"" },{ ""id"":""d4"",""text"":""D4"" } ]},
+            { ""id"":""gc"", ""text"":""C"", ""cards"":[
+              { ""id"":""e1"",""text"":""E1"" },{ ""id"":""e2"",""text"":""E2"" },
+              { ""id"":""e3"",""text"":""E3"" },{ ""id"":""e4"",""text"":""E4"" } ]}
           ]}
         }";
 
@@ -49,9 +81,10 @@ namespace WordStack.Board
                     " — thả vào Assets/_Game/Content/Resources/Art/");
 
             Func<int, LevelData> fresh = i => LevelData.Parse(levelJsons[i]);
-            Func<int, bool, Game> load = (i, drain) =>
+            Func<LevelData> freshR = () => LevelData.Parse(RulesLv);
+            Func<bool, Game> load = drain =>
             {
-                var lv = fresh(i);
+                var lv = freshR();
                 lv.Validate(hasArt);
                 return Game.Build(lv).Settle(drain);
             };
@@ -59,7 +92,7 @@ namespace WordStack.Board
             // ---- 1. Validate bắt được level hỏng ----
             Action<Action<LevelData>, string, Predicate<string>> brokenAs = (mutate, label, art) =>
             {
-                var lv = fresh(0);
+                var lv = freshR();
                 mutate(lv);
                 bool threw = false;
                 try { lv.Validate(art); } catch { threw = true; }
@@ -67,9 +100,9 @@ namespace WordStack.Board
             };
             Action<Action<LevelData>, string> broken = (mutate, label) => brokenAs(mutate, label, hasArt);
 
-            broken(l => l.Stacks[0].Boxes[0].Slots[3] = "apple", "card trùng trên bàn");
+            broken(l => l.Stacks[0].Boxes[0].Slots[2] = "c1", "card trùng trên bàn");
             broken(l => l.Stacks[0].Boxes[0].Slots[0] = null, "card thiếu trên bàn");
-            broken(l => l.Stacks[0].Boxes[0].Slots[0] = "fruit", "đặt group lên bàn");
+            broken(l => l.Stacks[0].Boxes[0].Slots[0] = "ga", "đặt group lên bàn");
             broken(l => l.Groups[0].Cards.RemoveAt(0), "group thiếu thành viên");
             // ---- 1b. COLLAPSE: level cha-con hợp lệ phải pass, level hỏng phải chết ----
             {
@@ -128,7 +161,7 @@ namespace WordStack.Board
                    "root đủ 4 (r1+r2+r3+Leaf) → CLEAR gốc → sạch bàn → thắng");
 
                 // Đối chứng: hộp rỗng KHÔNG do clear/collapse thì chặt giữ nguyên như cũ.
-                var strictG = load(0, false);
+                var strictG = load(false);
                 var t0 = strictG.TopBox(0);
                 string mA = t0.Slots[0].Uid, mB = t0.Slots[1].Uid;
                 int emptyS = strictG.Stacks.FindIndex(st => Game.IsEmpty(st.Boxes[0]));
@@ -150,23 +183,16 @@ namespace WordStack.Board
                 }
             }
             broken(l => l.AllCards().First(c => c.Art == null).Text = null, "card không có text lẫn art");
-            broken(l => { foreach (var c in l.AllCards()) c.Text = c.Text ?? c.Id; },
-                   "level không còn thẻ chỉ-ảnh");
-            broken(l =>
-            {
-                var withArt = l.AllCards().Where(c => c.Art != null).ToList();
-                withArt[1].Art = withArt[0].Art;
-            }, "hai thẻ dùng chung một ảnh");
-            // Mọi thẻ đều có art → không còn thẻ chỉ-chữ. Phải cấp key GIẢ và DUY NHẤT cho
-            // từng thẻ, nếu không luật "trùng ảnh" sẽ bắn trước và test này kiểm nhầm thứ.
+            // Fixture toàn thẻ chỉ-chữ nên tự cấp art (stub hasArt luôn true) để dựng đúng ca
+            // "hai thẻ chung một ảnh" — không mượn art của level ship.
             brokenAs(l =>
             {
-                int i = 0;
-                foreach (var c in l.AllCards()) if (c.Art == null) c.Art = "fake-" + (i++);
-            }, "level không còn thẻ chỉ-chữ", _ => true);
+                l.Groups[0].Cards[0].Art = "chung";
+                l.Groups[0].Cards[1].Art = "chung";
+            }, "hai thẻ dùng chung một ảnh", _ => true);
             broken(l => l.Stacks[1].Pos = l.Stacks[0].Pos, "hai stack trùng pos");
             broken(l => l.Stacks[0].Boxes[0].Slots = new string[3], "box không đủ 4 slot");
-            broken(l => l.Groups[0].Cards[0].Art = "khong-ton-tai", "art trỏ file không có");
+            brokenAs(l => l.Groups[0].Cards[0].Art = "khong-ton-tai", "art trỏ file không có", _ => false);
             broken(l => l.Stacks.First(s => s.Boxes.Count > 1).Boxes
                          .Insert(0, new BoxDef { Slots = new string[Rules.BoxCapacity] }),
                    "box rỗng không phải box đáy");
@@ -178,7 +204,7 @@ namespace WordStack.Board
 
             // ---- 2. Luật nước đi ----
             {
-                var g = load(0, Rules.RemoveEmptyNonBottomBox);
+                var g = load(Rules.RemoveEmptyNonBottomBox);
                 string uid = g.TopBox(0).Slots.First(t => t != null).Uid;
                 Ok(!g.MoveTile(0, uid, 0), "thả về chính stack cũ phải bị từ chối");
 
@@ -200,7 +226,7 @@ namespace WordStack.Board
                 // riêng (không gây CLEAR), slot 1..3 trống.
                 Func<int, int> dropAt = want =>
                 {
-                    var p = load(0, Rules.RemoveEmptyNonBottomBox);
+                    var p = load(Rules.RemoveEmptyNonBottomBox);
                     string u = p.TopBox(0).Slots.First(t => t != null).Uid;
                     var d = p.TopBox(1);
                     d.Slots[0] = new Tile { Uid = "px", CardId = "px", GroupId = "zz", Text = "x" };
@@ -219,7 +245,7 @@ namespace WordStack.Board
                 Ok(!g.MoveTile(g.Stacks.IndexOf(deep), buried, di),
                    "không kéo được thẻ trong box bị che");
 
-                var full = load(0, Rules.RemoveEmptyNonBottomBox);
+                var full = load(Rules.RemoveEmptyNonBottomBox);
                 int fi = -1;
                 for (int s = 0; s < full.Stacks.Count; s++)
                     if (Game.FreeCount(full.TopBox(s)) == 0) { fi = s; break; }
@@ -233,7 +259,7 @@ namespace WordStack.Board
 
             // ---- 3. CLEAR + xoá box + lộ box dưới ----
             {
-                var g = load(0, Rules.RemoveEmptyNonBottomBox);
+                var g = load(Rules.RemoveEmptyNonBottomBox);
                 int si = g.Stacks.FindIndex(s => s.Boxes.Count > 1);
                 var box = g.TopBox(si);
                 int depthBefore = g.Stacks[si].Boxes.Count;
@@ -246,7 +272,7 @@ namespace WordStack.Board
                 Ok(g.Stacks[si].Boxes.Count == depthBefore - 1,
                    "box không-đáy rỗng sau CLEAR → bị xoá, box dưới lộ ra");
 
-                var bot = load(0, Rules.RemoveEmptyNonBottomBox);
+                var bot = load(Rules.RemoveEmptyNonBottomBox);
                 int bi = bot.Stacks.FindIndex(s => s.Boxes.Count == 1);
                 Ok(bi >= 0 && bot.TopBox(bi).IsBottom, "level phải có stack chỉ gồm box đáy");
                 var bbox = bot.TopBox(bi);
@@ -275,13 +301,13 @@ namespace WordStack.Board
 
             // ---- 5. Thắng / kẹt ----
             {
-                var g = load(0, Rules.RemoveEmptyNonBottomBox);
+                var g = load(Rules.RemoveEmptyNonBottomBox);
                 foreach (var st in g.Stacks)
                     foreach (var b in st.Boxes)
                         for (int i = 0; i < b.Slots.Length; i++) b.Slots[i] = null;
                 Ok(g.CheckStatus() == GameStatus.Won, "sạch bàn → won");
 
-                var jam = load(0, Rules.RemoveEmptyNonBottomBox);
+                var jam = load(Rules.RemoveEmptyNonBottomBox);
                 foreach (var st in jam.Stacks)
                 {
                     st.Boxes.RemoveRange(1, st.Boxes.Count - 1);
@@ -302,7 +328,9 @@ namespace WordStack.Board
                 foreach (bool drain in new[] { false, true })
                 {
                     var start = DateTime.UtcNow;
-                    var r = Solver.Solve(load(i, drain), drain);
+                    var lvShip = fresh(i);
+                    lvShip.Validate(hasArt);
+                    var r = Solver.Solve(Game.Build(lvShip).Settle(drain), drain);
                     string mode = drain ? "rộng" : "chặt";
                     Ok(r.Ok, "level " + fresh(i).Id + " phải giải được ở chế độ " + mode +
                              " (" + (r.Why ?? "") + ")");
