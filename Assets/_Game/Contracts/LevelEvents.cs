@@ -94,6 +94,26 @@ namespace WordStack.Contracts
         /// <summary>Chuỗi animation của lượt vừa rồi đã chạy hết.</summary>
         public static event Action AnimationCompleted;
 
+        /// <summary>
+        /// Bàn có mục tiêu hợp lệ cho booster Nam châm không. Board đẩy cờ này sau mỗi
+        /// lần settle (và lúc nạp màn) — nam châm CÓ LÚC bất lực: khi chỉ còn nhóm cha
+        /// đang chờ nhóm con collapse thì không nhóm nào đủ 4 thẻ trên bàn để hút.
+        ///
+        /// Đẩy trạng thái thay vì hoàn lượt: BoosterManager trừ lượt TRƯỚC khi bàn kịp
+        /// từ chối, mà lượt này người chơi mua bằng coin — để bấm hụt rồi mất lượt là
+        /// mất tiền thật.
+        /// </summary>
+        public static event Action<bool> MagnetAvailabilityChanged;
+
+        public static bool MagnetAvailable { get; private set; }
+
+        public static void SetMagnetAvailable(bool available)
+        {
+            if (MagnetAvailable == available) return;
+            MagnetAvailable = available;
+            MagnetAvailabilityChanged?.Invoke(available);
+        }
+
         public static void RaiseStarted(int levelIndex, int totalGroups)
             => Started?.Invoke(new LevelStartedEvent(levelIndex, totalGroups));
 
@@ -123,6 +143,8 @@ namespace WordStack.Contracts
             MoveCommitted = null;
             EvaluationCompleted = null;
             AnimationCompleted = null;
+            MagnetAvailabilityChanged = null;
+            MagnetAvailable = false;
         }
     }
 }
