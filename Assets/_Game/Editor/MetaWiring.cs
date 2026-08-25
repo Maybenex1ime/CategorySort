@@ -41,6 +41,13 @@ namespace WordStack.Meta.Editor
                 Debug.Log("WIRE: thêm ProgressionInstaller vào ProjectScope.");
             }
 
+            if (root.GetComponent<ShopInstaller>() == null)
+            {
+                root.AddComponent<ShopInstaller>();
+                added = true;
+                Debug.Log("WIRE: thêm ShopInstaller vào ProjectScope.");
+            }
+
             // Hệ mua: CurrencyInstaller cần SO_TransactionCatalog (field private
             // → đi qua SerializedObject). Chưa gán thì IPurchaseService vắng mặt,
             // nút Mua trong BoosterPurchasePopup chỉ log stub.
@@ -64,6 +71,34 @@ namespace WordStack.Meta.Editor
                     {
                         Debug.LogError("WIRE FAIL: không thấy Assets/_Game/Content/SO_TransactionCatalog.asset");
                     }
+                }
+            }
+
+            // Shop: khác hai cái còn lại — asset CHƯA tồn tại thì tự tạo rỗng luôn
+            // (GD điền gói coin + mã giao dịch trong Inspector sau), vì không có
+            // asset nào để trỏ tới thì shop mở ra trống trơn mà chẳng ai biết vì sao.
+            var shop = root.GetComponent<ShopInstaller>();
+            if (shop != null)
+            {
+                var so = new SerializedObject(shop);
+                var shopCatalogProp = so.FindProperty("_shopCatalog");
+                if (shopCatalogProp != null && shopCatalogProp.objectReferenceValue == null)
+                {
+                    const string shopCatalogPath = "Assets/_Game/Content/SO_ShopCatalog.asset";
+                    var shopCatalog =
+                        AssetDatabase.LoadAssetAtPath<LogosGame.Features.Shop.ShopCatalog>(shopCatalogPath);
+
+                    if (shopCatalog == null)
+                    {
+                        shopCatalog = ScriptableObject.CreateInstance<LogosGame.Features.Shop.ShopCatalog>();
+                        AssetDatabase.CreateAsset(shopCatalog, shopCatalogPath);
+                        Debug.Log($"WIRE: tạo {shopCatalogPath} (RỖNG — điền gói coin + mã giao dịch trong Inspector).");
+                    }
+
+                    shopCatalogProp.objectReferenceValue = shopCatalog;
+                    so.ApplyModifiedPropertiesWithoutUndo();
+                    added = true;
+                    Debug.Log("WIRE: gán SO_ShopCatalog vào ShopInstaller.");
                 }
             }
 

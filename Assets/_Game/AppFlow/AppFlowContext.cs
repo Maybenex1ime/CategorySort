@@ -222,6 +222,7 @@ namespace WordStack.Meta.AppFlow
                 OnStartLevel = () => RunGatedByHearts(
                     () => TriggerDeferred(new StartGameplayTrigger()), returnToMenuOnClose: false),
                 OnOpenSettings = OnOpenSettingsRequested,
+                OnOpenShop = OnOpenShopRequested,
             };
 
             return _uiManager.PushScreen<MainMenuScreen>(args);
@@ -326,6 +327,30 @@ namespace WordStack.Meta.AppFlow
             };
 
             await _uiManager.ShowPopupImmediate<SettingsPopup, SettingsPopupArgs>(args);
+        }
+
+        // --- Shop ---------------------------------------------------------------
+
+        private void OnOpenShopRequested() => ShowShopPopupInBackground();
+
+        private async void ShowShopPopupInBackground()
+        {
+            try
+            {
+                await ShowShopPopupAsync();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "[AppFlow] Mở ShopPopup thất bại.");
+            }
+        }
+
+        // Args rỗng có chủ đích: ShopPopup tự inject IShopService/ICurrencyService,
+        // không phải luồn service qua AppFlowManager. Mở từ MainMenu nên không cần
+        // gate input như BoosterPurchaseFlow (bàn chơi không chạy dưới nền).
+        public Awaitable ShowShopPopupAsync()
+        {
+            return _uiManager.ShowPopupImmediate<ShopPopup, ShopPopupArgs>(new ShopPopupArgs());
         }
 
         // --- Hearts gate --------------------------------------------------------
