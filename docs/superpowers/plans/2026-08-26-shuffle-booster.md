@@ -605,7 +605,9 @@ git commit -m "feat(booster): Shuffle placement - reserve-based three-phase layo
 1. `CanShuffle()` false → trả `Ok = false` ngay, không đụng bàn.
 2. Chụp `TopLayerTileCount()`, bảng vị trí theo Uid, và tập Uid **đang trắng trước khi xáo** — truyền như tham số, **không** để field tạm bám vào `Game`.
 3. `Clone()` làm bản lùi.
-4. `DrainAll` → pha A (`TryPrimeGroup` tối đa 3 nhóm) → pha B (`ClusterHand`) → pha C (`EnsureEveryTopBoxOccupied`).
+4. `DrainAll` → pha A (`TryPrimeGroup` tối đa 3 nhóm) → pha B (`EnsureEveryTopBoxOccupied`) → pha C (`ClusterHand`).
+
+   Seed phải chạy TRƯỚC cluster: cluster reserve hết ô trống, chạy sau thì hộp rỗng không còn thẻ nào mượn được và cả lượt bị rollback oan.
 5. Kiểm 4 bất biến. Không đạt → `RestoreFrom(backup)`, trả `Ok = false`.
 6. Đạt → trả `Moves` (diff vị trí theo Uid) + `PrimedGroups`.
 
