@@ -168,7 +168,7 @@ namespace WordStack.Board.Tests
         public void OKhaDungChiGomTheTrangVaOTrong()
         {
             var g = Build(Lv);
-            List<Game.SlotRef> pool = g.AssignableTopSlots();
+            List<SlotRef> pool = g.AssignableTopSlots();
 
             Assert.IsFalse(pool.Exists(r => r.Stack == 0 && r.Slot == 0), "a1 có màu → không đụng");
             Assert.IsFalse(pool.Exists(r => r.Stack == 0 && r.Slot == 1), "a2 có màu → không đụng");
@@ -184,7 +184,7 @@ namespace WordStack.Board.Tests
             int before = g.TopLayerTileCount();
             Assert.AreEqual(5, before);
 
-            List<Game.SlotRef> pool = g.AssignableTopSlots();
+            List<SlotRef> pool = g.AssignableTopSlots();
             var reserved = new HashSet<int>();
             var hand = new List<Tile>();
             g.DrainAll(pool, hand);
@@ -214,7 +214,7 @@ namespace WordStack.Board.Tests
         public void HopChuLaStackCoLayer2NhieuTheNhat()
         {
             var g = Build(LvPrime);
-            List<Game.SlotRef> pool = g.AssignableTopSlots();
+            List<SlotRef> pool = g.AssignableTopSlots();
             var reserved = new HashSet<int>();
             var hand = new List<Tile>();
             g.DrainAll(pool, hand);
@@ -229,6 +229,78 @@ namespace WordStack.Board.Tests
             }
             Assert.AreEqual(3, gaInStack0, "stack 0 có layer 2 đầy 4 thẻ → phải làm hộp chủ");
             Assert.GreaterOrEqual(free, 1, "hộp chủ phải còn ô trống cho người chơi thả thẻ thứ 4");
+        }
+
+        [Test]
+        public void ApplyShuffleGiuDuBonBatBien()
+        {
+            var g = Build(LvPrime);
+            int before = g.TopLayerTileCount();
+
+            ShuffleResult r = g.ApplyShuffle();
+
+            Assert.IsTrue(r.Ok);
+            Assert.AreEqual(before, g.TopLayerTileCount(), "bất biến 1: tổng lớp trên");
+            Assert.IsFalse(g.AnyBoxHasFullGroup(), "bất biến 3: không hộp nào đủ 4");
+            for (int s = 0; s < g.Stacks.Count; s++)
+            {
+                int n = 0;
+                foreach (Tile t in g.TopBox(s).Slots) if (t != null) n++;
+                Assert.Greater(n, 0, "bất biến 2: top box rỗng sẽ bị SettleStep xoá");
+            }
+            Assert.GreaterOrEqual(r.PrimedGroups, 1, "phải dựng được ít nhất một Nhóm mồi");
+        }
+
+        [Test]
+        public void CumNguoiChoiDaGomKhongBiDungToi()
+        {
+            var g = Build(Lv);
+            string coloredUid = g.TopBox(0).Slots[0].Uid;
+
+            Assert.IsTrue(g.ApplyShuffle().Ok);
+
+            Assert.AreEqual(coloredUid, g.TopBox(0).Slots[0].Uid, "bất biến 4: thẻ có màu đứng yên");
+        }
+
+        [Test]
+        public void ApplyShuffleKhongTinhLaMotNuocDi()
+        {
+            var g = Build(LvPrime);
+            g.ApplyShuffle();
+            Assert.AreEqual(0, g.Moves, "booster không phải nước đi");
+        }
+
+        [Test]
+        public void LopTrenDayKinThiTuChoiVaKhongDungVaoBan()
+        {
+            var g = Build(Lv);
+            for (int s = 0; s < g.Stacks.Count; s++)
+            {
+                Box top = g.TopBox(s);
+                for (int i = 0; i < top.Slots.Length; i++)
+                    if (top.Slots[i] == null)
+                        top.Slots[i] = new Tile { Uid = "f" + s + i, CardId = "f" + s + i, GroupId = "gz" };
+            }
+            string encoded = Solver.Encode(g);
+
+            ShuffleResult r = g.ApplyShuffle();
+
+            Assert.IsFalse(r.Ok, "không còn ô trống → không dựng nổi Nhóm mồi");
+            Assert.AreEqual(encoded, Solver.Encode(g), "từ chối thì bàn phải y nguyên");
+            Assert.AreEqual(0, r.Moves.Length, "thất bại thì không trả move nào");
+        }
+
+        [Test]
+        public void MovesChiGhiTheThucSuDoiCho()
+        {
+            var g = Build(LvPrime);
+
+            ShuffleResult r = g.ApplyShuffle();
+
+            Assert.Greater(r.Moves.Length, 0, "có thẻ đổi chỗ");
+            foreach (ShuffleMove m in r.Moves)
+                Assert.IsFalse(m.From.Stack == m.To.Stack && m.From.Box == m.To.Box && m.From.Slot == m.To.Slot,
+                    "không ghi move cho thẻ đứng yên");
         }
     }
 }

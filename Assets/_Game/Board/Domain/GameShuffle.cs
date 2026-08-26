@@ -7,6 +7,26 @@ using System.Collections.Generic;
 
 namespace WordStack.Board
 {
+    /// <summary>Địa chỉ một ô trên bàn. Box = 0 là hộp trên cùng.</summary>
+    public struct SlotRef
+    {
+        public int Stack, Box, Slot;
+    }
+
+    /// <summary>Một thẻ đổi chỗ trong lượt shuffle — view dùng để animate.</summary>
+    public struct ShuffleMove
+    {
+        public string Uid;
+        public SlotRef From, To;
+    }
+
+    public struct ShuffleResult
+    {
+        public bool Ok;
+        public ShuffleMove[] Moves;   // rỗng khi Ok = false
+        public int PrimedGroups;
+    }
+
     public partial class Game
     {
         /// <summary>
@@ -91,12 +111,6 @@ namespace WordStack.Board
                     if (top.Slots[i] == null) return true;
             }
             return false;
-        }
-
-        /// <summary>Địa chỉ một ô trên bàn. Box = 0 là hộp trên cùng.</summary>
-        public struct SlotRef
-        {
-            public int Stack, Box, Slot;
         }
 
         /// <summary>
@@ -510,6 +524,145 @@ namespace WordStack.Board
                     }
             }
             return null;
+        }
+
+        /// <summary>
+        /// Xáo lại lớp trên cùng theo luật Shuffle: dựng tối đa 3 Nhóm mồi 3+1, đảm bảo
+        /// mỗi top box còn thẻ, rồi gom cụm phần còn lại.
+        ///
+        /// KHÔNG đụng danh sách Boxes và KHÔNG đổi Status — gọi Settle() ngay sau như một
+        /// nước đi thường. KHÔNG tăng Moves: booster không tính là nước đi.
+        ///
+        /// Vi phạm bất kỳ bất biến nào thì khôi phục nguyên trạng và trả Ok = false; bên
+        /// gọi PHẢI không trừ lượt trong trường hợp đó.
+        /// </summary>
+        public ShuffleResult ApplyShuffle()
+        {
+            var fail = new ShuffleResult { Ok = false, Moves = new ShuffleMove[0] };
+            if (!CanShuffle()) return fail;
+
+            int topBefore = TopLayerTileCount();
+            var whiteBefore = new HashSet<string>();
+            Dictionary<string, SlotRef> before = SnapshotPositions(whiteBefore);
+            Game backup = Clone();
+
+            // Chọn ứng viên TRƯỚC khi nhấc thẻ: PickPrimeCandidates đếm thẻ trên BÀN, mà
+            // sau DrainAll thẻ trắng đã nằm trong tay nên nó sẽ đếm thiếu và trả rỗng.
+            List<string> candidates = PickPrimeCandidates(3);
+
+            List<SlotRef> pool = AssignableTopSlots();
+            var reserved = new HashSet<int>();
+            var hand = new List<Tile>();
+            DrainAll(pool, hand);
+
+            int primed = 0;
+            for (int k = 0; k < candidates.Count && primed < 3; k++)
+                if (TryPrimeGroup(candidates[k], pool, reserved, hand)) primed++;
+
+            // Seed TRƯỚC cluster — xem ghi chú trong EnsureEveryTopBoxOccupied.
+            bool seeded = EnsureEveryTopBoxOccupied(pool, reserved, hand);
+            ClusterHand(pool, reserved, hand);
+
+            // hand còn thẻ = có thẻ không tìm được chỗ đặt, tức là thẻ đã rời khỏi bàn.
+            if (!seeded || hand.Count > 0 || !ValidateShuffle(topBefore, before, whiteBefore))
+            {
+                RestoreFrom(backup);
+                return fail;
+            }
+
+            return new ShuffleResult
+            {
+                Ok = true,
+                Moves = DiffPositions(before),
+                PrimedGroups = CountPrimedGroups(),
+            };
+        }
+
+        // Bốn bất biến của spec Mục 5.
+        bool ValidateShuffle(int topBefore, Dictionary<string, SlotRef> before, HashSet<string> whiteBefore)
+        {
+            if (TopLayerTileCount() != topBefore) return false;
+            if (AnyBoxHasFullGroup()) return false;
+
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                Box top = TopBox(s);
+                if (top == null || BoxTileCount(top) == 0) return false;
+            }
+
+            // Thẻ vốn CÓ MÀU ở lớp trên phải còn nguyên chỗ cũ và nguyên nội dung. Xét theo
+            // trạng thái TRƯỚC khi xáo — sau khi xáo màu đã khác nên không suy ngược được.
+            Dictionary<string, SlotRef> now = SnapshotPositions(null);
+            foreach (var kv in before)
+            {
+                if (kv.Value.Box != 0) continue;              // vốn không ở lớp trên
+                if (whiteBefore.Contains(kv.Key)) continue;   // vốn trắng, được phép đổi chỗ
+
+                SlotRef cur;
+                if (!now.TryGetValue(kv.Key, out cur)) return false;
+                if (cur.Stack != kv.Value.Stack || cur.Box != 0 || cur.Slot != kv.Value.Slot) return false;
+            }
+            return true;
+        }
+
+        // whiteBefore null thì bỏ qua việc ghi nhận thẻ trắng — dùng cho lần chụp thứ hai.
+        Dictionary<string, SlotRef> SnapshotPositions(HashSet<string> whiteBefore)
+        {
+            var map = new Dictionary<string, SlotRef>();
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                List<Box> boxes = Stacks[s].Boxes;
+                for (int b = 0; b < boxes.Count; b++)
+                    for (int i = 0; i < boxes[b].Slots.Length; i++)
+                    {
+                        Tile t = boxes[b].Slots[i];
+                        if (t == null) continue;
+                        map[t.Uid] = new SlotRef { Stack = s, Box = b, Slot = i };
+                        if (whiteBefore != null && b == 0 && IsWhite(boxes[b], i)) whiteBefore.Add(t.Uid);
+                    }
+            }
+            return map;
+        }
+
+        ShuffleMove[] DiffPositions(Dictionary<string, SlotRef> before)
+        {
+            var moves = new List<ShuffleMove>();
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                List<Box> boxes = Stacks[s].Boxes;
+                for (int b = 0; b < boxes.Count; b++)
+                    for (int i = 0; i < boxes[b].Slots.Length; i++)
+                    {
+                        Tile t = boxes[b].Slots[i];
+                        if (t == null) continue;
+
+                        SlotRef old;
+                        if (!before.TryGetValue(t.Uid, out old)) continue;
+                        if (old.Stack == s && old.Box == b && old.Slot == i) continue;
+
+                        moves.Add(new ShuffleMove
+                        {
+                            Uid = t.Uid,
+                            From = old,
+                            To = new SlotRef { Stack = s, Box = b, Slot = i },
+                        });
+                    }
+            }
+            return moves.ToArray();
+        }
+
+        // Khôi phục NỘI DUNG ô từ bản sao. KHÔNG thay danh sách Boxes — CheckStatus() đọc
+        // st.Boxes[0] mà không kiểm rỗng, đụng vào cấu trúc là rủi ro không cần thiết.
+        void RestoreFrom(Game backup)
+        {
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                List<Box> mine = Stacks[s].Boxes;
+                List<Box> theirs = backup.Stacks[s].Boxes;
+                for (int b = 0; b < mine.Count && b < theirs.Count; b++)
+                    for (int i = 0; i < mine[b].Slots.Length; i++)
+                        mine[b].Slots[i] = theirs[b].Slots[i];
+            }
         }
     }
 }
