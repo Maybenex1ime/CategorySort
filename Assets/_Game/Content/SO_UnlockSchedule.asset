@@ -14,25 +14,25 @@ MonoBehaviour:
   m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Gameplay.Content.SO_UnlockSchedule
   _boosterUnlocks:
   - LevelIndex: 100
-    BoosterId: 1
+    BoosterId: 6
     DisplayName: Hand
     Description: 
     Icon: {fileID: 0}
     InitialCount: 0
   - LevelIndex: 100
-    BoosterId: 1
+    BoosterId: 6
     DisplayName: Hand
     Description: 
     Icon: {fileID: 0}
     InitialCount: 0
   - LevelIndex: 100
-    BoosterId: 1
+    BoosterId: 6
     DisplayName: Hand
     Description: 
     Icon: {fileID: 0}
     InitialCount: 0
   - LevelIndex: 100
-    BoosterId: 1
+    BoosterId: 6
     DisplayName: Hand
     Description: 
     Icon: {fileID: 0}

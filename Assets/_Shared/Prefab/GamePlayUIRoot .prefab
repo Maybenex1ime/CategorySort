@@ -3422,7 +3422,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: e7494d2896e3a4bb19ae686f9ec5619c, type: 3}
   m_Name: 
   m_EditorClassIdentifier: BoosterModule::BoosterModule.BoosterSlotView
-  _id: 1
+  _id: 6
   _animationDuration: 0.2
   _punchScale: 1.2
   _iconImage: {fileID: 6634243023150925340}

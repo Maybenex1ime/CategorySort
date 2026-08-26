@@ -17,7 +17,7 @@ MonoBehaviour:
   _boosterEntries:
   - _id: 3
     _displayName: Add Belt
-  - _id: 1
+  - _id: 6
     _displayName: Hand
   - _id: 4
     _displayName: Hammer
