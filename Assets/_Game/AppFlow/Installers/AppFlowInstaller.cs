@@ -61,6 +61,7 @@ namespace WordStack.Meta.AppFlow.Installers
                          typeof(AddQueueBoosterViewModel),
                          typeof(AddBeltBoosterViewModel),
                          typeof(MagnetBoosterViewModel),
+                         typeof(ShuffleBoosterViewModel),
                      })
             {
                 builder.RegisterType(vm, new[] { vm, typeof(System.IDisposable) },

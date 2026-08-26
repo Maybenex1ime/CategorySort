@@ -10,6 +10,7 @@ namespace LogosGame.Features.Currency.Transactions
         public const string BoosterAddQueue = "booster.addqueue";
         public const string BoosterAddBelt = "booster.addbelt";
         public const string BoosterMagnet = "booster.magnet";
+        public const string BoosterShuffle = "booster.shuffle";
         public const string Heart = "heart";
     }
 }

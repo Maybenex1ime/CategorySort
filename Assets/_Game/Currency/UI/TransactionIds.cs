@@ -14,6 +14,7 @@ namespace LogosGame.Features.Currency.UI
         public const string BoosterAddQueue = "t_booster_addqueue";
         public const string BoosterAddBelt = "t_booster_addbelt";
         public const string BoosterMagnet = "t_booster_magnet";
+        public const string BoosterShuffle = "t_booster_shuffle";
         public const string Heart = "t_heart";
 
         public static string ForBooster(BoosterId id) => id switch
@@ -23,6 +24,7 @@ namespace LogosGame.Features.Currency.UI
             BoosterId.AddQueue => BoosterAddQueue,
             BoosterId.AddBelt => BoosterAddBelt,
             BoosterId.Magnet => BoosterMagnet,
+            BoosterId.Shuffle => BoosterShuffle,
             _ => null
         };
 
@@ -35,6 +37,7 @@ namespace LogosGame.Features.Currency.UI
                 case BoosterAddQueue: boosterId = BoosterId.AddQueue; return true;
                 case BoosterAddBelt:  boosterId = BoosterId.AddBelt;  return true;
                 case BoosterMagnet:   boosterId = BoosterId.Magnet;   return true;
+                case BoosterShuffle:  boosterId = BoosterId.Shuffle;  return true;
                 default:              boosterId = BoosterId.None;     return false;
             }
         }

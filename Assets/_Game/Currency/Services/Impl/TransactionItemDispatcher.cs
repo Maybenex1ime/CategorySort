@@ -45,6 +45,9 @@ namespace LogosGame.Features.Currency.Services.Impl
                 case ItemIds.BoosterMagnet:
                     Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Magnet, amount));
                     break;
+                case ItemIds.BoosterShuffle:
+                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Shuffle, amount));
+                    break;
                 case ItemIds.Heart:
                     if (_hearts != null) _hearts.Add(amount);
                     break;

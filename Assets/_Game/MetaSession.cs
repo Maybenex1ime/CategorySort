@@ -65,6 +65,7 @@ namespace WordStack.Meta
         private void OnBoosterActivated(BoosterActivatedEvent evt)
         {
             if (evt.Id == BoosterId.Magnet) LevelCommands.RequestMagnet();
+            else if (evt.Id == BoosterId.Shuffle) LevelCommands.RequestShuffle();
         }
     }
 }
