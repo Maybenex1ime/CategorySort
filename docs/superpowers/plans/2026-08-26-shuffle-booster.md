@@ -325,7 +325,7 @@ git commit -m "feat(booster): Shuffle domain primitives - white tiles, invariant
 - Produces:
   - `public struct SlotRef { public int Stack, Box, Slot; }`
   - `public int CountPrimedGroups()` — số Nhóm mồi 3+1 đang có sẵn
-  - `internal List<string> PickPrimeCandidates(int max)` — nhóm nên dựng, thứ tự xác định
+  - `public List<string> PickPrimeCandidates(int max)` — nhóm nên dựng, thứ tự xác định
 
 - [ ] **Step 1: Viết test thất bại**
 
@@ -456,7 +456,7 @@ Thêm vào `GameShuffle.cs`, trong `partial class Game`:
         /// Thứ tự: nhiều thẻ sẵn ở lớp trên nhất trước (ít phải kéo donor nhất), hoà thì
         /// theo group id. Bậc cuối chỉ để kết quả xác định, test lại được.
         /// </summary>
-        internal List<string> PickPrimeCandidates(int max)
+        public List<string> PickPrimeCandidates(int max)
         {
             var onBoard = new Dictionary<string, int>();
             var onTop = new Dictionary<string, int>();
@@ -526,9 +526,9 @@ Trái tim của booster. Task này chỉ **sắp xếp**, chưa lo rollback.
 **Interfaces:**
 - Consumes: `SlotRef`, `PickPrimeCandidates`, `CountPrimedGroups`, `IsWhite` (Task 1–2).
 - Produces:
-  - `internal List<SlotRef> AssignableTopSlots()` — ô lớp trên được phép đụng (thẻ trắng + ô trống)
-  - `internal bool TryPrimeGroup(string gid)` — dựng 3+1 cho một nhóm, false nếu không xếp nổi
-  - `internal void ClusterLeftovers()` — Gom cụm phần thừa
+  - `public List<SlotRef> AssignableTopSlots()` — ô lớp trên được phép đụng (thẻ trắng + ô trống)
+  - `public bool TryPrimeGroup(string gid)` — dựng 3+1 cho một nhóm, false nếu không xếp nổi
+  - `public void ClusterLeftovers()` — Gom cụm phần thừa
 
 - [ ] **Step 1: Viết test thất bại**
 
@@ -615,7 +615,7 @@ Thêm vào `GameShuffle.cs`:
         /// (dùng làm đích khi dịch chỗ). Ô giữ thẻ có màu bị loại — đó là cụm người chơi
         /// đã gom, booster không phá.
         /// </summary>
-        internal List<SlotRef> AssignableTopSlots()
+        public List<SlotRef> AssignableTopSlots()
         {
             var result = new List<SlotRef>();
             for (int s = 0; s < Stacks.Count; s++)
@@ -648,7 +648,7 @@ Thêm vào `GameShuffle.cs`:
         /// Trả false khi không xếp nổi — gọi bên ngoài phải coi đó là bình thường, không
         /// phải lỗi.
         /// </summary>
-        internal bool TryPrimeGroup(string gid)
+        public bool TryPrimeGroup(string gid)
         {
             List<SlotRef> pool = AssignableTopSlots();
             if (pool.Count == 0) return false;
@@ -706,7 +706,7 @@ Thêm vào `GameShuffle.cs`:
         /// 1 nước, hai hộp mỗi hộp 2 thẻ P cách 2 nước. Nên duyệt nhóm theo số thẻ thừa
         /// giảm dần và dồn hết mức cho từng nhóm.
         /// </summary>
-        internal void ClusterLeftovers()
+        public void ClusterLeftovers()
         {
             List<SlotRef> pool = AssignableTopSlots();
             var loose = new List<Tile>();
@@ -1228,7 +1228,9 @@ Ngay dưới method `OnMagnetRequested()`, thêm:
             ShuffleResult r = g.ApplyShuffle();
             if (!r.Ok) return;
 
-            StartCoroutine(ShuffleSequence(r));
+            // Task 7 thay hai dòng này bằng StartCoroutine(ShuffleSequence(r)).
+            RebuildBoardViews();
+            StartCoroutine(Settle());
         }
 ```
 
@@ -1245,7 +1247,7 @@ Trong method `RefreshMagnetAvailability()`, đổi thành đẩy cả hai cờ �
         }
 ```
 
-Đổi hai chỗ gọi: trong `Settle()` (cuối coroutine) và giữ nguyên vị trí cũ. Trong `Load()`, dòng `LevelSignals.SetMagnetAvailable(false);` đổi thành:
+`RefreshMagnetAvailability` hiện chỉ được gọi ở đúng **một** chỗ: trong `Settle()`, ngay dưới `locked = false;`. Đổi dòng đó thành `RefreshBoosterAvailability();` rồi xoá method cũ. Trong `Load()`, dòng `LevelSignals.SetMagnetAvailable(false);` đổi thành:
 
 ```csharp
             LevelSignals.SetMagnetAvailable(false);
@@ -1263,14 +1265,7 @@ Và ở đầu `Settle()`, dưới dòng `LevelSignals.SetMagnetAvailable(false)
 ```bash
 ./compilecheck.sh
 ```
-Expected: `game.dll OK` · `editor.dll OK` · `meta.dll OK`. `ShuffleSequence` chưa tồn tại nên **sẽ fail** — đó là dự kiến, Task 7 tạo nó. Để qua được Task 5, tạm thời thay thân `OnShuffleRequested` cuối cùng bằng:
-
-```csharp
-            RebuildBoardViews();
-            StartCoroutine(Settle());
-```
-
-rồi Task 7 đổi lại thành `StartCoroutine(ShuffleSequence(r));`.
+Expected: `game.dll OK` · `editor.dll OK` · `meta.dll OK`
 
 - [ ] **Step 5: Commit**
 
@@ -1531,7 +1526,7 @@ Dưới dòng `[SerializeField] float magnetAnimDur = 0.6f;`:
 
 - [ ] **Step 2: Đổi `OnShuffleRequested` sang gọi coroutine**
 
-Thay hai dòng tạm ở Task 5 Step 4 bằng:
+Trong `OnShuffleRequested`, thay hai dòng `RebuildBoardViews(); StartCoroutine(Settle());` bằng:
 
 ```csharp
             StartCoroutine(ShuffleSequence(r));
