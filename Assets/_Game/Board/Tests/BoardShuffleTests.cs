@@ -3,6 +3,7 @@
 //
 // Chỉ Parse + Build, KHÔNG gọi Validate — Validate đòi level có cả thẻ chỉ-ảnh lẫn thẻ
 // chỉ-chữ, thứ không liên quan gì tới Shuffle.
+using System.Collections.Generic;
 using NUnit.Framework;
 
 namespace WordStack.Board.Tests
@@ -82,6 +83,62 @@ namespace WordStack.Board.Tests
                         top.Slots[i] = new Tile { Uid = "f" + s + i, CardId = "f" + s + i, GroupId = "gz" };
             }
             Assert.IsFalse(g.CanShuffle(), "lớp trên đầy kín → không tạo được ô trống cho hộp chủ");
+        }
+
+        // Stack 0 top: 3 thẻ ga + 1 ô trống. Stack 1 top: a4 + b1. Stack 2 top: 3 thẻ gb + ô trống.
+        // Cả ga lẫn gb đều là Nhóm mồi 3+1 sẵn có.
+        const string LvPrimed = @"{
+          ""id"":""s-primed"", ""title"":""t"", ""note"":"""",
+          ""layout"": { ""stacks"": [
+            { ""pos"":[0,0], ""boxes"":[ { ""slots"":[""a1"",""a2"",""a3"",null] } ] },
+            { ""pos"":[1,0], ""boxes"":[ { ""slots"":[""a4"",""b1"",null,null] } ] },
+            { ""pos"":[2,0], ""boxes"":[ { ""slots"":[""b2"",""b3"",""b4"",null] } ] }
+          ]},
+          ""meaning"": { ""groups"": [
+            { ""id"":""ga"", ""text"":""A"", ""cards"":[
+              {""id"":""a1"",""text"":""A1""},{""id"":""a2"",""text"":""A2""},
+              {""id"":""a3"",""text"":""A3""},{""id"":""a4"",""text"":""A4""} ]},
+            { ""id"":""gb"", ""text"":""B"", ""cards"":[
+              {""id"":""b1"",""text"":""B1""},{""id"":""b2"",""text"":""B2""},
+              {""id"":""b3"",""text"":""B3""},{""id"":""b4"",""text"":""B4""} ]}
+          ]}
+        }";
+
+        [Test]
+        public void DemDungNhomMoiDangCoSan()
+        {
+            // ga: 3 thẻ ở stack 0 + hộp đó còn ô trống + thẻ thứ 4 ở stack 1 → nhóm mồi.
+            // gb: 3 thẻ ở stack 2 + còn ô trống + thẻ thứ 4 ở stack 1 → cũng là nhóm mồi.
+            Assert.AreEqual(2, Build(LvPrimed).CountPrimedGroups());
+        }
+
+        [Test]
+        public void HopDayThiKhongTinhLaNhomMoi()
+        {
+            var g = Build(LvPrimed);
+            // Lấp nốt ô trống của stack 0 → người chơi không thả thẻ thứ 4 vào được nữa.
+            g.TopBox(0).Slots[3] = new Tile { Uid = "z", CardId = "z", GroupId = "gz" };
+
+            Assert.AreEqual(1, g.CountPrimedGroups(), "chỉ còn gb là nhóm mồi hợp lệ");
+        }
+
+        [Test]
+        public void LoaiNhomChuaDuBonTheTrenBan()
+        {
+            // gc chỉ có c1, c2 nằm trên bàn (c3, c4 không có trong layout) → không dựng nổi.
+            List<string> picks = Build(Lv).PickPrimeCandidates(3);
+
+            CollectionAssert.DoesNotContain(picks, "gc", "nhóm chưa đủ 4 thẻ thật thì không dựng nổi");
+            CollectionAssert.Contains(picks, "ga");
+            CollectionAssert.Contains(picks, "gb");
+        }
+
+        [Test]
+        public void PickPrimeCandidatesRaKetQuaXacDinh()
+        {
+            // Cùng một bàn phải luôn ra cùng thứ tự, không thì test không lặp lại được.
+            CollectionAssert.AreEqual(Build(Lv).PickPrimeCandidates(3), Build(Lv).PickPrimeCandidates(3));
+            Assert.AreEqual(1, Build(Lv).PickPrimeCandidates(1).Count, "max cắt đúng số lượng");
         }
     }
 }

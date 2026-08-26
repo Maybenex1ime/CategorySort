@@ -92,5 +92,109 @@ namespace WordStack.Board
             }
             return false;
         }
+
+        /// <summary>Địa chỉ một ô trên bàn. Box = 0 là hộp trên cùng.</summary>
+        public struct SlotRef
+        {
+            public int Stack, Box, Slot;
+        }
+
+        /// <summary>
+        /// Số Nhóm mồi 3+1 đang có sẵn: một top box giữ đúng 3 thẻ cùng nhóm VÀ còn ô
+        /// trống, cộng thêm ≥1 thẻ nữa của nhóm đó ở top box khác.
+        ///
+        /// Ô trống là bắt buộc: MoveTile từ chối hộp đích đầy, nên hộp chủ đầy 4 ô thì
+        /// người chơi không thả được thẻ thứ 4 vào — không còn là "đúng 1 nước".
+        /// </summary>
+        public int CountPrimedGroups()
+        {
+            var primed = new HashSet<string>();
+
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                Box host = TopBox(s);
+                if (host == null) continue;
+
+                bool hasFree = false;
+                var count = new Dictionary<string, int>();
+                for (int i = 0; i < host.Slots.Length; i++)
+                {
+                    if (host.Slots[i] == null) { hasFree = true; continue; }
+                    int n;
+                    count.TryGetValue(host.Slots[i].GroupId, out n);
+                    count[host.Slots[i].GroupId] = n + 1;
+                }
+                if (!hasFree) continue;
+
+                foreach (var kv in count)
+                {
+                    if (kv.Value != Rules.GroupSize - 1) continue;
+                    if (CountGroupOnTopLayerExcept(kv.Key, s) > 0) primed.Add(kv.Key);
+                }
+            }
+            return primed.Count;
+        }
+
+        int CountGroupOnTopLayerExcept(string gid, int exceptStack)
+        {
+            int n = 0;
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                if (s == exceptStack) continue;
+                Box top = TopBox(s);
+                if (top == null) continue;
+                for (int i = 0; i < top.Slots.Length; i++)
+                    if (top.Slots[i] != null && top.Slots[i].GroupId == gid) n++;
+            }
+            return n;
+        }
+
+        /// <summary>
+        /// Các nhóm đáng dựng mồi, nhiều nhất <paramref name="max"/> nhóm.
+        ///
+        /// Chỉ nhận nhóm có ĐỦ 4 thẻ đang tồn tại trên bàn: nhóm cha còn nhóm con chưa
+        /// collapse thì thành viên thiếu chưa tồn tại dưới dạng thẻ, không kéo lên được —
+        /// cùng ràng buộc với booster Magnet.
+        ///
+        /// Thứ tự: nhiều thẻ sẵn ở lớp trên nhất trước (ít phải kéo donor nhất), hoà thì
+        /// theo group id. Bậc cuối chỉ để kết quả xác định, test lại được.
+        /// </summary>
+        public List<string> PickPrimeCandidates(int max)
+        {
+            var onBoard = new Dictionary<string, int>();
+            var onTop = new Dictionary<string, int>();
+            var order = new List<string>();
+
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                List<Box> boxes = Stacks[s].Boxes;
+                for (int b = 0; b < boxes.Count; b++)
+                {
+                    Tile[] slots = boxes[b].Slots;
+                    for (int i = 0; i < slots.Length; i++)
+                    {
+                        if (slots[i] == null) continue;
+                        string gid = slots[i].GroupId;
+                        int n;
+                        if (!onBoard.TryGetValue(gid, out n)) { order.Add(gid); onTop[gid] = 0; }
+                        onBoard[gid] = n + 1;
+                        if (b == 0) onTop[gid] = onTop[gid] + 1;
+                    }
+                }
+            }
+
+            var eligible = new List<string>();
+            for (int k = 0; k < order.Count; k++)
+                if (onBoard[order[k]] == Rules.GroupSize) eligible.Add(order[k]);
+
+            eligible.Sort(delegate (string a, string b)
+            {
+                if (onTop[a] != onTop[b]) return onTop[b] - onTop[a];
+                return string.CompareOrdinal(a, b);
+            });
+
+            if (eligible.Count > max) eligible.RemoveRange(max, eligible.Count - max);
+            return eligible;
+        }
     }
 }
