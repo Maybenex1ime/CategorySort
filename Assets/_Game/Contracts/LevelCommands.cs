@@ -42,6 +42,14 @@ namespace WordStack.Contracts
 
         public static void RequestMagnet() => MagnetRequested?.Invoke();
 
+        /// <summary>
+        /// Booster Shuffle. Cùng lý do với MagnetRequested: assembly WordStack.Board chỉ
+        /// tham chiếu WordStack.Contracts nên bàn không nghe Bus.Global được.
+        /// </summary>
+        public static event Action ShuffleRequested;
+
+        public static void RequestShuffle() => ShuffleRequested?.Invoke();
+
         // Event static sống sót qua lần Play kế tiếp khi Domain Reload tắt —
         // cùng lý do với LevelSignals.ResetStaticState.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -49,6 +57,7 @@ namespace WordStack.Contracts
         {
             LoadRequested = null;
             MagnetRequested = null;
+            ShuffleRequested = null;
             InputBlocked = false;
         }
     }

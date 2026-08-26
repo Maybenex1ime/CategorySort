@@ -70,6 +70,7 @@ namespace WordStack.Board
         [SerializeField] float mergeSpin = 140f;       // thẻ mới xoay bao nhiêu độ lúc nở (0 = tắt)
 
         [SerializeField] float magnetAnimDur = 0.6f;   // PLACEHOLDER: chỗ giữ nhịp cho animation nam châm
+        [SerializeField] float shuffleAnimDur = 0.5f;  // PLACEHOLDER: chỗ giữ nhịp cho animation shuffle
 
         Game g;
         // Nội dung màn hiện tại — do BoardInitializer (DI, Meta) đưa qua LevelCommands
@@ -118,12 +119,14 @@ namespace WordStack.Board
             // ngoài Unity qua ./selfcheck.sh — nó đọc thẳng thư mục level trên đĩa.)
             LevelCommands.LoadRequested += OnLoadRequested;
             LevelCommands.MagnetRequested += OnMagnetRequested;
+            LevelCommands.ShuffleRequested += OnShuffleRequested;
         }
 
         void OnDestroy()
         {
             LevelCommands.LoadRequested -= OnLoadRequested;
             LevelCommands.MagnetRequested -= OnMagnetRequested;
+            LevelCommands.ShuffleRequested -= OnShuffleRequested;
         }
 
         void OnLoadRequested(int index, string json)
@@ -148,6 +151,20 @@ namespace WordStack.Board
             if (!r.Ok) return;
 
             StartCoroutine(MagnetSequence(r));
+        }
+
+        // Cùng bộ chốt với nam châm. Không hoàn lượt ở đây — nút chỉ sáng khi
+        // LevelSignals.ShuffleAvailable bật, mà cờ đó tắt trong đúng mấy trường hợp này.
+        void OnShuffleRequested()
+        {
+            if (g == null || locked || LevelCommands.InputBlocked) return;
+            if (g.Status != GameStatus.Playing) return;
+            if (ghost != null) return;   // đang kéo thẻ: thẻ đó có thể vừa bị xáo đi chỗ khác
+
+            ShuffleResult r = g.ApplyShuffle();
+            if (!r.Ok) return;
+
+            StartCoroutine(ShuffleSequence(r));
         }
 
         // Khoá HAI vế suốt lúc diễn, thiếu vế nào cũng lọt input:
@@ -201,6 +218,53 @@ namespace WordStack.Board
             yield return new WaitForSeconds(magnetAnimDur);
         }
 
+        // Khoá HAI vế suốt lúc diễn, y như nam châm — thiếu vế nào cũng lọt input:
+        //   locked             → chặn kéo thẻ (board đọc raw Pointer, uGUI không chặn hộ)
+        //   RaiseMoveCommitted → đẩy phase khỏi Playing → IsInputBlocked bật →
+        //                        GameplayBlockInputOverlayView phủ kín, chặn nốt nút HUD.
+        // Mượn MoveCommitted chứ không thêm tín hiệu mới: nó chỉ mang movesUsed, mà
+        // Shuffle KHÔNG tăng Moves nên truyền g.Moves vào là số y nguyên, HUD không trôi.
+        IEnumerator ShuffleSequence(ShuffleResult r)
+        {
+            locked = true;
+            LevelSignals.SetMagnetAvailable(false);
+            LevelSignals.SetShuffleAvailable(false);
+
+            // Bấm ngay khi vào màn thì phase còn Ready, mà NotifyPlayerActionCommittedAsync
+            // đòi phase == Playing — không đẩy Ready sang Playing trước là MoveCommitted lẫn
+            // EvaluationCompleted đều bị ViewModel nuốt: overlay không lên và progress bar
+            // đứng im dù bàn đã đổi.
+            if (!firstInteractionRaised)
+            {
+                firstInteractionRaised = true;
+                LevelSignals.RaiseFirstInteraction();
+            }
+
+            LevelSignals.RaiseMoveCommitted(g.Moves);
+
+            yield return ShuffleAnimation(r);
+
+            RebuildBoardViews();
+            yield return Settle();   // dọn hộp rỗng, chạy cascade, chốt thắng/kẹt
+        }
+
+        // PLACEHOLDER — chỗ DUY NHẤT cần thay khi làm animation thật.
+        //
+        // Chuỗi thật cần diễn:
+        //   1. Move có From.Box == 0 && To.Box == 0: thẻ bay từ ô cũ sang ô mới trong lớp
+        //      trên, lệch pha nhau như MergeTiles đang làm.
+        //   2. Move dính hộp bị chôn (From.Box > 0 hoặc To.Box > 0): StackView chỉ vẽ peek
+        //      layer trừu tượng, KHÔNG có tile view thật — phải dựng tile tạm ở vị trí peek,
+        //      lật mặt, bay, rồi huỷ.
+        //   3. Thẻ có màu KHÔNG bao giờ xuất hiện trong r.Moves — đừng động vào chúng.
+        //
+        // Hiện chỉ giữ đúng NHỊP thời gian. Bỏ trắng thì overlay chớp một khung hình rồi
+        // tắt, không kiểm được phần chặn input có thật sự chạy hay không.
+        IEnumerator ShuffleAnimation(ShuffleResult r)
+        {
+            yield return new WaitForSeconds(shuffleAnimDur);
+        }
+
         // Nhịp 2 chưa có animation moi thẻ: dựng lại toàn bộ view từ trạng thái mới.
         // Nhịp 3 thay bằng chuỗi bay thật — MagnetResult đã mang sẵn vị trí nguồn của
         // từng thẻ (kể cả thẻ đang bị chôn) để làm đúng việc đó.
@@ -214,10 +278,11 @@ namespace WordStack.Board
         // Quét lại xem còn nhóm nào hút được không rồi đẩy sang tầng meta để xám/sáng
         // nút. Chỉ gọi khi bàn đã đứng yên, không gọi mỗi khung hình —
         // FindMagnetTarget duyệt cả bàn.
-        void RefreshMagnetAvailability()
+        void RefreshBoosterAvailability()
         {
-            LevelSignals.SetMagnetAvailable(
-                g != null && g.Status == GameStatus.Playing && g.FindMagnetTarget() != null);
+            bool playing = g != null && g.Status == GameStatus.Playing;
+            LevelSignals.SetMagnetAvailable(playing && g.FindMagnetTarget() != null);
+            LevelSignals.SetShuffleAvailable(playing && g.CanShuffle());
         }
 
         bool RefsOk()
@@ -260,7 +325,8 @@ namespace WordStack.Board
             StopAllCoroutines();
             DestroyBoard();
             locked = false;
-            LevelSignals.SetMagnetAvailable(false);   // Settle() cuối Load() đặt lại giá trị thật
+            LevelSignals.SetMagnetAvailable(false);
+            LevelSignals.SetShuffleAvailable(false);  // Settle() cuối Load() đặt lại giá trị thật
             if (string.IsNullOrEmpty(levelJson))
             {
                 Debug.LogError("Chưa có JSON level — BoardInitializer phải nạp qua Addressables trước.");
@@ -530,10 +596,11 @@ namespace WordStack.Board
         IEnumerator Settle(float delay = 0f)
         {
             locked = true;
-            // Tắt nút nam châm suốt cascade. Không tắt thì cờ giữ giá trị cũ, nút vẫn
-            // sáng, người chơi bấm được → BoosterManager trừ lượt xong OnMagnetRequested
-            // lại drop vì locked = mất lượt đã mua bằng coin.
+            // Tắt nút booster suốt cascade. Không tắt thì cờ giữ giá trị cũ, nút vẫn
+            // sáng, người chơi bấm được → BoosterManager trừ lượt xong handler lại drop
+            // vì locked = mất lượt đã mua bằng coin.
             LevelSignals.SetMagnetAvailable(false);
+            LevelSignals.SetShuffleAvailable(false);
             bool hadCascade = false;
             if (delay > 0f) yield return new WaitForSeconds(delay);
             for (;;)
@@ -567,7 +634,7 @@ namespace WordStack.Board
             ReportResultIfFinished();
             CheckInvariant("settle");
             locked = false;
-            RefreshMagnetAvailability();
+            RefreshBoosterAvailability();
 
             // Cascade đã tính xong. hadCascade = có animation vừa chạy → tầng meta
             // vào Animating, rồi RaiseAnimationCompleted đưa về Playing.

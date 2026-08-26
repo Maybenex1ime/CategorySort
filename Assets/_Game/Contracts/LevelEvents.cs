@@ -114,6 +114,18 @@ namespace WordStack.Contracts
             MagnetAvailabilityChanged?.Invoke(available);
         }
 
+        /// <summary>Bàn có xáo được không — board đẩy sau mỗi lần settle và lúc nạp màn.</summary>
+        public static event Action<bool> ShuffleAvailabilityChanged;
+
+        public static bool ShuffleAvailable { get; private set; }
+
+        public static void SetShuffleAvailable(bool available)
+        {
+            if (ShuffleAvailable == available) return;
+            ShuffleAvailable = available;
+            ShuffleAvailabilityChanged?.Invoke(available);
+        }
+
         public static void RaiseStarted(int levelIndex, int totalGroups)
             => Started?.Invoke(new LevelStartedEvent(levelIndex, totalGroups));
 
@@ -145,6 +157,8 @@ namespace WordStack.Contracts
             AnimationCompleted = null;
             MagnetAvailabilityChanged = null;
             MagnetAvailable = false;
+            ShuffleAvailabilityChanged = null;
+            ShuffleAvailable = false;
         }
     }
 }
