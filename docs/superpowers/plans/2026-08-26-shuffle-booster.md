@@ -515,9 +515,11 @@ git commit -m "feat(booster): Shuffle primed-group detection and candidate ranki
 
 ---
 
-### Task 3: Xếp chỗ — dựng Nhóm mồi và Gom cụm
+### Task 3: Xếp chỗ — Nhóm mồi, Gom cụm, giữ hộp không rỗng
 
-Trái tim của booster. Task này chỉ **sắp xếp**, chưa lo rollback.
+Trái tim của booster.
+
+**Mô hình:** `ApplyShuffle` (Task 4) nhấc **toàn bộ thẻ trắng** ra "tay" một lần, mọi ô khả dụng thành trống. Ba pha lần lượt đặt thẻ vào và **reserve** ô đã dùng. Pha sau không bao giờ đụng ô pha trước đã cam kết — đó là thứ chặn cả lớp lỗi "pha sau đè pha trước".
 
 **Files:**
 - Modify: `Assets/_Game/Board/Domain/GameShuffle.cs`
@@ -526,372 +528,61 @@ Trái tim của booster. Task này chỉ **sắp xếp**, chưa lo rollback.
 **Interfaces:**
 - Consumes: `SlotRef`, `PickPrimeCandidates`, `CountPrimedGroups`, `IsWhite` (Task 1–2).
 - Produces:
-  - `public List<SlotRef> AssignableTopSlots()` — ô lớp trên được phép đụng (thẻ trắng + ô trống)
-  - `public bool TryPrimeGroup(string gid)` — dựng 3+1 cho một nhóm, false nếu không xếp nổi
-  - `public void ClusterLeftovers()` — Gom cụm phần thừa
+  - `public List<SlotRef> AssignableTopSlots()`
+  - `public void DrainAll(List<SlotRef> pool, List<Tile> hand)`
+  - `public bool TryPrimeGroup(string gid, List<SlotRef> pool, HashSet<int> reserved, List<Tile> hand)`
+  - `public void ClusterHand(List<SlotRef> pool, HashSet<int> reserved, List<Tile> hand)`
+  - `public bool EnsureEveryTopBoxOccupied(List<SlotRef> pool, HashSet<int> reserved)`
+  - Khoá reserve: `static int SlotKey(int stack, int slot)` = `stack * Rules.BoxCapacity + slot`
 
-- [ ] **Step 1: Viết test thất bại**
+- [ ] **Step 1: Viết test thất bại** — thêm vào `BoardShuffleTests.cs`
 
-Thêm vào `BoardShuffleTests.cs`:
+Bốn test: ô khả dụng chỉ gồm thẻ trắng + ô trống (không gồm thẻ có màu) · pha B không xoá/lấp Nhóm mồi pha A vừa dựng · mỗi top box còn ≥1 thẻ sau cả ba pha · Gom cụm ra được cụm ≥2 và không bao giờ chạm 4.
 
-```csharp
-        [Test]
-        public void OKhaDungGomTheTrangVaOTrong_KhongGomTheCoMau()
-        {
-            var g = Build(Lv);
-            List<Game.SlotRef> slots = g.AssignableTopSlots();
-
-            // Stack 0: a1/a2 thành cụm → loại; b1 trắng → nhận; ô 3 trống → nhận.
-            Assert.IsFalse(slots.Exists(r => r.Stack == 0 && r.Slot == 0), "a1 có màu, không đụng");
-            Assert.IsFalse(slots.Exists(r => r.Stack == 0 && r.Slot == 1), "a2 có màu, không đụng");
-            Assert.IsTrue(slots.Exists(r => r.Stack == 0 && r.Slot == 2), "b1 trắng");
-            Assert.IsTrue(slots.Exists(r => r.Stack == 0 && r.Slot == 3), "ô trống dùng để dịch chỗ");
-            Assert.IsTrue(slots.TrueForAll(r => r.Box == 0), "chỉ lớp trên cùng");
-        }
-
-        [Test]
-        public void DungDuocNhomMoiVaKhongLamNoBatKyHopNao()
-        {
-            var g = Build(Lv);
-            int before = g.TopLayerTileCount();
-
-            Assert.IsTrue(g.TryPrimeGroup("ga"), "ga có đủ 4 thẻ trên bàn");
-
-            Assert.AreEqual(before, g.TopLayerTileCount(), "tổng lớp trên phải giữ nguyên");
-            Assert.IsFalse(g.AnyBoxHasFullGroup(), "không hộp nào được đủ 4 → không tự nổ");
-            Assert.GreaterOrEqual(g.CountPrimedGroups(), 1, "phải có ít nhất một nhóm mồi");
-        }
-
-        [Test]
-        public void MoiTopBoxVanGiuItNhatMotThe()
-        {
-            var g = Build(Lv);
-            g.TryPrimeGroup("ga");
-            g.ClusterLeftovers();
-
-            for (int s = 0; s < g.Stacks.Count; s++)
-            {
-                int n = 0;
-                foreach (Tile t in g.TopBox(s).Slots) if (t != null) n++;
-                Assert.Greater(n, 0, "top box rỗng sẽ bị SettleStep xoá, làm lộ hộp dưới");
-            }
-        }
-
-        [Test]
-        public void GomCumUuTienKichThuocChuKhongPhaiSoLuong()
-        {
-            var g = Build(Lv);
-            g.ClusterLeftovers();
-
-            // Đếm cụm lớn nhất của mỗi nhóm trên lớp trên.
-            int biggest = 0;
-            for (int s = 0; s < g.Stacks.Count; s++)
-            {
-                var count = new Dictionary<string, int>();
-                foreach (Tile t in g.TopBox(s).Slots)
-                {
-                    if (t == null) continue;
-                    int n; count.TryGetValue(t.GroupId, out n);
-                    count[t.GroupId] = n + 1;
-                    if (n + 1 > biggest) biggest = n + 1;
-                }
-            }
-            Assert.GreaterOrEqual(biggest, 2, "phải dồn được ít nhất một cụm ≥2");
-            Assert.LessOrEqual(biggest, Rules.GroupSize - 1, "tối đa 3 thẻ/nhóm/hộp, chạm 4 là nổ");
-        }
-```
-
-- [ ] **Step 2: Chạy để xác nhận fail**
-
-Expected: `'Game' does not contain a definition for 'AssignableTopSlots'`.
-
-- [ ] **Step 3: Implementation**
-
-Thêm vào `GameShuffle.cs`:
+Test then chốt của task này là cái thứ hai — nó chính là lỗi mà bản plan đầu mắc phải:
 
 ```csharp
-        /// <summary>
-        /// Các ô ở lớp trên cùng Shuffle được phép đụng: ô đang giữ thẻ TRẮNG, và ô TRỐNG
-        /// (dùng làm đích khi dịch chỗ). Ô giữ thẻ có màu bị loại — đó là cụm người chơi
-        /// đã gom, booster không phá.
-        /// </summary>
-        public List<SlotRef> AssignableTopSlots()
+        [Test]
+        public void PhaBKhongDuocXoaHoacLapNhomMoiCuaPhaA()
         {
-            var result = new List<SlotRef>();
-            for (int s = 0; s < Stacks.Count; s++)
-            {
-                Box top = TopBox(s);
-                if (top == null) continue;
-                for (int i = 0; i < top.Slots.Length; i++)
-                    if (top.Slots[i] == null || IsWhite(top, i))
-                        result.Add(new SlotRef { Stack = s, Box = 0, Slot = i });
-            }
-            return result;
-        }
+            var g = Build(Lv);
+            List<Game.SlotRef> pool = g.AssignableTopSlots();
+            var reserved = new HashSet<int>();
+            var hand = new List<Tile>();
+            g.DrainAll(pool, hand);
 
-        // Số thẻ ở layer 2 của một stack — tiêu chí chọn hộp chủ. Hộp chủ nổ xong sẽ rỗng
-        // và bị xoá, hộp dưới lộ ra: chọn hộp ngồi trên hộp đầy nhất thì lượt sau người
-        // chơi có nhiều nguyên liệu nhất. Stack chỉ có một hộp thì đếm 0, xếp cuối.
-        int Layer2TileCount(int stack)
-        {
-            List<Box> boxes = Stacks[stack].Boxes;
-            if (boxes.Count < 2) return 0;
-            int n = 0;
-            foreach (Tile t in boxes[1].Slots) if (t != null) n++;
-            return n;
-        }
+            Assert.IsTrue(g.TryPrimeGroup("ga", pool, reserved, hand), "ga đủ 4 thẻ trên bàn");
+            g.ClusterHand(pool, reserved, hand);
+            g.EnsureEveryTopBoxOccupied(pool, reserved);
 
-        /// <summary>
-        /// Dựng Nhóm mồi 3+1 cho <paramref name="gid"/>: 3 thẻ vào hộp chủ (hộp đó kết
-        /// thúc với ĐÚNG 3 ô có thẻ, chừa 1 ô trống), thẻ thứ 4 sang top box khác.
-        ///
-        /// Trả false khi không xếp nổi — gọi bên ngoài phải coi đó là bình thường, không
-        /// phải lỗi.
-        /// </summary>
-        public bool TryPrimeGroup(string gid)
-        {
-            List<SlotRef> pool = AssignableTopSlots();
-            if (pool.Count == 0) return false;
-
-            // Hộp chủ: ưu tiên layer 2 nhiều thẻ nhất, hoà thì stack nhỏ hơn. Phải có đủ
-            // ô khả dụng để chứa 3 thẻ và chừa 1 ô trống.
-            int host = -1;
-            for (int s = 0; s < Stacks.Count; s++)
-            {
-                if (CountAssignableIn(pool, s) < Rules.GroupSize) continue;
-                if (host < 0 || Layer2TileCount(s) > Layer2TileCount(host)) host = s;
-            }
-            if (host < 0) return false;
-
-            // Thẻ thứ 4 phải nằm ở top box KHÁC — chôn xuống dưới là người chơi không
-            // với tới, không còn là "đúng 1 nước".
-            int carrier = -1;
-            for (int s = 0; s < Stacks.Count && carrier < 0; s++)
-                if (s != host && CountAssignableIn(pool, s) > 0) carrier = s;
-            if (carrier < 0) return false;
-
-            var need = new List<Tile>();
-            for (int k = 0; k < Rules.GroupSize; k++)
-            {
-                Tile t = TakeTileOfGroup(gid, pool);
-                if (t == null) { PutBack(need, pool); return false; }
-                need.Add(t);
-            }
-
-            // Dọn sạch phần khả dụng của hộp chủ và hộp mang thẻ thứ 4 trước khi đặt.
-            var spill = new List<Tile>();
-            DrainAssignable(pool, host, spill);
-            DrainAssignable(pool, carrier, spill);
-
-            Box hostBox = TopBox(host);
-            int placed = 0;
-            for (int i = 0; i < hostBox.Slots.Length && placed < Rules.GroupSize - 1; i++)
-                if (IsAssignable(pool, host, i)) { hostBox.Slots[i] = need[placed++]; }
-
-            Box carrierBox = TopBox(carrier);
-            for (int i = 0; i < carrierBox.Slots.Length; i++)
-                if (IsAssignable(pool, carrier, i) && carrierBox.Slots[i] == null)
-                { carrierBox.Slots[i] = need[Rules.GroupSize - 1]; break; }
-
-            // Thẻ bị đẩy ra rải vào các ô khả dụng còn trống, tránh dồn đủ 4 cùng nhóm.
-            ScatterWithoutCompleting(spill, pool);
-            return true;
-        }
-
-        /// <summary>
-        /// Gom cụm phần thừa ở lớp trên: dồn thẻ cùng nhóm về CHUNG một hộp, tối đa
-        /// <c>GroupSize - 1</c> thẻ mỗi hộp.
-        ///
-        /// Tối ưu theo KÍCH THƯỚC cụm chứ không phải số cụm: một hộp 3 thẻ P cách clear
-        /// 1 nước, hai hộp mỗi hộp 2 thẻ P cách 2 nước. Nên duyệt nhóm theo số thẻ thừa
-        /// giảm dần và dồn hết mức cho từng nhóm.
-        /// </summary>
-        public void ClusterLeftovers()
-        {
-            List<SlotRef> pool = AssignableTopSlots();
-            var loose = new List<Tile>();
-            DrainAll(pool, loose);
-
-            var byGroup = new Dictionary<string, List<Tile>>();
-            var order = new List<string>();
-            foreach (Tile t in loose)
-            {
-                List<Tile> l;
-                if (!byGroup.TryGetValue(t.GroupId, out l))
-                { l = new List<Tile>(); byGroup[t.GroupId] = l; order.Add(t.GroupId); }
-                l.Add(t);
-            }
-            order.Sort(delegate (string a, string b)
-            {
-                if (byGroup[a].Count != byGroup[b].Count) return byGroup[b].Count - byGroup[a].Count;
-                return string.CompareOrdinal(a, b);
-            });
-
-            var rest = new List<Tile>();
-            foreach (string gid in order)
-            {
-                List<Tile> tiles = byGroup[gid];
-                int chunk = tiles.Count < Rules.GroupSize - 1 ? tiles.Count : Rules.GroupSize - 1;
-                int target = FindStackWithFreeAssignable(pool, chunk);
-                if (target < 0) { rest.AddRange(tiles); continue; }
-
-                Box box = TopBox(target);
-                int put = 0;
-                for (int i = 0; i < box.Slots.Length && put < chunk; i++)
-                    if (IsAssignable(pool, target, i) && box.Slots[i] == null) box.Slots[i] = tiles[put++];
-
-                for (int k = put; k < tiles.Count; k++) rest.Add(tiles[k]);
-            }
-            ScatterWithoutCompleting(rest, pool);
+            Assert.GreaterOrEqual(g.CountPrimedGroups(), 1,
+                "Gom cụm KHÔNG được xoá hoặc lấp Nhóm mồi pha A vừa dựng");
+            Assert.IsFalse(g.AnyBoxHasFullGroup(), "không hộp nào đủ 4 → không tự nổ");
         }
 ```
 
-Và bộ hàm phụ, cũng trong `partial class Game`:
+- [ ] **Step 2: Chạy để xác nhận fail** — Expected: `'Game' does not contain a definition for 'AssignableTopSlots'`.
 
-```csharp
-        static bool IsAssignable(List<SlotRef> pool, int stack, int slot)
-        {
-            for (int k = 0; k < pool.Count; k++)
-                if (pool[k].Stack == stack && pool[k].Slot == slot) return true;
-            return false;
-        }
+- [ ] **Step 3: Implementation** — viết vào `GameShuffle.cs`
 
-        static int CountAssignableIn(List<SlotRef> pool, int stack)
-        {
-            int n = 0;
-            for (int k = 0; k < pool.Count; k++) if (pool[k].Stack == stack) n++;
-            return n;
-        }
+- `AssignableTopSlots()` — ô lớp trên đang giữ **thẻ trắng** hoặc đang **trống**. Ô giữ thẻ có màu bị loại: đó là cụm người chơi đã gom.
+- `DrainAll(pool, hand)` — nhấc mọi thẻ ở ô khả dụng vào tay. Sau bước này mọi ô khả dụng đều trống.
+- `TryPrimeGroup(gid, pool, reserved, hand)`:
+  - Hộp chủ = stack còn ≥`GroupSize` ô khả dụng **chưa reserved**, ưu tiên **layer 2 nhiều thẻ nhất**, hoà thì stack nhỏ hơn.
+  - Hộp mang = stack **khác**, còn ≥1 ô khả dụng chưa reserved.
+  - Gom đủ 4 thẻ nhóm `gid`: lấy từ tay trước; thiếu thì `SwapDonorIntoHand` đổi với donor ở layer dưới — thẻ đẩy xuống phải **không** làm hộp đó đủ 4 cùng nhóm.
+  - Đặt 3 thẻ vào hộp chủ, reserve từng ô. **Reserve thêm 1 ô nữa và ĐỂ TRỐNG** — ô người chơi thả thẻ thứ 4 vào. Đặt thẻ thứ 4 vào hộp mang, reserve.
+  - Không đủ điều kiện ở bất kỳ bước nào → trả thẻ đã lấy về tay, `return false`.
+- `ClusterHand(pool, reserved, hand)` — duyệt nhóm theo số thẻ trong tay **giảm dần** (tối ưu kích thước cụm, hoà thì theo group id); mỗi nhóm dồn `min(có, GroupSize-1)` thẻ vào **một** hộp còn đủ ô chưa reserved, không đủ chỗ thì hạ dần chunk. Hộp đích phải thoả `đang có + chunk <= GroupSize - 1`. Thẻ sót rải từng ô, bỏ qua hộp sắp chạm 4.
+- `EnsureEveryTopBoxOccupied(pool, reserved)` — hộp top nào rỗng thì mượn một thẻ từ ô **chưa reserved** của hộp đang có ≥2 thẻ. Không mượn được → `false`, Task 4 rollback.
 
-        // Nhấc mọi thẻ khỏi các ô khả dụng của một stack, gom vào spill.
-        void DrainAssignable(List<SlotRef> pool, int stack, List<Tile> spill)
-        {
-            Box box = TopBox(stack);
-            for (int i = 0; i < box.Slots.Length; i++)
-                if (IsAssignable(pool, stack, i) && box.Slots[i] != null)
-                { spill.Add(box.Slots[i]); box.Slots[i] = null; }
-        }
-
-        void DrainAll(List<SlotRef> pool, List<Tile> spill)
-        {
-            for (int k = 0; k < pool.Count; k++)
-            {
-                Box box = TopBox(pool[k].Stack);
-                Tile t = box.Slots[pool[k].Slot];
-                if (t != null) { spill.Add(t); box.Slots[pool[k].Slot] = null; }
-            }
-        }
-
-        // Lấy một thẻ nhóm gid: ưu tiên ô khả dụng ở lớp trên; hết thì đổi nội dung với
-        // donor ở layer dưới — trả thẻ donor lên chỗ vừa nhấc để mọi số đếm không đổi.
-        Tile TakeTileOfGroup(string gid, List<SlotRef> pool)
-        {
-            for (int k = 0; k < pool.Count; k++)
-            {
-                Box box = TopBox(pool[k].Stack);
-                Tile t = box.Slots[pool[k].Slot];
-                if (t != null && t.GroupId == gid) { box.Slots[pool[k].Slot] = null; return t; }
-            }
-
-            for (int s = 0; s < Stacks.Count; s++)
-            {
-                List<Box> boxes = Stacks[s].Boxes;
-                for (int b = 1; b < boxes.Count; b++)
-                    for (int i = 0; i < boxes[b].Slots.Length; i++)
-                    {
-                        Tile t = boxes[b].Slots[i];
-                        if (t == null || t.GroupId != gid) continue;
-                        Tile swapIn = TakeAnyFromPool(pool);
-                        if (swapIn == null) return null;
-                        boxes[b].Slots[i] = swapIn;   // thẻ lớp trên xuống thế chỗ donor
-                        return t;
-                    }
-            }
-            return null;
-        }
-
-        Tile TakeAnyFromPool(List<SlotRef> pool)
-        {
-            for (int k = 0; k < pool.Count; k++)
-            {
-                Box box = TopBox(pool[k].Stack);
-                Tile t = box.Slots[pool[k].Slot];
-                if (t != null) { box.Slots[pool[k].Slot] = null; return t; }
-            }
-            return null;
-        }
-
-        void PutBack(List<Tile> tiles, List<SlotRef> pool)
-        {
-            ScatterWithoutCompleting(tiles, pool);
-        }
-
-        int FindStackWithFreeAssignable(List<SlotRef> pool, int need)
-        {
-            for (int s = 0; s < Stacks.Count; s++)
-            {
-                Box box = TopBox(s);
-                int free = 0;
-                for (int i = 0; i < box.Slots.Length; i++)
-                    if (IsAssignable(pool, s, i) && box.Slots[i] == null) free++;
-                if (free >= need) return s;
-            }
-            return -1;
-        }
-
-        // Rải thẻ vào ô khả dụng còn trống, bỏ qua ô nào làm hộp đủ 4 thẻ cùng nhóm.
-        void ScatterWithoutCompleting(List<Tile> tiles, List<SlotRef> pool)
-        {
-            foreach (Tile t in tiles)
-            {
-                bool done = false;
-                for (int k = 0; k < pool.Count && !done; k++)
-                {
-                    Box box = TopBox(pool[k].Stack);
-                    int slot = pool[k].Slot;
-                    if (box.Slots[slot] != null) continue;
-                    if (CountGroupInBox(box, t.GroupId) >= Rules.GroupSize - 1) continue;
-                    box.Slots[slot] = t;
-                    done = true;
-                }
-                if (!done) ForcePlaceAnywhere(t, pool);
-            }
-        }
-
-        static int CountGroupInBox(Box box, string gid)
-        {
-            int n = 0;
-            foreach (Tile t in box.Slots) if (t != null && t.GroupId == gid) n++;
-            return n;
-        }
-
-        // Lưới an toàn: thẻ không còn chỗ "an toàn" thì vẫn phải nằm đâu đó, không được
-        // biến mất. Bất biến ở Task 4 sẽ bắt nếu chỗ này tạo ra hộp đủ 4.
-        void ForcePlaceAnywhere(Tile t, List<SlotRef> pool)
-        {
-            for (int k = 0; k < pool.Count; k++)
-            {
-                Box box = TopBox(pool[k].Stack);
-                if (box.Slots[pool[k].Slot] == null) { box.Slots[pool[k].Slot] = t; return; }
-            }
-        }
-```
-
-- [ ] **Step 4: Chạy lại, xác nhận pass**
-
-Harness. Expected: tất cả `ok`.
-
-- [ ] **Step 5: Hai cổng của repo**
-
-```bash
-./selfcheck.sh && ./compilecheck.sh
-```
-
+- [ ] **Step 4: Chạy lại, xác nhận pass** — harness, tất cả `ok`.
+- [ ] **Step 5:** `./selfcheck.sh && ./compilecheck.sh`
 - [ ] **Step 6: Commit**
 
 ```bash
 git add Assets/_Game/Board/Domain/GameShuffle.cs Assets/_Game/Board/Tests/BoardShuffleTests.cs
-git commit -m "feat(booster): Shuffle placement - prime 3+1 groups and cluster leftovers"
+git commit -m "feat(booster): Shuffle placement - reserve-based three-phase layout"
 ```
 
 ---
@@ -908,6 +599,15 @@ git commit -m "feat(booster): Shuffle placement - prime 3+1 groups and cluster l
   - `public struct ShuffleMove { public string Uid; public SlotRef From, To; }`
   - `public struct ShuffleResult { public bool Ok; public ShuffleMove[] Moves; public int PrimedGroups; }`
   - `public ShuffleResult ApplyShuffle()`
+
+**Trình tự:**
+
+1. `CanShuffle()` false → trả `Ok = false` ngay, không đụng bàn.
+2. Chụp `TopLayerTileCount()`, bảng vị trí theo Uid, và tập Uid **đang trắng trước khi xáo** — truyền như tham số, **không** để field tạm bám vào `Game`.
+3. `Clone()` làm bản lùi.
+4. `DrainAll` → pha A (`TryPrimeGroup` tối đa 3 nhóm) → pha B (`ClusterHand`) → pha C (`EnsureEveryTopBoxOccupied`).
+5. Kiểm 4 bất biến. Không đạt → `RestoreFrom(backup)`, trả `Ok = false`.
+6. Đạt → trả `Moves` (diff vị trí theo Uid) + `PrimedGroups`.
 
 - [ ] **Step 1: Viết test thất bại**
 
@@ -961,175 +661,10 @@ git commit -m "feat(booster): Shuffle placement - prime 3+1 groups and cluster l
         }
 ```
 
-- [ ] **Step 2: Chạy để xác nhận fail**
-
-Expected: `'Game' does not contain a definition for 'ApplyShuffle'`.
-
-- [ ] **Step 3: Implementation**
-
-```csharp
-        public struct ShuffleMove
-        {
-            public string Uid;
-            public SlotRef From, To;
-        }
-
-        public struct ShuffleResult
-        {
-            public bool Ok;
-            public ShuffleMove[] Moves;   // view dùng để animate; rỗng khi Ok = false
-            public int PrimedGroups;
-        }
-
-        /// <summary>
-        /// Xáo lại lớp trên cùng theo spec Shuffle.
-        ///
-        /// KHÔNG đụng danh sách Boxes và KHÔNG đổi Status — gọi Settle() sau như một nước
-        /// đi thường. KHÔNG tăng Moves: booster không tính là nước đi.
-        ///
-        /// Vi phạm bất biến thì khôi phục nguyên trạng và trả Ok = false; bên gọi phải
-        /// KHÔNG trừ lượt trong trường hợp đó.
-        /// </summary>
-        public ShuffleResult ApplyShuffle()
-        {
-            var fail = new ShuffleResult { Ok = false, Moves = new ShuffleMove[0] };
-            if (!CanShuffle()) return fail;
-
-            int topBefore = TopLayerTileCount();
-            Dictionary<string, SlotRef> before = SnapshotPositions();
-            Game backup = Clone();
-
-            List<string> candidates = PickPrimeCandidates(3);
-            int primed = CountPrimedGroups();
-            for (int k = 0; k < candidates.Count && primed < 3; k++)
-                if (TryPrimeGroup(candidates[k])) primed++;
-
-            ClusterLeftovers();
-
-            if (!ValidateShuffle(topBefore, before))
-            {
-                RestoreFrom(backup);
-                return fail;
-            }
-
-            return new ShuffleResult
-            {
-                Ok = true,
-                Moves = DiffPositions(before),
-                PrimedGroups = CountPrimedGroups(),
-            };
-        }
-
-        bool ValidateShuffle(int topBefore, Dictionary<string, SlotRef> before)
-        {
-            if (TopLayerTileCount() != topBefore) return false;
-            if (AnyBoxHasFullGroup()) return false;
-
-            for (int s = 0; s < Stacks.Count; s++)
-            {
-                Box top = TopBox(s);
-                if (top == null) return false;
-                bool any = false;
-                foreach (Tile t in top.Slots) if (t != null) any = true;
-                if (!any) return false;
-            }
-
-            // Bất biến 4: thẻ có màu ở lớp trên phải còn đúng chỗ cũ. Xét theo trạng thái
-            // TRƯỚC khi xáo — sau khi xáo màu đã khác.
-            for (int s = 0; s < Stacks.Count; s++)
-            {
-                Box top = TopBox(s);
-                for (int i = 0; i < top.Slots.Length; i++)
-                {
-                    Tile t = top.Slots[i];
-                    if (t == null) continue;
-                    SlotRef old;
-                    if (!before.TryGetValue(t.Uid, out old)) continue;
-                    bool wasColored = old.Box == 0 && !WasWhiteBefore(before, t.Uid);
-                    if (wasColored && (old.Stack != s || old.Slot != i)) return false;
-                }
-            }
-            return true;
-        }
-
-        // Bảng phụ dựng cùng lúc với SnapshotPositions — tra "trước khi xáo thẻ này có
-        // trắng không" mà không phải dựng lại cả bàn cũ.
-        HashSet<string> _whiteBefore;
-
-        bool WasWhiteBefore(Dictionary<string, SlotRef> before, string uid)
-        {
-            return _whiteBefore != null && _whiteBefore.Contains(uid);
-        }
-
-        Dictionary<string, SlotRef> SnapshotPositions()
-        {
-            var map = new Dictionary<string, SlotRef>();
-            _whiteBefore = new HashSet<string>();
-            for (int s = 0; s < Stacks.Count; s++)
-            {
-                List<Box> boxes = Stacks[s].Boxes;
-                for (int b = 0; b < boxes.Count; b++)
-                    for (int i = 0; i < boxes[b].Slots.Length; i++)
-                    {
-                        Tile t = boxes[b].Slots[i];
-                        if (t == null) continue;
-                        map[t.Uid] = new SlotRef { Stack = s, Box = b, Slot = i };
-                        if (b == 0 && IsWhite(boxes[b], i)) _whiteBefore.Add(t.Uid);
-                    }
-            }
-            return map;
-        }
-
-        ShuffleMove[] DiffPositions(Dictionary<string, SlotRef> before)
-        {
-            var moves = new List<ShuffleMove>();
-            for (int s = 0; s < Stacks.Count; s++)
-            {
-                List<Box> boxes = Stacks[s].Boxes;
-                for (int b = 0; b < boxes.Count; b++)
-                    for (int i = 0; i < boxes[b].Slots.Length; i++)
-                    {
-                        Tile t = boxes[b].Slots[i];
-                        if (t == null) continue;
-                        SlotRef old;
-                        if (!before.TryGetValue(t.Uid, out old)) continue;
-                        if (old.Stack == s && old.Box == b && old.Slot == i) continue;
-                        moves.Add(new ShuffleMove
-                        {
-                            Uid = t.Uid,
-                            From = old,
-                            To = new SlotRef { Stack = s, Box = b, Slot = i },
-                        });
-                    }
-            }
-            return moves.ToArray();
-        }
-
-        // Khôi phục nội dung ô từ bản sao. KHÔNG thay danh sách Boxes — CheckStatus() đọc
-        // st.Boxes[0] không kiểm rỗng, đụng vào cấu trúc là rủi ro không cần thiết.
-        void RestoreFrom(Game backup)
-        {
-            for (int s = 0; s < Stacks.Count; s++)
-            {
-                List<Box> mine = Stacks[s].Boxes;
-                List<Box> theirs = backup.Stacks[s].Boxes;
-                for (int b = 0; b < mine.Count && b < theirs.Count; b++)
-                    for (int i = 0; i < mine[b].Slots.Length; i++)
-                        mine[b].Slots[i] = theirs[b].Slots[i];
-            }
-        }
-```
-
-- [ ] **Step 4: Chạy lại, xác nhận pass**
-
-Harness. Expected: tất cả `ok`.
-
-- [ ] **Step 5: Hai cổng của repo**
-
-```bash
-./selfcheck.sh && ./compilecheck.sh
-```
-
+- [ ] **Step 2: Chạy để xác nhận fail** — `'Game' does not contain a definition for 'ApplyShuffle'`.
+- [ ] **Step 3: Implementation** — theo trình tự 6 bước nêu trên.
+- [ ] **Step 4: Chạy lại, xác nhận pass** — harness.
+- [ ] **Step 5:** `./selfcheck.sh && ./compilecheck.sh`
 - [ ] **Step 6: Commit**
 
 ```bash
