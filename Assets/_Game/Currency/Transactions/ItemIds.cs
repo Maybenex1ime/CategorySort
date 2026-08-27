@@ -5,12 +5,9 @@ namespace LogosGame.Features.Currency.Transactions
     // in TransactionItemDispatcher at purchase time.
     public static class ItemIds
     {
-        public const string BoosterHand = "booster.hand";
-        public const string BoosterHammer = "booster.hammer";
-        public const string BoosterAddQueue = "booster.addqueue";
-        public const string BoosterAddBelt = "booster.addbelt";
-        public const string BoosterMagnet = "booster.magnet";
         public const string BoosterShuffle = "booster.shuffle";
+        public const string BoosterMagnet = "booster.magnet";
+        public const string BoosterUndo = "booster.undo";
         public const string Heart = "heart";
     }
 }

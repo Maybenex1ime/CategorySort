@@ -15,11 +15,9 @@ MonoBehaviour:
   _enableCheats: 1
   _coinIncrement: 1000
   _boosterEntries:
-  - _id: 3
-    _displayName: Add Belt
-  - _id: 6
-    _displayName: Hand
-  - _id: 4
-    _displayName: Hammer
+  - _id: 1
+    _displayName: Shuffle
   - _id: 2
-    _displayName: Add Queue
+    _displayName: Magnet
+  - _id: 3
+    _displayName: Undo

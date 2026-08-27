@@ -31,10 +31,10 @@ namespace BoosterModule.Tests
             Bus.Global.On(handler);
             try
             {
-                Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Hand, 5));
+                Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Shuffle, 5));
 
                 Assert.AreEqual(5, receivedCount);
-                Assert.AreEqual(5, _manager.GetCount(BoosterId.Hand));
+                Assert.AreEqual(5, _manager.GetCount(BoosterId.Shuffle));
             }
             finally
             {
@@ -45,17 +45,17 @@ namespace BoosterModule.Tests
         [Test]
         public void Use_Decrements_AndFiresActivated()
         {
-            Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Hand, 1));
+            Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Shuffle, 1));
 
             bool activated = false;
             System.Action<BoosterActivatedEvent> handler = evt => activated = true;
             Bus.Global.On(handler);
             try
             {
-                Bus.Global.Fire(new BoosterUseEvent(BoosterId.Hand));
+                Bus.Global.Fire(new BoosterUseEvent(BoosterId.Shuffle));
 
                 Assert.IsTrue(activated);
-                Assert.AreEqual(0, _manager.GetCount(BoosterId.Hand));
+                Assert.AreEqual(0, _manager.GetCount(BoosterId.Shuffle));
             }
             finally
             {
@@ -73,7 +73,7 @@ namespace BoosterModule.Tests
             Bus.Global.On(onActivated);
             try
             {
-                Bus.Global.Fire(new BoosterUseEvent(BoosterId.Hammer));
+                Bus.Global.Fire(new BoosterUseEvent(BoosterId.Magnet));
 
                 Assert.IsTrue(exhausted);
                 Assert.IsFalse(activated);
@@ -88,15 +88,15 @@ namespace BoosterModule.Tests
         [Test]
         public void NewManager_LoadsPersistedInventory_AndSlotViewModelSeesIt()
         {
-            Bus.Global.Fire(new BoosterAddedEvent(BoosterId.AddBelt, 3));
+            Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Undo, 3));
             _manager.Dispose();
 
             _manager = new BoosterManager();
-            Assert.AreEqual(3, _manager.GetCount(BoosterId.AddBelt));
+            Assert.AreEqual(3, _manager.GetCount(BoosterId.Undo));
 
             // Initial sync: viewmodel dựng SAU manager phải thấy count ngay,
             // không chờ event changed đầu tiên.
-            var vm = new BoosterSlotViewModel(BoosterId.AddBelt);
+            var vm = new BoosterSlotViewModel(BoosterId.Undo);
             try
             {
                 Assert.AreEqual(3, vm.Count);

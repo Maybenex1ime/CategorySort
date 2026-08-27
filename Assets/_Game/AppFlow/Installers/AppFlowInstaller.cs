@@ -56,10 +56,6 @@ namespace WordStack.Meta.AppFlow.Installers
             // prefab HUD xuất hiện.
             foreach (System.Type vm in new[]
                      {
-                         typeof(HandBoosterViewModel),
-                         typeof(HammerBoosterViewModel),
-                         typeof(AddQueueBoosterViewModel),
-                         typeof(AddBeltBoosterViewModel),
                          typeof(MagnetBoosterViewModel),
                          typeof(ShuffleBoosterViewModel),
                      })

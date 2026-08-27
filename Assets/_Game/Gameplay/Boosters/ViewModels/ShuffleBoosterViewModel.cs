@@ -7,10 +7,7 @@ namespace LogosGame.Features.Gameplay.Boosters.ViewModels
     /// <summary>
     /// Booster Shuffle — dùng ngay, không cần chọn mục tiêu (bàn tự tìm cách xếp).
     ///
-    /// KHÔNG kế thừa InstantBoosterViewModelBase: lớp đó cố ý chưa trừ lượt vì hiệu ứng
-    /// của Hand/Hammer/AddQueue/AddBelt chưa nối vào bàn. Shuffle có luật thật nên nó
-    /// trừ lượt bằng RequestUse(), và đó là mắt xích khởi động cả chuỗi:
-    ///
+    /// Trừ lượt bằng RequestUse(), và đó là mắt xích khởi động cả chuỗi:
     ///   RequestUse() → BoosterManager trừ 1 + bắn BoosterActivatedEvent
     ///     → MetaSession bắc cầu → LevelCommands.RequestShuffle()
     ///     → BoardController.ApplyShuffle() + Settle()
