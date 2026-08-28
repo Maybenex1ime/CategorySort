@@ -143,12 +143,16 @@ namespace WordStack.Board
             // Đang chạy cascade, popup meta đang mở, hoặc màn đã xong → bỏ qua. Không
             // hoàn lượt ở đây: nút chỉ sáng khi LevelSignals.MagnetAvailable bật, mà cờ
             // đó tắt trong đúng mấy trường hợp này.
-            if (g == null || locked || LevelCommands.InputBlocked) return;
-            if (g.Status != GameStatus.Playing) return;
-            if (ghost != null) return;   // đang kéo thẻ: dragUid có thể chính là thẻ sắp bị hút
+            if (!BoosterGateOpen("Magnet")) return;
 
             MagnetResult r = g.ApplyMagnet();
-            if (!r.Ok) return;
+            if (!r.Ok)
+            {
+                Debug.Log("[Magnet] không có nhóm nào đủ 4 thẻ trên bàn để hút — bỏ qua.");
+                return;
+            }
+            Debug.Log("[Magnet] hút nhóm '" + r.GroupId + "' · " + r.Picks.Length + " thẻ"
+                      + (r.NewTileUid != null ? " · sinh thẻ cha ở stack " + r.NewTileStack : ""));
 
             StartCoroutine(MagnetSequence(r));
         }
@@ -157,12 +161,17 @@ namespace WordStack.Board
         // LevelSignals.ShuffleAvailable bật, mà cờ đó tắt trong đúng mấy trường hợp này.
         void OnShuffleRequested()
         {
-            if (g == null || locked || LevelCommands.InputBlocked) return;
-            if (g.Status != GameStatus.Playing) return;
-            if (ghost != null) return;   // đang kéo thẻ: thẻ đó có thể vừa bị xáo đi chỗ khác
+            if (!BoosterGateOpen("Shuffle")) return;
 
+            int topBefore = g.TopLayerTileCount();
             ShuffleResult r = g.ApplyShuffle();
-            if (!r.Ok) return;
+            if (!r.Ok)
+            {
+                Debug.Log("[Shuffle] không xếp nổi — lớp trên hết ô trống hoặc vi phạm bất biến, bàn giữ nguyên.");
+                return;
+            }
+            Debug.Log("[Shuffle] " + r.PrimedGroups + " nhóm mồi · " + r.Moves.Length
+                      + " thẻ đổi chỗ · tổng lớp trên " + topBefore + " → " + g.TopLayerTileCount());
 
             StartCoroutine(ShuffleSequence(r));
         }
@@ -263,6 +272,18 @@ namespace WordStack.Board
         IEnumerator ShuffleAnimation(ShuffleResult r)
         {
             yield return new WaitForSeconds(shuffleAnimDur);
+        }
+
+        // Chốt chung cho mọi booster. Log từng lý do từ chối — không có nó thì bấm xong
+        // bàn đứng im và không phân biệt được "chưa nối dây" với "bàn từ chối".
+        bool BoosterGateOpen(string name)
+        {
+            if (g == null) { Debug.Log("[" + name + "] chưa nạp màn nào."); return false; }
+            if (locked) { Debug.Log("[" + name + "] bàn đang chạy cascade."); return false; }
+            if (LevelCommands.InputBlocked) { Debug.Log("[" + name + "] popup meta đang mở."); return false; }
+            if (g.Status != GameStatus.Playing) { Debug.Log("[" + name + "] màn đã kết thúc: " + g.Status); return false; }
+            if (ghost != null) { Debug.Log("[" + name + "] đang kéo thẻ."); return false; }
+            return true;
         }
 
         // Nhịp 2 chưa có animation moi thẻ: dựng lại toàn bộ view từ trạng thái mới.
