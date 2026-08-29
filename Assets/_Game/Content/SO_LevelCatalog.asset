@@ -27,3 +27,9 @@ MonoBehaviour:
     Moves: 200
     HideSettingsButton: 0
     HideCoinBox: 0
+  - LevelId: lv-008
+    AddressKey: lv-008
+    DisplayName: The gioi quanh ta
+    Difficulty: 2
+    HideSettingsButton: 0
+    HideCoinBox: 0

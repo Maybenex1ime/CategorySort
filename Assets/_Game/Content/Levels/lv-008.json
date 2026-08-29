@@ -1,0 +1,182 @@
+{
+  "id": "lv-008",
+  "title": "The gioi quanh ta",
+  "difficulty": "Crazy",
+  "note": "Chuyen tu BUILTIN[3] cua demo wordstack.html. 20 nhom tren mot ban 3x3, 9 stack x 4 hop x 4 slot = 72 o. COLLAPSE 1 tang, 8 quan he: trai-cay/rau-cu -> thuc-pham, thu-rung/chim-troi -> muong-thu, xe-co/tau-thuyen -> giao-thong, thoi-tiet/thien-the -> bau-troi. Bo cuc giu NGUYEN theo demo (seed 22, demo kiem chung duong thang 165 nuoc bang luat demo) — CHUA kiem chung lai o che do chat cua game; lv-005/lv-006 tung phai sap lai vi ly do nay, can chay solver truoc khi ship.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": [null,"pha",null,"bap-ngo"] },
+          { "slots": ["may",null,"gau",null] },
+          { "slots": ["bach-tuoc",null,"hoa-hong",null] },
+          { "slots": ["tom","voi",null,null] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["thuoc-ke",null,"mat-trang",null] },
+          { "slots": ["thuyen-buom",null,null,"vet"] },
+          { "slots": [null,"gio",null,"nang"] },
+          { "slots": ["ca-heo","tao",null,null] }
+      ]},
+      { "pos": [2,0], "boxes": [
+          { "slots": ["dua",null,"ca-phe",null] },
+          { "slots": [null,"mua","dai-bang",null] },
+          { "slots": ["ca-sau",null,"cuu",null] },
+          { "slots": ["cap-sach",null,null,"bo"] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["ca-rot",null,"cau-vong",null] },
+          { "slots": ["cong","khoai-tay",null,null] },
+          { "slots": [null,"tuyet","cu-meo",null] },
+          { "slots": [null,"banh-quy",null,"dao"] }
+      ]},
+      { "pos": [1,1], "boxes": [
+          { "slots": ["sao",null,null,"bang-gac"] },
+          { "slots": [null,null,"so-co-la","tra"] },
+          { "slots": [null,"may-bay","kim-tiem",null] },
+          { "slots": ["thuoc",null,"ca-voi",null] }
+      ]},
+      { "pos": [2,1], "boxes": [
+          { "slots": [null,"nui","la-cay",null] },
+          { "slots": [null,"cay-thong",null,"nuoc-cam"] },
+          { "slots": ["xe-buyt",null,null,"huou"] },
+          { "slots": ["ca-no",null,null,"o-to"] }
+      ]},
+      { "pos": [0,2], "boxes": [
+          { "slots": [null,"sa-mac",null,"sach"] },
+          { "slots": ["ga","tau-hoa",null,null] },
+          { "slots": [null,"xe-may","heo",null] },
+          { "slots": [null,"ca","mat-troi",null] }
+      ]},
+      { "pos": [1,2], "boxes": [
+          { "slots": [null,null,"banh-kem","bai-bien"] },
+          { "slots": ["but-chi",null,null,"ca-chua"] },
+          { "slots": [null,null,"ran","xe-dap"] },
+          { "slots": [null,"nam","giuong-benh",null] }
+      ]},
+      { "pos": [2,2], "boxes": [
+          { "slots": [null,null,"thit","sua"] },
+          { "slots": [null,null,"sao-choi","kem"] },
+          { "slots": [null,null,"tau-thuy","nho"] },
+          { "slots": [null,null,"ho","chuoi"] }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"trai-cay", "text":"Trái cây", "group":"thuc-pham", "cards": [
+          { "id":"tao",   "text":"Táo",   "art":"apple"  },
+          { "id":"chuoi", "text":"Chuối", "art":"banana" },
+          { "id":"nho",   "text":"Nho"                   },
+          { "id":"dua",   "text":"Dứa"                   }
+      ]},
+      { "id":"rau-cu", "text":"Rau củ", "group":"thuc-pham", "cards": [
+          { "id":"ca-rot",    "text":"Cà rốt"    },
+          { "id":"bap-ngo",   "text":"Bắp ngô"   },
+          { "id":"ca-chua",   "text":"Cà chua"   },
+          { "id":"khoai-tay", "text":"Khoai tây" }
+      ]},
+      { "id":"thuc-pham", "text":"Thực phẩm", "cards": [
+          { "id":"thit", "text":"Thịt" },
+          { "id":"ca",   "text":"Cá"   }
+      ]},
+      { "id":"do-uong", "text":"Đồ uống", "cards": [
+          { "id":"ca-phe",   "text":"Cà phê"   },
+          { "id":"tra",      "text":"Trà"      },
+          { "id":"sua",      "text":"Sữa"      },
+          { "id":"nuoc-cam", "text":"Nước cam" }
+      ]},
+      { "id":"banh-ngot", "text":"Bánh ngọt", "cards": [
+          { "id":"banh-kem", "text":"Bánh kem" },
+          { "id":"banh-quy", "text":"Bánh quy" },
+          { "id":"kem",      "text":"Kem"      },
+          { "id":"so-co-la", "text":"Sô cô la" }
+      ]},
+      { "id":"thu-rung", "text":"Thú rừng", "group":"muong-thu", "cards": [
+          { "id":"ho",   "text":"Hổ"              },
+          { "id":"voi",  "text":"Voi"             },
+          { "id":"gau",  "text":"Gấu", "art":"bear" },
+          { "id":"huou", "text":"Hươu"            }
+      ]},
+      { "id":"chim-troi", "text":"Chim trời", "group":"muong-thu", "cards": [
+          { "id":"dai-bang", "text":"Đại bàng" },
+          { "id":"cu-meo",   "text":"Cú mèo"   },
+          { "id":"cong",     "text":"Công"     },
+          { "id":"vet",      "text":"Vẹt"      }
+      ]},
+      { "id":"muong-thu", "text":"Muông thú", "cards": [
+          { "id":"ran",    "text":"Rắn"    },
+          { "id":"ca-sau", "text":"Cá sấu" }
+      ]},
+      { "id":"nong-trai", "text":"Nông trại", "cards": [
+          { "id":"bo",  "text":"Bò"  },
+          { "id":"heo", "text":"Heo" },
+          { "id":"ga",  "text":"Gà"  },
+          { "id":"cuu", "text":"Cừu" }
+      ]},
+      { "id":"duoi-bien", "text":"Dưới biển", "cards": [
+          { "id":"ca-heo",    "text":"Cá heo"    },
+          { "id":"ca-voi",    "text":"Cá voi"    },
+          { "id":"bach-tuoc", "text":"Bạch tuộc" },
+          { "id":"tom",       "text":"Tôm"       }
+      ]},
+      { "id":"xe-co", "text":"Xe cộ", "group":"giao-thong", "cards": [
+          { "id":"o-to",    "text":"Ô tô",   "art":"car"     },
+          { "id":"xe-may",  "text":"Xe máy"                  },
+          { "id":"xe-dap",  "text":"Xe đạp", "art":"bicycle" },
+          { "id":"xe-buyt", "text":"Xe buýt"                 }
+      ]},
+      { "id":"tau-thuyen", "text":"Tàu thuyền", "group":"giao-thong", "cards": [
+          { "id":"thuyen-buom", "text":"Thuyền buồm" },
+          { "id":"tau-thuy",    "text":"Tàu thuỷ"    },
+          { "id":"ca-no",       "text":"Ca nô"       },
+          { "id":"pha",         "text":"Phà"         }
+      ]},
+      { "id":"giao-thong", "text":"Giao thông", "cards": [
+          { "id":"may-bay", "text":"Máy bay", "art":"airplane" },
+          { "id":"tau-hoa", "text":"Tàu hoả"                   }
+      ]},
+      { "id":"benh-vien", "text":"Bệnh viện", "cards": [
+          { "id":"giuong-benh", "text":"Giường bệnh" },
+          { "id":"kim-tiem",    "text":"Kim tiêm"    },
+          { "id":"bang-gac",    "text":"Băng gạc"    },
+          { "id":"thuoc",       "text":"Thuốc"       }
+      ]},
+      { "id":"truong-hoc", "text":"Trường học", "cards": [
+          { "id":"sach",     "text":"Sách"     },
+          { "id":"but-chi",  "text":"Bút chì"  },
+          { "id":"cap-sach", "text":"Cặp sách" },
+          { "id":"thuoc-ke", "text":"Thước kẻ" }
+      ]},
+      { "id":"thoi-tiet", "text":"Thời tiết", "group":"bau-troi", "cards": [
+          { "id":"mua",   "text":"Mưa"   },
+          { "id":"nang",  "text":"Nắng"  },
+          { "id":"gio",   "text":"Gió"   },
+          { "id":"tuyet", "text":"Tuyết" }
+      ]},
+      { "id":"thien-the", "text":"Thiên thể", "group":"bau-troi", "cards": [
+          { "id":"mat-trang", "text":"Mặt trăng" },
+          { "id":"mat-troi",  "text":"Mặt trời"  },
+          { "id":"sao",       "text":"Sao"       },
+          { "id":"sao-choi",  "text":"Sao chổi"  }
+      ]},
+      { "id":"bau-troi", "text":"Bầu trời", "cards": [
+          { "id":"cau-vong", "text":"Cầu vồng" },
+          { "id":"may",      "text":"Mây"      }
+      ]},
+      { "id":"cay-coi", "text":"Cây cối", "cards": [
+          { "id":"cay-thong", "text":"Cây thông" },
+          { "id":"hoa-hong",  "text":"Hoa hồng"  },
+          { "id":"la-cay",    "text":"Lá cây"    },
+          { "id":"nam",       "text":"Nấm"       }
+      ]},
+      { "id":"dia-hinh", "text":"Địa hình", "cards": [
+          { "id":"nui",     "text":"Núi"      },
+          { "id":"sa-mac",  "text":"Sa mạc"   },
+          { "id":"dao",     "text":"Đảo"      },
+          { "id":"bai-bien", "text":"Bãi biển" }
+      ]}
+    ]
+  }
+}
