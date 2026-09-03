@@ -66,10 +66,7 @@ namespace WordStack.Meta
         {
             if (evt.Id == BoosterId.Magnet) LevelCommands.RequestMagnet();
             else if (evt.Id == BoosterId.Shuffle) LevelCommands.RequestShuffle();
-            // Undo mới có id, CHƯA có luật. Không log thì lượt bị trừ mà bàn không
-            // đổi, người chơi tưởng game hỏng.
-            else if (evt.Id == BoosterId.Undo)
-                _logger.Warn("[MetaSession] Booster Undo chưa có luật — lượt đã bị trừ mà bàn không đổi.");
+            else if (evt.Id == BoosterId.Undo) LevelCommands.RequestUndo();
         }
     }
 }

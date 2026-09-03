@@ -71,6 +71,7 @@ namespace WordStack.Board
 
         [SerializeField] float magnetAnimDur = 0.6f;   // PLACEHOLDER: chỗ giữ nhịp cho animation nam châm
         [SerializeField] float shuffleAnimDur = 0.5f;  // PLACEHOLDER: chỗ giữ nhịp cho animation shuffle
+        [SerializeField] float undoAnimDur = 0.3f;     // PLACEHOLDER: chỗ giữ nhịp cho animation undo
 
         Game g;
         // Nội dung màn hiện tại — do BoardInitializer (DI, Meta) đưa qua LevelCommands
@@ -120,6 +121,7 @@ namespace WordStack.Board
             LevelCommands.LoadRequested += OnLoadRequested;
             LevelCommands.MagnetRequested += OnMagnetRequested;
             LevelCommands.ShuffleRequested += OnShuffleRequested;
+            LevelCommands.UndoRequested += OnUndoRequested;
         }
 
         void OnDestroy()
@@ -127,6 +129,7 @@ namespace WordStack.Board
             LevelCommands.LoadRequested -= OnLoadRequested;
             LevelCommands.MagnetRequested -= OnMagnetRequested;
             LevelCommands.ShuffleRequested -= OnShuffleRequested;
+            LevelCommands.UndoRequested -= OnUndoRequested;
         }
 
         void OnLoadRequested(int index, string json)
@@ -154,6 +157,10 @@ namespace WordStack.Board
             Debug.Log("[Magnet] hút nhóm '" + r.GroupId + "' · " + r.Picks.Length + " thẻ"
                       + (r.NewTileUid != null ? " · sinh thẻ cha ở stack " + r.NewTileStack : ""));
 
+            // Bàn vừa đổi vì booster → mất quyền undo. Ảnh chụp là TOÀN bàn, giữ lại thì
+            // undo sau đó khôi phục về trước nước đi cũ và nuốt luôn kết quả người chơi
+            // vừa mua bằng coin.
+            g.ClearUndo();
             StartCoroutine(MagnetSequence(r));
         }
 
@@ -173,7 +180,28 @@ namespace WordStack.Board
             Debug.Log("[Shuffle] " + r.PrimedGroups + " nhóm mồi · " + r.Moves.Length
                       + " thẻ đổi chỗ · tổng lớp trên " + topBefore + " → " + g.TopLayerTileCount());
 
+            g.ClearUndo();   // xem ghi chú ở OnMagnetRequested
             StartCoroutine(ShuffleSequence(r));
+        }
+
+        // Booster Undo — trả bàn về trạng thái trước nước kéo thẻ gần nhất, kể cả khi nước
+        // đó đã gây CLEAR/COLLAPSE (ảnh chụp lấy TRƯỚC nước đi nên cascade nằm trọn phía
+        // sau nó). Cùng bộ chốt với hai booster kia.
+        void OnUndoRequested()
+        {
+            if (!BoosterGateOpen("Undo")) return;
+
+            Game restored = g.ApplyUndo();
+            if (restored == null)
+            {
+                Debug.Log("[Undo] chưa có nước nào để lùi — bàn giữ nguyên.");
+                return;
+            }
+            Debug.Log("[Undo] lùi về trước nước đi · nước " + g.Moves + " → " + restored.Moves
+                      + " · nhóm đã gom " + g.Cleared + " → " + restored.Cleared);
+
+            g = restored;
+            StartCoroutine(UndoSequence());
         }
 
         // Khoá HAI vế suốt lúc diễn, thiếu vế nào cũng lọt input:
@@ -188,7 +216,12 @@ namespace WordStack.Board
         IEnumerator MagnetSequence(MagnetResult r)
         {
             locked = true;
+            // Tắt CẢ BA: Settle() chỉ chạy sau animation, nên cờ nào còn bật là còn nói dối
+            // suốt chừng ấy giây — bấm trúng thì BoosterManager trừ lượt trước khi bàn kịp
+            // từ chối, mà lượt đó mua bằng coin.
             LevelSignals.SetMagnetAvailable(false);
+            LevelSignals.SetShuffleAvailable(false);
+            LevelSignals.SetUndoAvailable(false);
 
             // Bấm nam châm ngay khi vào màn (chưa chạm bàn lần nào) thì phase còn Ready,
             // mà NotifyPlayerActionCommittedAsync đòi phase == Playing — không đẩy Ready
@@ -238,6 +271,7 @@ namespace WordStack.Board
             locked = true;
             LevelSignals.SetMagnetAvailable(false);
             LevelSignals.SetShuffleAvailable(false);
+            LevelSignals.SetUndoAvailable(false);   // xem ghi chú ở MagnetSequence
 
             // Bấm ngay khi vào màn thì phase còn Ready, mà NotifyPlayerActionCommittedAsync
             // đòi phase == Playing — không đẩy Ready sang Playing trước là MoveCommitted lẫn
@@ -274,6 +308,45 @@ namespace WordStack.Board
             yield return new WaitForSeconds(shuffleAnimDur);
         }
 
+        // Khoá HAI vế y như hai booster kia. Mượn MoveCommitted được vì g đã là bàn khôi
+        // phục: g.Moves lúc này chính là số nước SAU khi lùi, đúng thứ HUD phải hiện.
+        IEnumerator UndoSequence()
+        {
+            locked = true;
+            LevelSignals.SetMagnetAvailable(false);
+            LevelSignals.SetShuffleAvailable(false);
+            LevelSignals.SetUndoAvailable(false);   // ảnh chụp dùng xong là hết
+
+            // Chỉ với tới được qua DebugMove (kéo tay đã bật cờ này lúc bấm chuột), nhưng
+            // thiếu thì MoveCommitted lẫn EvaluationCompleted đều bị ViewModel nuốt.
+            if (!firstInteractionRaised)
+            {
+                firstInteractionRaised = true;
+                LevelSignals.RaiseFirstInteraction();
+            }
+
+            LevelSignals.RaiseMoveCommitted(g.Moves);
+
+            yield return UndoAnimation();
+
+            RebuildBoardViews();
+            // Trạng thái khôi phục vốn đã đứng yên nên SettleStep trả None ngay — nhưng
+            // đây là đường DUY NHẤT bàn đẩy lại cờ booster, hạ overlay và bắn
+            // EvaluationCompleted. Bỏ nó thì phase kẹt ngoài Playing.
+            yield return Settle();
+        }
+
+        // PLACEHOLDER — chỗ DUY NHẤT cần thay khi làm animation thật.
+        //
+        // Chuỗi thật cần diễn: thẻ vừa kéo bay ngược về ô cũ; nếu nước đó đã gây CLEAR /
+        // COLLAPSE thì mấy thẻ đã nổ phải hiện lại trước (và thẻ cha do COLLAPSE sinh ra
+        // biến mất). Trạng thái đích đã nằm sẵn trong g — cái thiếu là diff giữa hai bàn
+        // để biết cần diễn gì, nên nhịp làm animation sẽ cần ApplyUndo trả thêm mô tả.
+        IEnumerator UndoAnimation()
+        {
+            yield return new WaitForSeconds(undoAnimDur);
+        }
+
         // Chốt chung cho mọi booster. Log từng lý do từ chối — không có nó thì bấm xong
         // bàn đứng im và không phân biệt được "chưa nối dây" với "bàn từ chối".
         bool BoosterGateOpen(string name)
@@ -304,6 +377,7 @@ namespace WordStack.Board
             bool playing = g != null && g.Status == GameStatus.Playing;
             LevelSignals.SetMagnetAvailable(playing && g.FindMagnetTarget() != null);
             LevelSignals.SetShuffleAvailable(playing && g.CanShuffle());
+            LevelSignals.SetUndoAvailable(playing && g.CanUndo);
         }
 
         bool RefsOk()
@@ -348,6 +422,7 @@ namespace WordStack.Board
             locked = false;
             LevelSignals.SetMagnetAvailable(false);
             LevelSignals.SetShuffleAvailable(false);  // Settle() cuối Load() đặt lại giá trị thật
+            LevelSignals.SetUndoAvailable(false);     // màn mới thì không có nước nào để lùi
             if (string.IsNullOrEmpty(levelJson))
             {
                 Debug.LogError("Chưa có JSON level — BoardInitializer phải nạp qua Addressables trước.");
@@ -358,6 +433,9 @@ namespace WordStack.Board
                 var lv = LevelData.Parse(levelJson);
                 lv.Validate(HasArt);
                 g = Game.Build(lv);
+                // Bật chụp ảnh cho booster Undo. CHỈ ở đây: cờ mặc định tắt để Solver
+                // (gọi MoveTile hàng vạn lần mỗi lần giải) không clone mỗi nút.
+                g.UndoEnabled = true;
             }
             catch (Exception e)
             {
@@ -622,6 +700,7 @@ namespace WordStack.Board
             // vì locked = mất lượt đã mua bằng coin.
             LevelSignals.SetMagnetAvailable(false);
             LevelSignals.SetShuffleAvailable(false);
+            LevelSignals.SetUndoAvailable(false);
             bool hadCascade = false;
             if (delay > 0f) yield return new WaitForSeconds(delay);
             for (;;)

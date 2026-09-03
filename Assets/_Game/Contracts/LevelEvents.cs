@@ -126,6 +126,23 @@ namespace WordStack.Contracts
             ShuffleAvailabilityChanged?.Invoke(available);
         }
 
+        /// <summary>
+        /// Có nước đi nào để lùi không — board đẩy sau mỗi lần settle và lúc nạp màn.
+        /// Tắt ngay sau khi undo (ảnh chụp dùng xong là hết) và khi người chơi dùng
+        /// Magnet/Shuffle: hai booster đó xoá ảnh chụp vì khôi phục sau chúng sẽ nuốt
+        /// luôn hiệu ứng vừa mua bằng coin.
+        /// </summary>
+        public static event Action<bool> UndoAvailabilityChanged;
+
+        public static bool UndoAvailable { get; private set; }
+
+        public static void SetUndoAvailable(bool available)
+        {
+            if (UndoAvailable == available) return;
+            UndoAvailable = available;
+            UndoAvailabilityChanged?.Invoke(available);
+        }
+
         public static void RaiseStarted(int levelIndex, int totalGroups)
             => Started?.Invoke(new LevelStartedEvent(levelIndex, totalGroups));
 
@@ -159,6 +176,8 @@ namespace WordStack.Contracts
             MagnetAvailable = false;
             ShuffleAvailabilityChanged = null;
             ShuffleAvailable = false;
+            UndoAvailabilityChanged = null;
+            UndoAvailable = false;
         }
     }
 }

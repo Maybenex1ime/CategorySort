@@ -126,6 +126,10 @@ namespace WordStack.Board
                   ? preferSlot
                   : Array.FindIndex(dst.Slots, t => t == null);
             if (j < 0) return false;                       // box đích đầy
+
+            // Sau chốt từ chối cuối cùng, trước dòng mutate đầu tiên — xem GameUndo.cs.
+            CaptureUndoSnapshot();
+
             dst.Slots[j] = src.Slots[i];
             src.Slots[i] = null;
             Moves++;

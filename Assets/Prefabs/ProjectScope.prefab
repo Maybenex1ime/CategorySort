@@ -163,6 +163,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: WordStack.Meta::WordStack.Meta.ProgressionInstaller
   _levelCatalog: {fileID: 11400000, guid: dd2955c120242a749aa573628c904ad0, type: 2}
+  _unlockSchedule: {fileID: 11400000, guid: 8e2eca5b20ce3684f81d0ba6d797fecb, type: 2}
 --- !u!114 &3078012191308316219
 MonoBehaviour:
   m_ObjectHideFlags: 0
