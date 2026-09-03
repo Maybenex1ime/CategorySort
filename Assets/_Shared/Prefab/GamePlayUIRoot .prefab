@@ -3284,7 +3284,7 @@ GameObject:
   - component: {fileID: 5545797399292119978}
   - component: {fileID: 6841532188243875467}
   - component: {fileID: 8380801863624544336}
-  - component: {fileID: 1701305888525934842}
+  - component: {fileID: 5434489883880060636}
   m_Layer: 5
   m_Name: Booster Button (1)
   m_TagString: Untagged
@@ -3410,7 +3410,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIButtonFeedbackDriver
   _profile: {fileID: 11400000, guid: f9597d1ae49b647b5b0e67ce4e9ac0e0, type: 2}
   _target: {fileID: 8171090398880568005}
---- !u!114 &1701305888525934842
+--- !u!114 &5434489883880060636
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -3419,16 +3419,14 @@ MonoBehaviour:
   m_GameObject: {fileID: 8051709812677245499}
   m_Enabled: 1
   m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e7494d2896e3a4bb19ae686f9ec5619c, type: 3}
+  m_Script: {fileID: 11500000, guid: 00ba9646280bc424987ecb5fc79a6a10, type: 3}
   m_Name: 
-  m_EditorClassIdentifier: BoosterModule::BoosterModule.BoosterSlotView
-  _id: 2
-  _animationDuration: 0.2
-  _punchScale: 1.2
-  _iconImage: {fileID: 6634243023150925340}
-  _countText: {fileID: 3350413366458777483}
-  _canvasGroup: {fileID: 0}
+  m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Gameplay.Boosters.Views.MagnetBoosterButtonView
   _button: {fileID: 6841532188243875467}
+  _countLabel: {fileID: 3350413366458777483}
+  _countBoxBg: {fileID: 132579543876399039}
+  _addBgSprite: {fileID: 21300000, guid: 4a1be844f3f344332807d67f699122b2, type: 3}
+  _usesBgSprite: {fileID: 21300000, guid: e9083e24fe0274751984e729dac47d96, type: 3}
 --- !u!1 &8879632789239863750
 GameObject:
   m_ObjectHideFlags: 0
@@ -3598,7 +3596,7 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 41.4
+  m_fontSize: 23.25
   m_fontSizeBase: 36
   m_fontWeight: 400
   m_enableAutoSizing: 1
