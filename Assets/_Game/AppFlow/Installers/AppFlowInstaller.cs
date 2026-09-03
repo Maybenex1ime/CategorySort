@@ -51,13 +51,14 @@ namespace WordStack.Meta.AppFlow.Installers
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Eager);
 
-            // Booster: 4 ViewModel bọc BoosterModule, view inject theo kiểu cụ thể.
+            // Booster: mỗi ViewModel bọc một slot của BoosterModule, view inject theo kiểu cụ thể.
             // Lazy được — các *BoosterButtonView inject nên chúng tự bị dựng khi
             // prefab HUD xuất hiện.
             foreach (System.Type vm in new[]
                      {
                          typeof(MagnetBoosterViewModel),
                          typeof(ShuffleBoosterViewModel),
+                         typeof(UndoBoosterViewModel),
                      })
             {
                 builder.RegisterType(vm, new[] { vm, typeof(System.IDisposable) },
