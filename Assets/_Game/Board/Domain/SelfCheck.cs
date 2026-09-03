@@ -344,7 +344,7 @@ namespace WordStack.Board
             // riêng việc thẻ đổi ô. Nhóm "zz" không có trong GroupDefs nên đi nhánh CLEAR
             // thường, không nhánh COLLAPSE — kết quả xác định, không phụ thuộc level.
             {
-                var g = load(0, Rules.RemoveEmptyNonBottomBox);
+                var g = load(Rules.RemoveEmptyNonBottomBox);
                 g.UndoEnabled = true;
                 Ok(!g.CanUndo, "bàn vừa nạp thì chưa có gì để lùi");
 
@@ -373,13 +373,13 @@ namespace WordStack.Board
                 Ok(back.UndoEnabled, "bàn khôi phục phải tiếp tục chụp được nước sau");
 
                 // Nước bị từ chối không được để lại ảnh — undo sau đó sẽ lùi nhầm.
-                var rej = load(0, Rules.RemoveEmptyNonBottomBox);
+                var rej = load(Rules.RemoveEmptyNonBottomBox);
                 rej.UndoEnabled = true;
                 string u0 = rej.TopBox(0).Slots.First(t => t != null).Uid;
                 Ok(!rej.MoveTile(0, u0, 0) && !rej.CanUndo, "nước đi bị từ chối thì không chụp");
 
                 // Mặc định TẮT: Solver gọi MoveTile hàng vạn lần, bật lên là clone mỗi nút.
-                var solverLike = load(0, Rules.RemoveEmptyNonBottomBox);
+                var solverLike = load(Rules.RemoveEmptyNonBottomBox);
                 int d0 = solverLike.Stacks.FindIndex(s => Game.FreeCount(s.Boxes[0]) > 0 && s != solverLike.Stacks[0]);
                 Ok(d0 > 0 && solverLike.MoveTile(0, solverLike.TopBox(0).Slots.First(t => t != null).Uid, d0),
                    "cần một nước đi hợp lệ để kiểm cờ tắt");
@@ -387,7 +387,7 @@ namespace WordStack.Board
                 Ok(!back.Clone().UndoEnabled, "Clone không mang cờ sang — bàn con của solver luôn tắt");
 
                 // Dùng booster khác thì mất quyền undo (ảnh chụp là TOÀN bàn).
-                var dropped = load(0, Rules.RemoveEmptyNonBottomBox);
+                var dropped = load(Rules.RemoveEmptyNonBottomBox);
                 dropped.UndoEnabled = true;
                 int d1 = dropped.Stacks.FindIndex(s => Game.FreeCount(s.Boxes[0]) > 0 && s != dropped.Stacks[0]);
                 Ok(d1 > 0 && dropped.MoveTile(0, dropped.TopBox(0).Slots.First(t => t != null).Uid, d1),
