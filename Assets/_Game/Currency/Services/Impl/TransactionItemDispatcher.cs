@@ -30,17 +30,14 @@ namespace LogosGame.Features.Currency.Services.Impl
 
             switch (itemId)
             {
-                case ItemIds.BoosterHand:
-                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Hand, amount));
+                case ItemIds.BoosterMagnet:
+                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Magnet, amount));
                     break;
-                case ItemIds.BoosterHammer:
-                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Hammer, amount));
+                case ItemIds.BoosterShuffle:
+                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Shuffle, amount));
                     break;
-                case ItemIds.BoosterAddQueue:
-                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.AddQueue, amount));
-                    break;
-                case ItemIds.BoosterAddBelt:
-                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.AddBelt, amount));
+                case ItemIds.BoosterUndo:
+                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Undo, amount));
                     break;
                 case ItemIds.Heart:
                     if (_hearts != null) _hearts.Add(amount);

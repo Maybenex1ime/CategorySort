@@ -51,7 +51,7 @@ namespace WordStack.Board
         public bool BoxRemoved;
     }
 
-    public class Game
+    public partial class Game
     {
         public string LevelId, Title;
         public int TotalGroups, Cleared, Moves;

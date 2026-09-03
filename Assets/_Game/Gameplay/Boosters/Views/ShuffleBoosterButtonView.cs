@@ -1,7 +1,6 @@
 using BoosterModule;
 using LogosGame.Features.Currency.Events;
 using LogosGame.Features.Currency.UI;
-using LogosGame.Features.Gameplay.Boosters.Services;
 using LogosGame.Features.Gameplay.Boosters.ViewModels;
 using LogosSDK.Core.Events;
 using R3;
@@ -12,21 +11,18 @@ using UnityEngine.UI;
 
 namespace LogosGame.Features.Gameplay.Boosters.Views
 {
-    public class AddQueueBoosterButtonView : MonoBehaviour
+    /// <summary>Nút Shuffle. Xám khi bàn không xáo được, tránh bấm hụt mất lượt đã mua.</summary>
+    public class ShuffleBoosterButtonView : MonoBehaviour
     {
         [SerializeField] private Button _button;
         [SerializeField] private TextMeshProUGUI _countLabel;
         [SerializeField] private Image _countBoxBg;
         [SerializeField] private Sprite _addBgSprite;
         [SerializeField] private Sprite _usesBgSprite;
-        [SerializeField] private Transform _flyingNumberAnchor;
 
-        [Inject] private AddQueueBoosterViewModel _viewModel;
-        [Inject] private IBoosterUiAnchors _anchors;
+        [Inject] private ShuffleBoosterViewModel _viewModel;
 
         private DisposableBag _disposables;
-        private bool _anchorRegistered;
-        private Transform _registeredAnchor;
 
         private void Start()
         {
@@ -35,39 +31,28 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
             if (_button != null) _button.onClick.AddListener(OnButtonClicked);
 
             _viewModel.Count.Subscribe(OnCountChanged).AddTo(ref _disposables);
-            OnCountChanged(_viewModel.Count.CurrentValue);
+            _viewModel.IsUsable.Subscribe(_ => UpdateInteractable()).AddTo(ref _disposables);
 
-            if (_anchors != null)
-            {
-                Transform anchor = _flyingNumberAnchor != null ? _flyingNumberAnchor : transform;
-                if (anchor != null)
-                {
-                    _anchors.Register(BoosterAnchorKey.AddQueueButton, anchor);
-                    _registeredAnchor = anchor;
-                    _anchorRegistered = true;
-                }
-            }
+            OnCountChanged(_viewModel.Count.CurrentValue);
         }
 
         private void OnDestroy()
         {
             if (_button != null) _button.onClick.RemoveAllListeners();
             _disposables.Dispose();
-            if (_anchorRegistered && _anchors != null)
-            {
-                _anchors.Unregister(BoosterAnchorKey.AddQueueButton, _registeredAnchor);
-            }
         }
 
         private void OnButtonClicked()
         {
             if (_viewModel == null) return;
-            int count = _viewModel.Count.CurrentValue;
-            if (count <= 0)
+
+            // Hết lượt thì nút đóng vai "mua thêm" — giống hệt các nút booster khác.
+            if (_viewModel.Count.CurrentValue <= 0)
             {
-                Bus.Global.Fire(new PurchaseRequestedEvent(TransactionIds.ForBooster(BoosterId.AddQueue)));
+                Bus.Global.Fire(new PurchaseRequestedEvent(TransactionIds.ForBooster(BoosterId.Shuffle)));
                 return;
             }
+
             _viewModel.OnButtonClicked();
         }
 
@@ -82,8 +67,12 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
 
         private void UpdateInteractable()
         {
-            if (_button == null) return;
-            _button.interactable = true;
+            if (_button == null || _viewModel == null) return;
+
+            // Hết lượt vẫn bấm được — đó là đường vào popup mua. Chỉ xám khi CÒN lượt mà
+            // bàn không xáo được, vì bấm lúc đó là mất lượt vô ích.
+            bool outOfStock = _viewModel.Count.CurrentValue <= 0;
+            _button.interactable = outOfStock || _viewModel.IsUsable.CurrentValue;
         }
     }
 }

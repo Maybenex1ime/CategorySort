@@ -9,5 +9,6 @@ namespace LogosGame.Features.UI.Screens
         public LevelDifficulty Difficulty { get; set; } = LevelDifficulty.Normal;
         public Action OnStartLevel { get; set; }
         public Action OnOpenSettings { get; set; }
+        public Action OnOpenShop { get; set; }
     }
 }

@@ -11,17 +11,19 @@ using UnityEngine.UI;
 
 namespace LogosGame.Features.Gameplay.Boosters.Views
 {
-    public class HandBoosterButtonView : MonoBehaviour
+    /// <summary>
+    /// Nút Nam châm. Khác các nút booster khác ở chỗ nó CÓ trạng thái xám: bàn không có
+    /// nhóm nào hút được thì nút tắt, tránh bấm hụt mất lượt đã mua bằng coin.
+    /// </summary>
+    public class MagnetBoosterButtonView : MonoBehaviour
     {
         [SerializeField] private Button _button;
         [SerializeField] private TextMeshProUGUI _countLabel;
-        [SerializeField] private GameObject _countLabelGO;
-        [SerializeField] private GameObject _cancelIconGO;
         [SerializeField] private Image _countBoxBg;
         [SerializeField] private Sprite _addBgSprite;
         [SerializeField] private Sprite _usesBgSprite;
 
-        [Inject] private HandBoosterViewModel _viewModel;
+        [Inject] private MagnetBoosterViewModel _viewModel;
 
         private DisposableBag _disposables;
 
@@ -31,10 +33,9 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
 
             if (_button != null) _button.onClick.AddListener(OnButtonClicked);
 
-            _viewModel.IsArmed.Subscribe(OnArmedChanged).AddTo(ref _disposables);
             _viewModel.Count.Subscribe(OnCountChanged).AddTo(ref _disposables);
+            _viewModel.IsUsable.Subscribe(_ => UpdateInteractable()).AddTo(ref _disposables);
 
-            OnArmedChanged(_viewModel.IsArmed.CurrentValue);
             OnCountChanged(_viewModel.Count.CurrentValue);
         }
 
@@ -47,36 +48,34 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
         private void OnButtonClicked()
         {
             if (_viewModel == null) return;
-            int count = _viewModel.Count.CurrentValue;
-            bool armed = _viewModel.IsArmed.CurrentValue;
-            if (count <= 0 && !armed)
+
+            // Hết lượt thì nút đóng vai "mua thêm" — giống hệt các nút booster khác.
+            if (_viewModel.Count.CurrentValue <= 0)
             {
-                Bus.Global.Fire(new PurchaseRequestedEvent(TransactionIds.ForBooster(BoosterId.Hand)));
+                Bus.Global.Fire(new PurchaseRequestedEvent(TransactionIds.ForBooster(BoosterId.Magnet)));
                 return;
             }
-            _viewModel.OnButtonClicked();
-        }
 
-        private void OnArmedChanged(bool armed)
-        {
-            if (_countLabelGO != null) _countLabelGO.SetActive(!armed);
-            if (_cancelIconGO != null) _cancelIconGO.SetActive(armed);
-            UpdateInteractable();
+            _viewModel.OnButtonClicked();
         }
 
         private void OnCountChanged(int count)
         {
             if (_countLabel != null)
                 _countLabel.text = count > 0 ? count.ToString() : "+";
-            if (_countBoxBg != null && !_viewModel.IsArmed.CurrentValue)
+            if (_countBoxBg != null)
                 _countBoxBg.sprite = count > 0 ? _usesBgSprite : _addBgSprite;
             UpdateInteractable();
         }
 
         private void UpdateInteractable()
         {
-            if (_button == null) return;
-            _button.interactable = true;
+            if (_button == null || _viewModel == null) return;
+
+            // Hết lượt vẫn bấm được — đó là đường vào popup mua. Chỉ xám khi CÒN lượt
+            // mà bàn không có gì để hút, vì bấm lúc đó là mất lượt vô ích.
+            bool outOfStock = _viewModel.Count.CurrentValue <= 0;
+            _button.interactable = outOfStock || _viewModel.IsUsable.CurrentValue;
         }
     }
 }
