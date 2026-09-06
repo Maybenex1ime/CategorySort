@@ -447,9 +447,14 @@ MonoBehaviour:
   mergeSpin: 140
   magnetAnimDur: 0.6
   shuffleInDur: 1.9
-  shuffleOutDur: 0.55
-  shuffleTurns: 2
+  shuffleOutDur: 0.9
+  shuffleTurns: 3
   shuffleGatherScale: 0.4
+  shuffleSpinEase: 9
+  shuffleMoveInEase: 26
+  shuffleMoveOutEase: 27
+  shuffleScaleInEase: 5
+  shuffleScaleOutEase: 6
   undoAnimDur: 0.3
 --- !u!4 &1107977327
 Transform:
