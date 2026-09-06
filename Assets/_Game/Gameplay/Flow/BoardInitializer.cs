@@ -25,14 +25,19 @@ namespace LogosGame.Features.Gameplay.Flow
         private static readonly ILogger _logger = LogManager.GetLogger<BoardInitializer>();
 
         private readonly ISaveManager _saveManager;
+        private readonly ILevelCatalog _catalog;
 
         private DisposableBag _disposables;
         private AsyncOperationHandle<TextAsset> _handle;
         private bool _hasHandle;
 
-        public BoardInitializer(IGameplayFlowController flow, ISaveManager saveManager)
+        // ILevelCatalog chỉ để lấy AddressKey của màn 1 làm phao. ProgressionInstaller
+        // không đăng ký nó khi quên gán SO_LevelCatalog — lúc đó AddressKey cũng rỗng
+        // nên bàn vốn không nạp được, resolve fail ở đây không làm mất gì thêm.
+        public BoardInitializer(IGameplayFlowController flow, ISaveManager saveManager, ILevelCatalog catalog)
         {
             _saveManager = saveManager;
+            _catalog = catalog;
             flow.AddressKey
                 .Where(key => !string.IsNullOrEmpty(key))   // ResetLevelAsync xoá key trước khi set — bỏ qua nhịp rỗng
                 .Subscribe(LoadLevelInBackground)
@@ -49,21 +54,26 @@ namespace LogosGame.Features.Gameplay.Flow
         {
             try
             {
-                // Mỗi LoadAssetAsync phải có Release tương ứng — giữ đúng một handle sống.
-                ReleaseHandle();
+                TextAsset asset = await LoadAssetAsync(addressKey);
 
-                _handle = Addressables.LoadAssetAsync<TextAsset>(addressKey);
-                _hasHandle = true;
-                TextAsset asset = await _handle.Task;
-
+                // Không có level → cảnh báo rồi rơi về màn 1 thay vì để bàn trống.
+                // Chỉ rơi một lần: màn 1 cũng hỏng thì báo lỗi, không lặp vô hạn.
                 if (asset == null)
                 {
-                    _logger.Error($"[BoardInitializer] Addressables không tìm thấy '{addressKey}' — kiểm tra address trong catalog.");
+                    string fallbackKey = FallbackAddressKey();
+                    _logger.Warn($"Ko tìm thấy id-level '{addressKey}' — nạp level 1 ('{fallbackKey}').");
+                    if (!string.IsNullOrEmpty(fallbackKey) && fallbackKey != addressKey)
+                        asset = await LoadAssetAsync(fallbackKey);
+                }
+                if (asset == null)
+                {
+                    _logger.Error($"[BoardInitializer] Không nạp được '{addressKey}' lẫn level 1 — kiểm tra address trong catalog.");
                     return;
                 }
 
                 // Lúc màn BẮT ĐẦU, CurrentLevel luôn là chỉ số màn đang chơi
-                // (ProgressionService chỉ tăng nó khi KẾT THÚC thắng).
+                // (ProgressionService chỉ tăng nó khi KẾT THÚC thắng). Rơi về màn 1
+                // vẫn giữ chỉ số này: thắng thì tiến độ vẫn nhích, chỉ nội dung là mượn.
                 int levelIndex = 0;
                 if (_saveManager != null)
                 {
@@ -79,6 +89,31 @@ namespace LogosGame.Features.Gameplay.Flow
             {
                 _logger.Error(ex, $"[BoardInitializer] Nạp '{addressKey}' thất bại.");
             }
+        }
+
+        // Trả null thay vì ném: key sai thì Addressables đặt handle Failed và Task trả
+        // null, nhưng vài bản ném InvalidKeyException — gom cả hai về một đường.
+        private async System.Threading.Tasks.Task<TextAsset> LoadAssetAsync(string addressKey)
+        {
+            // Mỗi LoadAssetAsync phải có Release tương ứng — giữ đúng một handle sống.
+            ReleaseHandle();
+            try
+            {
+                _handle = Addressables.LoadAssetAsync<TextAsset>(addressKey);
+                _hasHandle = true;
+                return await _handle.Task;
+            }
+            catch (Exception ex)
+            {
+                _logger.Warn($"[BoardInitializer] Addressables từ chối '{addressKey}': {ex.Message}");
+                return null;
+            }
+        }
+
+        private string FallbackAddressKey()
+        {
+            if (_catalog == null || !_catalog.TryGetEntry(0, out LevelEntry first)) return null;
+            return first.AddressKey;
         }
 
         private void ReleaseHandle()
