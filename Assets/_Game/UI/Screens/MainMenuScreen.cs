@@ -18,6 +18,7 @@ namespace LogosGame.Features.UI.Screens
         [SerializeField] private TextMeshProUGUI _levelTitleText;
         [SerializeField] private Button _playButton;
         [SerializeField] private Button _settingsButton;
+        [SerializeField] private Button _shopButton;
 
         [Header("Play Button Difficulty Sprites")]
         [SerializeField] private Image _playButtonImage;
@@ -56,6 +57,11 @@ namespace LogosGame.Features.UI.Screens
             {
                 _settingsButton.onClick.AddListener(OnSettingsClicked);
             }
+
+            if (_shopButton != null)
+            {
+                _shopButton.onClick.AddListener(OnShopClicked);
+            }
         }
 
         private void OnDestroy()
@@ -68,6 +74,11 @@ namespace LogosGame.Features.UI.Screens
             if (_settingsButton != null)
             {
                 _settingsButton.onClick.RemoveListener(OnSettingsClicked);
+            }
+
+            if (_shopButton != null)
+            {
+                _shopButton.onClick.RemoveListener(OnShopClicked);
             }
 
             _disposables.Dispose();
@@ -98,6 +109,11 @@ namespace LogosGame.Features.UI.Screens
         private void OnSettingsClicked()
         {
             RequestOpenSettings();
+        }
+
+        private void OnShopClicked()
+        {
+            RequestOpenShop();
         }
 
         private void ApplyArgs(MainMenuScreenArgs args)
@@ -144,6 +160,14 @@ namespace LogosGame.Features.UI.Screens
             if (_args != null && _args.OnOpenSettings != null)
             {
                 _args.OnOpenSettings();
+            }
+        }
+
+        private void RequestOpenShop()
+        {
+            if (_args != null && _args.OnOpenShop != null)
+            {
+                _args.OnOpenShop();
             }
         }
 

@@ -13,33 +13,26 @@ MonoBehaviour:
   m_Name: SO_TransactionCatalog
   m_EditorClassIdentifier:
   _entries:
-  - TransactionId: t_booster_hand
-    Name: Hand
-    Description:
-    Price: 1900
-    Items:
-    - ItemId: booster.hand
-      Amount: 2
-  - TransactionId: t_booster_hammer
-    Name: Hammer
+  - TransactionId: t_booster_shuffle
+    Name: Shuffle
     Description:
     Price: 1500
     Items:
-    - ItemId: booster.hammer
+    - ItemId: booster.shuffle
       Amount: 2
-  - TransactionId: t_booster_addqueue
-    Name: Add Queue
+  - TransactionId: t_booster_magnet
+    Name: Magnet
     Description:
     Price: 1900
     Items:
-    - ItemId: booster.addqueue
+    - ItemId: booster.magnet
       Amount: 2
-  - TransactionId: t_booster_addbelt
-    Name: Add Belt
+  - TransactionId: t_booster_undo
+    Name: Undo
     Description:
     Price: 300
     Items:
-    - ItemId: booster.addbelt
+    - ItemId: booster.undo
       Amount: 2
   - TransactionId: t_heart
     Name: Heart

@@ -4,6 +4,8 @@
     "references": [
         "WordStack.Meta",
         "WordStack.Contracts",
+        "LogosMeta.Economy",
+        "LogosSDK.Services",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],

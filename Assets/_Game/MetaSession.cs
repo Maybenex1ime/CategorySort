@@ -1,3 +1,4 @@
+using BoosterModule;
 using LogosMeta.Economy;
 using LogosMeta.Progression;
 using LogosSDK.Core.Events;
@@ -30,11 +31,13 @@ namespace WordStack.Meta
         private void Awake()
         {
             LevelSignals.Finished += OnLevelResult;
+            Bus.Global.On<BoosterActivatedEvent>(OnBoosterActivated);
         }
 
         private void OnDestroy()
         {
             LevelSignals.Finished -= OnLevelResult;
+            Bus.Global.Off<BoosterActivatedEvent>(OnBoosterActivated);
         }
 
         private void OnLevelResult(LevelResultEvent evt)
@@ -51,6 +54,19 @@ namespace WordStack.Meta
             // giữ nguyên hình dạng aquapark (service nghe bus, không ai gọi thẳng nó).
             Bus.Global.Fire(evt);
             _progression?.ReportResult(evt.IsWin);
+        }
+
+        /// <summary>
+        /// Chiều meta → gameplay cho booster. Bàn KHÔNG nghe Bus.Global được: assembly
+        /// WordStack.Board chỉ tham chiếu WordStack.Contracts + Unity.InputSystem, giữ
+        /// vậy để compilecheck.sh compile được target `game`. Nên cầu bắc ở đây, đối
+        /// xứng với chiều LevelSignals.Finished → Bus.Global ở trên.
+        /// </summary>
+        private void OnBoosterActivated(BoosterActivatedEvent evt)
+        {
+            if (evt.Id == BoosterId.Magnet) LevelCommands.RequestMagnet();
+            else if (evt.Id == BoosterId.Shuffle) LevelCommands.RequestShuffle();
+            else if (evt.Id == BoosterId.Undo) LevelCommands.RequestUndo();
         }
     }
 }

@@ -35,3 +35,6 @@ sysinfo.txt
 
 # CCGS skill source repo (installed into .claude/skills)
 .claude/Claude-Cowork-Game-Studio/
+Assets/300Mind
+Assets/300Mind.meta
+Build.zip

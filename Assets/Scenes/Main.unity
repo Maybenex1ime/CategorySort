@@ -445,6 +445,9 @@ MonoBehaviour:
   mergeHold: 0.07
   mergeBloom: 0.3
   mergeSpin: 140
+  magnetAnimDur: 0.6
+  shuffleAnimDur: 0.5
+  undoAnimDur: 0.3
 --- !u!4 &1107977327
 Transform:
   m_ObjectHideFlags: 0
@@ -1063,6 +1066,14 @@ PrefabInstance:
     serializedVersion: 3
     m_TransformParent: {fileID: 249654736}
     m_Modifications:
+    - target: {fileID: 1343596513536721804, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: -6062914999863570022, guid: a2bc5fc23da485b4da8e25aafa1ce4f5, type: 3}
+    - target: {fileID: 1343596513536721804, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
     - target: {fileID: 1370929299907206905, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_Name
       value: 'GamePlayUIRoot '
@@ -1082,6 +1093,14 @@ PrefabInstance:
     - target: {fileID: 1437442845518685254, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchoredPosition.y
       value: 0
+      objectReference: {fileID: 0}
+    - target: {fileID: 2609899598346968389, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: ba398616f97daee4c82fdb60e6e1d83d, type: 3}
+    - target: {fileID: 2609899598346968389, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
+      propertyPath: m_Enabled
+      value: 1
       objectReference: {fileID: 0}
     - target: {fileID: 2876765899564459105, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_IsActive
@@ -1211,6 +1230,22 @@ PrefabInstance:
       propertyPath: _levelTitleText
       value: 
       objectReference: {fileID: 1866559692}
+    - target: {fileID: 6634243023150925340, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
+      propertyPath: m_Sprite
+      value: 
+      objectReference: {fileID: 21300000, guid: 58b66c9f80fa4ec48a8c5b54e5a89edb, type: 3}
+    - target: {fileID: 6634243023150925340, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
+      propertyPath: m_Enabled
+      value: 1
+      objectReference: {fileID: 0}
+    - target: {fileID: 7195355775735248639, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 6.41
+      objectReference: {fileID: 0}
+    - target: {fileID: 8171090398880568005, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
+      propertyPath: m_AnchoredPosition.x
+      value: 6.68
+      objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []
     m_AddedGameObjects:

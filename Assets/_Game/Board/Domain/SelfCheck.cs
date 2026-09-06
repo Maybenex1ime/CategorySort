@@ -339,6 +339,63 @@ namespace WordStack.Board
                 }
             }
 
+            // ---- 7. Undo (booster) ----
+            // Nước đi dựng tay để CHẮC CHẮN gây CLEAR: undo phải gỡ được cả cascade, không
+            // riêng việc thẻ đổi ô. Nhóm "zz" không có trong GroupDefs nên đi nhánh CLEAR
+            // thường, không nhánh COLLAPSE — kết quả xác định, không phụ thuộc level.
+            {
+                var g = load(Rules.RemoveEmptyNonBottomBox);
+                g.UndoEnabled = true;
+                Ok(!g.CanUndo, "bàn vừa nạp thì chưa có gì để lùi");
+
+                var src = g.TopBox(1);
+                var dst = g.TopBox(0);
+                for (int i = 0; i < dst.Slots.Length; i++) dst.Slots[i] = null;
+                for (int i = 0; i < src.Slots.Length; i++) src.Slots[i] = null;
+                for (int i = 0; i < Rules.GroupSize - 1; i++)
+                    dst.Slots[i] = new Tile { Uid = "z" + i, CardId = "z", GroupId = "zz", Text = "z" };
+                src.Slots[0] = new Tile { Uid = "zlast", CardId = "z", GroupId = "zz", Text = "z" };
+
+                string before = Solver.Encode(g);
+                int movesBefore = g.Moves, clearedBefore = g.Cleared;
+
+                Ok(g.MoveTile(1, "zlast", 0), "thẻ thứ 4 của nhóm phải kéo sang được");
+                Ok(g.CanUndo, "nước đi được nhận thì phải có ảnh chụp");
+                g.Settle(Rules.RemoveEmptyNonBottomBox);
+                Ok(g.Cleared == clearedBefore + 1, "đủ 4 thẻ cùng nhóm thì phải CLEAR");
+
+                var back = g.ApplyUndo();
+                Ok(back != null, "có ảnh chụp thì ApplyUndo phải trả về bàn");
+                Ok(Solver.Encode(back) == before, "undo phải trả bàn về đúng trạng thái trước nước đi");
+                Ok(back.Cleared == clearedBefore, "undo gỡ cả CLEAR — Cleared tụt lại");
+                Ok(back.Moves == movesBefore, "undo gỡ cả nước đi — Moves tụt lại");
+                Ok(!back.CanUndo, "chỉ lùi được ĐÚNG một bước");
+                Ok(back.UndoEnabled, "bàn khôi phục phải tiếp tục chụp được nước sau");
+
+                // Nước bị từ chối không được để lại ảnh — undo sau đó sẽ lùi nhầm.
+                var rej = load(Rules.RemoveEmptyNonBottomBox);
+                rej.UndoEnabled = true;
+                string u0 = rej.TopBox(0).Slots.First(t => t != null).Uid;
+                Ok(!rej.MoveTile(0, u0, 0) && !rej.CanUndo, "nước đi bị từ chối thì không chụp");
+
+                // Mặc định TẮT: Solver gọi MoveTile hàng vạn lần, bật lên là clone mỗi nút.
+                var solverLike = load(Rules.RemoveEmptyNonBottomBox);
+                int d0 = solverLike.Stacks.FindIndex(s => Game.FreeCount(s.Boxes[0]) > 0 && s != solverLike.Stacks[0]);
+                Ok(d0 > 0 && solverLike.MoveTile(0, solverLike.TopBox(0).Slots.First(t => t != null).Uid, d0),
+                   "cần một nước đi hợp lệ để kiểm cờ tắt");
+                Ok(!solverLike.CanUndo, "cờ tắt (mặc định) thì KHÔNG chụp");
+                Ok(!back.Clone().UndoEnabled, "Clone không mang cờ sang — bàn con của solver luôn tắt");
+
+                // Dùng booster khác thì mất quyền undo (ảnh chụp là TOÀN bàn).
+                var dropped = load(Rules.RemoveEmptyNonBottomBox);
+                dropped.UndoEnabled = true;
+                int d1 = dropped.Stacks.FindIndex(s => Game.FreeCount(s.Boxes[0]) > 0 && s != dropped.Stacks[0]);
+                Ok(d1 > 0 && dropped.MoveTile(0, dropped.TopBox(0).Slots.First(t => t != null).Uid, d1),
+                   "cần một nước đi hợp lệ để kiểm ClearUndo");
+                dropped.ClearUndo();
+                Ok(!dropped.CanUndo && dropped.ApplyUndo() == null, "ClearUndo xoá hẳn ảnh chụp");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }

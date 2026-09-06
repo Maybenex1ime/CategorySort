@@ -13,28 +13,22 @@ MonoBehaviour:
   m_Name: SO_UnlockSchedule
   m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Gameplay.Content.SO_UnlockSchedule
   _boosterUnlocks:
-  - LevelIndex: 100
+  - LevelIndex: 7
     BoosterId: 1
-    DisplayName: Hand
-    Description: 
-    Icon: {fileID: 0}
-    InitialCount: 0
-  - LevelIndex: 100
-    BoosterId: 1
-    DisplayName: Hand
-    Description: 
-    Icon: {fileID: 0}
-    InitialCount: 0
-  - LevelIndex: 100
-    BoosterId: 1
-    DisplayName: Hand
-    Description: 
-    Icon: {fileID: 0}
-    InitialCount: 0
-  - LevelIndex: 100
-    BoosterId: 1
-    DisplayName: Hand
-    Description: 
+    DisplayName: Shuffle
+    Description: Shuffle all tiles in the entire board
+    Icon: {fileID: 21300000, guid: ba398616f97daee4c82fdb60e6e1d83d, type: 3}
+    InitialCount: 2
+  - LevelIndex: 5
+    BoosterId: 2
+    DisplayName: Magnet
+    Description: Instantly remove a group of tiles
+    Icon: {fileID: 21300000, guid: 58b66c9f80fa4ec48a8c5b54e5a89edb, type: 3}
+    InitialCount: 2
+  - LevelIndex: 9
+    BoosterId: 3
+    DisplayName: Undo
+    Description: Undo the last completed move
     Icon: {fileID: 0}
     InitialCount: 0
   _mechanicUnlocks: []

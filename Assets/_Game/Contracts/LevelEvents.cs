@@ -94,6 +94,55 @@ namespace WordStack.Contracts
         /// <summary>Chuỗi animation của lượt vừa rồi đã chạy hết.</summary>
         public static event Action AnimationCompleted;
 
+        /// <summary>
+        /// Bàn có mục tiêu hợp lệ cho booster Nam châm không. Board đẩy cờ này sau mỗi
+        /// lần settle (và lúc nạp màn) — nam châm CÓ LÚC bất lực: khi chỉ còn nhóm cha
+        /// đang chờ nhóm con collapse thì không nhóm nào đủ 4 thẻ trên bàn để hút.
+        ///
+        /// Đẩy trạng thái thay vì hoàn lượt: BoosterManager trừ lượt TRƯỚC khi bàn kịp
+        /// từ chối, mà lượt này người chơi mua bằng coin — để bấm hụt rồi mất lượt là
+        /// mất tiền thật.
+        /// </summary>
+        public static event Action<bool> MagnetAvailabilityChanged;
+
+        public static bool MagnetAvailable { get; private set; }
+
+        public static void SetMagnetAvailable(bool available)
+        {
+            if (MagnetAvailable == available) return;
+            MagnetAvailable = available;
+            MagnetAvailabilityChanged?.Invoke(available);
+        }
+
+        /// <summary>Bàn có xáo được không — board đẩy sau mỗi lần settle và lúc nạp màn.</summary>
+        public static event Action<bool> ShuffleAvailabilityChanged;
+
+        public static bool ShuffleAvailable { get; private set; }
+
+        public static void SetShuffleAvailable(bool available)
+        {
+            if (ShuffleAvailable == available) return;
+            ShuffleAvailable = available;
+            ShuffleAvailabilityChanged?.Invoke(available);
+        }
+
+        /// <summary>
+        /// Có nước đi nào để lùi không — board đẩy sau mỗi lần settle và lúc nạp màn.
+        /// Tắt ngay sau khi undo (ảnh chụp dùng xong là hết) và khi người chơi dùng
+        /// Magnet/Shuffle: hai booster đó xoá ảnh chụp vì khôi phục sau chúng sẽ nuốt
+        /// luôn hiệu ứng vừa mua bằng coin.
+        /// </summary>
+        public static event Action<bool> UndoAvailabilityChanged;
+
+        public static bool UndoAvailable { get; private set; }
+
+        public static void SetUndoAvailable(bool available)
+        {
+            if (UndoAvailable == available) return;
+            UndoAvailable = available;
+            UndoAvailabilityChanged?.Invoke(available);
+        }
+
         public static void RaiseStarted(int levelIndex, int totalGroups)
             => Started?.Invoke(new LevelStartedEvent(levelIndex, totalGroups));
 
@@ -123,6 +172,12 @@ namespace WordStack.Contracts
             MoveCommitted = null;
             EvaluationCompleted = null;
             AnimationCompleted = null;
+            MagnetAvailabilityChanged = null;
+            MagnetAvailable = false;
+            ShuffleAvailabilityChanged = null;
+            ShuffleAvailable = false;
+            UndoAvailabilityChanged = null;
+            UndoAvailable = false;
         }
     }
 }

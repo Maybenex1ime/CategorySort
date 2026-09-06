@@ -30,12 +30,43 @@ namespace WordStack.Contracts
 
         public static void SetInputBlocked(bool blocked) => InputBlocked = blocked;
 
+        /// <summary>
+        /// Booster Nam châm: tầng meta xin bàn hút trọn một nhóm.
+        ///
+        /// Phải đi đường này chứ KHÔNG phải Bus.Global: assembly WordStack.Board chỉ
+        /// tham chiếu WordStack.Contracts + Unity.InputSystem, giữ vậy để
+        /// compilecheck.sh compile được target `game` bằng ref set 4.7.1-api.
+        /// MetaSession là chỗ bắc cầu từ BoosterActivatedEvent sang đây.
+        /// </summary>
+        public static event Action MagnetRequested;
+
+        public static void RequestMagnet() => MagnetRequested?.Invoke();
+
+        /// <summary>
+        /// Booster Shuffle. Cùng lý do với MagnetRequested: assembly WordStack.Board chỉ
+        /// tham chiếu WordStack.Contracts nên bàn không nghe Bus.Global được.
+        /// </summary>
+        public static event Action ShuffleRequested;
+
+        public static void RequestShuffle() => ShuffleRequested?.Invoke();
+
+        /// <summary>
+        /// Booster Undo. Cùng lý do với MagnetRequested: assembly WordStack.Board chỉ
+        /// tham chiếu WordStack.Contracts nên bàn không nghe Bus.Global được.
+        /// </summary>
+        public static event Action UndoRequested;
+
+        public static void RequestUndo() => UndoRequested?.Invoke();
+
         // Event static sống sót qua lần Play kế tiếp khi Domain Reload tắt —
         // cùng lý do với LevelSignals.ResetStaticState.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
         private static void ResetStaticState()
         {
             LoadRequested = null;
+            MagnetRequested = null;
+            ShuffleRequested = null;
+            UndoRequested = null;
             InputBlocked = false;
         }
     }
