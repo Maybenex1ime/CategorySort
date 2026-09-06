@@ -70,7 +70,15 @@ namespace WordStack.Board
         [SerializeField] float mergeSpin = 140f;       // thẻ mới xoay bao nhiêu độ lúc nở (0 = tắt)
 
         [SerializeField] float magnetAnimDur = 0.6f;   // PLACEHOLDER: chỗ giữ nhịp cho animation nam châm
-        [SerializeField] float shuffleAnimDur = 0.5f;  // PLACEHOLDER: chỗ giữ nhịp cho animation shuffle
+        [SerializeField] float shuffleInDur = 1.1f;    // pha hút vào tâm — chậm để đọc được xoáy
+        [SerializeField] float shuffleOutDur = 0.55f;  // pha bung ra ô mới
+        [SerializeField] float shuffleTurns = 2f;      // số vòng xoáy mỗi pha
+        [SerializeField] float shuffleGatherScale = 0.4f; // cỡ thẻ lúc dồn về tâm — 0 thì không thấy hội tụ
+        [SerializeField] Ease shuffleSpinEase = Ease.OutCubic;   // xoay pivot; thẻ quay ngược dùng CÙNG ease này
+        [SerializeField] Ease shuffleMoveInEase = Ease.InBack;   // thẻ bay về tâm
+        [SerializeField] Ease shuffleMoveOutEase = Ease.OutBack; // thẻ bay về ô mới
+        [SerializeField] Ease shuffleScaleInEase = Ease.InQuad;  // thẻ co về gatherScale
+        [SerializeField] Ease shuffleScaleOutEase = Ease.OutQuad;// thẻ nở lại 1
         [SerializeField] float undoAnimDur = 0.3f;     // PLACEHOLDER: chỗ giữ nhịp cho animation undo
 
         Game g;
@@ -285,27 +293,76 @@ namespace WordStack.Board
 
             LevelSignals.RaiseMoveCommitted(g.Moves);
 
-            yield return ShuffleAnimation(r);
+            yield return ShuffleAnimation(r);   // tự RebuildBoardViews giữa hai pha xoáy
 
-            RebuildBoardViews();
             yield return Settle();   // dọn hộp rỗng, chạy cascade, chốt thắng/kẹt
         }
 
-        // PLACEHOLDER — chỗ DUY NHẤT cần thay khi làm animation thật.
-        //
-        // Chuỗi thật cần diễn:
-        //   1. Move có From.Box == 0 && To.Box == 0: thẻ bay từ ô cũ sang ô mới trong lớp
-        //      trên, lệch pha nhau như MergeTiles đang làm.
-        //   2. Move dính hộp bị chôn (From.Box > 0 hoặc To.Box > 0): StackView chỉ vẽ peek
-        //      layer trừu tượng, KHÔNG có tile view thật — phải dựng tile tạm ở vị trí peek,
-        //      lật mặt, bay, rồi huỷ.
-        //   3. Thẻ có màu KHÔNG bao giờ xuất hiện trong r.Moves — đừng động vào chúng.
-        //
-        // Hiện chỉ giữ đúng NHỊP thời gian. Bỏ trắng thì overlay chớp một khung hình rồi
-        // tắt, không kiểm được phần chặn input có thật sự chạy hay không.
+        // Xoáy ốc hai pha: hút cả bàn vào tâm → rebuild → bung ra ô mới.
+        // Hai pha vì Shuffle có move dính hộp chôn (From.Box > 0 / To.Box > 0) — thẻ đó
+        // KHÔNG có view thật. Cho nó biến mất trong xoáy rồi thẻ khác bung ra là khớp,
+        // khỏi phải dựng tile tạm ở peek layer.
         IEnumerator ShuffleAnimation(ShuffleResult r)
         {
-            yield return new WaitForSeconds(shuffleAnimDur);
+            if (r.Moves.Length == 0) { RebuildBoardViews(); yield break; }
+            yield return Vortex(true, shuffleInDur);
+            RebuildBoardViews();
+            yield return Vortex(false, shuffleOutDur);
+        }
+
+        // ponytail: một pivot cho cả bàn — pivot XOAY tạo đường xoáy, mỗi thẻ tự bay về
+        // tâm pivot (local zero). Không co pivot: co pivot thì thẻ chỉ gặp nhau đúng lúc
+        // size về 0, mắt không bao giờ thấy chúng hội tụ.
+        IEnumerator Vortex(bool inward, float dur)
+        {
+            var pivot = new GameObject("shuffleVortex").transform;
+            pivot.position = BoardCenter();
+
+            var kids = new List<Transform>(tiles.Count);
+            var homes = new List<Transform>(tiles.Count);
+            foreach (var tv in tiles.Values)
+            {
+                if (tv == null) continue;
+                tv.SetFlying(true);                    // bay trên hộp, như MergeTiles
+                kids.Add(tv.transform); homes.Add(tv.transform.parent);
+                tv.transform.SetParent(pivot, true);   // giữ world pos → chưa nhúc nhích
+            }
+
+            float spin = 360f * shuffleTurns;
+            if (!inward) pivot.localEulerAngles = new Vector3(0f, 0f, -spin);
+
+            var seq = DOTween.Sequence().SetLink(pivot.gameObject);
+            seq.Join(pivot.DORotate(new Vector3(0f, 0f, inward ? spin : 0f), dur, RotateMode.FastBeyond360)
+                          .SetEase(shuffleSpinEase));
+            for (int i = 0; i < kids.Count; i++)
+            {
+                Transform k = kids[i];
+                Vector3 slot = k.localPosition;        // ô của thẻ trong hệ pivot (đã tính rotation)
+                if (!inward) { k.localPosition = Vector3.zero; k.localScale = Vector3.one * shuffleGatherScale; }
+
+                seq.Join(k.DOLocalMove(inward ? Vector3.zero : slot, dur)
+                          .SetEase(inward ? shuffleMoveInEase : shuffleMoveOutEase).SetLink(k.gameObject));
+                seq.Join(k.DOScale(inward ? shuffleGatherScale : 1f, dur)
+                          .SetEase(inward ? shuffleScaleInEase : shuffleScaleOutEase).SetLink(k.gameObject));
+                // Giữ thẻ thẳng: quay ngược -spin CÙNG ease với pivot, tổng góc ≡ 0.
+                seq.Join(k.DOLocalRotate(new Vector3(0f, 0f, -spin), dur, RotateMode.FastBeyond360)
+                          .SetEase(shuffleSpinEase).SetLink(k.gameObject));
+            }
+            yield return seq.WaitForCompletion();
+
+            // Pha vào không cần trả parent (rebuild xoá sạch), pha ra thì BẮT BUỘC: thẻ
+            // phải nằm lại dưới hộp của nó, không thì Settle sau tween sai gốc toạ độ.
+            for (int i = 0; i < kids.Count; i++)
+                if (kids[i] != null) { kids[i].SetParent(homes[i], true); }
+            if (!inward) foreach (var tv in tiles.Values) if (tv != null) tv.SetFlying(false);
+            Destroy(pivot.gameObject);
+        }
+
+        Vector3 BoardCenter()
+        {
+            var c = Vector3.zero;
+            for (int s = 0; s < boxViews.Length; s++) c += boxViews[s].transform.position;
+            return c / Mathf.Max(1, boxViews.Length);
         }
 
         // Khoá HAI vế y như hai booster kia. Mượn MoveCommitted được vì g đã là bàn khôi

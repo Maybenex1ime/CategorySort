@@ -446,7 +446,10 @@ MonoBehaviour:
   mergeBloom: 0.3
   mergeSpin: 140
   magnetAnimDur: 0.6
-  shuffleAnimDur: 0.5
+  shuffleInDur: 1.9
+  shuffleOutDur: 0.55
+  shuffleTurns: 2
+  shuffleGatherScale: 0.4
   undoAnimDur: 0.3
 --- !u!4 &1107977327
 Transform:
