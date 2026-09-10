@@ -149,7 +149,7 @@ namespace WordStack.Board
             var count = new Dictionary<string, int>();
             foreach (var t in box.Slots)
             {
-                if (t == null) continue;
+                if (t == null || IsFrozen(t)) continue;   // thẻ băng không tính bộ 4 (spec 4.2)
                 int n;
                 count[t.GroupId] = count.TryGetValue(t.GroupId, out n) ? n + 1 : 1;
             }
@@ -164,13 +164,15 @@ namespace WordStack.Board
             for (int s = 0; s < Stacks.Count; s++)
             {
                 var box = TopBox(s);
-                if (box == null) continue;
+                if (box == null || !IsOpen(box.Lock)) continue;   // hộp đóng không tự nổ (spec 4.1)
                 string gid = CompletedGroupIn(box);
                 if (gid == null) continue;
 
                 var doomed = new List<string>();
+                // Với hộp 4 ô, "4 thẻ thường + 1 băng cùng nhóm" không xảy ra được; nhánh
+                // !IsFrozen là lưới an toàn nếu sức chứa đổi, không phải đường đi thật.
                 for (int i = 0; i < box.Slots.Length; i++)
-                    if (box.Slots[i] != null && box.Slots[i].GroupId == gid)
+                    if (box.Slots[i] != null && box.Slots[i].GroupId == gid && !IsFrozen(box.Slots[i]))
                     {
                         doomed.Add(box.Slots[i].Uid);
                         box.Slots[i] = null;
@@ -214,7 +216,7 @@ namespace WordStack.Board
             for (int s = 0; s < Stacks.Count; s++)
             {
                 var box = TopBox(s);
-                if (box != null && !box.IsBottom && IsEmpty(box) && (drain || box.HadCollapse))
+                if (box != null && IsOpen(box.Lock) && !box.IsBottom && IsEmpty(box) && (drain || box.HadCollapse))
                 {
                     Stacks[s].Boxes.RemoveAt(0);
                     return new SettleEvent { Kind = SettleKind.RemoveBox, Stack = s, BoxRemoved = true };

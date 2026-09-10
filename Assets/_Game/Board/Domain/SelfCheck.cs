@@ -490,6 +490,87 @@ namespace WordStack.Board
                 Ok(g8.HasAnyMove() && g8.CheckStatus() == GameStatus.Playing, "bàn thường vẫn Playing");
             }
 
+            // 8c. Dây chuyền
+            Func<string, int, Tile> mkT = (gid, n) => new Tile { Uid = gid + n, CardId = gid, GroupId = gid, Text = gid };
+            {
+                // Hộp khoá đủ bộ vẫn không nổ; gom một nhóm ở nơi khác mở nó, và nó nổ
+                // ngay trong CÙNG Settle (spec 4.1 + 2.1).
+                var g = load(true);
+                var box3 = g.TopBox(3);
+                for (int i = 0; i < box3.Slots.Length; i++) box3.Slots[i] = mkT("zz", i);
+                box3.Lock = new Lock { Kind = LockKind.Clears, Need = 1 };
+                g.Settle(true);
+                Ok(g.Cleared == 0, "hộp khoá đủ bộ vẫn không nổ");
+
+                var box4 = g.TopBox(4);
+                for (int i = 0; i < Rules.GroupSize - 1; i++) box4.Slots[i] = mkT("yy", i);
+                g.TopBox(0).Slots[2] = mkT("yy", 9);
+                Ok(g.MoveTile(0, "yy9", 4), "thẻ thứ 4 kéo sang được");
+                g.Settle(true);
+                Ok(g.Cleared == 2, "gom 1 nhóm → hộp khoá mở → hộp đó nổ ngay trong cùng dây chuyền");
+
+                // Hộp khoá rỗng không bị xoá (drain = true xoá mọi hộp trống không phải đáy).
+                var g2 = load(true);
+                var top0 = g2.TopBox(0);
+                for (int i = 0; i < top0.Slots.Length; i++) top0.Slots[i] = null;
+                top0.Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                int boxesBefore = g2.Stacks[0].Boxes.Count;
+                g2.Settle(true);
+                Ok(g2.Stacks[0].Boxes.Count == boxesBefore, "hộp khoá rỗng không bị xoá");
+
+                // Thẻ băng không tính bộ 4; tan đúng nhịp thì nhóm nổ ngay (spec 4.2).
+                var g3 = load(true);
+                var b0 = g3.TopBox(0);
+                for (int i = 0; i < b0.Slots.Length; i++) b0.Slots[i] = mkT("zz", i);
+                b0.Slots[0].Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
+                g3.Settle(true);
+                Ok(g3.Cleared == 0, "3 thẻ + 1 băng cùng nhóm thì chưa nổ");
+                Ok(g3.MoveTile(2, uidOf(g3, "d4"), 4), "một nước hợp lệ ở nơi khác");
+                g3.Settle(true);
+                Ok(g3.Cleared == 1, "băng tan sau nước đó → nhóm nổ ngay trong cùng nhịp");
+
+                // Ổ và chìa: thẻ chìa bị gom là ổ mở (spec 4.1, 2.4).
+                var g4 = load(true);
+                g4.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
+                var b4 = g4.TopBox(4);
+                for (int i = 0; i < Rules.GroupSize - 1; i++) b4.Slots[i] = mkT("zz", i);
+                var keyTile = mkT("zz", 9);
+                keyTile.KeyId = "k1";
+                g4.TopBox(0).Slots[2] = keyTile;
+                Ok(!g4.MoveTile(0, uidOf(g4, "c1"), 2), "ổ đóng: không thả vào");
+                Ok(g4.MoveTile(0, "zz9", 4), "thẻ chìa kéo được như thẻ thường");
+                g4.Settle(true);
+                Ok(g4.Cleared == 1 && g4.IsOpen(g4.Stacks[2].Boxes[0].Lock), "thẻ chìa bị gom thì ổ mở");
+                Ok(g4.MoveTile(0, uidOf(g4, "c1"), 2), "ổ mở rồi thả vào được");
+
+                // Nhóm khác nổ thì ổ không mở.
+                var g5 = load(true);
+                g5.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
+                g5.TopBox(3).Slots[0].KeyId = "k1";                 // e3 mang chìa, không bị gom
+                var b5 = g5.TopBox(4);
+                for (int i = 0; i < Rules.GroupSize - 1; i++) b5.Slots[i] = mkT("zz", i);
+                g5.TopBox(0).Slots[2] = mkT("zz", 9);
+                Ok(g5.MoveTile(0, "zz9", 4), "nước gom nhóm zz");
+                g5.Settle(true);
+                Ok(g5.Cleared == 1 && !g5.IsOpen(g5.Stacks[2].Boxes[0].Lock), "nhóm không có chìa nổ thì ổ vẫn đóng");
+
+                // Thẻ vừa băng vừa chìa: tan → gom → mở (spec 4.4).
+                var g6 = load(true);
+                g6.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
+                var b6 = g6.TopBox(4);
+                for (int i = 0; i < Rules.GroupSize - 1; i++) b6.Slots[i] = mkT("zz", i);
+                var iceKey = mkT("zz", 9);
+                iceKey.KeyId = "k1";
+                iceKey.Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
+                g6.TopBox(0).Slots[2] = iceKey;
+                Ok(!g6.MoveTile(0, "zz9", 4), "còn băng thì chìa chưa kéo được");
+                // e3 sang stack 0 (còn 1 ô), KHÔNG sang stack 4 — hộp đó phải giữ đúng 1 ô trống cho chìa.
+                Ok(g6.MoveTile(3, uidOf(g6, "e3"), 0), "nước khác làm tan băng");
+                Ok(g6.MoveTile(0, "zz9", 4), "tan rồi kéo chìa sang");
+                g6.Settle(true);
+                Ok(g6.IsOpen(g6.Stacks[2].Boxes[0].Lock), "băng tan → chìa bị gom → ổ mở");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }
