@@ -10,7 +10,7 @@ const a = html.indexOf(BAR + '1'), b = html.indexOf(BAR + '4');
 if (a < 0 || b < 0) throw new Error('không thấy marker PHẦN 1 / PHẦN 4 trong wordstack.html');
 
 const T = new Function('"use strict";\n' + html.slice(a, b) +
-  '\nreturn { parseLevel, applyMove, checkStatus, stateKey, solve, rawToGame, gameToRaw, gameJson, cloneState };')();
+  '\nreturn { parseLevel, applyMove, checkStatus, stateKey, solve, rawToGame, gameToRaw, gameJson, cloneState, isBoxOpen, canPick };')();
 
 let failed = 0;
 const ok = (cond, msg) => { if (!cond) { failed++; console.error('FAIL —', msg); } };
@@ -126,7 +126,103 @@ function blockerFixture(){
   }, 'COLLAPSE', 'blocker trên thẻ sinh ra từ COLLAPSE');
 }
 
-// (Mục 4 thêm ở Task 5.)
+// ---- 4. Luật blocker JS — cùng kịch bản với SelfCheck mục 8 ----
+{
+  const G3 = [ { id:'ga', name:'A', words:['a1','a2','a3','a4'] },
+               { id:'gb', name:'B', words:['b1','b2','b3','b4'] },
+               { id:'gc', name:'C', words:['c1','c2','c3','c4'] } ];
+  // Như RulesLv: s0 [a1 a2 · ·] trên [a3 a4 · ·] · s1 [b1 b2 b3 c1] · s2 [b4 c2] · s3 [c3 c4] · s4 trống
+  const base = () => ({ id:'t', title:'t', boxCapacity:4, groups: structuredClone(G3), stacks: [
+    { boxes:[ { tiles:['a1','a2',null,null] }, { tiles:['a3','a4',null,null] } ] },
+    { boxes:[ { tiles:['b1','b2','b3','c1'] } ] },
+    { boxes:[ { tiles:['b4','c2',null,null] } ] },
+    { boxes:[ { tiles:['c3','c4',null,null] } ] },
+    { boxes:[ { tiles:[null,null,null,null] } ] } ] });
+  const load = raw => { const p = T.parseLevel(raw); if (p.errors.length) throw new Error(p.errors.join(' | ')); return p.state; };
+  const tile = (st, label) => st.stacks.flatMap(s => s.boxes).flatMap(b => b.tiles).find(t => t && t.label === label);
+  const mv = (st, from, label, to) => T.applyMove(st, st.stacks[from].id, tile(st, label).id, st.stacks[to].id, false);
+  const step = (st, from, label, to, msg) => { const r = mv(st, from, label, to); ok(r.ok, msg + ' — ' + r.reason); return r.ok ? r.state : st; };
+
+  // 8b. Nước đi
+  { const raw = base(); raw.stacks[2].boxes[0].blockers = { locked: 1 }; const st = load(raw);
+    ok(!mv(st, 2, 'b4', 0).ok, 'hộp khoá: không nhặt thẻ ra');
+    ok(!mv(st, 0, 'a1', 2).ok, 'hộp khoá: không thả thẻ vào');
+    ok(mv(st, 0, 'a1', 3).ok, 'hộp mở khác vẫn nhận thẻ'); }
+  { const raw = base(); raw.cardBlockers = { a1: { ice: 2 } }; let st = load(raw);
+    ok(!mv(st, 0, 'a1', 3).ok, 'thẻ băng không kéo đi được');
+    st = step(st, 0, 'a2', 3, 'nước hợp lệ thứ nhất');
+    ok(tile(st, 'a1').ice && tile(st, 'a1').ice.have === 1, 'sau một nước, băng đếm 1');
+    st = step(st, 3, 'a2', 4, 'nước hợp lệ thứ hai');
+    ok(!tile(st, 'a1').ice, 'đủ hai nước thì băng tan');
+    ok(mv(st, 0, 'a1', 4).ok, 'tan rồi thì kéo được'); }
+  { const raw = base(); raw.cardBlockers = { a3: { ice: 1 } }; let st = load(raw);
+    st = step(st, 0, 'a1', 4, 'nước hợp lệ');
+    ok(tile(st, 'a3').ice.have === 0, 'thẻ băng còn chìm thì không đếm'); }
+  { const raw = base(); raw.cardBlockers = { a1: { ice: 1 } }; const st = load(raw);
+    ok(!mv(st, 0, 'a2', 0).ok && tile(st, 'a1').ice.have === 0, 'nước bị từ chối không giảm băng'); }
+  { const raw = base(); raw.stacks[2].boxes[0].blockers = { locked: 9 }; raw.cardBlockers = { b4: { ice: 1 } }; let st = load(raw);
+    st = step(st, 0, 'a1', 4, 'nước hợp lệ');
+    ok(!tile(st, 'b4').ice, 'băng trong hộp khoá ở trên cùng vẫn tan theo nước đi'); }
+  { const raw = base(); [0, 1, 2, 3].forEach(i => raw.stacks[i].boxes[0].blockers = { locked: 99 });
+    ok(load(raw).status === 'stuck', 'còn ô trống ở stack rỗng mà không thẻ nào nhặt được → kẹt'); }
+  { const raw = base(); raw.cardBlockers = Object.fromEntries(['a1','a2','b1','b2','b3','c1','b4','c2','c3','c4'].map(w => [w, { ice: 99 }]));
+    ok(load(raw).status === 'stuck', 'mọi thẻ lộ đều băng → kẹt thật, không thua ngầm'); }
+  ok(load(base()).status === 'playing', 'bàn thường vẫn playing');
+
+  // 8c. Dây chuyền
+  { const raw = { id:'t', title:'t', boxCapacity:4, groups:[ G3[0], { id:'gd', name:'D', words:['d1','d2','d3','d4'] } ], stacks:[
+      { boxes:[ { tiles:['a1','a2','a3',null] } ] }, { boxes:[ { tiles:['a4',null,null,null] } ] },
+      { boxes:[ { tiles:['d1','d2','d3','d4'], blockers:{ locked:1 } } ] }, { boxes:[ { tiles:[null,null,null,null] } ] } ] };
+    let st = load(raw);
+    st = step(st, 1, 'a4', 3, 'nước không gom gì');
+    ok(st.solved.size === 0, 'hộp khoá đủ bộ vẫn không nổ');
+    st = step(st, 3, 'a4', 0, 'thẻ thứ 4 của A');
+    ok(st.solved.size === 2, 'gom A → hộp khoá mở → D nổ ngay trong cùng dây chuyền'); }
+  { const raw = base(); raw.stacks[0].boxes.unshift({ tiles:[null,null,null,null], blockers:{ locked:9 } }); let st = load(raw);
+    st = step(st, 2, 'b4', 4, 'nước ở chỗ khác');
+    ok(st.stacks[0].boxes.length === 3, 'hộp khoá rỗng không bị xoá'); }
+  { const raw = { id:'t', title:'t', boxCapacity:4, groups:[ G3[0], G3[1] ], cardBlockers:{ a1:{ ice:2 } }, stacks:[
+      { boxes:[ { tiles:['a1','a2','a3','a4'] } ] }, { boxes:[ { tiles:['b1',null,null,null] } ] },
+      { boxes:[ { tiles:[null,null,null,null] } ] }, { boxes:[ { tiles:['b2','b3','b4',null] } ] } ] };
+    let st = load(raw);
+    st = step(st, 1, 'b1', 2, 'nước thứ nhất');
+    ok(st.solved.size === 0, '3 thẻ + 1 băng cùng nhóm thì chưa nổ');
+    st = step(st, 2, 'b1', 1, 'nước thứ hai');
+    ok(st.solved.size === 1, 'băng tan sau nước đó → nhóm nổ ngay trong cùng nhịp'); }
+  const keyRaw = cardBlk => ({ id:'t', title:'t', boxCapacity:4, groups:[ G3[0], G3[1] ], cardBlockers: cardBlk, stacks:[
+      { boxes:[ { tiles:['a1','a2','a3',null] } ] }, { boxes:[ { tiles:['a4','b4',null,null] } ] },
+      { boxes:[ { tiles:[null,null,null,null], blockers:{ keylock:'k1' } } ] }, { boxes:[ { tiles:['b1','b2','b3',null] } ] } ] });
+  // Hộp có ổ ở stack 2 là hộp đáy nên không bao giờ bị xoá — đọc trạng thái mở của nó được
+  // cả sau khi bàn đã sạch.
+  const lockBox = st => st.stacks[2].boxes[0];
+  { let st = load(keyRaw({ b4: { key:'k1' } }));
+    ok(!mv(st, 0, 'a1', 2).ok, 'ổ đóng: không thả vào');
+    st = step(st, 1, 'a4', 0, 'gom A');
+    ok(st.solved.size === 1 && !T.isBoxOpen(st, lockBox(st)), 'nhóm không có chìa nổ thì ổ vẫn đóng');
+    ok(!mv(st, 3, 'b1', 2).ok, 'ổ còn đóng thì vẫn không thả vào');
+    st = step(st, 1, 'b4', 3, 'thẻ chìa kéo được như thẻ thường');
+    ok(st.solved.size === 2 && T.isBoxOpen(st, lockBox(st)), 'thẻ chìa bị gom thì ổ mở'); }
+  { let st = load(keyRaw({ b4: { key:'k1', ice:1 } }));
+    ok(!mv(st, 1, 'b4', 3).ok, 'còn băng thì chìa chưa kéo được');
+    st = step(st, 1, 'a4', 0, 'nước làm tan băng (b4 đang ở hộp trên)');
+    st = step(st, 1, 'b4', 3, 'tan rồi kéo chìa');
+    ok(st.solved.size === 2 && T.isBoxOpen(st, lockBox(st)), 'băng tan → chìa bị gom → ổ mở'); }
+
+  // 8d. Bộ giải
+  { const a = load(base()), rb = base(); rb.cardBlockers = { a1: { ice:3 } }; const b = load(rb);
+    ok(T.stateKey(a) !== T.stateKey(b), 'băng phải vào mã trạng thái');
+    const b2 = T.cloneState(b); const t0 = b2.stacks[0].boxes[0].tiles[0];
+    b2.stacks[0].boxes[0].tiles[0] = { ...t0, ice: { need: 3, have: 1 } };
+    ok(T.stateKey(b) !== T.stateKey(b2), 'hai mức băng là hai trạng thái');
+    const rl = base(); rl.stacks[2].boxes[0].blockers = { locked:1 };
+    ok(T.stateKey(a) === T.stateKey(load(rl)), 'khoá hộp không đổi mã — trạng thái suy từ bố cục'); }
+  { const raw = base(); raw.stacks[2].boxes[0].blockers = { locked:1 }; raw.stacks[3].boxes[0].blockers = { keylock:'k1' };
+    raw.cardBlockers = { c3: { ice:2 }, b4: { key:'k1' } };
+    ok(T.solve(load(raw), 25000).solved, 'bàn có đủ ba blocker phải giải được'); }
+  { const st = load(base()); st.stacks[2].boxes[0].lock = { kind:'key', keyId:'k1' }; tile(st, 'b4').key = 'k1';
+    st.status = T.checkStatus(st);
+    ok(!T.solve(st, 25000).solved, 'chìa nằm trong chính hộp nó mở → bộ giải phải báo không giải được'); }
+}
 
 if (failed) { console.error(`\n${failed} check FAIL`); process.exit(1); }
 console.log('tool-check OK');

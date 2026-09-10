@@ -390,6 +390,56 @@ const boxTiles    = box => box.tiles.filter(Boolean);
 const isEmptyBox  = box => box.tiles.every(t => !t);
 const totalTiles  = state => state.stacks.reduce((n,s) => n + s.boxes.reduce((m,b) => m + boxTiles(b).length, 0), 0);
 
+/* ---------- Blocker [spec 2026-09-10] — cùng luật với Assets/_Game/Board/Domain/GameBlockers.cs ----------
+   Thẻ: ice = { need, have } khi còn băng, key = id chìa. Hộp: lock = { kind:'clears', need }
+   hoặc { kind:'key', keyId }. cloneState chia sẻ object thẻ giữa các bản sao (undo, gợi ý,
+   bộ giải), nên KHÔNG sửa thẻ tại chỗ: tickIce thay thẻ bằng object mới. */
+const isFrozen = t => !!(t && t.ice);
+const thaw = ({ ice, ...rest }) => rest;
+function keyOnBoard(state, keyId){
+  return state.stacks.some(st => st.boxes.some(b => b.tiles.some(t => t && t.key === keyId)));
+}
+// clears so với số nhóm đã gom, key hỏi thẻ chìa còn trên bàn không — cả hai suy từ bàn,
+// không lưu trạng thái riêng, nên stateKey không phải mã hoá gì cho hộp.
+function isBoxOpen(state, box){
+  const l = box && box.lock;
+  if (!l) return true;
+  if (l.kind === 'clears') return state.solved.size >= l.need;
+  if (l.kind === 'key') return !keyOnBoard(state, l.keyId);
+  return true;
+}
+const canPick = (state, box, t) => !!t && !isFrozen(t) && isBoxOpen(state, box);
+// Sau mỗi nước thành công: thẻ băng ở hộp trên cùng tiến một bước — kể cả trong hộp đang
+// khoá, vì nó đang lộ. Thẻ chìm không đếm.
+function tickIce(state){
+  for (const st of state.stacks){
+    const top = st.boxes[0];
+    if (!top) continue;
+    for (let i = 0; i < top.tiles.length; i++){
+      const t = top.tiles[i];
+      if (!isFrozen(t)) continue;
+      const have = t.ice.have + 1;
+      top.tiles[i] = have >= t.ice.need ? thaw(t) : { ...t, ice: { need: t.ice.need, have } };
+    }
+  }
+}
+function hasPendingBlocker(state){
+  return state.stacks.some(st => st.boxes.some(b => !isBoxOpen(state, b) || b.tiles.some(isFrozen)));
+}
+// Soi đúng các chốt của applyMove mà không đi thử.
+function hasAnyMove(state){
+  for (const s of state.stacks){
+    const src = s.boxes[0];
+    if (!src || !isBoxOpen(state, src) || !src.tiles.some(t => t && !isFrozen(t))) continue;
+    for (const d of state.stacks){
+      if (d === s) continue;
+      const dst = d.boxes[0];
+      if (dst && isBoxOpen(state, dst) && freeSlots(dst) > 0) return true;
+    }
+  }
+  return false;
+}
+
 function placeInFirstFreeSlot(box, tile){
   const i = box.tiles.findIndex(t => !t);
   if (i < 0) return false;
@@ -402,7 +452,7 @@ function cloneState(s){
     levelId: s.levelId, title: s.title, groups: s.groups, capacity: s.capacity, icons: s.icons, cols: s.cols,
     stacks: s.stacks.map(st => ({
       id: st.id,
-      boxes: st.boxes.map(b => ({ id: b.id, capacity: b.capacity, isBottom: b.isBottom, tiles: b.tiles.slice() }))
+      boxes: st.boxes.map(b => ({ id: b.id, capacity: b.capacity, isBottom: b.isBottom, lock: b.lock, tiles: b.tiles.slice() }))
     })),
     movesUsed: s.movesUsed, status: s.status,
     solved: new Set(s.solved), totalGroups: s.totalGroups, hintsUsed: s.hintsUsed
@@ -422,7 +472,7 @@ function findParentGroup(g, groups){
 /* ---------- Nhóm hoàn thành trong 1 box [GDD §R3] ---------- */
 function findCompletedGroup(box, groups){
   const count = new Map();
-  for (const t of box.tiles) if (t) count.set(t.groupId, (count.get(t.groupId) || 0) + 1);
+  for (const t of box.tiles) if (t && !isFrozen(t)) count.set(t.groupId, (count.get(t.groupId) || 0) + 1);   // thẻ băng không tính bộ 4
   for (const [gid, n] of count){
     const g = groups[gid];
     if (g && n === g.words.length) return g;
@@ -458,14 +508,14 @@ function resolveBoard(state, steps){
     const evA = [];
     for (const stack of state.stacks){
       const box = stack.boxes[0];
-      if (!box) continue;
+      if (!box || !isBoxOpen(state, box)) continue;         // hộp đóng không tự nổ
       const g = findCompletedGroup(box, state.groups);
       if (!g) continue;
 
       const ids = [];
       for (let i = 0; i < box.tiles.length; i++){
         const t = box.tiles[i];
-        if (t && t.groupId === g.id){ ids.push(t.id); box.tiles[i] = null; }
+        if (t && t.groupId === g.id && !isFrozen(t)){ ids.push(t.id); box.tiles[i] = null; }
       }
       state.solved.add(g.id);
 
@@ -484,7 +534,7 @@ function resolveBoard(state, steps){
     const evB = [];
     for (const stack of state.stacks){
       const box = stack.boxes[0];
-      if (box && !box.isBottom && isEmptyBox(box)){
+      if (box && !box.isBottom && isEmptyBox(box) && isBoxOpen(state, box)){   // hộp đóng không bị xoá dù rỗng
         stack.boxes.shift();
         evB.push({ type:'removeBox', stackId:stack.id, boxId:box.id });
       }
@@ -504,14 +554,17 @@ function applyMove(state, fromStackId, tileId, toStackId, collectSteps){
   const dst = topBox(s, toStackId);
   if (!src || !dst)     return { ok:false, reason:'Box bị che' };
   if (src.id === dst.id) return { ok:false, reason:'Cùng một box' };
+  if (!isBoxOpen(s, src) || !isBoxOpen(s, dst)) return { ok:false, reason:'Hộp đang khoá' };
   const i = src.tiles.findIndex(t => t && t.id === tileId);
   if (i < 0)            return { ok:false, reason:'Không tìm thấy ô từ' };
+  if (isFrozen(src.tiles[i])) return { ok:false, reason:'Ô đang đóng băng' };
   if (freeSlots(dst) === 0) return { ok:false, reason:'Box đích đã đầy' };
 
   const tile = src.tiles[i];
   src.tiles[i] = null;
   placeInFirstFreeSlot(dst, tile);
   s.movesUsed++;
+  tickIce(s);                                // nước đi → giảm băng → dây chuyền
 
   const steps = collectSteps ? [{ state: cloneState(s), events:[{ type:'move', tileId, toStackId }] }] : null;
   resolveBoard(s, steps);
@@ -522,6 +575,10 @@ function applyMove(state, fromStackId, tileId, toStackId, collectSteps){
 /* ---------- Trạng thái thắng / bế tắc [GDD §R7, E8] ---------- */
 function checkStatus(state){
   if (totalTiles(state) === 0) return 'won';
+  // Blocker gỡ theo tiến độ, nên heuristic "gom được nhóm nào ngay không" báo kẹt oan khi
+  // chỉ cần chờ băng tan hay hộp mở. Còn blocker chưa mở thì kẹt = hết nước đi hợp lệ, như C#.
+  // Màn không có blocker giữ nguyên heuristic cũ — hành vi không đổi.
+  if (hasPendingBlocker(state)) return hasAnyMove(state) ? 'playing' : 'stuck';
   return hasAnyProgress(state) ? 'playing' : 'stuck';
 }
 
@@ -671,6 +728,9 @@ function parseLevel(raw){
       const arr = Array.isArray(rb && rb.tiles) ? rb.tiles : [];
       if (arr.length > cap) errors.push(`Stack ${si+1} / box ${bi} có ${arr.length} ô > sức chứa ${cap}.`);
       const box = { id: uid('b'), capacity: cap, isBottom: bi === rboxes.length - 1, tiles: new Array(cap).fill(null) };
+      const bb = (rb && rb.blockers) || {};
+      if (isCount(bb.locked)) box.lock = { kind:'clears', need: bb.locked };
+      else if (typeof bb.keylock === 'string' && bb.keylock) box.lock = { kind:'key', keyId: bb.keylock };
       arr.slice(0, cap).forEach((label, k) => {
         if (label === null || label === undefined || label === '') return;
         const w = String(label).trim();
@@ -679,7 +739,11 @@ function parseLevel(raw){
         if (seen.has(w)){ errors.push(`Từ "${w}" xuất hiện nhiều lần trên bàn.`); return; }
         seen.set(w, true);
         if (topicWords.has(w)) errors.push(`Từ "${w}" là tên chủ đề của một nhóm khác — chỉ được sinh ra qua COLLAPSE, không đặt sẵn trên bàn.`);
-        box.tiles[k] = makeTile(w, gid, false);
+        const t = makeTile(w, gid, false);
+        const cb = (raw.cardBlockers || {})[w] || {};
+        if (isCount(cb.ice)) t.ice = { need: cb.ice, have: 0 };
+        if (typeof cb.key === 'string' && cb.key) t.key = cb.key;
+        box.tiles[k] = t;
       });
       stack.boxes.push(box);
     });
@@ -722,9 +786,10 @@ function parseLevel(raw){
    PHẦN 3 — BỘ GIẢI (greedy best-first, có ngân sách)
    Dùng cho: nút Gợi ý + kiểm tra level trong trình xếp màn.
    ========================================================================== */
+// Thẻ băng mã thêm số nước còn lại. Hộp khoá và ổ không mã — suy từ bố cục thẻ.
 function stateKey(s){
   return s.stacks.map(st =>
-    st.boxes.map(b => boxTiles(b).map(t => t.label).sort().join(',')).join('|')
+    st.boxes.map(b => boxTiles(b).map(t => isFrozen(t) ? t.label + '~' + (t.ice.need - t.ice.have) : t.label).sort().join(',')).join('|')
   ).join('#');
 }
 
@@ -754,12 +819,12 @@ function legalMoves(s){
   const out = [];
   for (let i = 0; i < s.stacks.length; i++){
     const src = s.stacks[i].boxes[0];
-    if (!src) continue;
+    if (!src || !isBoxOpen(s, src)) continue;
     for (let j = 0; j < s.stacks.length; j++){
       if (i === j) continue;
       const dst = s.stacks[j].boxes[0];
-      if (!dst || freeSlots(dst) === 0) continue;
-      for (const t of src.tiles) if (t) out.push({ from: s.stacks[i].id, tileId: t.id, to: s.stacks[j].id, label: t.label });
+      if (!dst || freeSlots(dst) === 0 || !isBoxOpen(s, dst)) continue;
+      for (const t of src.tiles) if (t && !isFrozen(t)) out.push({ from: s.stacks[i].id, tileId: t.id, to: s.stacks[j].id, label: t.label });
     }
   }
   return out;
