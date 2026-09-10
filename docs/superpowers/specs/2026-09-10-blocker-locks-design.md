@@ -12,7 +12,7 @@ tiếp và nó tự mở.
 |---|---|---|---|
 | Hộp khoá | một hộp | số nhóm đã gom trên toàn bàn | đủ N nhóm |
 | Thẻ băng | một thẻ | số nước đi, chỉ tính khi thẻ đã lộ ở hộp trên cùng | đủ N nước |
-| Chìa khoá | một hộp | nhóm chỉ định bị gom | nhóm đó nổ |
+| Chìa khoá | một hộp mang ổ | thẻ mang chìa cùng id bị gom | thẻ đó biến mất khỏi bàn |
 
 Đây là điều kiện chi phối: **không blocker nào thêm loại nước đi mới**. Game vẫn chỉ có
 một hành động là kéo thẻ từ hộp trên cùng sang hộp trên cùng khác. Nhờ vậy Solver không
@@ -25,7 +25,7 @@ phải học cách sinh nước đi mới, nó chỉ cần biết nước nào b
 | 1 | "Clear một hộp" đếm theo gì? | Mỗi lần gom đủ 4 thẻ cùng nhóm, kể cả COLLAPSE. Dùng thẳng `Game.Cleared` |
 | 2 | Hộp khoá cấm gì? | **Cả hai chiều** — không nhặt ra, không thả vào, và không tự nổ khi đủ bộ |
 | 3 | Thẻ băng có tính vào bộ 4? | **Không**. Nó chiếm ô như đá cho tới khi tan |
-| 4 | Chìa hoạt động ra sao? | Tự động: gom xong nhóm chìa thì hộp mở ngay trong cùng dây chuyền |
+| 4 | Chìa hoạt động ra sao? | Chìa gắn trên một **thẻ**, ổ gắn trên một **hộp**, ghép cặp bằng id. Thẻ chìa bị gom là hộp mở ngay trong cùng dây chuyền, không có vật phẩm chìa phải nhặt |
 
 Quyết định 3 an toàn **vì và chỉ vì** điều kiện gỡ là số nước đi. Nước đi luôn tăng nên
 băng chắc chắn tan, không có thế chết cứng. Nếu sau này đổi băng sang gỡ bằng số nhóm đã
@@ -45,8 +45,8 @@ trong ván đã hỏng mà không ai báo.
 
 Ba blocker ở đây giữ được bất biến:
 
-- **Hộp khoá và chìa** — bộ đếm chỉ tăng, không bao giờ lùi, và cổng xuất bản đã chứng
-  minh màn gom hết được, nên điều kiện mở luôn tới nơi.
+- **Hộp khoá và hộp có ổ** — số nhóm đã gom chỉ tăng, thẻ đã biến mất không quay lại, và
+  cổng xuất bản đã chứng minh màn gom hết được, nên điều kiện mở luôn tới nơi.
 - **Thẻ băng** — số nước đi luôn tăng nên băng chắc chắn tan.
 
 Người chơi tự đi vào thế bí trước khi khoá mở thì `CheckStatus` báo kẹt như thường, đó là
@@ -65,12 +65,16 @@ Lock {
     Kind     : Clears | Moves | Key
     Need     : int
     Have     : int       // chỉ có nghĩa với Kind = Moves
-    KeyGroup : string    // chỉ có nghĩa với Kind = Key
+    KeyId    : string    // chỉ có nghĩa với Kind = Key — id chìa mà hộp này cần
 }
 ```
 
 Gắn `Lock` lên `Box` (Kind = Clears hoặc Key) và lên `Tile` (Kind = Moves). Một hàm
 `IsOpen(Game g)` trả lời cho cả ba, một chỗ mã hoá cho Solver, một chỗ kiểm dữ liệu.
+
+Thẻ mang chìa **không bị khoá gì**, nó kéo và gom như thẻ thường, nên chìa không nằm trong
+`Lock` mà là một field riêng `Tile.KeyId`. Hộp `Kind = Key` mở khi trên bàn không còn thẻ
+nào có `KeyId` bằng của nó.
 
 Bản này chỉ nhận đúng ba tổ hợp trên; tổ hợp khác (thẻ khoá bằng số nhóm, hộp khoá bằng
 số nước) bị kiểm dữ liệu từ chối. Mở thêm khi có nhu cầu thật.
@@ -82,15 +86,15 @@ vẫn đúng sau thay đổi này, với hai loại khoá gắn trên hộp:
 
 - **Clears**: mỗi nhóm chỉ gom được đúng một lần, nên cùng một bố cục thẻ luôn ứng với
   cùng một số nhóm đã gom. `Cleared` suy ra được từ nội dung, không cần mã hoá lại.
-- **Key**: "nhóm X đã gom" tương đương "không còn thẻ nào của nhóm X trên bàn", cũng suy
-  ra được từ nội dung.
+- **Key**: "thẻ chìa đã bị gom" tương đương "thẻ đó không còn trên bàn". Chìa là thuộc
+  tính cố định của thẻ, mà bộ mã hoá đã ghi id thẻ, nên cũng suy ra được từ nội dung.
 
 Chỉ **Moves** phải mã hoá thêm, vì số nước đã trôi qua kể từ lúc thẻ lộ ra phụ thuộc
 đường đi chứ không phải bố cục. Nên chỉ màn có thẻ băng mới kiểm chậm hơn.
 
 ## 4. Luật chi tiết
 
-### 4.1 Hộp khoá (Clears) và hộp chìa (Key)
+### 4.1 Hộp khoá (Clears) và hộp có ổ (Key)
 
 | Điểm chạm | Luật |
 |---|---|
@@ -144,10 +148,10 @@ ngoài luật kiểm ở Mục 5, nhưng thứ tự gỡ phải rõ để bộ g
 
 | Tình huống | Xử lý |
 |---|---|
-| Thẻ băng thuộc nhóm chìa | Băng tan trước vì nước đi luôn tăng, rồi nhóm gom được, rồi hộp mở. Chuỗi điều kiện, không phải vòng: bộ đếm băng không phụ thuộc hộp khoá |
+| Thẻ vừa băng vừa mang chìa | Cặp được phép trong bảng tương thích. Băng tan trước vì nước đi luôn tăng, rồi thẻ gom được cùng nhóm, rồi hộp mở. Chuỗi điều kiện, không phải vòng: bộ đếm băng không phụ thuộc hộp có ổ |
 | Thẻ băng nằm trong hộp khoá đang ở trên cùng | Băng vẫn đếm vì thẻ đang lộ. Khoá chặn truy cập, băng chặn di chuyển, hai bộ đếm chạy độc lập. Lúc hộp mở có thể băng đã tan |
 | Thẻ băng nằm dưới hộp khoá | Không đếm cho tới khi hộp trên mở rồi bị xoá — đúng luật "chỉ đếm khi lộ" |
-| Thẻ nhóm chìa nằm trong hoặc dưới hộp mà nhóm đó mở | Cấm ở luật kiểm 6, khoá vĩnh viễn |
+| Thẻ chìa, hoặc thẻ cùng nhóm với nó, nằm trong hoặc dưới hộp mà chìa đó mở | Cấm ở luật kiểm 6, khoá vĩnh viễn |
 | Hộp `locked` cần nhiều nhóm hơn số nhóm còn gom được | Không bắt được bằng kiểm dữ liệu, để cổng xuất bản bắt |
 
 ## 5. Định dạng dữ liệu màn
@@ -166,50 +170,52 @@ blocker, gặp id lạ thì từ chối, nên field khác thêm vào thẻ hay h
 "meaning": { "groups": [
   { "id": "fruit", "text": "Fruit", "cards": [
       { "id": "banana", "text": "Banana", "blockers": { "ice": 5 } },
-      { "id": "apple",  "art": "apple" }
+      { "id": "apple",  "art": "apple",   "blockers": { "key": "k1" } }
   ]}
 ]},
 "layout": { "stacks": [
   { "pos": [0,0], "boxes": [
-      { "slots": ["apple","banana",null,null], "blockers": { "locked": 3 } },
-      { "slots": ["grape","plum",null,null],   "blockers": { "key": "fruit" } }
+      { "slots": ["apple","banana",null,null], "blockers": { "locked": 3 } }
+  ]},
+  { "pos": [1,0], "boxes": [
+      { "slots": ["grape","plum",null,null],   "blockers": { "keylock": "k1" } }
   ]}
 ]}
 ```
 
 Bảng id blocker của bản này. Đây là **sổ đăng ký**: blocker mới phải thêm một dòng vào đây
-trước khi được dùng trong data.
+trước khi được dùng trong data. Lock and Key là một blocker nhưng có hai nửa, mỗi nửa một id.
 
-| id | gắn vào | tham số | mở khi |
+| id | gắn vào | tham số | ý nghĩa |
 |---|---|---|---|
-| `locked` | hộp | số nguyên ≥ 1 | `Cleared` đạt số đó |
-| `key` | hộp | id nhóm | nhóm đó nổ |
-| `ice` | thẻ | số nguyên ≥ 1 | đủ số nước kể từ lúc thẻ lộ ở hộp trên cùng |
+| `locked` | hộp | số nguyên ≥ 1 | hộp đóng cho tới khi `Cleared` đạt số đó |
+| `keylock` | hộp | id chìa | hộp đóng cho tới khi thẻ mang `key` cùng id biến mất khỏi bàn |
+| `ice` | thẻ | số nguyên ≥ 1 | thẻ bất động cho tới khi đủ số nước kể từ lúc lộ ở hộp trên cùng |
+| `key` | thẻ | id chìa | **không khoá gì**; thẻ này bị gom là mở mọi hộp `keylock` cùng id |
 
-`Game.Build` chép `blockers` của entry thẻ sang `Tile.Lock` và của hộp sang `Box.Lock`
-(Mục 3). Sau khi dựng bàn, luật không đọc lại data.
+`Game.Build` chép `ice` sang `Tile.Lock`, `key` sang `Tile.KeyId`, và blocker của hộp sang
+`Box.Lock` (Mục 3). Sau khi dựng bàn, luật không đọc lại data.
 
 Luật kiểm dữ liệu thêm:
 
 1. Mọi key trong `blockers` phải có trong sổ đăng ký, và đúng chỗ: id của hộp không được
    nằm trên thẻ, id của thẻ không được nằm trên hộp.
-2. Hộp mang **tối đa một** blocker. `locked` và `key` không đi cùng nhau.
+2. Hộp mang **tối đa một** blocker. `locked` và `keylock` không đi cùng nhau.
 3. Thẻ mang từ hai blocker trở lên phải theo **bảng tương thích** — một bảng khai cặp id nào
-   được phép đứng chung trên một thẻ. Bản này bảng còn trống vì thẻ mới có `ice`; validator
-   đã đọc bảng từ đầu để blocker thẻ thứ hai chỉ cần thêm dòng, không sửa code kiểm.
+   được phép đứng chung trên một thẻ. Bản này bảng có đúng một cặp: `ice` + `key`. Blocker
+   thẻ thứ ba chỉ cần thêm dòng, không sửa code kiểm.
 4. `locked` và `ice` là số nguyên ≥ 1.
-5. `key` trỏ nhóm có thật, và phải là **nhóm lá** (không nhóm con nào trỏ vào nó).
-6. Nhóm chìa không được có thẻ nào nằm trong hộp mà nó mở, **hoặc trong bất kỳ hộp nào bên
-   dưới hộp đó trong cùng chồng**. Hộp khoá không lấy thẻ ra được nên không bao giờ rỗng,
-   không bao giờ bị xoá, hộp dưới nó không lộ ra chừng nào chưa mở — thẻ chìa nằm dưới là
-   khoá vĩnh viễn.
+5. `keylock` phải trỏ một id chìa có **đúng một** thẻ mang. Một chìa mở được nhiều hộp cùng
+   id thì được; hai thẻ cùng mang một id chìa thì từ chối, để không phải định nghĩa "mở khi
+   thẻ nào biến mất".
+6. Thẻ chìa **và mọi thẻ cùng nhóm với nó** không được nằm trong hộp mà chìa đó mở, hoặc
+   trong bất kỳ hộp nào bên dưới hộp đó trong cùng chồng. Hộp có ổ không lấy thẻ ra được nên
+   không bao giờ rỗng, không bao giờ bị xoá, hộp dưới nó không lộ ra chừng nào chưa mở. Thẻ
+   chìa nằm dưới là khoá vĩnh viễn; thẻ cùng nhóm nằm dưới cũng vậy, vì chìa chỉ bị gom khi
+   cả nhóm về chung một hộp.
 
-Luật 5 là bắt buộc chứ không phải cho gọn. Nhóm cha chưa có thẻ nào trên bàn cho tới khi
-nhóm con COLLAPSE, nên "không còn thẻ nào của nhóm đó" đúng ngay từ đầu màn và hộp mở
-toang. Muốn dùng nhóm cha làm chìa thì phải lưu cờ "đã gom", tức là nở không gian tìm
-kiếm — để ngoài phạm vi.
-
-Luật 6 chỉ bắt được vòng khoá trực tiếp. Vòng gián tiếp qua nhiều hộp để cổng xuất bản bắt.
+Luật 6 chỉ bắt được vòng trực tiếp trong một chồng. Vòng gián tiếp qua nhiều hộp, ví dụ
+thẻ cùng nhóm với chìa bị kẹt vì một hộp `locked` khác, để cổng xuất bản bắt.
 
 ## 6. Bộ giải và cổng xuất bản
 
@@ -230,7 +236,8 @@ Thêm một mục vào `SelfCheck`, dựng bàn tay như mục Undo đang làm:
 - Hộp khoá: không nhặt ra, không thả vào, không tự nổ khi đủ bộ; gom đủ N nhóm thì mở.
 - Thẻ băng: không kéo được; ba thẻ cùng nhóm quanh nó không nổ; đủ N nước thì tan và nhóm
   nổ ngay trong cùng nhịp.
-- Chìa: gom nhóm chìa thì hộp mở; nhóm khác nổ thì không mở.
+- Chìa: gom nhóm chứa thẻ chìa thì hộp mở, nhóm khác nổ thì không; thẻ vừa băng vừa chìa
+  thì tan rồi gom mới mở.
 - Kiểm dữ liệu từ chối đủ 6 trường hợp ở Mục 5, kể cả id blocker lạ và id đặt sai chỗ.
 - Ba màn hiện có vẫn xanh ở cả hai chế độ.
 
@@ -249,9 +256,9 @@ Nhịp 3 có thể hoãn: cho tới lúc đó, màn có blocker viết tay bằn
 
 - Chìa là vật phẩm nằm trên bàn, phải kéo tới hộp khoá. Cần thêm loại nước đi mới, Solver
   và cổng xuất bản đều phải sửa lớn.
-- Nhóm cha làm chìa (xem Mục 5, luật 5).
-- Blocker trên thẻ do COLLAPSE sinh ra giữa ván. Thẻ đó không có entry trong `cards`, nên
-  muốn khoá nó thì `blockers` phải đặt được trên entry nhóm — chưa cần.
+- Blocker hay chìa trên thẻ do COLLAPSE sinh ra giữa ván. Thẻ đó không có entry trong
+  `cards`, nên muốn khoá nó hay cho nó mang chìa thì `blockers` phải đặt được trên entry
+  nhóm — chưa cần.
 - Băng lan sang thẻ kề, hoặc bất kỳ vật cản nào tự biến đổi khi người chơi không làm gì.
 - Booster mới để phá vật cản.
 - Hình động khi khoá mở và khi băng vỡ. Nhịp 2 chỉ cần trạng thái tĩnh đọc được.
