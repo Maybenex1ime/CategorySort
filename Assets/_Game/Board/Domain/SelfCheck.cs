@@ -724,6 +724,19 @@ namespace WordStack.Board
                 foreach (int s in new[] { 0, 2, 3, 4 })
                     g4.Stacks[s].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
                 Ok(!g4.CanShuffle(), "Xáo: ô trống toàn nằm trong hộp đóng thì không xáo được");
+
+                // Vùng bấm được của bàn chơi hỏi đúng hàm này (BoardController.RefreshZones),
+                // nên khoá nó ở đây là khoá luôn cả hover lẫn nhấc thẻ.
+                var g5 = load(true);
+                var openBox = g5.TopBox(0);
+                Ok(g5.IsPullable(openBox.Slots[0], openBox), "thẻ thường ở hộp mở thì nhấc được");
+                openBox.Slots[0].Lock = new Lock { Kind = LockKind.Moves, Need = 3 };
+                Ok(!g5.IsPullable(openBox.Slots[0], openBox), "thẻ băng thì không nhấc được");
+                Ok(g5.IsPullable(openBox.Slots[1], openBox), "thẻ bên cạnh vẫn nhấc được");
+                g5.Stacks[1].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                var closedBox = g5.TopBox(1);
+                foreach (var tt in closedBox.Slots)
+                    if (tt != null) Ok(!g5.IsPullable(tt, closedBox), "mọi thẻ trong hộp đóng đều không nhấc được");
             }
 
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");

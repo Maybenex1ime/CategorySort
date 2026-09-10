@@ -664,6 +664,7 @@ namespace WordStack.Board
             RefreshTileVisuals(from);
             RefreshTileVisuals(to);
             RefreshZones();
+            RefreshBlockerVisuals();   // băng đếm ở MỌI stack, không riêng from/to
             ReportResultIfFinished();
             LevelSignals.RaiseMoveCommitted(g.Moves);       // tầng meta: vào phase Evaluating
             StartCoroutine(Settle(flyDur));                 // để thẻ hạ cánh rồi mới cascade
@@ -792,6 +793,7 @@ namespace WordStack.Board
             CheckInvariant("settle");
             locked = false;
             RefreshBoosterAvailability();
+            RefreshBlockerVisuals();   // một lần gom có thể vừa mở hộp khoá hoặc hộp có ổ
 
             // Cascade đã tính xong. hadCascade = có animation vừa chạy → tầng meta
             // vào Animating, rồi RaiseAnimationCompleted đưa về Playing.
@@ -893,6 +895,7 @@ namespace WordStack.Board
             boxViews[s].ResetVisual();
             stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1, TilesInSecondBox(g.Stacks[s]));
             SpawnTiles(s);                                 // thẻ của hộp vừa lộ
+            RefreshBlockerVisuals();                       // hộp vừa lộ có thể đang khoá
         }
 
         void SpawnTiles(int s)
@@ -1029,6 +1032,11 @@ namespace WordStack.Board
                     {
                         var t = box.Slots[i];
                         if (t == null) continue;
+                        // Thẻ băng và thẻ trong hộp đóng: không hover, không nhấc. Hover() và
+                        // BeginDrag() đều duyệt cùng danh sách này nên bỏ ở đây là bỏ cả hai.
+                        // Zone Stack bên dưới vẫn giữ: thả VÀO hộp đóng thì MoveTile từ chối và
+                        // Drop() cho hộp rung, rõ hơn là im lặng nuốt thao tác.
+                        if (!g.IsPullable(t, box)) continue;
                         zones.Add(new Zone
                         {
                             Rect = RectAt(pos + SlotOffset(i), Vector2.one * SlotSize),
@@ -1041,6 +1049,42 @@ namespace WordStack.Board
                     Kind = ZoneKind.Stack, Stack = s
                 });
             }
+        }
+
+        // Trạng thái blocker đổi ở bốn thời điểm: dựng bàn, sau mỗi nước đi (băng đếm),
+        // khi hộp dưới lộ ra, và cuối cascade (một lần gom có thể mở hộp khoá hoặc hộp có ổ).
+        // Quét cả bàn thay vì lần theo từng thay đổi: bàn tối đa vài chục ô, và bỏ sót một
+        // chỗ thì hình nói dối về thứ người chơi bấm được.
+        void RefreshBlockerVisuals()
+        {
+            if (g == null || boxViews == null) return;
+            for (int s = 0; s < g.Stacks.Count; s++)
+            {
+                var box = g.TopBox(s);
+                if (box == null) continue;
+
+                bool closed = !g.IsOpen(box.Lock);
+                if (boxViews[s] != null) boxViews[s].SetLock(closed, LockLabel(box.Lock));
+
+                for (int i = 0; i < box.Slots.Length; i++)
+                {
+                    var t = box.Slots[i];
+                    if (t == null) continue;
+                    TileView tv;
+                    if (!tiles.TryGetValue(t.Uid, out tv) || tv == null) continue;
+                    bool frozen = Game.IsFrozen(t);
+                    tv.SetIce(frozen, frozen ? t.Lock.Need - t.Lock.Have : 0);
+                }
+            }
+        }
+
+        // Hộp khoá hiện số nhóm CÒN CẦN; hộp có ổ hiện id chìa. Hộp đã mở không có nhãn.
+        string LockLabel(Lock l)
+        {
+            if (g == null) return null;
+            if (l.Kind == LockKind.Clears) return Mathf.Max(l.Need - g.Cleared, 0).ToString();
+            if (l.Kind == LockKind.Key) return l.KeyId;
+            return null;
         }
 
         // HUD prototype (HudView) đã bỏ — HUD thật là GamePlayUIRoot của tầng meta.
@@ -1082,6 +1126,7 @@ namespace WordStack.Board
 
             FitCamera();
             RefreshZones();
+            RefreshBlockerVisuals();
             ReportResultIfFinished();
             CheckInvariant("build");
         }
