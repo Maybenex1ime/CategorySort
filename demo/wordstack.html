@@ -1629,7 +1629,7 @@ $('#btnHint').onclick = () => {
 function naiveHint(){
   const tops = state.stacks.map(s => s.boxes[0]).filter(Boolean);
   const map = new Map();
-  tops.forEach((b, i) => boxTiles(b).forEach(t => {
+  tops.forEach((b, i) => boxTiles(b).filter(t => canPick(state, b, t)).forEach(t => {   // thẻ băng / hộp đóng: chưa đụng được thì đừng gợi ý
     if (!map.has(t.groupId)) map.set(t.groupId, []);
     map.get(t.groupId).push({ label:t.label, box:i });
   }));

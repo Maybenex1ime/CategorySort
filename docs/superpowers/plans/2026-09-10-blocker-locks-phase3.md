@@ -930,6 +930,8 @@ Trong handler `pointermove`, đổi điều kiện tô viền đích:
 
 Thả vào hộp đóng thì `applyMove` trả `reason: 'Hộp đang khoá'` và `endDrag` sẵn có đã cho hộp rung kèm toast — không phải sửa.
 
+Nút Gợi ý hết ngân sách bộ giải (6000) thì rơi về `naiveHint`, hàm này ghép cặp mọi thẻ ở hộp trên — kể cả thẻ băng và thẻ trong hộp đóng. Lọc bằng `boxTiles(b).filter(t => canPick(state, b, t))`. (Bổ sung lúc thực thi: kiểm tay bắt được gợi ý chỉ vào thẻ trong hộp có ổ.)
+
 - [ ] **Step 4: Tab Xếp level — blocker hộp**
 
 Trong `edRender`, thay đoạn mở đầu mỗi dòng hộp:
