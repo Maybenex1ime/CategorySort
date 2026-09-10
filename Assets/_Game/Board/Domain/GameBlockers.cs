@@ -76,6 +76,51 @@ namespace WordStack.Board
         /// <summary>Booster hút/xáo được thẻ này không: không băng, và hộp chứa nó đang mở.</summary>
         public bool IsPullable(Tile t, Box b) { return !IsFrozen(t) && IsOpen(b.Lock); }
 
+        /// <summary>
+        /// Sau mỗi nước đi thành công: mọi thẻ băng đang ở hộp trên cùng tiến một bước.
+        /// Đếm cả thẻ trong hộp đang khoá ở trên cùng (nó đang lộ), không đếm thẻ chìm.
+        /// Tan thì Lock về default — thẻ tan không khác gì thẻ thường, kể cả với Encode.
+        /// </summary>
+        void TickIce()
+        {
+            foreach (var st in Stacks)
+            {
+                if (st.Boxes.Count == 0) continue;
+                var top = st.Boxes[0];
+                for (int i = 0; i < top.Slots.Length; i++)
+                {
+                    var t = top.Slots[i];
+                    if (t == null || t.Lock.Kind != LockKind.Moves) continue;
+                    t.Lock.Have++;
+                    if (t.Lock.Have >= t.Lock.Need) t.Lock = default(Lock);
+                }
+            }
+        }
+
+        /// <summary>
+        /// Có ít nhất một nước đi mà MoveTile sẽ nhận không. Soi đúng các chốt của MoveTile
+        /// (hộp đóng hai đầu, thẻ băng, hộp đích đầy) mà không mutate.
+        /// </summary>
+        public bool HasAnyMove()
+        {
+            for (int from = 0; from < Stacks.Count; from++)
+            {
+                var src = TopBox(from);
+                if (src == null || !IsOpen(src.Lock)) continue;
+                bool movable = false;
+                foreach (var t in src.Slots) if (t != null && !IsFrozen(t)) { movable = true; break; }
+                if (!movable) continue;
+
+                for (int to = 0; to < Stacks.Count; to++)
+                {
+                    if (to == from) continue;
+                    var dst = TopBox(to);
+                    if (dst != null && IsOpen(dst.Lock) && FreeCount(dst) > 0) return true;
+                }
+            }
+            return false;
+        }
+
         bool KeyOnBoard(string keyId)
         {
             foreach (var st in Stacks)

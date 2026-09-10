@@ -434,6 +434,62 @@ namespace WordStack.Board
                    "IsCount: số nguyên ≥ 1");
             }
 
+            // 8b. Nước đi và bộ đếm băng
+            {
+                var g = load(true);
+                g.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 1 };
+                Ok(!g.MoveTile(2, uidOf(g, "d4"), 0), "hộp khoá: không nhặt thẻ ra");
+                Ok(!g.MoveTile(0, uidOf(g, "c1"), 2), "hộp khoá: không thả thẻ vào");
+                Ok(g.MoveTile(0, uidOf(g, "c1"), 3), "hộp mở khác vẫn nhận thẻ như thường");
+
+                var g2 = load(true);
+                var ice = g2.TopBox(0).Slots[0];   // c1
+                ice.Lock = new Lock { Kind = LockKind.Moves, Need = 2 };
+                Ok(!g2.MoveTile(0, ice.Uid, 3), "thẻ băng không kéo đi được");
+                Ok(g2.MoveTile(0, uidOf(g2, "c2"), 3), "nước hợp lệ thứ nhất");
+                Ok(Game.IsFrozen(ice) && ice.Lock.Have == 1, "sau một nước, băng đếm 1");
+                Ok(g2.MoveTile(3, uidOf(g2, "c2"), 4), "nước hợp lệ thứ hai");
+                Ok(!Game.IsFrozen(ice), "đủ hai nước thì băng tan");
+                Ok(g2.MoveTile(0, ice.Uid, 4), "tan rồi thì kéo được");
+
+                var g3 = load(true);
+                var buried = g3.Stacks[0].Boxes[1].Slots[0];   // c3, đang chìm
+                buried.Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
+                Ok(g3.MoveTile(0, uidOf(g3, "c1"), 4), "nước hợp lệ");
+                Ok(Game.IsFrozen(buried) && buried.Lock.Have == 0, "thẻ băng còn chìm thì không đếm");
+
+                var g4 = load(true);
+                var ice4 = g4.TopBox(0).Slots[0];
+                ice4.Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
+                Ok(!g4.MoveTile(0, uidOf(g4, "c2"), 0), "thả về chính stack bị từ chối");
+                Ok(Game.IsFrozen(ice4) && ice4.Lock.Have == 0, "nước bị từ chối không giảm băng");
+
+                // Băng trong hộp khoá đang ở trên cùng vẫn đếm — thẻ đang lộ (spec 4.4).
+                var g5 = load(true);
+                g5.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                var iceInLocked = g5.TopBox(2).Slots[0];
+                iceInLocked.Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
+                Ok(g5.MoveTile(0, uidOf(g5, "c1"), 4), "nước hợp lệ");
+                Ok(!Game.IsFrozen(iceInLocked), "băng trong hộp khoá ở trên cùng vẫn tan theo nước đi");
+
+                // Kẹt phải là "hết nước đi hợp lệ", không phải "hết ô trống" — nếu không mọi
+                // thẻ lộ đều băng là thua ngầm (spec 2.1).
+                var g6 = load(true);
+                foreach (var st in g6.Stacks)
+                    if (st != g6.Stacks[4]) st.Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 99 };
+                Ok(!g6.HasAnyMove() && g6.CheckStatus() == GameStatus.Stuck,
+                   "còn ô trống ở stack rỗng mà không thẻ nào nhặt ra được → kẹt");
+
+                var g7 = load(true);
+                foreach (var st in g7.Stacks)
+                    foreach (var t in st.Boxes[0].Slots)
+                        if (t != null) t.Lock = new Lock { Kind = LockKind.Moves, Need = 99 };
+                Ok(g7.CheckStatus() == GameStatus.Stuck, "mọi thẻ lộ đều băng → kẹt thật, không thua ngầm");
+
+                var g8 = load(true);
+                Ok(g8.HasAnyMove() && g8.CheckStatus() == GameStatus.Playing, "bàn thường vẫn Playing");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }

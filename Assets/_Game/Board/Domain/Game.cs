@@ -123,8 +123,11 @@ namespace WordStack.Board
             var src = TopBox(from);
             var dst = TopBox(to);
             if (src == null || dst == null) return false;
+            // Hộp đóng: không nhặt ra, không thả vào (spec 4.1).
+            if (!IsOpen(src.Lock) || !IsOpen(dst.Lock)) return false;
             int i = Array.FindIndex(src.Slots, t => t != null && t.Uid == uid);
             if (i < 0) return false;                       // không phải thẻ của top box
+            if (IsFrozen(src.Slots[i])) return false;      // thẻ băng đứng yên (spec 4.2)
             int j = preferSlot >= 0 && preferSlot < dst.Slots.Length && dst.Slots[preferSlot] == null
                   ? preferSlot
                   : Array.FindIndex(dst.Slots, t => t == null);
@@ -136,6 +139,8 @@ namespace WordStack.Board
             dst.Slots[j] = src.Slots[i];
             src.Slots[i] = null;
             Moves++;
+            // Nước đi → giảm băng → (bên gọi) dây chuyền. Chỉ nước thành công mới tới đây.
+            TickIce();
             return true;
         }
 
@@ -226,11 +231,14 @@ namespace WordStack.Board
             return this;
         }
 
+        // Kẹt = không còn nước đi hợp lệ nào. Trước đây là "mọi hộp trên cùng đều đầy" —
+        // hai định nghĩa trùng nhau khi không có blocker, nhưng với hộp đóng và thẻ băng
+        // thì "còn ô trống" không còn nghĩa là "còn đi được", và báo Playing lúc đó là
+        // thua ngầm (spec 2.1).
         public GameStatus CheckStatus()
         {
             if (TotalTiles() == 0) return GameStatus.Won;
-            foreach (var st in Stacks) if (FreeCount(st.Boxes[0]) > 0) return GameStatus.Playing;
-            return GameStatus.Stuck;
+            return HasAnyMove() ? GameStatus.Playing : GameStatus.Stuck;
         }
 
         // Cấp màu CỤC BỘ theo từng box, theo thứ tự thẻ xuất hiện. Group có ≥2 thẻ mới
