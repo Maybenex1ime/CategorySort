@@ -775,6 +775,253 @@ function solve(start, budget){
 }
 
 /* ==========================================================================
+   PHẦN 3b — ĐỊNH DẠNG FILE GAME (thuần hàm — demo/tool-check.mjs tách từ PHẦN 1
+   tới hết phần này, nên KHÔNG được đụng DOM hay localStorage ở đây)
+   ========================================================================== */
+/* ---------- File level = format game (meaning/layout) ----------
+   Tool làm việc nội bộ bằng cấu trúc words/tiles cho nhẹ, nhưng FILE JSON ra/vào
+   (Xuất JSON / Nhập JSON / Tải JSON ở tab CSV) là ĐÚNG format game đọc trong
+   Assets/_Game/Content/Levels/:
+   - label → card id kebab không dấu ("Xe cứu thương" → "xe-cuu-thuong");
+   - COLLAPSE suy từ tên chủ đề → field "group" (id nhóm cha) tường minh;
+   - icon emoji ↔ art key theo mã codepoint ("🍎" ↔ "1f34e", bỏ FE0F — trùng tên
+     file pack kiểu Twemoji, thả 1f34e.png vào Assets/_Game/Content/Resources/Art/);
+     key ASCII ("apple") giữ nguyên để dùng sprite có sẵn;
+   - stack thứ i → pos [i % cols, floor(i / cols)].
+   Chỉ xuất khi qua HẾT luật game (capacity 4, nhóm đúng 4 từ, đủ từ trên bàn,
+   không box rỗng giữa chừng, mỗi ảnh một chủ) —
+   file tải về là để thả thẳng vào Content/Levels rồi chạy ./selfcheck.sh. */
+function slugify(s){
+  s = String(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
+      .replace(/đ/g, 'd').replace(/Đ/g, 'D')
+      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+  return s || 'card';
+}
+function emojiArtKey(icon){
+  if (/^[\x20-\x7e]+$/.test(icon)) return icon;             // key ASCII: giữ nguyên
+  return Array.from(icon).map(c => c.codePointAt(0))
+    .filter(cp => cp !== 0xFE0F)
+    .map(cp => cp.toString(16)).join('-');
+}
+function artKeyToIcon(key){
+  // Chỉ giải mã khi chắc là mã codepoint (có '-', hoặc nằm vùng emoji ≥ U+1F000) —
+  // tên sprite thường ("cafe", "dad") tuy toàn hex nhưng không được đụng vào.
+  if (!/^[0-9a-f]+(-[0-9a-f]+)*$/.test(key)) return key;
+  const cps = key.split('-').map(h => parseInt(h, 16));
+  if (cps.length === 1 && cps[0] < 0x1F000) return key;
+  try { return String.fromCodePoint(...cps); } catch (e){ return key; }
+}
+
+// Ghi JSON theo ĐÚNG lối trình bày của file level trong game (như các
+// file đang có trong Content/Levels/): mỗi box một dòng, mỗi card một dòng, mảng không xuống
+// dòng từng phần tử. JSON.stringify đúng nội dung nhưng dàn ra quá thưa, đọc và
+// diff đều cực, nên tự ghi.
+function gameJson(lv){
+  const S = s => JSON.stringify(s);
+  const o = [];
+  o.push('{');
+  o.push('  "id": ' + S(lv.id) + ',');
+  o.push('  "title": ' + S(lv.title) + ',');
+  if (lv.difficulty) o.push('  "difficulty": ' + S(lv.difficulty) + ',');
+  if (lv.moves)      o.push('  "moves": ' + lv.moves + ',');
+  if (lv.note)       o.push('  "note": ' + S(lv.note) + ',');
+  o.push('');
+  o.push('  "layout": {');
+  o.push('    "stacks": [');
+  lv.layout.stacks.forEach((st, i) => {
+    o.push('      { "pos": [' + st.pos.join(',') + '], "boxes": [');
+    st.boxes.forEach((b, k) => {
+      const slots = b.slots.map(x => x === null || x === undefined ? 'null' : S(x)).join(',');
+      o.push('          { "slots": [' + slots + '] }' + (k < st.boxes.length - 1 ? ',' : ''));
+    });
+    o.push('      ]}' + (i < lv.layout.stacks.length - 1 ? ',' : ''));
+  });
+  o.push('    ]');
+  o.push('  },');
+  o.push('');
+  o.push('  "meaning": {');
+  o.push('    "groups": [');
+  lv.meaning.groups.forEach((g, i) => {
+    let head = '      { "id":' + S(g.id);
+    if (g.text != null)  head += ', "text":' + S(g.text);
+    if (g.art != null)   head += ', "art":' + S(g.art);
+    if (g.group != null) head += ', "group":' + S(g.group);
+    o.push(head + ', "cards": [');
+    g.cards.forEach((c, k) => {
+      let line = '          { "id":' + S(c.id);
+      if (c.text != null) line += ', "text":' + S(c.text);
+      if (c.art != null)  line += ', "art":' + S(c.art);
+      o.push(line + ' }' + (k < g.cards.length - 1 ? ',' : ''));
+    });
+    o.push('      ]}' + (i < lv.meaning.groups.length - 1 ? ',' : ''));
+  });
+  o.push('    ]');
+  o.push('  }');
+  o.push('}');
+  return o.join('\n');
+}
+
+function artHits(a, key){
+  return Object.prototype.hasOwnProperty.call(a.files, key) ? a.files[key] : null;
+}
+
+// Nội bộ (groups/words/tiles) → format game. Trả { json, warnings, artFiles }
+// hoặc { errors } nếu level chưa đạt luật game.
+// artDir = artIndex() của PHẦN 6, hoặc null khi chưa nạp thư mục ảnh / khi chạy ngoài trình duyệt.
+function rawToGame(raw, artDir){
+  const errors = [], warnings = [], parsed = parseLevel(raw);
+  errors.push(...parsed.errors);
+  if (errors.length) return { errors };
+  warnings.push(...parsed.warnings);
+
+  if ((raw.boxCapacity || 4) !== 4)
+    errors.push(`Game cố định 4 slot/box — level đang để ${raw.boxCapacity}.`);
+  if (!/^lv-\d{3}$/.test(raw.id || ''))
+    warnings.push(`Mã level nên theo dạng lv-NNN (vd lv-008) — đang là "${raw.id || ''}". Game dùng mã này làm address Addressables và tên file.`);
+
+  const groups = raw.groups || [];
+  const icons = raw.icons || {};
+  // COLLAPSE: nhóm G có tên nằm trong words của P ⇒ G là con của P
+  const parentOf = {};
+  for (const g of groups){
+    const p = groups.find(o => o.id !== g.id && (o.words || []).includes(g.name));
+    if (p) parentOf[g.id] = p.id;
+  }
+  if (groups.length && Object.keys(parentOf).length === groups.length)
+    errors.push('Không có nhóm gốc nào (mọi nhóm đều là con qua COLLAPSE) — không thẻ nào biến mất được.');
+  const topicNames = new Set(groups.filter(g => parentOf[g.id]).map(g => g.name));
+
+  for (const g of groups){
+    const n = (g.words || []).filter(Boolean).length;
+    if (n !== 4) errors.push(`Nhóm "${g.name || g.id}" có ${n} từ — game cần đúng 4 (tên nhóm con cũng tính là 1 từ).`);
+  }
+
+  // Game coi từ vắng mặt trên bàn là LỖI (tool chỉ cảnh báo)
+  const used = new Set();
+  (raw.stacks || []).forEach(st => (st.boxes || []).forEach(b => (b.tiles || []).forEach(t => { if (t) used.add(t); })));
+  const placeable = [];
+  for (const g of groups)
+    for (const w of (g.words || []).filter(Boolean))
+      if (!topicNames.has(w)){
+        placeable.push(w);
+        if (!used.has(w)) errors.push(`Từ "${w}" chưa được đặt lên bàn — game bắt buộc đủ mặt.`);
+      }
+
+  // Box rỗng không phải đáy: game cấm (hộp dưới không bao giờ lộ được)
+  (raw.stacks || []).forEach((st, si) => (st.boxes || []).forEach((b, bi) => {
+    if (bi < st.boxes.length - 1 && !(b.tiles || []).some(Boolean))
+      errors.push(`Stack ${si + 1} có box ${bi + 1} rỗng nhưng không phải box đáy — game cấm.`);
+  }));
+
+  // Tên ảnh suy từ TÊN thẻ/nhóm: thẻ "Poodle" → poodle.png, nhóm "dog" → dog.png —
+  // đúng lối đặt tên trong Resources/Art. Emoji chỉ là hình xem trước lúc xếp bàn,
+  // không đi vào file level. Muốn tên file khác nhãn (thẻ "Ice cream" mà file là
+  // ice_cream.png) thì gõ thẳng tên file vào ô icon, tool dùng nguyên chuỗi đó.
+  const artKeyFor = (label, icon) =>
+    (icon && /^[\x20-\x7e]+$/.test(icon)) ? icon : slugify(label);
+
+  // Nhóm CON hoá thành một thẻ lúc COLLAPSE nên cũng cần ảnh; nhóm GỐC thì không —
+  // đủ bộ là tan, không sinh thẻ nào. Gán ảnh cho nhóm gốc vẫn được, và vẫn phải có
+  // file thật vì game kiểm mọi art được khai.
+  const cardArt = new Map(), groupArt = new Map(), artOf = new Map(), artOwner = new Map();
+  const claimArt = (who, key) => {
+    if (artOwner.has(key)) errors.push(`Ảnh "${key}" dùng cho cả ${artOwner.get(key)} và ${who} — game bắt mỗi ảnh một chủ.`);
+    else { artOwner.set(key, who); artOf.set(who, key); }
+  };
+  for (const w of placeable){
+    const k = artKeyFor(w, icons[w]);
+    cardArt.set(w, k);
+    claimArt(`Thẻ "${w}"`, k);
+  }
+  for (const g of groups){
+    if (!parentOf[g.id] && !icons[g.name]) continue;
+    const k = artKeyFor(g.name, icons[g.name]);
+    groupArt.set(g.id, k);
+    claimArt(`Nhóm "${g.name}"`, k);
+  }
+
+  if (!artDir)
+    warnings.push('Chưa nạp thư mục ảnh nên chưa kiểm được thẻ nào thiếu ảnh — bấm "🖼 Thư mục ảnh…" rồi chọn Assets/_Game/Content/Resources/Art.');
+  else
+    for (const [who, key] of artOf){
+      const hits = artHits(artDir, key);
+      if (!hits)
+        errors.push(`${who} cần ảnh "${key}.png" nhưng ${artDir.dir} không có file nào tên vậy — thêm ảnh đó, hoặc gõ đúng tên file vào ô icon.`);
+      else if (hits.length > 1)
+        errors.push(`${hits.length} ảnh trùng tên "${key}" (${hits.join(', ')}) — phải đổi tên cho khác nhau, game nạp ảnh bằng tên file nên không phân biệt được.`);
+    }
+
+  if (errors.length) return { errors };
+
+  // ---- dựng JSON game ----
+  const idOf = new Map(), taken = new Set(groups.map(g => g.id));
+  for (const w of placeable){
+    let s = slugify(w), k = s, n = 2;
+    while (taken.has(k)) k = s + '-' + (n++);
+    taken.add(k); idOf.set(w, k);
+  }
+  const cols = Math.max(1, Math.min(4, raw.cols || 2));
+  const gameLv = { id: raw.id, title: raw.title || raw.id };
+  const diff = { easy:'Normal', normal:'Normal', hard:'Hard', crazy:'Crazy' }[String(raw.difficulty || '').toLowerCase()];
+  if (diff) gameLv.difficulty = diff;
+  if (raw.moves > 0) gameLv.moves = raw.moves;
+  if (raw.note) gameLv.note = raw.note;
+  gameLv.layout = { stacks: (raw.stacks || []).map((st, i) => ({
+    pos: [i % cols, Math.floor(i / cols)],
+    boxes: (st.boxes || []).map(b => {
+      const slots = (b.tiles || []).slice(0, 4).map(t => t ? idOf.get(t) : null);
+      while (slots.length < 4) slots.push(null);
+      return { slots };
+    })
+  })) };
+  gameLv.meaning = { groups: groups.map(g => {
+    const o = { id: g.id, text: g.name };
+    if (groupArt.has(g.id)) o.art = groupArt.get(g.id);
+    if (parentOf[g.id]) o.group = parentOf[g.id];
+    o.cards = (g.words || []).filter(w => w && !topicNames.has(w))
+      .map(w => ({ id: idOf.get(w), art: cardArt.get(w) }));
+    return o;
+  }) };
+
+  const artFiles = [...artOwner.keys()].map(ic => {
+    const k = emojiArtKey(ic);
+    return k + '.png' + (k === ic ? '' : ' (' + ic + ')');
+  });
+  return { json: gameJson(gameLv), warnings, artFiles };
+}
+
+// Format game → nội bộ, để "Nhập JSON" đọc được cả file trong Content/Levels/.
+function gameToRaw(gv){
+  const groups = [], icons = {};
+  const label = {};                                  // card id → label hiển thị
+  const mGroups = (gv.meaning && gv.meaning.groups) || [];
+  for (const g of mGroups)
+    for (const c of g.cards || []){
+      label[c.id] = c.text || c.id;
+      if (c.art) icons[label[c.id]] = artKeyToIcon(c.art);
+    }
+  const nameOf = {};
+  for (const g of mGroups) nameOf[g.id] = g.text || g.id;
+  for (const g of mGroups){
+    const words = (g.cards || []).map(c => label[c.id]);
+    for (const o of mGroups) if (o.group === g.id) words.push(nameOf[o.id]);   // nhóm con = 1 từ của cha
+    if (g.art) icons[nameOf[g.id]] = artKeyToIcon(g.art);
+    groups.push({ id: g.id, name: nameOf[g.id], words });
+  }
+  const sts = ((gv.layout && gv.layout.stacks) || []).slice()
+    .sort((a, b) => (a.pos[1] - b.pos[1]) || (a.pos[0] - b.pos[0]));
+  const cols = Math.max(1, Math.min(4, 1 + Math.max(0, ...sts.map(s => Math.round(s.pos[0])))));
+  const stacks = sts.map(s => ({ boxes: (s.boxes || []).map(b => ({
+    tiles: (b.slots || []).map(id => id ? (label[id] || id) : null)
+  })) }));
+  const raw = { id: gv.id, title: gv.title, boxCapacity: 4, cols, groups, stacks, icons };
+  if (gv.difficulty) raw.difficulty = gv.difficulty;
+  if (gv.moves > 0) raw.moves = gv.moves;
+  if (gv.note) raw.note = gv.note;
+  return raw;
+}
+
+/* ==========================================================================
    PHẦN 4 — LEVEL DỰNG SẴN
    ========================================================================== */
 const BUILTIN = [
@@ -1493,89 +1740,6 @@ $('#edDelete').onclick = () => {
   edMsg('ok', 'Đã xoá khỏi danh sách đã lưu.');
 };
 
-/* ---------- File level = format game (meaning/layout) ----------
-   Tool làm việc nội bộ bằng cấu trúc words/tiles cho nhẹ, nhưng FILE JSON ra/vào
-   (Xuất JSON / Nhập JSON / Tải JSON ở tab CSV) là ĐÚNG format game đọc trong
-   Assets/_Game/Content/Levels/:
-   - label → card id kebab không dấu ("Xe cứu thương" → "xe-cuu-thuong");
-   - COLLAPSE suy từ tên chủ đề → field "group" (id nhóm cha) tường minh;
-   - icon emoji ↔ art key theo mã codepoint ("🍎" ↔ "1f34e", bỏ FE0F — trùng tên
-     file pack kiểu Twemoji, thả 1f34e.png vào Assets/_Game/Content/Resources/Art/);
-     key ASCII ("apple") giữ nguyên để dùng sprite có sẵn;
-   - stack thứ i → pos [i % cols, floor(i / cols)].
-   Chỉ xuất khi qua HẾT luật game (capacity 4, nhóm đúng 4 từ, đủ từ trên bàn,
-   không box rỗng giữa chừng, mỗi ảnh một chủ) —
-   file tải về là để thả thẳng vào Content/Levels rồi chạy ./selfcheck.sh. */
-function slugify(s){
-  s = String(s).normalize('NFD').replace(/[̀-ͯ]/g, '')
-      .replace(/đ/g, 'd').replace(/Đ/g, 'D')
-      .toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-  return s || 'card';
-}
-function emojiArtKey(icon){
-  if (/^[\x20-\x7e]+$/.test(icon)) return icon;             // key ASCII: giữ nguyên
-  return Array.from(icon).map(c => c.codePointAt(0))
-    .filter(cp => cp !== 0xFE0F)
-    .map(cp => cp.toString(16)).join('-');
-}
-function artKeyToIcon(key){
-  // Chỉ giải mã khi chắc là mã codepoint (có '-', hoặc nằm vùng emoji ≥ U+1F000) —
-  // tên sprite thường ("cafe", "dad") tuy toàn hex nhưng không được đụng vào.
-  if (!/^[0-9a-f]+(-[0-9a-f]+)*$/.test(key)) return key;
-  const cps = key.split('-').map(h => parseInt(h, 16));
-  if (cps.length === 1 && cps[0] < 0x1F000) return key;
-  try { return String.fromCodePoint(...cps); } catch (e){ return key; }
-}
-
-// Ghi JSON theo ĐÚNG lối trình bày của file level trong game (bản C#
-// LevelEditorWindow.ToJson): mỗi box một dòng, mỗi card một dòng, mảng không xuống
-// dòng từng phần tử. JSON.stringify đúng nội dung nhưng dàn ra quá thưa, đọc và
-// diff đều cực, nên tự ghi.
-function gameJson(lv){
-  const S = s => JSON.stringify(s);
-  const o = [];
-  o.push('{');
-  o.push('  "id": ' + S(lv.id) + ',');
-  o.push('  "title": ' + S(lv.title) + ',');
-  if (lv.difficulty) o.push('  "difficulty": ' + S(lv.difficulty) + ',');
-  if (lv.moves)      o.push('  "moves": ' + lv.moves + ',');
-  if (lv.note)       o.push('  "note": ' + S(lv.note) + ',');
-  o.push('');
-  o.push('  "layout": {');
-  o.push('    "stacks": [');
-  lv.layout.stacks.forEach((st, i) => {
-    o.push('      { "pos": [' + st.pos.join(',') + '], "boxes": [');
-    st.boxes.forEach((b, k) => {
-      const slots = b.slots.map(x => x === null || x === undefined ? 'null' : S(x)).join(',');
-      o.push('          { "slots": [' + slots + '] }' + (k < st.boxes.length - 1 ? ',' : ''));
-    });
-    o.push('      ]}' + (i < lv.layout.stacks.length - 1 ? ',' : ''));
-  });
-  o.push('    ]');
-  o.push('  },');
-  o.push('');
-  o.push('  "meaning": {');
-  o.push('    "groups": [');
-  lv.meaning.groups.forEach((g, i) => {
-    let head = '      { "id":' + S(g.id);
-    if (g.text != null)  head += ', "text":' + S(g.text);
-    if (g.art != null)   head += ', "art":' + S(g.art);
-    if (g.group != null) head += ', "group":' + S(g.group);
-    o.push(head + ', "cards": [');
-    g.cards.forEach((c, k) => {
-      let line = '          { "id":' + S(c.id);
-      if (c.text != null) line += ', "text":' + S(c.text);
-      if (c.art != null)  line += ', "art":' + S(c.art);
-      o.push(line + ' }' + (k < g.cards.length - 1 ? ',' : ''));
-    });
-    o.push('      ]}' + (i < lv.meaning.groups.length - 1 ? ',' : ''));
-  });
-  o.push('    ]');
-  o.push('  }');
-  o.push('}');
-  return o.join('\n');
-}
-
 /* ---------- Chỉ mục thư mục ảnh của repo ----------
    Trang web không tự đọc được ổ đĩa, nên người dùng chọn thư mục
    Assets/_Game/Content/Resources/Art một lần; tool nhớ DANH SÁCH TÊN FILE (không
@@ -1589,9 +1753,6 @@ function artIndex(){
     const o = JSON.parse(localStorage.getItem(ART_LS) || 'null');
     return o && o.files ? o : null;
   } catch (e){ return null; }
-}
-function artHits(a, key){
-  return Object.prototype.hasOwnProperty.call(a.files, key) ? a.files[key] : null;
 }
 function artInfoRender(){
   const a = artIndex(), el = $('#edArtInfo');
@@ -1624,164 +1785,8 @@ $('#edArtDir').onchange = e => {
 };
 artInfoRender();
 
-// Nội bộ (groups/words/tiles) → format game. Trả { json, warnings, artFiles }
-// hoặc { errors } nếu level chưa đạt luật game.
-function rawToGame(raw){
-  const errors = [], warnings = [], parsed = parseLevel(raw);
-  errors.push(...parsed.errors);
-  if (errors.length) return { errors };
-  warnings.push(...parsed.warnings);
-
-  if ((raw.boxCapacity || 4) !== 4)
-    errors.push(`Game cố định 4 slot/box — level đang để ${raw.boxCapacity}.`);
-  if (!/^lv-\d{3}$/.test(raw.id || ''))
-    warnings.push(`Mã level nên theo dạng lv-NNN (vd lv-008) — đang là "${raw.id || ''}". Game dùng mã này làm address Addressables và tên file.`);
-
-  const groups = raw.groups || [];
-  const icons = raw.icons || {};
-  // COLLAPSE: nhóm G có tên nằm trong words của P ⇒ G là con của P
-  const parentOf = {};
-  for (const g of groups){
-    const p = groups.find(o => o.id !== g.id && (o.words || []).includes(g.name));
-    if (p) parentOf[g.id] = p.id;
-  }
-  if (groups.length && Object.keys(parentOf).length === groups.length)
-    errors.push('Không có nhóm gốc nào (mọi nhóm đều là con qua COLLAPSE) — không thẻ nào biến mất được.');
-  const topicNames = new Set(groups.filter(g => parentOf[g.id]).map(g => g.name));
-
-  for (const g of groups){
-    const n = (g.words || []).filter(Boolean).length;
-    if (n !== 4) errors.push(`Nhóm "${g.name || g.id}" có ${n} từ — game cần đúng 4 (tên nhóm con cũng tính là 1 từ).`);
-  }
-
-  // Game coi từ vắng mặt trên bàn là LỖI (tool chỉ cảnh báo)
-  const used = new Set();
-  (raw.stacks || []).forEach(st => (st.boxes || []).forEach(b => (b.tiles || []).forEach(t => { if (t) used.add(t); })));
-  const placeable = [];
-  for (const g of groups)
-    for (const w of (g.words || []).filter(Boolean))
-      if (!topicNames.has(w)){
-        placeable.push(w);
-        if (!used.has(w)) errors.push(`Từ "${w}" chưa được đặt lên bàn — game bắt buộc đủ mặt.`);
-      }
-
-  // Box rỗng không phải đáy: game cấm (hộp dưới không bao giờ lộ được)
-  (raw.stacks || []).forEach((st, si) => (st.boxes || []).forEach((b, bi) => {
-    if (bi < st.boxes.length - 1 && !(b.tiles || []).some(Boolean))
-      errors.push(`Stack ${si + 1} có box ${bi + 1} rỗng nhưng không phải box đáy — game cấm.`);
-  }));
-
-  // Tên ảnh suy từ TÊN thẻ/nhóm: thẻ "Poodle" → poodle.png, nhóm "dog" → dog.png —
-  // đúng lối đặt tên trong Resources/Art. Emoji chỉ là hình xem trước lúc xếp bàn,
-  // không đi vào file level. Muốn tên file khác nhãn (thẻ "Ice cream" mà file là
-  // ice_cream.png) thì gõ thẳng tên file vào ô icon, tool dùng nguyên chuỗi đó.
-  const artKeyFor = (label, icon) =>
-    (icon && /^[\x20-\x7e]+$/.test(icon)) ? icon : slugify(label);
-
-  // Nhóm CON hoá thành một thẻ lúc COLLAPSE nên cũng cần ảnh; nhóm GỐC thì không —
-  // đủ bộ là tan, không sinh thẻ nào. Gán ảnh cho nhóm gốc vẫn được, và vẫn phải có
-  // file thật vì game kiểm mọi art được khai.
-  const cardArt = new Map(), groupArt = new Map(), artOf = new Map(), artOwner = new Map();
-  const claimArt = (who, key) => {
-    if (artOwner.has(key)) errors.push(`Ảnh "${key}" dùng cho cả ${artOwner.get(key)} và ${who} — game bắt mỗi ảnh một chủ.`);
-    else { artOwner.set(key, who); artOf.set(who, key); }
-  };
-  for (const w of placeable){
-    const k = artKeyFor(w, icons[w]);
-    cardArt.set(w, k);
-    claimArt(`Thẻ "${w}"`, k);
-  }
-  for (const g of groups){
-    if (!parentOf[g.id] && !icons[g.name]) continue;
-    const k = artKeyFor(g.name, icons[g.name]);
-    groupArt.set(g.id, k);
-    claimArt(`Nhóm "${g.name}"`, k);
-  }
-
-  const artDir = artIndex();
-  if (!artDir)
-    warnings.push('Chưa nạp thư mục ảnh nên chưa kiểm được thẻ nào thiếu ảnh — bấm "🖼 Thư mục ảnh…" rồi chọn Assets/_Game/Content/Resources/Art.');
-  else
-    for (const [who, key] of artOf){
-      const hits = artHits(artDir, key);
-      if (!hits)
-        errors.push(`${who} cần ảnh "${key}.png" nhưng ${artDir.dir} không có file nào tên vậy — thêm ảnh đó, hoặc gõ đúng tên file vào ô icon.`);
-      else if (hits.length > 1)
-        errors.push(`${hits.length} ảnh trùng tên "${key}" (${hits.join(', ')}) — phải đổi tên cho khác nhau, game nạp ảnh bằng tên file nên không phân biệt được.`);
-    }
-
-  if (errors.length) return { errors };
-
-  // ---- dựng JSON game ----
-  const idOf = new Map(), taken = new Set(groups.map(g => g.id));
-  for (const w of placeable){
-    let s = slugify(w), k = s, n = 2;
-    while (taken.has(k)) k = s + '-' + (n++);
-    taken.add(k); idOf.set(w, k);
-  }
-  const cols = Math.max(1, Math.min(4, raw.cols || 2));
-  const gameLv = { id: raw.id, title: raw.title || raw.id };
-  const diff = { easy:'Normal', normal:'Normal', hard:'Hard', crazy:'Crazy' }[String(raw.difficulty || '').toLowerCase()];
-  if (diff) gameLv.difficulty = diff;
-  if (raw.moves > 0) gameLv.moves = raw.moves;
-  if (raw.note) gameLv.note = raw.note;
-  gameLv.layout = { stacks: (raw.stacks || []).map((st, i) => ({
-    pos: [i % cols, Math.floor(i / cols)],
-    boxes: (st.boxes || []).map(b => {
-      const slots = (b.tiles || []).slice(0, 4).map(t => t ? idOf.get(t) : null);
-      while (slots.length < 4) slots.push(null);
-      return { slots };
-    })
-  })) };
-  gameLv.meaning = { groups: groups.map(g => {
-    const o = { id: g.id, text: g.name };
-    if (groupArt.has(g.id)) o.art = groupArt.get(g.id);
-    if (parentOf[g.id]) o.group = parentOf[g.id];
-    o.cards = (g.words || []).filter(w => w && !topicNames.has(w))
-      .map(w => ({ id: idOf.get(w), art: cardArt.get(w) }));
-    return o;
-  }) };
-
-  const artFiles = [...artOwner.keys()].map(ic => {
-    const k = emojiArtKey(ic);
-    return k + '.png' + (k === ic ? '' : ' (' + ic + ')');
-  });
-  return { json: gameJson(gameLv), warnings, artFiles };
-}
-
-// Format game → nội bộ, để "Nhập JSON" đọc được cả file trong Content/Levels/.
-function gameToRaw(gv){
-  const groups = [], icons = {};
-  const label = {};                                  // card id → label hiển thị
-  const mGroups = (gv.meaning && gv.meaning.groups) || [];
-  for (const g of mGroups)
-    for (const c of g.cards || []){
-      label[c.id] = c.text || c.id;
-      if (c.art) icons[label[c.id]] = artKeyToIcon(c.art);
-    }
-  const nameOf = {};
-  for (const g of mGroups) nameOf[g.id] = g.text || g.id;
-  for (const g of mGroups){
-    const words = (g.cards || []).map(c => label[c.id]);
-    for (const o of mGroups) if (o.group === g.id) words.push(nameOf[o.id]);   // nhóm con = 1 từ của cha
-    if (g.art) icons[nameOf[g.id]] = artKeyToIcon(g.art);
-    groups.push({ id: g.id, name: nameOf[g.id], words });
-  }
-  const sts = ((gv.layout && gv.layout.stacks) || []).slice()
-    .sort((a, b) => (a.pos[1] - b.pos[1]) || (a.pos[0] - b.pos[0]));
-  const cols = Math.max(1, Math.min(4, 1 + Math.max(0, ...sts.map(s => Math.round(s.pos[0])))));
-  const stacks = sts.map(s => ({ boxes: (s.boxes || []).map(b => ({
-    tiles: (b.slots || []).map(id => id ? (label[id] || id) : null)
-  })) }));
-  const raw = { id: gv.id, title: gv.title, boxCapacity: 4, cols, groups, stacks, icons };
-  if (gv.difficulty) raw.difficulty = gv.difficulty;
-  if (gv.moves > 0) raw.moves = gv.moves;
-  if (gv.note) raw.note = gv.note;
-  return raw;
-}
-
 $('#edExport').onclick = () => {
-  const r = rawToGame(ed);
+  const r = rawToGame(ed, artIndex());
   if (r.errors){
     edMsgHTML(`<div class="msg err"><b>❌ Chưa xuất được — ${r.errors.length} lỗi theo luật game</b>\n• ${r.errors.map(esc).join('\n• ')}</div>`);
     return;
@@ -2365,7 +2370,7 @@ $('#csvExport').onclick = () => {
   // Tải về theo ĐÚNG format game (mảng level — tách mỗi phần tử ra 1 file lv-NNN.json)
   const out = [], bad = [];
   for (const o of good){
-    const r = rawToGame(o.raw);
+    const r = rawToGame(o.raw, artIndex());
     if (r.errors) bad.push(`${o.raw.title || o.raw.id}: ${r.errors[0]}` + (r.errors.length > 1 ? ` (+${r.errors.length - 1} lỗi nữa)` : ''));
     else out.push(r.json);
   }
