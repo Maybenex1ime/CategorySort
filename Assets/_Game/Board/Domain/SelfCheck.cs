@@ -396,6 +396,44 @@ namespace WordStack.Board
                 Ok(!dropped.CanUndo && dropped.ApplyUndo() == null, "ClearUndo xoá hẳn ảnh chụp");
             }
 
+            // ---- 8. Blocker (spec 2026-09-10) ----
+            // Bàn dựng tay trên RulesLv. drain = true ở mọi chỗ cần Solver: RulesLv không
+            // giải được ở chế độ chặt (hộp trên stack 0 rỗng ra thì không tự xoá).
+            Func<Game, string, string> uidOf = (game, card) =>
+                game.Stacks.SelectMany(st => st.Boxes).SelectMany(b => b.Slots)
+                    .First(t => t != null && t.CardId == card).Uid;
+
+            // 8a. Kiểu khoá, IsOpen, Clone
+            {
+                var g = load(true);
+                g.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 1 };
+                Ok(!g.IsOpen(g.Stacks[2].Boxes[0].Lock), "hộp khoá cần 1 nhóm: chưa gom thì đóng");
+                var c = g.Clone();
+                Ok(c.Stacks[2].Boxes[0].Lock.Kind == LockKind.Clears && c.Stacks[2].Boxes[0].Lock.Need == 1,
+                   "Clone phải chép khoá của hộp");
+                g.Cleared = 1;
+                Ok(g.IsOpen(g.Stacks[2].Boxes[0].Lock), "đủ số nhóm thì hộp khoá mở");
+
+                var t = g.TopBox(0).Slots[0];
+                t.Lock = new Lock { Kind = LockKind.Moves, Need = 2 };
+                t.KeyId = "k1";
+                Ok(Game.IsFrozen(t), "thẻ có Kind = Moves là còn băng");
+                Ok(!Game.IsFrozen(g.TopBox(0).Slots[1]), "thẻ thường không băng");
+                var ct = g.Clone().TopBox(0).Slots[0];
+                Ok(Game.IsFrozen(ct) && ct.Lock.Need == 2 && ct.KeyId == "k1", "Clone phải chép băng và chìa của thẻ");
+
+                var keyLock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
+                Ok(!g.IsOpen(keyLock), "thẻ chìa còn trên bàn thì ổ đóng");
+                g.TopBox(0).Slots[0] = null;
+                Ok(g.IsOpen(keyLock), "thẻ chìa biến mất thì ổ mở");
+                Ok(g.IsOpen(default(Lock)), "không khoá thì luôn mở");
+
+                Ok(Blockers.CardPairAllowed(Blockers.Ice, Blockers.Key) && Blockers.CardPairAllowed(Blockers.Key, Blockers.Ice),
+                   "băng + chìa là cặp được phép trên một thẻ");
+                Ok(Blockers.IsCount(3.0) && !Blockers.IsCount(0.0) && !Blockers.IsCount(1.5) && !Blockers.IsCount("3"),
+                   "IsCount: số nguyên ≥ 1");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }

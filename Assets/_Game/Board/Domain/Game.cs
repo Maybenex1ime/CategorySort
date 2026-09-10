@@ -11,17 +11,20 @@ namespace WordStack.Board
     public class Tile
     {
         public string Uid, CardId, GroupId, Text, Art;
-        public Tile Clone() { return (Tile)MemberwiseClone(); }
+        public Lock Lock;       // Kind = Moves khi còn băng; default = thẻ thường
+        public string KeyId;    // thẻ mang chìa; null = không mang
+        public Tile Clone() { return (Tile)MemberwiseClone(); }   // struct + string: copy đủ
     }
 
     public class Box
     {
         public bool IsBottom;
         public bool HadCollapse;   // đã từng xảy ra collapse — chế độ chặt dùng để xoá hộp rỗng
+        public Lock Lock;          // Clears hoặc Key; default = hộp thường
         public Tile[] Slots = new Tile[Rules.BoxCapacity];
         public Box Clone()
         {
-            var b = new Box { IsBottom = IsBottom, HadCollapse = HadCollapse, Slots = new Tile[Slots.Length] };
+            var b = new Box { IsBottom = IsBottom, HadCollapse = HadCollapse, Lock = Lock, Slots = new Tile[Slots.Length] };
             for (int i = 0; i < Slots.Length; i++) b.Slots[i] = Slots[i] == null ? null : Slots[i].Clone();
             return b;
         }
