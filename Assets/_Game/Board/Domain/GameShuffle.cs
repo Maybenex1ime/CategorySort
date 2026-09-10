@@ -106,7 +106,7 @@ namespace WordStack.Board
             for (int s = 0; s < Stacks.Count; s++)
             {
                 Box top = TopBox(s);
-                if (top == null) continue;
+                if (top == null || !IsOpen(top.Lock)) continue;   // hộp đóng không nhận thẻ
                 for (int i = 0; i < top.Slots.Length; i++)
                     if (top.Slots[i] == null) return true;
             }
@@ -187,7 +187,7 @@ namespace WordStack.Board
                     Tile[] slots = boxes[b].Slots;
                     for (int i = 0; i < slots.Length; i++)
                     {
-                        if (slots[i] == null) continue;
+                        if (slots[i] == null || !IsPullable(slots[i], boxes[b])) continue;   // như Magnet
                         string gid = slots[i].GroupId;
                         int n;
                         if (!onBoard.TryGetValue(gid, out n)) { order.Add(gid); onTop[gid] = 0; }
@@ -223,9 +223,9 @@ namespace WordStack.Board
             for (int s = 0; s < Stacks.Count; s++)
             {
                 Box top = TopBox(s);
-                if (top == null) continue;
+                if (top == null || !IsOpen(top.Lock)) continue;   // hộp đóng: không đụng (spec 4.3)
                 for (int i = 0; i < top.Slots.Length; i++)
-                    if (top.Slots[i] == null || IsWhite(top, i))
+                    if (top.Slots[i] == null || (IsWhite(top, i) && !IsFrozen(top.Slots[i])))
                         result.Add(new SlotRef { Stack = s, Box = 0, Slot = i });
             }
             return result;

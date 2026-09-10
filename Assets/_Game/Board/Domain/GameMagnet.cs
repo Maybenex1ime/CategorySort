@@ -54,6 +54,10 @@ namespace WordStack.Board
                     {
                         Tile t = slots[i];
                         if (t == null) continue;
+                        // Thẻ băng hay thẻ trong hộp đóng không hút được → không đếm vào
+                        // onBoard, nhóm đó không bao giờ đủ GroupSize và bị bỏ qua bên dưới.
+                        // Hút được là phá vật cản miễn phí (spec 4.3).
+                        if (!IsPullable(t, boxes[b])) continue;
                         string gid = t.GroupId;
 
                         int n;
@@ -215,7 +219,7 @@ namespace WordStack.Board
             for (int s = 0; s < Stacks.Count; s++)
             {
                 Box box = TopBox(s);
-                if (box == null) continue;
+                if (box == null || !IsOpen(box.Lock)) continue;   // không thả thẻ cha vào hộp đóng
                 int free = FirstFreeAfterPull(s, box, picks);
                 if (free < 0) continue;
 
@@ -231,7 +235,7 @@ namespace WordStack.Board
 
             // Không hộp nào có thẻ nhóm cha → hộp hội tụ trước (khớp luật gốc "cùng hộp").
             Box tb = TopBox(target);
-            int f = tb == null ? -1 : FirstFreeAfterPull(target, tb, picks);
+            int f = tb == null || !IsOpen(tb.Lock) ? -1 : FirstFreeAfterPull(target, tb, picks);
             if (f >= 0) { stack = target; slot = f; return; }
 
             // Lưới an toàn, đúng ra không bao giờ chạm tới: nhóm được chọn luôn có ≥1 thẻ ở
@@ -239,7 +243,7 @@ namespace WordStack.Board
             for (int s = 0; s < Stacks.Count; s++)
             {
                 Box box = TopBox(s);
-                if (box == null) continue;
+                if (box == null || !IsOpen(box.Lock)) continue;   // không thả thẻ cha vào hộp đóng
                 int fs = FirstFreeAfterPull(s, box, picks);
                 if (fs >= 0) { stack = s; slot = fs; return; }
             }

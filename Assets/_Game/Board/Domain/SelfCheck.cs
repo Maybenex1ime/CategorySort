@@ -686,6 +686,46 @@ namespace WordStack.Board
                 Ok(Game.IsFrozen(Game.Build(okLv).TopBox(2).Slots[0]), "thẻ vừa băng vừa chìa là hợp lệ");
             }
 
+            // 8f. Booster tránh blocker (spec 4.3)
+            {
+                var g = load(true);
+                string t1 = g.FindMagnetTarget();
+                Ok(t1 != null, "bàn luật có mục tiêu nam châm");
+                foreach (var st in g.Stacks) foreach (var b in st.Boxes) foreach (var tt in b.Slots)
+                    if (tt != null && tt.GroupId == t1) { tt.Lock = new Lock { Kind = LockKind.Moves, Need = 5 }; break; }
+                string t2 = g.FindMagnetTarget();
+                Ok(t2 != t1, "nhóm có thẻ băng không được nam châm hút");
+
+                var g2 = load(true);
+                string u1 = g2.FindMagnetTarget();
+                int lockedStack = -1;
+                for (int s = 0; s < g2.Stacks.Count && lockedStack < 0; s++)
+                    foreach (var tt in g2.Stacks[s].Boxes[0].Slots)
+                        if (tt != null && tt.GroupId == u1) { lockedStack = s; break; }
+                g2.Stacks[lockedStack].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(g2.FindMagnetTarget() != u1, "nhóm có thẻ trong hộp đóng không được nam châm hút");
+
+                // Thẻ băng phải là thẻ TRẮNG (đứng lẻ trong hộp) thì bài kiểm mới có nghĩa —
+                // thẻ có màu vốn không vào pool. e1 ở stack 1 là thẻ gc duy nhất trong hộp đó.
+                var g3 = load(true);
+                g3.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(Game.IsWhite(g3.TopBox(1), 3), "e1 đang trắng — tiền đề của bài kiểm");
+                g3.TopBox(1).Slots[3].Lock = new Lock { Kind = LockKind.Moves, Need = 9 };   // e1 băng
+                var pool = g3.AssignableTopSlots();
+                Ok(!pool.Any(r => r.Stack == 2), "Xáo: hộp đóng không có ô nào trong pool");
+                Ok(!pool.Any(r => r.Stack == 1 && r.Slot == 3), "Xáo: ô của thẻ băng không vào pool dù thẻ trắng");
+                Ok(pool.Any(r => r.Stack == 0 && r.Slot == 2), "Xáo: ô trống ở hộp mở vẫn vào pool");
+                var cands = g3.PickPrimeCandidates(3);
+                Ok(!cands.Contains("gc"), "Xáo: nhóm có thẻ băng không làm mồi");
+                Ok(!cands.Contains("gb"), "Xáo: nhóm có thẻ trong hộp đóng không làm mồi");
+                Ok(cands.Contains("ga"), "Xáo: nhóm không dính blocker vẫn làm mồi được");
+
+                var g4 = load(true);
+                foreach (int s in new[] { 0, 2, 3, 4 })
+                    g4.Stacks[s].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(!g4.CanShuffle(), "Xáo: ô trống toàn nằm trong hộp đóng thì không xáo được");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }
