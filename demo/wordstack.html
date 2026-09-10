@@ -559,6 +559,61 @@ function hasAnyProgress(state){
 /* ==========================================================================
    PHẦN 2 — LOADER + VALIDATE  [GDD §6.2, E12]
    ========================================================================== */
+/* ---------- Blocker: sổ đăng ký + sáu luật kiểm dữ liệu [spec 2026-09-10 Mục 5] ----------
+   Khớp LevelData.Validate bên C#. Tool làm việc theo NHÃN thẻ nên blocker thẻ nằm ở
+   raw.cardBlockers[nhãn], blocker hộp nằm ở box.blockers. */
+const BOX_BLOCKERS  = ['locked', 'keylock'];
+const CARD_BLOCKERS = ['ice', 'key'];
+const CARD_PAIRS    = [['ice', 'key']];      // cặp được đứng chung trên một thẻ
+const isCount = v => Number.isInteger(v) && v >= 1;
+const cardPairAllowed = (a, b) => CARD_PAIRS.some(p => (p[0] === a && p[1] === b) || (p[0] === b && p[1] === a));
+
+function validateBlockers(raw, owner, topicWords, errors){
+  const cb = (raw.cardBlockers && typeof raw.cardBlockers === 'object') ? raw.cardBlockers : {};
+  const keyOwner = new Map();                // id chìa → nhãn thẻ mang
+
+  for (const label in cb){
+    const bl = cb[label] || {}, at = `Thẻ "${label}"`, keys = Object.keys(bl);
+    if (!owner.has(label)){ errors.push(`${at} mang blocker nhưng không phải từ của nhóm nào.`); continue; }
+    if (topicWords.has(label)){ errors.push(`${at} là tên chủ đề sinh ra từ COLLAPSE — chưa hỗ trợ blocker trên thẻ đó.`); continue; }
+    for (const k of keys){
+      if (BOX_BLOCKERS.includes(k)) errors.push(`${at}: "${k}" là blocker của hộp, không đặt trên thẻ.`);
+      else if (!CARD_BLOCKERS.includes(k)) errors.push(`${at}: blocker "${k}" không có trong sổ đăng ký.`);
+    }
+    for (let i = 0; i < keys.length; i++)
+      for (let j = i + 1; j < keys.length; j++)
+        if (CARD_BLOCKERS.includes(keys[i]) && CARD_BLOCKERS.includes(keys[j]) && !cardPairAllowed(keys[i], keys[j]))
+          errors.push(`${at}: "${keys[i]}" và "${keys[j]}" không được đứng chung trên một thẻ.`);
+    if ('ice' in bl && !isCount(bl.ice)) errors.push(`${at}: ice phải là số nguyên ≥ 1.`);
+    if ('key' in bl){
+      if (typeof bl.key !== 'string' || !bl.key) errors.push(`${at}: key phải là chuỗi id chìa.`);
+      else if (keyOwner.has(bl.key)) errors.push(`Id chìa "${bl.key}" có hai thẻ mang: "${keyOwner.get(bl.key)}" và "${label}".`);
+      else keyOwner.set(bl.key, label);
+    }
+  }
+
+  (raw.stacks || []).forEach((st, si) => (st.boxes || []).forEach((b, bi) => {
+    const bl = b.blockers || {}, keys = Object.keys(bl), at = `Stack ${si + 1} / box ${bi}`;
+    for (const k of keys){
+      if (CARD_BLOCKERS.includes(k)) errors.push(`${at}: "${k}" là blocker của thẻ, không đặt trên hộp.`);
+      else if (!BOX_BLOCKERS.includes(k)) errors.push(`${at}: blocker "${k}" không có trong sổ đăng ký.`);
+    }
+    if (keys.length > 1) errors.push(`${at}: hộp mang tối đa một blocker.`);
+    if ('locked' in bl && !isCount(bl.locked)) errors.push(`${at}: locked phải là số nguyên ≥ 1.`);
+    if ('keylock' in bl){
+      const keyLabel = keyOwner.get(bl.keylock);
+      if (!keyLabel){ errors.push(`${at}: keylock "${bl.keylock}" không có thẻ nào mang chìa đó.`); return; }
+      // Hộp có ổ không bao giờ rỗng nên hộp dưới không lộ ra chừng nào chưa mở. Chìa chỉ bị
+      // gom khi cả nhóm về chung một hộp — thẻ nào của nhóm đó nằm trong/dưới đây là khoá vĩnh viễn.
+      const kg = owner.get(keyLabel);
+      for (let bj = bi; bj < st.boxes.length; bj++)
+        for (const t of (st.boxes[bj].tiles || []))
+          if (t && owner.get(String(t).trim()) === kg)
+            errors.push(`${at}: thẻ "${t}" cùng nhóm với chìa "${bl.keylock}" nằm trong hoặc dưới hộp mà chìa đó mở — khoá vĩnh viễn.`);
+    }
+  }));
+}
+
 function loadLevel(raw){
   const { state, errors } = parseLevel(raw);
   if (errors.length) throw new LevelError(errors);
@@ -630,6 +685,8 @@ function parseLevel(raw){
     });
     stacks.push(stack);
   });
+
+  validateBlockers(raw, owner, topicWords, errors);
 
   /* --- Cảnh báo thiết kế [GDD §10.1] --- */
   const placed = seen.size;
