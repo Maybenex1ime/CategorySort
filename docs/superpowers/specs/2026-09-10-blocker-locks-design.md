@@ -137,6 +137,19 @@ vật cản xuất hiện.
 Với Nam châm, cách rẻ nhất là để `FindMagnetTarget` bỏ qua nhóm không đủ 4 thẻ **hút
 được**, dùng lại đúng ràng buộc "đủ 4 thẻ đang tồn tại" đang có.
 
+### 4.4 Blocker chồng lên nhau
+
+Ba blocker gặp nhau trên cùng thẻ hoặc cùng chồng là chuyện thường. Không cần luật riêng
+ngoài luật kiểm ở Mục 5, nhưng thứ tự gỡ phải rõ để bộ giải và tự kiểm cùng một cách hiểu:
+
+| Tình huống | Xử lý |
+|---|---|
+| Thẻ băng thuộc nhóm chìa | Băng tan trước vì nước đi luôn tăng, rồi nhóm gom được, rồi hộp mở. Chuỗi điều kiện, không phải vòng: bộ đếm băng không phụ thuộc hộp khoá |
+| Thẻ băng nằm trong hộp khoá đang ở trên cùng | Băng vẫn đếm vì thẻ đang lộ. Khoá chặn truy cập, băng chặn di chuyển, hai bộ đếm chạy độc lập. Lúc hộp mở có thể băng đã tan |
+| Thẻ băng nằm dưới hộp khoá | Không đếm cho tới khi hộp trên mở rồi bị xoá — đúng luật "chỉ đếm khi lộ" |
+| Thẻ nhóm chìa nằm trong hoặc dưới hộp mà nhóm đó mở | Cấm ở luật kiểm 6, khoá vĩnh viễn |
+| Hộp `locked` cần nhiều nhóm hơn số nhóm còn gom được | Không bắt được bằng kiểm dữ liệu, để cổng xuất bản bắt |
+
 ## 5. Định dạng dữ liệu màn
 
 Giữ nguyên khung `layout` / `meaning`. Blocker chia theo thứ nó gắn vào: **blocker của thẻ
@@ -186,7 +199,10 @@ Luật kiểm dữ liệu thêm:
    đã đọc bảng từ đầu để blocker thẻ thứ hai chỉ cần thêm dòng, không sửa code kiểm.
 4. `locked` và `ice` là số nguyên ≥ 1.
 5. `key` trỏ nhóm có thật, và phải là **nhóm lá** (không nhóm con nào trỏ vào nó).
-6. Nhóm chìa không được có thẻ nào nằm trong chính hộp mà nó mở — khoá vĩnh viễn.
+6. Nhóm chìa không được có thẻ nào nằm trong hộp mà nó mở, **hoặc trong bất kỳ hộp nào bên
+   dưới hộp đó trong cùng chồng**. Hộp khoá không lấy thẻ ra được nên không bao giờ rỗng,
+   không bao giờ bị xoá, hộp dưới nó không lộ ra chừng nào chưa mở — thẻ chìa nằm dưới là
+   khoá vĩnh viễn.
 
 Luật 5 là bắt buộc chứ không phải cho gọn. Nhóm cha chưa có thẻ nào trên bàn cho tới khi
 nhóm con COLLAPSE, nên "không còn thẻ nào của nhóm đó" đúng ngay từ đầu màn và hộp mở
