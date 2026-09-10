@@ -220,3 +220,10 @@ thẻ mang · thẻ chìa và mọi thẻ cùng nhóm không nằm trong hoặc 
 
 Nam châm bỏ qua nhóm có thành viên đang băng hoặc nằm trong hộp đóng; Xáo không đụng hai thứ
 đó; Undo không cần luật riêng vì ảnh chụp là toàn bàn.
+
+**Công cụ dựng màn.** `demo/wordstack.html` là tool duy nhất: tab Xếp level gắn blocker hộp
+ngay trên dòng hộp, blocker thẻ ở panel "Blocker thẻ"; Nhập và Xuất JSON giữ nguyên
+`blockers`; Kiểm tra, Chơi thử và Gợi ý chạy luật blocker bản JavaScript. `node demo/tool-check.mjs`
+kiểm round-trip, sáu luật dữ liệu và luật chơi bản JS bằng đúng các kịch bản của `SelfCheck`
+mục 8. Tool Unity `WordStack ▸ Level Editor` đã xoá. Cổng xuất bản vẫn là `./selfcheck.sh` —
+bộ giải của tool là greedy có ngân sách, không thay được beam search hai chế độ.
