@@ -185,3 +185,38 @@ Bộ tự kiểm chạy mọi level khi khởi động, và có bản chạy ngo
   giữa hai chế độ về số nước tối thiểu.
 - Luật phải khớp với bản tham chiếu HTML (`demo/wordstack-clear-demo.html` + `demo/check.mjs`) —
   lệch chỗ nào là bug chỗ đó.
+
+## 11. Vật cản (blocker)
+
+Ba vật cản, đều là "một đối tượng bị vô hiệu, gỡ bằng một điều kiện tiến độ". Không vật cản
+nào thêm loại nước đi mới. Đặc tả đầy đủ: `docs/superpowers/specs/2026-09-10-blocker-locks-design.md`.
+
+| id | gắn vào | tham số | ý nghĩa |
+|---|---|---|---|
+| `locked` | hộp | số nguyên ≥ 1 | hộp đóng cho tới khi số nhóm đã gom trên toàn bàn đạt số đó |
+| `keylock` | hộp | id chìa | hộp đóng cho tới khi thẻ mang `key` cùng id biến mất khỏi bàn |
+| `ice` | thẻ | số nguyên ≥ 1 | thẻ bất động và không tính bộ 4, tan sau đủ số nước kể từ lúc lộ ở hộp trên |
+| `key` | thẻ | id chìa | không khoá gì; thẻ bị gom là mở mọi `keylock` cùng id |
+
+Hộp đóng: không nhặt ra, không thả vào, không tự nổ, không tính là còn chỗ khi xét kẹt, không
+bị xoá dù rỗng. Thứ tự một lượt: nước đi → giảm băng → dây chuyền.
+
+**Kẹt** giờ là "không còn nước đi hợp lệ nào" (trước đây: "mọi hộp trên đều đầy"). Hai định
+nghĩa trùng nhau khi không có vật cản; có vật cản thì chỉ định nghĩa mới tránh được thua ngầm —
+bàn mà mọi thẻ lộ ra đều băng vẫn còn ô trống nhưng không đi được nước nào.
+
+Dữ liệu: vật cản của thẻ nằm trên entry thẻ trong `meaning`, của hộp nằm trên hộp trong
+`layout`, đều trong object `blockers` với key là id ở bảng trên.
+
+```json
+{ "id": "banana", "text": "Banana", "blockers": { "ice": 5, "key": "k1" } }
+{ "slots": ["apple","banana",null,null], "blockers": { "locked": 3 } }
+{ "slots": ["grape","plum",null,null],   "blockers": { "keylock": "k1" } }
+```
+
+Luật kiểm thêm: id phải có trong bảng và đúng phía · hộp tối đa một vật cản · thẻ mang nhiều
+vật cản phải theo bảng cặp được phép (hiện: `ice` + `key`) · số đếm ≥ 1 · mỗi id chìa đúng một
+thẻ mang · thẻ chìa và mọi thẻ cùng nhóm không nằm trong hoặc dưới hộp mà chìa đó mở.
+
+Nam châm bỏ qua nhóm có thành viên đang băng hoặc nằm trong hộp đóng; Xáo không đụng hai thứ
+đó; Undo không cần luật riêng vì ảnh chụp là toàn bàn.
