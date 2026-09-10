@@ -24,6 +24,12 @@ namespace WordStack.Board
         // CHƯA có logic gán — chờ chốt luật COLLAPSE, đừng xoá field.
         [SerializeField] Sprite bgCollapsed;
 
+        // Blocker — CHƯA GÁN, người dùng tự làm phần nhìn (nhịp 2). Tất cả nullable:
+        // chưa kéo gì vào thì SetIce là no-op và bàn chạy y như không có blocker.
+        [Header("Băng (blocker) — để trống, gắn art sau")]
+        [SerializeField] GameObject iceRoot;     // lớp phủ băng, bật/tắt cả cụm
+        [SerializeField] TextMesh iceCountText;  // số nước còn lại
+
         public string Uid { get; private set; }
 
         // Card không có art (text-only trong level data) → thẻ chỉ hiện nền trống.
@@ -54,6 +60,18 @@ namespace WordStack.Board
                 : groupCountInBox == 3 ? bgTriple
                 : bgFull;
             if (next != null) bg.sprite = next;
+        }
+
+        // Thẻ băng: bất động và không tính bộ 4 (luật ở Domain). Ở đây chỉ hiện trạng thái.
+        // movesLeft là số nước CÒN LẠI, đã tính sẵn bên gọi — view không đọc Lock.
+        public void SetIce(bool frozen, int movesLeft)
+        {
+            if (iceRoot != null) iceRoot.SetActive(frozen);
+            if (iceCountText != null)
+            {
+                iceCountText.gameObject.SetActive(frozen);
+                if (frozen) ViewText.Apply(iceCountText, movesLeft.ToString(), 1f, 0.4f);
+            }
         }
 
         // Thẻ đang bay nổi lên trên mọi hộp/thẻ, hạ cánh thì trả về order author trong prefab.
