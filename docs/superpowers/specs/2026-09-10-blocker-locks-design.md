@@ -139,31 +139,61 @@ Với Nam châm, cách rẻ nhất là để `FindMagnetTarget` bỏ qua nhóm k
 
 ## 5. Định dạng dữ liệu màn
 
-Giữ nguyên khung `layout` / `meaning`. Blocker là field thêm trên `box`, không đổi cấu trúc.
+Giữ nguyên khung `layout` / `meaning`. Blocker chia theo thứ nó gắn vào: **blocker của thẻ
+nằm trên entry thẻ trong `meaning`, blocker của hộp nằm trên hộp trong `layout`.** Mỗi thẻ
+xuất hiện đúng một lần trên bàn nên đặt trên entry thẻ là không lệch được, và `slots` giữ
+nguyên là mảng id.
 
-Ba ví dụ dưới là **ba hộp rời nhau**, không phải ba field của cùng một hộp. Một hộp được
-mang cả `lock` lẫn `ice` cùng lúc, nhưng không được mang hai kiểu `lock`.
+Trên cả hai, blocker gom trong một object `blockers`: key là **id blocker**, giá trị là tham
+số của nó. Id là tên cố định — thêm blocker mới là thêm key, data cũ không đổi. Thẻ mang
+nhiều blocker là nhiều key trong cùng object. Bộ đọc màn coi mọi key trong `blockers` là id
+blocker, gặp id lạ thì từ chối, nên field khác thêm vào thẻ hay hộp sau này không va chạm.
 
 ```json
-{ "slots": ["apple","banana",null,null], "lock": { "clears": 3 } }
-{ "slots": ["grape","plum",null,null],   "lock": { "key": "fruit" } }
-{ "slots": ["apple","banana",null,null], "ice": { "banana": 5 } }
+"meaning": { "groups": [
+  { "id": "fruit", "text": "Fruit", "cards": [
+      { "id": "banana", "text": "Banana", "blockers": { "ice": 5 } },
+      { "id": "apple",  "art": "apple" }
+  ]}
+]},
+"layout": { "stacks": [
+  { "pos": [0,0], "boxes": [
+      { "slots": ["apple","banana",null,null], "blockers": { "locked": 3 } },
+      { "slots": ["grape","plum",null,null],   "blockers": { "key": "fruit" } }
+  ]}
+]}
 ```
+
+Bảng id blocker của bản này. Đây là **sổ đăng ký**: blocker mới phải thêm một dòng vào đây
+trước khi được dùng trong data.
+
+| id | gắn vào | tham số | mở khi |
+|---|---|---|---|
+| `locked` | hộp | số nguyên ≥ 1 | `Cleared` đạt số đó |
+| `key` | hộp | id nhóm | nhóm đó nổ |
+| `ice` | thẻ | số nguyên ≥ 1 | đủ số nước kể từ lúc thẻ lộ ở hộp trên cùng |
+
+`Game.Build` chép `blockers` của entry thẻ sang `Tile.Lock` và của hộp sang `Box.Lock`
+(Mục 3). Sau khi dựng bàn, luật không đọc lại data.
 
 Luật kiểm dữ liệu thêm:
 
-1. `lock` phải có **đúng một** trong `clears` / `key`.
-2. `clears` ≥ 1.
-3. `key` trỏ nhóm có thật, và phải là **nhóm lá** (không nhóm con nào trỏ vào nó).
-4. Nhóm chìa không được có thẻ nào nằm trong chính hộp mà nó mở — khoá vĩnh viễn.
-5. Khoá `ice` phải là id thẻ đang nằm trong `slots` của chính hộp đó; giá trị ≥ 1.
+1. Mọi key trong `blockers` phải có trong sổ đăng ký, và đúng chỗ: id của hộp không được
+   nằm trên thẻ, id của thẻ không được nằm trên hộp.
+2. Hộp mang **tối đa một** blocker. `locked` và `key` không đi cùng nhau.
+3. Thẻ mang từ hai blocker trở lên phải theo **bảng tương thích** — một bảng khai cặp id nào
+   được phép đứng chung trên một thẻ. Bản này bảng còn trống vì thẻ mới có `ice`; validator
+   đã đọc bảng từ đầu để blocker thẻ thứ hai chỉ cần thêm dòng, không sửa code kiểm.
+4. `locked` và `ice` là số nguyên ≥ 1.
+5. `key` trỏ nhóm có thật, và phải là **nhóm lá** (không nhóm con nào trỏ vào nó).
+6. Nhóm chìa không được có thẻ nào nằm trong chính hộp mà nó mở — khoá vĩnh viễn.
 
-Luật 3 là bắt buộc chứ không phải cho gọn. Nhóm cha chưa có thẻ nào trên bàn cho tới khi
+Luật 5 là bắt buộc chứ không phải cho gọn. Nhóm cha chưa có thẻ nào trên bàn cho tới khi
 nhóm con COLLAPSE, nên "không còn thẻ nào của nhóm đó" đúng ngay từ đầu màn và hộp mở
 toang. Muốn dùng nhóm cha làm chìa thì phải lưu cờ "đã gom", tức là nở không gian tìm
 kiếm — để ngoài phạm vi.
 
-Luật 4 chỉ bắt được vòng khoá trực tiếp. Vòng gián tiếp qua nhiều hộp để cổng xuất bản bắt.
+Luật 6 chỉ bắt được vòng khoá trực tiếp. Vòng gián tiếp qua nhiều hộp để cổng xuất bản bắt.
 
 ## 6. Bộ giải và cổng xuất bản
 
@@ -185,7 +215,7 @@ Thêm một mục vào `SelfCheck`, dựng bàn tay như mục Undo đang làm:
 - Thẻ băng: không kéo được; ba thẻ cùng nhóm quanh nó không nổ; đủ N nước thì tan và nhóm
   nổ ngay trong cùng nhịp.
 - Chìa: gom nhóm chìa thì hộp mở; nhóm khác nổ thì không mở.
-- Kiểm dữ liệu từ chối đủ 5 trường hợp ở Mục 5.
+- Kiểm dữ liệu từ chối đủ 6 trường hợp ở Mục 5, kể cả id blocker lạ và id đặt sai chỗ.
 - Ba màn hiện có vẫn xanh ở cả hai chế độ.
 
 ## 8. Chia nhịp
@@ -203,7 +233,9 @@ Nhịp 3 có thể hoãn: cho tới lúc đó, màn có blocker viết tay bằn
 
 - Chìa là vật phẩm nằm trên bàn, phải kéo tới hộp khoá. Cần thêm loại nước đi mới, Solver
   và cổng xuất bản đều phải sửa lớn.
-- Nhóm cha làm chìa (xem Mục 5, luật 3).
+- Nhóm cha làm chìa (xem Mục 5, luật 5).
+- Blocker trên thẻ do COLLAPSE sinh ra giữa ván. Thẻ đó không có entry trong `cards`, nên
+  muốn khoá nó thì `blockers` phải đặt được trên entry nhóm — chưa cần.
 - Băng lan sang thẻ kề, hoặc bất kỳ vật cản nào tự biến đổi khi người chơi không làm gì.
 - Booster mới để phá vật cản.
 - Hình động khi khoá mở và khi băng vỡ. Nhịp 2 chỉ cần trạng thái tĩnh đọc được.
