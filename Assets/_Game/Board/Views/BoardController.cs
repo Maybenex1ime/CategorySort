@@ -671,6 +671,7 @@ namespace WordStack.Board
             var gt = Instantiate(tilePrefab, ghost.TileAnchor, false);
             gt.transform.localPosition = Vector3.zero;
             gt.Bind(t, ArtOf(t));
+            gt.SetKey(t.KeyId);      // thẻ ma là một bản prefab mới, phải gắn chìa lại
             gt.SetFlying(true);      // thẻ đang kéo = thẻ đang bay: nổi trên mọi hộp/thẻ trên bàn
 
             DOTween.Kill(HoverPunchId, true);             // trả góc quay về 0 trước khi nhấc
@@ -1117,7 +1118,8 @@ namespace WordStack.Board
                 if (box == null) continue;
 
                 bool closed = !g.IsOpen(box.Lock);
-                if (boxViews[s] != null) boxViews[s].SetLock(closed, LockLabel(box.Lock));
+                if (boxViews[s] != null) boxViews[s].SetLock(closed, LockLabel(box.Lock),
+                                                       box.Lock.Kind == LockKind.Key ? box.Lock.KeyId : null);
 
                 for (int i = 0; i < box.Slots.Length; i++)
                 {
@@ -1126,7 +1128,10 @@ namespace WordStack.Board
                     TileView tv;
                     if (!tiles.TryGetValue(t.Uid, out tv) || tv == null) continue;
                     bool frozen = Game.IsFrozen(t);
-                    tv.SetIce(frozen, frozen ? t.Lock.Need - t.Lock.Have : 0);
+                    int iceLeft = frozen ? t.Lock.Need - t.Lock.Have : 0;
+                    tv.SetIce(frozen, iceLeft);
+                    tv.SetBlockerDebug(iceLeft, t.KeyId);
+                    tv.SetKey(t.KeyId);
                 }
             }
         }
