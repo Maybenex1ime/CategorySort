@@ -202,7 +202,7 @@ root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, 
 | `Assets/_Game/Board/Views/BoardController.cs` + `{ViewText,TileView,BoxView,StackView,GhostView,HudView}.cs` | View retained-mode dựng từ prefab. **Đang chạy** trong `Main.unity` |
 | `Assets/_Game/Board/WordStack.Board.asmdef` | Assembly bàn chơi — chỉ ref `WordStack.Contracts` + `Unity.InputSystem`. **Không được ref `WordStack.Meta`** (gotcha #5) |
 | `Assets/Prefabs/*.prefab` + `Assets/Scenes/Main.unity` + `Assets/_Game/Board/Sprites/white.png` | Sinh bằng `PrefabBuilder` (đã xoá), giờ chỉnh tay; commit kèm .meta |
-| `Assets/_Game/Board/Editor/LevelEditorWindow.cs` | Tool xếp level (`WordStack ▸ Level Editor`) |
+| `demo/wordstack.html` | Tool xếp level duy nhất (tool Unity `LevelEditorWindow` đã xoá 2026-09-10 — không giữ được collapse, moves, difficulty, blocker) |
 | `Assets/_Game/Board/Editor/BoardTestDriver.cs` | `WordStack ▸ Test ▸ Play 4 moves on lv-001` — chạy chuỗi nước đi qua `BoardController.DebugMove`, ghi `Temp/testdrive.{txt,png}` |
 | `Assets/_Game/Board/Tests/BoardRulesTests.cs` | EditMode: nước đi hợp lệ/bị từ chối, CLEAR + xoá hộp, cascade, thắng/kẹt. Bộ đầy đủ vẫn ở `SelfCheck` |
 | `Assets/_Game/Content/Levels/lv-00{1..6}.json` | 6 level (Addressable, address = `id`), solver khớp demo |
