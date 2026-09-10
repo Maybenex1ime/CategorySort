@@ -571,6 +571,43 @@ namespace WordStack.Board
                 Ok(g6.IsOpen(g6.Stacks[2].Boxes[0].Lock), "băng tan → chìa bị gom → ổ mở");
             }
 
+            // 8d. Solver
+            {
+                var a = load(true);
+                var b = load(true);
+                b.TopBox(0).Slots[0].Lock = new Lock { Kind = LockKind.Moves, Need = 3 };
+                Ok(Solver.Encode(a) != Solver.Encode(b), "băng phải vào mã trạng thái");
+                var b2 = b.Clone();
+                b2.TopBox(0).Slots[0].Lock.Have = 1;
+                Ok(Solver.Encode(b) != Solver.Encode(b2), "hai mức băng là hai trạng thái");
+
+                // Hộp khoá và ổ KHÔNG vào mã: cùng bố cục thẻ là cùng trạng thái (spec Mục 3).
+                var c1 = load(true);
+                var c2 = load(true);
+                c2.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 1 };
+                Ok(Solver.Encode(c1) == Solver.Encode(c2), "khoá hộp không đổi mã — trạng thái suy từ bố cục");
+
+                // Bàn có cả ba blocker vẫn giải được (drain = true, xem ghi chú đầu mục 8).
+                // Đường giải: c1 c2 → 4, hộp trên stack 0 rỗng bị xoá, c3 c4 → 4, ga nổ → stack 2
+                // mở; e1 → 4, d4 → 1, gb nổ → chìa d4 mất → stack 3 mở; e1 e2 → 3, gc nổ. Băng
+                // trên e3 tan sau 2 nước đầu. Chìa KHÔNG được là thẻ gc: gc cần e1 đang nằm trong
+                // hộp mà chìa đó mở → vòng khoá, chính là thứ luật kiểm 6 cấm.
+                var s = load(true);
+                s.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 1 };
+                s.TopBox(3).Slots[0].Lock = new Lock { Kind = LockKind.Moves, Need = 2 };   // e3 băng
+                s.TopBox(2).Slots[0].KeyId = "k1";                                           // d4 (gb) mang chìa
+                s.Stacks[3].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };  // stack 3 có ổ
+                var r = Solver.Solve(s, true);
+                Ok(r.Ok, "bàn luật có đủ ba blocker phải giải được ở chế độ rộng: " + (r.Why ?? ""));
+
+                // Bàn thực sự vô nghiệm vì blocker phải bị bắt: ổ mà chìa nằm ngay trong hộp.
+                var dead = load(true);
+                dead.TopBox(2).Slots[0].KeyId = "k1";                                        // d4 mang chìa
+                dead.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
+                var rd = Solver.Solve(dead, true);
+                Ok(!rd.Ok, "chìa nằm trong chính hộp nó mở → Solver phải báo không giải được");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }

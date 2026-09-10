@@ -19,6 +19,14 @@ namespace WordStack.Board
     {
         // Vị trí slot không đổi luật → sort nội dung top box. Stack hoán vị được → sort.
         // Sai canonical hoá là dedupe gộp nhầm state → báo "không giải được" oan.
+        // Thẻ băng mã thêm số nước còn lại: hai bàn giống hệt về thẻ mà khác mức băng là hai
+        // tương lai khác nhau. Hộp khoá và ổ KHÔNG mã hoá — trạng thái của chúng suy ra từ
+        // bố cục thẻ (spec Mục 3), mã thêm chỉ nở memo vô ích.
+        static string Code(Tile t)
+        {
+            return Game.IsFrozen(t) ? t.CardId + "~" + (t.Lock.Need - t.Lock.Have) : t.CardId;
+        }
+
         public static string Encode(Game g)
         {
             var keys = new List<string>(g.Stacks.Count);
@@ -33,12 +41,12 @@ namespace WordStack.Board
                     // mở) — memo trộn chúng là solver trả kết quả sai im lặng.
                     if (i == 0)
                     {
-                        var ids = b.Slots.Where(t => t != null).Select(t => t.CardId).ToList();
+                        var ids = b.Slots.Where(t => t != null).Select(Code).ToList();
                         ids.Sort(StringComparer.Ordinal);
                         parts.Add((b.HadCollapse ? "!" : "") + string.Join(",", ids));
                     }
                     else parts.Add((b.HadCollapse ? "!" : "") +
-                                   string.Join(",", b.Slots.Select(t => t == null ? "_" : t.CardId)));
+                                   string.Join(",", b.Slots.Select(t => t == null ? "_" : Code(t))));
                 }
                 keys.Add(string.Join("/", parts));
             }
@@ -85,12 +93,17 @@ namespace WordStack.Board
 
                     for (int from = 0; from < cur.Stacks.Count; from++)
                     {
+                        // MoveTile tự từ chối, nhưng lọc ở đây tránh Clone cả bàn cho một
+                        // nước chắc chắn bị bỏ.
+                        if (!cur.IsOpen(cur.Stacks[from].Boxes[0].Lock)) continue;
                         foreach (var t in cur.Stacks[from].Boxes[0].Slots)
                         {
-                            if (t == null) continue;
+                            if (t == null || Game.IsFrozen(t)) continue;
                             for (int to = 0; to < cur.Stacks.Count; to++)
                             {
-                                if (to == from || Game.FreeCount(cur.Stacks[to].Boxes[0]) == 0) continue;
+                                if (to == from) continue;
+                                var dstBox = cur.Stacks[to].Boxes[0];
+                                if (!cur.IsOpen(dstBox.Lock) || Game.FreeCount(dstBox) == 0) continue;
                                 var n = cur.Clone();
                                 if (!n.MoveTile(from, t.Uid, to)) continue;
                                 n.Settle(drain);
