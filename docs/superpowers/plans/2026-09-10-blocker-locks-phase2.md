@@ -302,40 +302,40 @@ Vì sao là phím debug chứ không phải một màn mẫu: màn mới phải 
         // DEBUG (phím B): gắn một bộ blocker mẫu lên bàn ĐANG chơi để xem phần nhìn và
         // phần chặn input. Không phải content: bấm R nạp lại là sạch. Chọn mục tiêu theo
         // thứ tự cố định để lần nào cũng ra như nhau.
-        //   stack đầu tiên có ≥2 thẻ ở hộp trên  → thẻ đầu đóng băng 3 nước
-        //   stack tiếp theo                       → hộp khoá, cần thêm 1 nhóm nữa
-        //   stack tiếp theo                       → hộp có ổ, chìa gắn lên một thẻ ở stack khác
+        //   stack có thẻ đầu tiên  → thẻ đầu đóng băng 3 nước
+        //   stack tiếp theo        → hộp khoá, cần thêm 1 nhóm nữa
+        //   stack tiếp theo        → hộp có ổ, chìa gắn lên một thẻ ở stack khác
         void ApplyDebugBlockers()
         {
             if (g == null || g.Status != GameStatus.Playing) { Debug.Log("[Blocker] chưa có bàn để gắn."); return; }
 
-            int iced = -1, locked_ = -1, keyed = -1;
+            int icedStack = -1, lockedStack = -1, keyedStack = -1;
             for (int s = 0; s < g.Stacks.Count; s++)
             {
                 var box = g.TopBox(s);
                 if (box == null) continue;
-                int tiles_ = 0;
-                foreach (var t in box.Slots) if (t != null) tiles_++;
-                if (tiles_ == 0) continue;
-                if (iced < 0) { iced = s; continue; }
-                if (locked_ < 0) { locked_ = s; continue; }
-                if (keyed < 0) { keyed = s; break; }
+                int count = 0;
+                foreach (var t in box.Slots) if (t != null) count++;
+                if (count == 0) continue;
+                if (icedStack < 0) { icedStack = s; continue; }
+                if (lockedStack < 0) { lockedStack = s; continue; }
+                if (keyedStack < 0) { keyedStack = s; break; }
             }
 
-            if (iced >= 0)
-                foreach (var t in g.TopBox(iced).Slots)
+            if (icedStack >= 0)
+                foreach (var t in g.TopBox(icedStack).Slots)
                     if (t != null) { t.Lock = new Lock { Kind = LockKind.Moves, Need = 3 }; break; }
 
-            if (locked_ >= 0)
-                g.TopBox(locked_).Lock = new Lock { Kind = LockKind.Clears, Need = g.Cleared + 1 };
+            if (lockedStack >= 0)
+                g.TopBox(lockedStack).Lock = new Lock { Kind = LockKind.Clears, Need = g.Cleared + 1 };
 
-            if (keyed >= 0)
+            if (keyedStack >= 0)
             {
-                g.TopBox(keyed).Lock = new Lock { Kind = LockKind.Key, KeyId = "dbg" };
+                g.TopBox(keyedStack).Lock = new Lock { Kind = LockKind.Key, KeyId = "dbg" };
                 // Chìa phải nằm NGOÀI hộp nó mở, nếu không là khoá vĩnh viễn (spec luật 6).
                 for (int s = 0; s < g.Stacks.Count; s++)
                 {
-                    if (s == keyed) continue;
+                    if (s == keyedStack) continue;
                     var box = g.TopBox(s);
                     if (box == null) continue;
                     bool done = false;
@@ -345,8 +345,8 @@ Vì sao là phím debug chứ không phải một màn mẫu: màn mới phải 
                 }
             }
 
-            Debug.Log("[Blocker] gắn mẫu: băng ở stack " + iced + " · hộp khoá ở stack " + locked_ +
-                      " · hộp có ổ ở stack " + keyed + " (bấm R để nạp lại bàn sạch)");
+            Debug.Log("[Blocker] gắn mẫu: băng ở stack " + icedStack + " · hộp khoá ở stack " + lockedStack +
+                      " · hộp có ổ ở stack " + keyedStack + " (bấm R để nạp lại bàn sạch)");
             RefreshZones();
             RefreshBlockerVisuals();
         }
