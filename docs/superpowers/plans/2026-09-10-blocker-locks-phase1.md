@@ -1055,7 +1055,7 @@ Chèn ngay trước dòng `foreach (var c in AllCards()) if (!seen.Contains(c.Id
                     if (box.Blockers.TryGetValue(Blockers.KeyLock, out v))
                     {
                         var kid = v as string;
-                        CardDef keyCard;
+                        CardDef keyCard = null;   // die() không báo cho compiler là nó ném
                         if (string.IsNullOrEmpty(kid) || !keyOwner.TryGetValue(kid, out keyCard))
                             die(at + ": keylock \"" + kid + "\" không có thẻ nào mang chìa đó");
                         // Luật 6: hộp có ổ không bao giờ rỗng nên hộp dưới nó không lộ ra chừng

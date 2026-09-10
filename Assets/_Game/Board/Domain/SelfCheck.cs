@@ -65,6 +65,31 @@ namespace WordStack.Board
           ]}
         }";
 
+        // RulesLv cộng blocker: c2 băng 2 nước, d4 mang chìa k1, hộp stack 3 có ổ k1,
+        // hộp stack 2 khoá 1 nhóm. Chìa d4 (nhóm gb) không nằm trong/dưới stack 3 — hợp luật 6.
+        const string BlockerLv = @"{
+          ""id"":""t-blocker"", ""title"":""t"", ""note"":"""",
+          ""layout"": { ""stacks"": [
+            { ""pos"":[0,0], ""boxes"":[ { ""slots"":[""c1"",""c2"",null,null] },
+                                          { ""slots"":[""c3"",""c4"",null,null] } ] },
+            { ""pos"":[1,0], ""boxes"":[ { ""slots"":[""d1"",""d2"",""d3"",""e1""] } ] },
+            { ""pos"":[0,1], ""boxes"":[ { ""slots"":[""d4"",""e2"",null,null], ""blockers"": { ""locked"": 1 } } ] },
+            { ""pos"":[1,1], ""boxes"":[ { ""slots"":[""e3"",""e4"",null,null], ""blockers"": { ""keylock"": ""k1"" } } ] },
+            { ""pos"":[0,2], ""boxes"":[ { ""slots"":[null,null,null,null] } ] }
+          ]},
+          ""meaning"": { ""groups"": [
+            { ""id"":""ga"", ""text"":""A"", ""cards"":[
+              { ""id"":""c1"",""text"":""C1"" },{ ""id"":""c2"",""text"":""C2"", ""blockers"": { ""ice"": 2 } },
+              { ""id"":""c3"",""text"":""C3"" },{ ""id"":""c4"",""text"":""C4"" } ]},
+            { ""id"":""gb"", ""text"":""B"", ""cards"":[
+              { ""id"":""d1"",""text"":""D1"" },{ ""id"":""d2"",""text"":""D2"" },
+              { ""id"":""d3"",""text"":""D3"" },{ ""id"":""d4"",""text"":""D4"", ""blockers"": { ""key"": ""k1"" } } ]},
+            { ""id"":""gc"", ""text"":""C"", ""cards"":[
+              { ""id"":""e1"",""text"":""E1"" },{ ""id"":""e2"",""text"":""E2"" },
+              { ""id"":""e3"",""text"":""E3"" },{ ""id"":""e4"",""text"":""E4"" } ]}
+          ]}
+        }";
+
         public static void Run(Action<string> log, IList<string> levelJsons, Predicate<string> hasArt)
         {
             Ok(levelJsons != null && levelJsons.Count >= 2, "cần ít nhất 2 file level");
@@ -606,6 +631,59 @@ namespace WordStack.Board
                 dead.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
                 var rd = Solver.Solve(dead, true);
                 Ok(!rd.Ok, "chìa nằm trong chính hộp nó mở → Solver phải báo không giải được");
+            }
+
+            // 8e. Đọc màn, kiểm dữ liệu, dựng vào bàn
+            {
+                Func<LevelData> freshB = () => LevelData.Parse(BlockerLv);
+                var lv = freshB();
+                lv.Validate(hasArt);
+                var g = Game.Build(lv);
+                Ok(g.Stacks[2].Boxes[0].Lock.Kind == LockKind.Clears && g.Stacks[2].Boxes[0].Lock.Need == 1, "Build: locked → Box.Lock Clears");
+                Ok(g.Stacks[3].Boxes[0].Lock.Kind == LockKind.Key && g.Stacks[3].Boxes[0].Lock.KeyId == "k1", "Build: keylock → Box.Lock Key");
+                var c2 = g.TopBox(0).Slots[1];
+                Ok(c2.CardId == "c2" && Game.IsFrozen(c2) && c2.Lock.Need == 2 && c2.Lock.Have == 0, "Build: ice → Tile.Lock Moves");
+                Ok(g.TopBox(2).Slots[0].CardId == "d4" && g.TopBox(2).Slots[0].KeyId == "k1", "Build: key → Tile.KeyId");
+                Ok(g.TopBox(0).Slots[0].Lock.Kind == LockKind.None && g.TopBox(0).Slots[0].KeyId == null, "thẻ không khai blockers thì trống");
+
+                Action<Action<LevelData>, string> brokenB = (mutate, label) =>
+                {
+                    var l = freshB();
+                    mutate(l);
+                    bool threw = false;
+                    try { l.Validate(hasArt); } catch { threw = true; }
+                    Ok(threw, "validate blocker phải ném lỗi: " + label);
+                };
+                // Luật 1
+                brokenB(l => l.Groups[0].Cards[0].Blockers["frost"] = 1.0, "id lạ trên thẻ");
+                brokenB(l => l.Groups[0].Cards[0].Blockers["locked"] = 1.0, "id của hộp đặt trên thẻ");
+                brokenB(l => l.Stacks[4].Boxes[0].Blockers["ice"] = 1.0, "id của thẻ đặt trên hộp");
+                brokenB(l => l.Stacks[4].Boxes[0].Blockers["chain"] = 1.0, "id lạ trên hộp");
+                // Luật 2
+                brokenB(l => l.Stacks[2].Boxes[0].Blockers["keylock"] = "k1", "hộp mang hai blocker");
+                // Luật 3: bản này chỉ có một cặp và nó được phép — không có case từ chối
+                // để kiểm; CardPairAllowed đã kiểm ở 8a.
+                // Luật 4
+                brokenB(l => l.Groups[0].Cards[1].Blockers["ice"] = 0.0, "ice = 0");
+                brokenB(l => l.Groups[0].Cards[1].Blockers["ice"] = 1.5, "ice không nguyên");
+                brokenB(l => l.Stacks[2].Boxes[0].Blockers["locked"] = "3", "locked là chuỗi");
+                // Luật 5
+                brokenB(l => l.Stacks[3].Boxes[0].Blockers["keylock"] = "k9", "keylock trỏ chìa không ai mang");
+                brokenB(l => l.Groups[2].Cards[0].Blockers["key"] = "k1", "hai thẻ cùng mang một chìa");
+                // Luật 6
+                brokenB(l => { l.Stacks[3].Boxes[0].Slots[2] = "d4"; l.Stacks[2].Boxes[0].Slots[0] = null; },
+                        "thẻ chìa nằm trong hộp nó mở");
+                brokenB(l => { l.Stacks[3].Boxes[0].Slots[2] = "d1"; l.Stacks[1].Boxes[0].Slots[0] = null; },
+                        "thẻ cùng nhóm với chìa nằm trong hộp chìa mở");
+                brokenB(l => { l.Stacks[3].Boxes.Add(new BoxDef { Slots = new[] { "d1", null, null, null } });
+                               l.Stacks[1].Boxes[0].Slots[0] = null; },
+                        "thẻ cùng nhóm với chìa nằm DƯỚI hộp chìa mở");
+
+                // Hợp lệ: cùng thẻ vừa băng vừa chìa.
+                var okLv = freshB();
+                okLv.Groups[1].Cards[3].Blockers["ice"] = 1.0;
+                okLv.Validate(hasArt);
+                Ok(Game.IsFrozen(Game.Build(okLv).TopBox(2).Slots[0]), "thẻ vừa băng vừa chìa là hợp lệ");
             }
 
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");

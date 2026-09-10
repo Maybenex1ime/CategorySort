@@ -81,17 +81,31 @@ namespace WordStack.Board
                 var st = new Stack { X = sd.Pos[0], Y = sd.Pos[1] };
                 for (int bi = 0; bi < sd.Boxes.Count; bi++)
                 {
+                    var bd = sd.Boxes[bi];
                     var box = new Box { IsBottom = bi == sd.Boxes.Count - 1 };
-                    for (int i = 0; i < sd.Boxes[bi].Slots.Length; i++)
+                    // Validate đã bảo đảm kiểu — Build không gọi trên data chưa Validate.
+                    object bv;
+                    if (bd.Blockers.TryGetValue(Blockers.Locked, out bv))
+                        box.Lock = new Lock { Kind = LockKind.Clears, Need = (int)(double)bv };
+                    if (bd.Blockers.TryGetValue(Blockers.KeyLock, out bv))
+                        box.Lock = new Lock { Kind = LockKind.Key, KeyId = (string)bv };
+
+                    for (int i = 0; i < bd.Slots.Length; i++)
                     {
-                        var id = sd.Boxes[bi].Slots[i];
+                        var id = bd.Slots[i];
                         if (id == null) continue;
                         var c = card[id];
-                        box.Slots[i] = new Tile
+                        var tile = new Tile
                         {
                             Uid = "t" + (++g.uidSeq),
                             CardId = c.Id, GroupId = ownerGroup[c.Id], Text = c.Text, Art = c.Art
                         };
+                        object cv;
+                        if (c.Blockers.TryGetValue(Blockers.Ice, out cv))
+                            tile.Lock = new Lock { Kind = LockKind.Moves, Need = (int)(double)cv };
+                        if (c.Blockers.TryGetValue(Blockers.Key, out cv))
+                            tile.KeyId = (string)cv;
+                        box.Slots[i] = tile;
                     }
                     st.Boxes.Add(box);
                 }

@@ -9,7 +9,12 @@ using System.Linq;
 
 namespace WordStack.Board
 {
-    public class CardDef  { public string Id, Text, Art; }
+    public class CardDef
+    {
+        public string Id, Text, Art;
+        // key = id blocker trong sổ Blockers.CardIds, value = tham số thô từ JSON (double/string).
+        public Dictionary<string, object> Blockers = new Dictionary<string, object>();
+    }
 
     // Card nằm LỒNG trong group của nó. Nhờ vậy hai luật thành bất khả vi phạm về cấu
     // trúc thay vì phải kiểm bằng validate: một card thuộc đúng một group, và không có
@@ -21,7 +26,11 @@ namespace WordStack.Board
         public List<CardDef> Cards = new List<CardDef>();
     }
 
-    public class BoxDef   { public string[] Slots; }
+    public class BoxDef
+    {
+        public string[] Slots;
+        public Dictionary<string, object> Blockers = new Dictionary<string, object>();
+    }
     public class StackDef { public double[] Pos; public List<BoxDef> Boxes = new List<BoxDef>(); }
 
     public class LevelData
@@ -68,6 +77,7 @@ namespace WordStack.Board
                             Id = Json.AsStr(Json.Get(cd, "id"), "card.id"),
                             Text = Json.AsStr(Json.Get(cd, "text"), "card.text"),
                             Art = Json.AsStr(Json.Get(cd, "art"), "card.art"),
+                            Blockers = ParseBlockers(Json.Get(cd, "blockers"), "card.blockers"),
                         });
                     }
                 lv.Groups.Add(g);
@@ -87,12 +97,23 @@ namespace WordStack.Board
                     st.Boxes.Add(new BoxDef
                     {
                         Slots = Json.AsArr(Json.Get(bd, "slots"), "box.slots")
-                                    .Select(x => Json.AsStr(x, "box.slots[]")).ToArray()
+                                    .Select(x => Json.AsStr(x, "box.slots[]")).ToArray(),
+                        Blockers = ParseBlockers(Json.Get(bd, "blockers"), "box.blockers"),
                     });
                 }
                 lv.Stacks.Add(st);
             }
             return lv;
+        }
+
+        // "blockers" vắng mặt = không blocker. Giữ giá trị thô: Validate mới kiểm kiểu, để
+        // thông điệp lỗi nói đúng luật nào bị vi phạm thay vì "cast fail".
+        static Dictionary<string, object> ParseBlockers(object o, string where)
+        {
+            var d = new Dictionary<string, object>();
+            if (o == null) return d;
+            foreach (var kv in Json.AsObj(o, where)) d[kv.Key] = kv.Value;
+            return d;
         }
 
         // hasArt: host quyết định art có tồn tại không (Unity: Resources.Load; console: File.Exists).
@@ -205,6 +226,75 @@ namespace WordStack.Board
                     }
                 }
             }
+            // -- Blocker (spec 2026-09-10 Mục 5, sáu luật) --
+            // Khối stack ở trên đã kiểm mọi id trong slots là id thẻ có thật, nên groupOf[id]
+            // bên dưới an toàn.
+            var groupOf = new Dictionary<string, string>();
+            foreach (var g in Groups) foreach (var c in g.Cards) groupOf[c.Id] = g.Id;
+            var keyOwner = new Dictionary<string, CardDef>();   // id chìa → thẻ mang
+
+            foreach (var g in Groups)
+                foreach (var c in g.Cards)
+                {
+                    string at = "card \"" + c.Id + "\"";
+                    foreach (var key in c.Blockers.Keys)
+                    {
+                        if (Array.IndexOf(Blockers.BoxIds, key) >= 0)
+                            die(at + ": \"" + key + "\" là blocker của hộp, không đặt trên thẻ");
+                        if (Array.IndexOf(Blockers.CardIds, key) < 0)
+                            die(at + ": blocker \"" + key + "\" không có trong sổ đăng ký");
+                    }
+                    foreach (var a1 in c.Blockers.Keys)
+                        foreach (var b1 in c.Blockers.Keys)
+                            if (string.CompareOrdinal(a1, b1) < 0 && !Blockers.CardPairAllowed(a1, b1))
+                                die(at + ": \"" + a1 + "\" và \"" + b1 + "\" không được đứng chung trên một thẻ");
+                    object v;
+                    if (c.Blockers.TryGetValue(Blockers.Ice, out v) && !Blockers.IsCount(v))
+                        die(at + ": ice phải là số nguyên >= 1");
+                    if (c.Blockers.TryGetValue(Blockers.Key, out v))
+                    {
+                        var kid = v as string;
+                        if (string.IsNullOrEmpty(kid)) die(at + ": key phải là chuỗi id chìa");
+                        if (keyOwner.ContainsKey(kid))
+                            die("id chìa \"" + kid + "\" có hai thẻ mang: " + keyOwner[kid].Id + " và " + c.Id);
+                        keyOwner[kid] = c;
+                    }
+                }
+
+            for (int si = 0; si < Stacks.Count; si++)
+                for (int bi = 0; bi < Stacks[si].Boxes.Count; bi++)
+                {
+                    var box = Stacks[si].Boxes[bi];
+                    string at = "stack " + si + " box " + bi;
+                    foreach (var key in box.Blockers.Keys)
+                    {
+                        if (Array.IndexOf(Blockers.CardIds, key) >= 0)
+                            die(at + ": \"" + key + "\" là blocker của thẻ, không đặt trên hộp");
+                        if (Array.IndexOf(Blockers.BoxIds, key) < 0)
+                            die(at + ": blocker \"" + key + "\" không có trong sổ đăng ký");
+                    }
+                    if (box.Blockers.Count > 1) die(at + ": hộp mang tối đa một blocker");
+                    object v;
+                    if (box.Blockers.TryGetValue(Blockers.Locked, out v) && !Blockers.IsCount(v))
+                        die(at + ": locked phải là số nguyên >= 1");
+                    if (box.Blockers.TryGetValue(Blockers.KeyLock, out v))
+                    {
+                        var kid = v as string;
+                        CardDef keyCard = null;   // die() không báo cho compiler là nó ném
+                        if (string.IsNullOrEmpty(kid) || !keyOwner.TryGetValue(kid, out keyCard))
+                            die(at + ": keylock \"" + kid + "\" không có thẻ nào mang chìa đó");
+                        // Luật 6: hộp có ổ không bao giờ rỗng nên hộp dưới nó không lộ ra chừng
+                        // nào chưa mở. Thẻ chìa — hay bất kỳ thẻ nào cùng nhóm, vì chìa chỉ bị gom
+                        // khi cả nhóm về chung hộp — nằm trong hoặc dưới đây là khoá vĩnh viễn.
+                        string kg = groupOf[keyCard.Id];
+                        for (int bj = bi; bj < Stacks[si].Boxes.Count; bj++)
+                            foreach (var id in Stacks[si].Boxes[bj].Slots)
+                                if (id != null && groupOf[id] == kg)
+                                    die(at + ": thẻ \"" + id + "\" cùng nhóm với chìa \"" + kid +
+                                        "\" nằm trong hoặc dưới hộp mà chìa đó mở — khoá vĩnh viễn");
+                    }
+                }
+
             foreach (var c in AllCards())
                 if (!seen.Contains(c.Id)) die("card \"" + c.Id + "\" không có mặt trên bàn");
 
