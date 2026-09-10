@@ -33,7 +33,40 @@ const roundTrip = gv => { const r = T.rawToGame(T.gameToRaw(gv), null); return r
   }
 }
 
-// (Các mục 2..4 thêm ở Task 3, 4, 5.)
+// ---- 2. Round-trip blocker ----
+// Fixture hợp lệ cả với luật kiểm ở Task 4: thẻ chìa là thẻ đầu nhóm đầu; hộp có ổ nằm
+// ở một stack KHÔNG chứa thẻ nào của nhóm đó (spec luật 6) và hộp trên CÓ thẻ — Task 4
+// cần đổi chỗ một thẻ vào hộp này, hộp trống thì không có gì để đổi; hộp khoá ở stack khác.
+// lv-001 hôm nay: nhóm đầu là g_dog (nhóm con, collapse vào g_pet), chọn trúng stack 1.
+function blockerFixture(){
+  const gv = loadGame('lv-001.json');
+  const g0 = new Set(gv.meaning.groups[0].cards.map(c => c.id));
+  const keyStack = gv.layout.stacks.findIndex(s =>
+    s.boxes[0].slots.some(Boolean) && !s.boxes.some(bx => bx.slots.some(id => g0.has(id))));
+  const lockStack = gv.layout.stacks.findIndex((s, i) => i !== keyStack);
+  gv.meaning.groups[0].cards[0].blockers = { ice: 3, key: 'k1' };
+  gv.layout.stacks[keyStack].boxes[0].blockers = { keylock: 'k1' };
+  gv.layout.stacks[lockStack].boxes[0].blockers = { locked: 2 };
+  return { gv, keyStack, lockStack };
+}
+{
+  const { gv, keyStack } = blockerFixture();
+  ok(keyStack >= 0, 'lv-001 phải có một stack không chứa thẻ nào của nhóm đầu');
+  const back = roundTrip(gv);
+  ok(!back.errors, 'màn có blocker xuất lại bị chặn: ' + (back.errors && back.errors[0]));
+  if (!back.errors){
+    ok(JSON.stringify(back.meaning.groups[0].cards[0].blockers) === '{"ice":3,"key":"k1"}',
+       'blocker thẻ phải còn nguyên sau Nhập → Xuất');
+    const boxBlk = back.layout.stacks.flatMap(s => s.boxes).filter(x => x.blockers)
+      .map(x => JSON.stringify(x.blockers)).sort();
+    ok(JSON.stringify(boxBlk) === JSON.stringify(['{"keylock":"k1"}', '{"locked":2}']),
+       'blocker hộp phải còn nguyên sau Nhập → Xuất, được: ' + boxBlk.join(' '));
+    ok(back.meaning.groups.slice(1).every(g => g.cards.every(c => !c.blockers)),
+       'thẻ không khai blocker thì xuất ra không có "blockers"');
+  }
+}
+
+// (Các mục 3..4 thêm ở Task 4, 5.)
 
 if (failed) { console.error(`\n${failed} check FAIL`); process.exit(1); }
 console.log('tool-check OK');
