@@ -95,6 +95,14 @@ input,select,textarea{font:inherit}
 .box.revealed{animation:boxin .28s}
 @keyframes boxin{from{transform:scale(.94)}to{transform:scale(1)}}
 .box.is-bottom{border-style:dashed}
+.box.locked{border-style:dotted;opacity:.8}
+.box.locked::after{content:attr(data-lock);position:absolute;top:-11px;right:-6px;z-index:2;
+  background:#000c;color:#fff;font-size:11px;font-weight:800;padding:2px 7px;border-radius:9px}
+/* .tile đã position:absolute + overflow:hidden → huy hiệu phải nằm TRONG mép thẻ */
+.tile.iced{filter:saturate(.35) brightness(1.12);box-shadow:inset 0 0 0 3px #BFE6FF}
+.tile.iced::after{content:'🧊' attr(data-ice);position:absolute;bottom:2px;right:2px;line-height:1.4;
+  font-size:11px;font-weight:800;background:#1c3a52;color:#fff;border-radius:8px;padding:0 4px}
+.tile.has-key::before{content:'🔑';position:absolute;top:2px;left:2px;font-size:13px;line-height:1}
 
 .slot{
   aspect-ratio:3/4;border-radius:10px;background:rgba(0,0,0,.16);
@@ -282,6 +290,12 @@ textarea{min-height:150px;font-family:ui-monospace,Menlo,Consolas,monospace;font
       </div>
       <h3 style="margin-top:12px">Từ chưa đặt</h3>
       <div class="bank" id="edBank"></div>
+    </div>
+
+    <div class="panel">
+      <h3>Blocker thẻ <span style="text-transform:none;font-weight:600">— 🧊 băng N nước · 🔑 chìa mở ổ cùng id</span></h3>
+      <div id="edCardBlk"></div>
+      <button class="btn sm" id="edAddCardBlk">+ Blocker thẻ</button>
     </div>
 
     <div class="panel">
@@ -1379,6 +1393,12 @@ function render(fresh){
     const box = st.boxes[0];
     const bEl = document.createElement('div');
     bEl.className = 'box' + (box.isBottom ? ' is-bottom' : '');
+    if (!isBoxOpen(state, box)){
+      bEl.classList.add('locked');
+      bEl.dataset.lock = box.lock.kind === 'clears'
+        ? '🔒 ' + Math.max(box.lock.need - state.solved.size, 0)
+        : '🗝 ' + box.lock.keyId;
+    }
     bEl.dataset.boxId  = box.id;
     bEl.dataset.stackId = st.id;
     bEl.style.setProperty('--bcols', Math.ceil(Math.sqrt(box.capacity)));
@@ -1392,6 +1412,8 @@ function render(fresh){
         const tEl = document.createElement('div');
         const icon = state.icons[t.label] || '';
         tEl.className = 'tile' + (t.isTopic ? ' topic' : '') + (icon ? ' has-icon' : '');
+        if (isFrozen(t)){ tEl.classList.add('iced'); tEl.dataset.ice = t.ice.need - t.ice.have; }
+        if (t.key) tEl.classList.add('has-key');
         tEl.dataset.tileId = t.id;
         tEl.dataset.stackId = st.id;
         if (icon){
@@ -1484,6 +1506,14 @@ boardEl.addEventListener('pointerdown', e => {
   if (busy || !state || state.status === 'won') return;
   const tile = e.target.closest('.tile');
   if (!tile) return;
+  const srcBox = topBox(state, tile.dataset.stackId);
+  const srcTile = srcBox && srcBox.tiles.find(x => x && x.id === tile.dataset.tileId);
+  if (!canPick(state, srcBox, srcTile)){
+    const bEl = tile.closest('.box');
+    bEl.classList.add('shake'); setTimeout(() => bEl.classList.remove('shake'), 300);
+    toast(isFrozen(srcTile) ? '🧊 Ô đang đóng băng' : '🔒 Hộp đang khoá', 1200);
+    return;
+  }
   const rect = tile.getBoundingClientRect();
   drag = {
     el: tile, tileId: tile.dataset.tileId, fromStack: tile.dataset.stackId,
@@ -1517,7 +1547,7 @@ boardEl.addEventListener('pointermove', e => {
   const t = dropTarget(e.clientX, e.clientY);
   if (t && t.dataset.stackId !== drag.fromStack){
     const box = topBox(state, t.dataset.stackId);
-    t.classList.add(box && freeSlots(box) > 0 ? 'drop-ok' : 'drop-bad');
+    t.classList.add(box && freeSlots(box) > 0 && isBoxOpen(state, box) ? 'drop-ok' : 'drop-bad');
   }
   e.preventDefault();
 }, { passive:false });
@@ -1713,7 +1743,17 @@ function edRender(){
         </span></div>`;
     st.boxes.forEach((b, bi) => {
       const tag = bi === 0 ? 'TOP — đang mở' : (bi === st.boxes.length - 1 ? 'ĐÁY (không bao giờ xoá)' : 'bị che');
-      html += `<div class="boxrow"><div class="lbl"><span>Box ${bi} · ${tag}</span>
+      const bl = b.blockers || {};
+      const kind = 'locked' in bl ? 'locked' : ('keylock' in bl ? 'keylock' : '');
+      const blkCtl = `<span class="row tight">
+          <select data-bblk="${si}.${bi}" title="Blocker của hộp">
+            <option value=""${kind === '' ? ' selected' : ''}>— không khoá —</option>
+            <option value="locked"${kind === 'locked' ? ' selected' : ''}>🔒 khoá: cần N nhóm</option>
+            <option value="keylock"${kind === 'keylock' ? ' selected' : ''}>🗝 ổ: cần chìa</option>
+          </select>
+          ${kind ? `<input data-bval="${si}.${bi}" value="${esc(bl[kind])}" placeholder="${kind === 'locked' ? 'số nhóm' : 'id chìa'}" style="width:72px">` : ''}
+        </span>`;
+      html += `<div class="boxrow"><div class="lbl"><span>Box ${bi} · ${tag}</span>${blkCtl}
         ${st.boxes.length > 1 ? `<button class="btn sm danger" data-delbox="${si}.${bi}">✕</button>` : ''}</div>
         <div class="slots">`;
       for (let k = 0; k < ed.boxCapacity; k++){
@@ -1739,6 +1779,22 @@ function edRender(){
     const s = document.createElement('span'); s.className = 'topicw'; s.textContent = w + ' 🔁'; bank.appendChild(s);
   });
   if (!bank.children.length) bank.innerHTML = '<span style="opacity:.6">(đã đặt hết)</span>';
+  /* --- blocker thẻ: theo NHÃN, như icons. Thẻ sinh từ COLLAPSE không có trong danh sách --- */
+  const cbEl = $('#edCardBlk'), cbs = ed.cardBlockers || {};
+  cbEl.innerHTML = Object.keys(cbs).length ? '' : '<span class="hintline">(chưa có)</span>';
+  Object.keys(cbs).forEach(label => {
+    const bk = cbs[label], row = document.createElement('div');
+    // Nhãn không còn là từ nào (đổi tên nhóm sau khi gắn) vẫn hiện đúng nó — Kiểm tra sẽ báo.
+    const opts = words.includes(label) ? words : [label, ...words];
+    row.className = 'row tight'; row.style.marginBottom = '6px';
+    row.innerHTML = `<select data-cbw="${esc(label)}">` +
+      opts.map(w => `<option value="${esc(w)}"${w === label ? ' selected' : ''}${w !== label && cbs[w] ? ' disabled' : ''}>${esc(w)}</option>`).join('') +
+      `</select>
+      <label class="f" style="max-width:80px">🧊 nước<input data-cbice="${esc(label)}" value="${bk.ice != null ? esc(bk.ice) : ''}" placeholder="—"></label>
+      <label class="f" style="max-width:90px">🔑 id chìa<input data-cbkey="${esc(label)}" value="${bk.key != null ? esc(bk.key) : ''}" placeholder="—"></label>
+      <button class="btn sm danger" data-cbdel="${esc(label)}">✕</button>`;
+    cbEl.appendChild(row);
+  });
 }
 function esc(s){ return String(s).replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -1782,6 +1838,19 @@ $('#edAddGroup').onclick = () => {
 };
 
 $('#edStacks').addEventListener('change', e => {
+  const tg = e.target;
+  if (tg.dataset.bblk !== undefined){
+    const [si, bi] = tg.dataset.bblk.split('.').map(Number), b = ed.stacks[si].boxes[bi];
+    if (!tg.value) delete b.blockers;
+    else b.blockers = { [tg.value]: tg.value === 'locked' ? 1 : 'k1' };
+    edRender(); return;
+  }
+  if (tg.dataset.bval !== undefined){
+    const [si, bi] = tg.dataset.bval.split('.').map(Number), b = ed.stacks[si].boxes[bi];
+    const k = Object.keys(b.blockers || {})[0];
+    if (k) b.blockers[k] = k === 'locked' ? parseInt(tg.value, 10) : tg.value.trim();
+    edRender(); return;
+  }
   const sel = e.target.closest('select'); if (!sel) return;
   const [si, bi, k] = sel.dataset.slot.split('.').map(Number);
   const b = ed.stacks[si].boxes[bi];
@@ -1804,6 +1873,35 @@ $('#edStacks').addEventListener('click', e => {
 $('#edAddStack').onclick = () => {
   ed.stacks = ed.stacks || [];
   ed.stacks.push({ boxes:[{ tiles:new Array(ed.boxCapacity).fill(null) }] });
+  edRender();
+};
+$('#edCardBlk').addEventListener('change', e => {
+  const tg = e.target, cbs = ed.cardBlockers = ed.cardBlockers || {};
+  if (tg.dataset.cbw !== undefined && tg.value !== tg.dataset.cbw && !cbs[tg.value]){
+    cbs[tg.value] = cbs[tg.dataset.cbw]; delete cbs[tg.dataset.cbw];   // blocker đi theo sang thẻ mới
+  }
+  if (tg.dataset.cbice !== undefined){
+    const bk = cbs[tg.dataset.cbice], n = parseInt(tg.value, 10);
+    if (!tg.value.trim()) delete bk.ice; else bk.ice = Number.isNaN(n) ? tg.value : n;
+  }
+  if (tg.dataset.cbkey !== undefined){
+    const bk = cbs[tg.dataset.cbkey];
+    if (!tg.value.trim()) delete bk.key; else bk.key = tg.value.trim();
+  }
+  edRender();
+});
+$('#edCardBlk').addEventListener('click', e => {
+  const b = e.target.closest('button');
+  if (!b || b.dataset.cbdel === undefined) return;
+  delete ed.cardBlockers[b.dataset.cbdel];
+  if (!Object.keys(ed.cardBlockers).length) delete ed.cardBlockers;
+  edRender();
+});
+$('#edAddCardBlk').onclick = () => {
+  const cbs = ed.cardBlockers = ed.cardBlockers || {};
+  const free = edPlaceableWords().words.find(w => !cbs[w]);
+  if (!free){ edMsg('warn', 'Mọi thẻ đã có blocker.'); return; }
+  cbs[free] = { ice: 1 };
   edRender();
 };
 $('#edClearBoard').onclick = () => {

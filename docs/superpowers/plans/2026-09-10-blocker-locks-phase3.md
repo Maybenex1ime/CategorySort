@@ -877,14 +877,14 @@ Phần này chạm DOM nên `tool-check.mjs` không phủ được. Kiểm bằn
 Ngay sau dòng `.box.is-bottom{border-style:dashed}` thêm:
 
 ```css
-.box.locked{position:relative;border-style:dotted;opacity:.8}
+.box.locked{border-style:dotted;opacity:.8}
 .box.locked::after{content:attr(data-lock);position:absolute;top:-11px;right:-6px;z-index:2;
   background:#000c;color:#fff;font-size:11px;font-weight:800;padding:2px 7px;border-radius:9px}
-.tile.iced,.tile.has-key{position:relative}
+/* .tile đã position:absolute + overflow:hidden → huy hiệu phải nằm TRONG mép thẻ */
 .tile.iced{filter:saturate(.35) brightness(1.12);box-shadow:inset 0 0 0 3px #BFE6FF}
-.tile.iced::after{content:'🧊' attr(data-ice);position:absolute;bottom:-7px;right:-5px;
+.tile.iced::after{content:'🧊' attr(data-ice);position:absolute;bottom:2px;right:2px;line-height:1.4;
   font-size:11px;font-weight:800;background:#1c3a52;color:#fff;border-radius:8px;padding:0 4px}
-.tile.has-key::before{content:'🔑';position:absolute;top:-8px;left:-6px;font-size:13px}
+.tile.has-key::before{content:'🔑';position:absolute;top:2px;left:2px;font-size:13px;line-height:1}
 ```
 
 - [ ] **Step 2: Tab Chơi hiện blocker**
@@ -998,9 +998,11 @@ Cuối `edRender`, trước dấu `}` đóng hàm, thêm:
   cbEl.innerHTML = Object.keys(cbs).length ? '' : '<span class="hintline">(chưa có)</span>';
   Object.keys(cbs).forEach(label => {
     const bk = cbs[label], row = document.createElement('div');
+    // Nhãn không còn là từ nào (đổi tên nhóm sau khi gắn) vẫn hiện đúng nó — Kiểm tra sẽ báo.
+    const opts = words.includes(label) ? words : [label, ...words];
     row.className = 'row tight'; row.style.marginBottom = '6px';
     row.innerHTML = `<select data-cbw="${esc(label)}">` +
-      words.map(w => `<option value="${esc(w)}"${w === label ? ' selected' : ''}${w !== label && cbs[w] ? ' disabled' : ''}>${esc(w)}</option>`).join('') +
+      opts.map(w => `<option value="${esc(w)}"${w === label ? ' selected' : ''}${w !== label && cbs[w] ? ' disabled' : ''}>${esc(w)}</option>`).join('') +
       `</select>
       <label class="f" style="max-width:80px">🧊 nước<input data-cbice="${esc(label)}" value="${bk.ice != null ? esc(bk.ice) : ''}" placeholder="—"></label>
       <label class="f" style="max-width:90px">🔑 id chìa<input data-cbkey="${esc(label)}" value="${bk.key != null ? esc(bk.key) : ''}" placeholder="—"></label>
@@ -1052,9 +1054,11 @@ $('#edAddCardBlk').onclick = () => {
 Chạy `node demo/tool-check.mjs` trước (phải `tool-check OK`), rồi mở `demo/wordstack.html`:
 
 1. Tab Xếp level → Nhập JSON → dán `Assets/_Game/Content/Levels/lv-001.json` → Áp dụng.
-2. Box 0 của Stack 1: chọn `🔒 khoá`, gõ `1`. Box 0 của Stack 2: chọn `🗝 ổ`, giữ `k1`.
-3. `+ Blocker thẻ`, chọn một thẻ chó (poodle…), điền `🧊 2` và `🔑 k1`.
-4. Bấm Kiểm tra: không lỗi blocker. Bấm Xuất JSON: JSON có `"blockers"` ở hai hộp và ở thẻ đã chọn.
+2. Box 0 của Stack 6: chọn `🔒 khoá`, gõ `1`. Box 0 của Stack 2: chọn `🗝 ổ`, giữ `k1`.
+   (Đừng khoá Stack 1: nhóm nào cũng cần một thẻ trong Stack 1 hoặc trong hộp có ổ, nên không
+   nhóm nào gom được để mở khoá — màn kẹt thiết kế, bộ giải báo không giải được.)
+3. `+ Blocker thẻ`, chọn poodle, điền `🧊 2` và `🔑 k1`.
+4. Bấm Kiểm tra: không lỗi blocker, bộ giải tìm ra lời giải. Bấm Xuất JSON: JSON có `"blockers"` ở hai hộp và ở thẻ đã chọn.
 5. Dán lại chính JSON vừa xuất → Áp dụng: ba blocker vẫn còn trên giao diện.
 6. Chuyển Stack 2 sang `🗝 ổ` với id `k9` → Kiểm tra báo "không có thẻ nào mang chìa".
 7. Chơi thử: hộp khoá và hộp có ổ hiện nhãn và viền chấm; thẻ băng hiện 🧊 kèm số; bấm vào chúng thì hộp rung và toast. Đi hai nước ở chỗ khác → băng biến mất, kéo được. Kéo thẻ khác thả vào hộp khoá → hộp rung, toast `Hộp đang khoá`.
