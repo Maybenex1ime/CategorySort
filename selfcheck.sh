@@ -40,4 +40,7 @@ cat > "$OUT/selfcheck.runtimeconfig.json" <<EOF
 EOF
 
 "$DOTNET" "$CSC" "@$(cygpath -w "$OUT/csc.rsp")"
-"$DOTNET" "$(cygpath -w "$OUT/selfcheck.dll")" "$(cygpath -w "$PWD/Assets/_Game/Content/Levels")"
+# Tham số 1 (tuỳ chọn): thư mục level. Dùng khi bộ level ship đang đỏ vì content
+# (art thiếu, level chưa giải được) mà vẫn cần chạy toàn bộ mục luật.
+LEVELS="${1:-$PWD/Assets/_Game/Content/Levels}"
+"$DOTNET" "$(cygpath -w "$OUT/selfcheck.dll")" "$(cygpath -w "$LEVELS")"
