@@ -27,15 +27,15 @@ MonoBehaviour:
     Moves: 200
     HideSettingsButton: 0
     HideCoinBox: 0
-  - LevelId: lv-003
-    AddressKey: lv-003
+  - LevelId: lv-008
+    AddressKey: lv-008
     DisplayName: The gioi quanh ta
     Difficulty: 2
     Moves: 200
     HideSettingsButton: 0
     HideCoinBox: 0
-  - LevelId: lv-003
-    AddressKey: lv-003
+  - LevelId: lv-009
+    AddressKey: lv-009
     DisplayName: The gioi quanh ta
     Difficulty: 2
     Moves: 200
