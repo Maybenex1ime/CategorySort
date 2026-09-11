@@ -1,8 +1,20 @@
 # Session State
 
-> Cập nhật cuối: 2026-08-15. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
+> Cập nhật cuối: 2026-09-11. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
 
 ## Đang ở đâu
+
+**Blocker + HUD booster (2026-09-03 → 09-10) — `main` = `d69f01f`, CHƯA push (đi trước origin 29).**
+Nguồn chi tiết hiện hành: **`docs/session-log/2026-09-11-08.md`** (quyết định, việc đã làm, gotcha 20–26,
+backlog). Tóm: ba blocker (hộp khoá `locked` · thẻ băng `ice` · khoá & chìa `keylock`/`key`) chạy thật
+trong domain + bàn chơi nhưng **chưa có art** (slot trống ở `TileView`/`BoxView` — user tự làm); spec
+`docs/superpowers/specs/2026-09-10-blocker-locks-design.md`, luật tóm ở `docs/wordstack-rules.md` Mục 11.
+`demo/wordstack.html` là tool xếp màn **duy nhất** và hiểu blocker (tool Unity đã xoá) — kiểm bằng
+`node demo/tool-check.mjs`. Màn thử **lv-009 "Blocker test"**: chạy `WordStack ▸ Build Level Catalog`
+(catalog đang lệch thư mục) → Play → CHEAT → Level 4; phím **B** gắn blocker mẫu lên bàn đang chơi,
+**R** nạp lại. HUD booster Magnet/Shuffle/Undo hiện khoá `Lv.N` / `+` / số lượt theo `SO_UnlockSchedule`
+(5 / 7 / 9); `GameplayUiRoot` đã gắn nên gotcha 17 của log 08-18 hết hiệu lực.
+Các đoạn dưới là lịch sử tới 2026-08-15.
 
 **Prototype đã productionize (2026-08-15, CHƯA commit — user test trong Editor trước).**
 `Assets/Prototype/` không còn: luật + view dời vào `Assets/_Game/Board/` thành assembly
@@ -205,8 +217,8 @@ root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, 
 | `demo/wordstack.html` | Tool xếp level duy nhất (tool Unity `LevelEditorWindow` đã xoá 2026-09-10 — không giữ được collapse, moves, difficulty, blocker) |
 | `Assets/_Game/Board/Editor/BoardTestDriver.cs` | `WordStack ▸ Test ▸ Play 4 moves on lv-001` — chạy chuỗi nước đi qua `BoardController.DebugMove`, ghi `Temp/testdrive.{txt,png}` |
 | `Assets/_Game/Board/Tests/BoardRulesTests.cs` | EditMode: nước đi hợp lệ/bị từ chối, CLEAR + xoá hộp, cascade, thắng/kẹt. Bộ đầy đủ vẫn ở `SelfCheck` |
-| `Assets/_Game/Content/Levels/lv-00{1..6}.json` | 6 level (Addressable, address = `id`), solver khớp demo |
-| `Assets/_Game/Content/Resources/Art/*.png` | 12 placeholder **có nhãn**; runtime nạp `Resources.Load("Art/" + key)` |
+| `Assets/_Game/Content/Levels/lv-*.json` | lv-001 · lv-002 · lv-008 · lv-009 (màn thử blocker). Addressable, address = `id`; catalog sinh bằng `WordStack ▸ Build Level Catalog` |
+| `Assets/_Game/Content/Resources/Art/*.png` | 116 sprite đặt theo tên thẻ/nhóm (bộ ảnh thay 2026-08-18); runtime nạp `Resources.Load("Art/" + key)` |
 | `Assets/Plugins/Demigiant/` | DOTween 843K, commit vào repo theo quyết định của user |
 | `docs/architecture/view-prefabs.md` | Thiết kế prefab — **Approved**; Mục 6 = dựng bằng menu, Mục 8 = chỗ lệch draft, Mục 9 = feel lấy từ Balatro-Feel |
 | `docs/wordstack-rules.md` | Luật chơi tự đủ nghĩa — đưa cho model/người mới đọc |
@@ -215,7 +227,8 @@ root Tile giữ scale 1 · gộp bước 2+4 (viết thẳng bản Instantiate, 
 
 ```bash
 ./selfcheck.sh      # luật + validate + solver, ~3s, không cần Unity
-./compilecheck.sh   # compile cả 2 assembly C#, vài giây
+./compilecheck.sh   # compile game / editor / meta, vài giây
+node demo/tool-check.mjs   # tool web: round-trip, sáu luật blocker, luật chơi bản JS
 ```
 
 `compilecheck.sh` gom file bằng `find` (thêm .cs khỏi phải sửa script) và mượn
