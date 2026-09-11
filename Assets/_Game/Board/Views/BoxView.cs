@@ -11,13 +11,17 @@ namespace WordStack.Board
     {
         [SerializeField] Transform[] slotAnchors = new Transform[4];
 
-        // Blocker — CHƯA GÁN, xem ghi chú cùng loại trong TileView.
-        [Header("Khoá (blocker) — để trống, gắn art sau")]
+        // Blocker — placeholder đã dựng trong Box.prefab (Lock Root > Lock Icon + Lock Text).
+        // Art tạm: Art/Sprites/Lock.png và KeyLock.png — thay file giữ nguyên tên là xong.
+        [Header("Khoá (blocker)")]
         [SerializeField] GameObject lockRoot;     // ổ khoá phủ lên hộp
         [SerializeField] TextMesh lockLabelText;  // số nhóm còn cần, hoặc id chìa
         // Hình ổ tô màu khi hộp khoá bằng chìa: sprite trắng, màu lấy từ SO_KeyColors theo id,
         // cùng asset với chìa trên Tile.prefab. Hộp khoá theo số nhóm giữ màu author trong prefab.
         [SerializeField] SpriteRenderer lockIcon;
+        // Mỗi loại khoá một hình, gán lên lockIcon lúc hộp đóng. Field null = giữ sprite đang gắn.
+        [SerializeField] Sprite lockedSprite;     // hộp khoá theo số nhóm (locked)
+        [SerializeField] Sprite keyLockSprite;    // hộp có ổ (keylock) — phải trắng để tô màu chìa
         [SerializeField] KeyColorPalette keyColors;
 
         SpriteRenderer[] renderers;
