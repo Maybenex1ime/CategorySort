@@ -11,22 +11,21 @@ namespace WordStack.Board
     {
         [SerializeField] Transform[] slotAnchors = new Transform[4];
 
-        // Blocker — placeholder đã dựng trong Box.prefab (Lock Root > Lock Icon + Lock Text).
-        // Art tạm: Art/Sprites/Lock.png và KeyLock.png — thay file giữ nguyên tên là xong.
-        [Header("Khoá (blocker)")]
-        [SerializeField] GameObject lockRoot;     // ổ khoá phủ lên hộp
-        [SerializeField] TextMesh lockLabelText;  // số nhóm còn cần, hoặc id chìa
-        // Hình ổ tô màu khi hộp khoá bằng chìa: sprite trắng, màu lấy từ SO_KeyColors theo id,
-        // cùng asset với chìa trên Tile.prefab. Hộp khoá theo số nhóm giữ màu author trong prefab.
-        [SerializeField] SpriteRenderer lockIcon;
-        // Mỗi loại khoá một hình, gán lên lockIcon lúc hộp đóng. Field null = giữ sprite đang gắn.
-        [SerializeField] Sprite lockedSprite;     // hộp khoá theo số nhóm (locked)
-        [SerializeField] Sprite keyLockSprite;    // hộp có ổ (keylock) — phải trắng để tô màu chìa
+        // Blocker của hộp — mỗi loại một root riêng trong Box.prefab, dựng art độc lập.
+        // Hộp mở thì cả hai root tắt. Field nào chưa nối thì bỏ qua, bàn vẫn chạy như thường.
+        [Header("Hộp khoá theo số nhóm (locked)")]
+        [SerializeField] GameObject lockedRoot;
+        [SerializeField] TextMesh lockedCountText;   // số nhóm CÒN phải gom
+
+        [Header("Hộp có ổ (keylock)")]
+        [SerializeField] GameObject keyLockRoot;
+        // Lớp DUY NHẤT đổi màu theo chìa: sprite trắng/xám, màu nhân từ SO_KeyColors theo id — cùng
+        // asset với chìa trên Tile.prefab. Xích, khiên, lỗ khoá là lớp riêng giữ màu gốc.
+        [SerializeField] SpriteRenderer keyLockTint;
         [SerializeField] KeyColorPalette keyColors;
 
         SpriteRenderer[] renderers;
         float[] baseAlpha;
-        Color lockBaseColor = Color.white;
 
         void Awake()
         {
@@ -35,30 +34,26 @@ namespace WordStack.Board
             renderers = GetComponentsInChildren<SpriteRenderer>(true);
             baseAlpha = new float[renderers.Length];
             for (int i = 0; i < renderers.Length; i++) baseAlpha[i] = renderers[i].color.a;
-            if (lockIcon != null) lockBaseColor = lockIcon.color;
         }
 
         public Transform Slot(int i) { return slotAnchors[i]; }
 
         // Hộp đóng: không nhặt ra, không thả vào, không tự nổ (luật ở Domain).
-        // label do bên gọi dựng — hộp khoá là số nhóm còn cần, hộp có ổ là id chìa.
-        // keyId: id chìa khi hộp có ổ, null khi hộp khoá theo số nhóm.
-        // ResetVisual() cố ý KHÔNG đụng lockRoot: hộp vừa lộ ra có thể vẫn đang khoá,
+        // keyId khác null = hộp có ổ; null = hộp khoá theo số nhóm, label là số nhóm còn cần.
+        // ResetVisual() cố ý KHÔNG đụng hai root: hộp vừa lộ ra có thể vẫn đang khoá,
         // RefreshBlockerVisuals mới là chỗ quyết định.
         public void SetLock(bool closed, string label, string keyId)
         {
-            if (lockRoot != null) lockRoot.SetActive(closed);
-            if (lockLabelText != null)
+            bool keyed = closed && keyId != null;
+            bool counted = closed && keyId == null;
+            if (lockedRoot != null) lockedRoot.SetActive(counted);
+            if (keyLockRoot != null) keyLockRoot.SetActive(keyed);
+            if (counted && lockedCountText != null) ViewText.Apply(lockedCountText, label ?? "", 1f, 0.9f);
+            if (keyed && keyLockTint != null && keyColors != null)
             {
-                lockLabelText.gameObject.SetActive(closed && !string.IsNullOrEmpty(label));
-                if (closed && !string.IsNullOrEmpty(label))
-                    ViewText.Apply(lockLabelText, label, 1f, 0.9f);
-            }
-            if (closed && lockIcon != null)
-            {
-                var c = keyId != null && keyColors != null ? keyColors.Get(keyId) : lockBaseColor;
-                c.a = lockIcon.color.a;   // alpha thuộc SetAlpha (hộp mờ dần), ở đây chỉ đổi màu
-                lockIcon.color = c;
+                var c = keyColors.Get(keyId);
+                c.a = keyLockTint.color.a;   // alpha thuộc SetAlpha (hộp mờ dần), ở đây chỉ đổi màu
+                keyLockTint.color = c;
             }
         }
 

@@ -1136,12 +1136,12 @@ namespace WordStack.Board
             }
         }
 
-        // Hộp khoá hiện số nhóm CÒN CẦN; hộp có ổ hiện id chìa. Hộp đã mở không có nhãn.
+        // Hộp khoá hiện số nhóm CÒN CẦN. Hộp có ổ không có chữ — màu chìa (SO_KeyColors) đã nói
+        // nó mở bằng chìa nào. Hộp đã mở không có nhãn.
         string LockLabel(Lock l)
         {
             if (g == null) return null;
             if (l.Kind == LockKind.Clears) return Mathf.Max(l.Need - g.Cleared, 0).ToString();
-            if (l.Kind == LockKind.Key) return l.KeyId;
             return null;
         }
 
