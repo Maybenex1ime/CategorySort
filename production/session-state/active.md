@@ -8,7 +8,7 @@
 Nguồn chi tiết: **`docs/session-log/2026-09-11-08.md`** (logic, tool, lv-009 — quyết định, gotcha 25–30,
 backlog) và **`docs/session-log/2026-09-10-23.md`** (phần nhìn: băng + chìa trên thẻ, màu theo
 `SO_KeyColors`; gotcha 20–24). Tóm: ba blocker (hộp khoá `locked` · thẻ băng `ice` · khoá & chìa
-`keylock`/`key`) chạy thật trong domain + bàn chơi; **hình ổ khoá trên hộp chưa có**. Spec
+`keylock`/`key`) chạy thật trong domain + bàn chơi; hình khoá hộp dựng trong editor, mỗi loại một root (log 09-11-08 đợt 2). Spec
 `docs/superpowers/specs/2026-09-10-blocker-locks-design.md`, luật tóm ở `docs/wordstack-rules.md` Mục 11.
 `demo/wordstack.html` là tool xếp màn **duy nhất** và hiểu blocker (tool Unity đã xoá) — kiểm bằng
 `node demo/tool-check.mjs`. Màn thử **lv-009 "Blocker test"**: chạy `WordStack ▸ Build Level Catalog`
