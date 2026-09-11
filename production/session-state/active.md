@@ -4,14 +4,15 @@
 
 ## Đang ở đâu
 
-**Blocker + HUD booster (2026-09-03 → 09-10) — `main` = `d69f01f`, CHƯA push (đi trước origin 29).**
-Nguồn chi tiết hiện hành: **`docs/session-log/2026-09-11-08.md`** (quyết định, việc đã làm, gotcha 20–26,
-backlog). Tóm: ba blocker (hộp khoá `locked` · thẻ băng `ice` · khoá & chìa `keylock`/`key`) chạy thật
-trong domain + bàn chơi nhưng **chưa có art** (slot trống ở `TileView`/`BoxView` — user tự làm); spec
+**Blocker + HUD booster (2026-09-03 → 09-10).** `main` đã push tới `baa1c0a`.
+Nguồn chi tiết: **`docs/session-log/2026-09-11-08.md`** (logic, tool, lv-009 — quyết định, gotcha 25–30,
+backlog) và **`docs/session-log/2026-09-10-23.md`** (phần nhìn: băng + chìa trên thẻ, màu theo
+`SO_KeyColors`; gotcha 20–24). Tóm: ba blocker (hộp khoá `locked` · thẻ băng `ice` · khoá & chìa
+`keylock`/`key`) chạy thật trong domain + bàn chơi; **hình ổ khoá trên hộp chưa có**. Spec
 `docs/superpowers/specs/2026-09-10-blocker-locks-design.md`, luật tóm ở `docs/wordstack-rules.md` Mục 11.
 `demo/wordstack.html` là tool xếp màn **duy nhất** và hiểu blocker (tool Unity đã xoá) — kiểm bằng
 `node demo/tool-check.mjs`. Màn thử **lv-009 "Blocker test"**: chạy `WordStack ▸ Build Level Catalog`
-(catalog đang lệch thư mục) → Play → CHEAT → Level 4; phím **B** gắn blocker mẫu lên bàn đang chơi,
+(lv-008/009 chưa Addressable) → Play → CHEAT → Level 4; phím **B** gắn blocker mẫu lên bàn đang chơi,
 **R** nạp lại. HUD booster Magnet/Shuffle/Undo hiện khoá `Lv.N` / `+` / số lượt theo `SO_UnlockSchedule`
 (5 / 7 / 9); `GameplayUiRoot` đã gắn nên gotcha 17 của log 08-18 hết hiệu lực.
 Các đoạn dưới là lịch sử tới 2026-08-15.
