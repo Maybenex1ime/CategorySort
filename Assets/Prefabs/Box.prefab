@@ -324,6 +324,7 @@ MonoBehaviour:
   - {fileID: 1420692691143175181}
   - {fileID: 6847389482240381396}
   - {fileID: 5246374906688035998}
+  keyColors: {fileID: 11400000, guid: a41f7c2e9b5d4038ae6c1f82d7b9e054, type: 2}
 --- !u!1 &3209904181201310065
 GameObject:
   m_ObjectHideFlags: 0
