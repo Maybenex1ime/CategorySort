@@ -48,7 +48,9 @@ namespace WordStack.Board
             bool counted = closed && keyId == null;
             if (lockedRoot != null) lockedRoot.SetActive(counted);
             if (keyLockRoot != null) keyLockRoot.SetActive(keyed);
-            if (counted && lockedCountText != null) ViewText.Apply(lockedCountText, label ?? "", 1f, 0.9f);
+            // Chỉ đổi chữ — font, fontSize, characterSize giữ nguyên như author trong prefab
+            // (ViewText.Apply ép fontSize 64 và đổi font, đè mất cỡ chữ của art hộp khoá).
+            if (counted && lockedCountText != null) lockedCountText.text = label ?? "";
             if (keyed && keyLockTint != null && keyColors != null)
             {
                 var c = keyColors.Get(keyId);
