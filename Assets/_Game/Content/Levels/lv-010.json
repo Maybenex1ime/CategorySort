@@ -1,0 +1,73 @@
+{
+  "id": "lv-010",
+  "title": "Blocker showcase",
+  "note": "Moi blocker o hop tren cung de xem hinh: locked 1/2, keylock k2/k3, ice 3, key k2, ice 2 + key k3. Man test - go truoc release.",
+  "moves": 30,
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["poodle","corgi","red",null] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["husky","bengal","blue",null] }
+      ]},
+      { "pos": [2,0], "boxes": [
+          { "slots": ["chihuahua","green","sparrow",null] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["yellow","tabby",null,null] }
+      ]},
+      { "pos": [1,1], "boxes": [
+          { "slots": [null,null,null,null] }
+      ]},
+      { "pos": [2,1], "boxes": [
+          { "slots": ["persian","siamese","ball",null], "blockers": {"locked":1} }
+      ]},
+      { "pos": [0,2], "boxes": [
+          { "slots": ["pigeon","eagle",null,null], "blockers": {"locked":2} }
+      ]},
+      { "pos": [1,2], "boxes": [
+          { "slots": ["parrot","doll",null,null], "blockers": {"keylock":"k2"} }
+      ]},
+      { "pos": [2,2], "boxes": [
+          { "slots": ["kite","robot",null,null], "blockers": {"keylock":"k3"} }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"g_dog", "text":"dog", "art":"dog", "cards": [
+          { "id":"poodle", "art":"poodle" },
+          { "id":"corgi", "art":"corgi" },
+          { "id":"husky", "art":"husky" },
+          { "id":"chihuahua", "art":"chihuahua" }
+      ]},
+      { "id":"g_color", "text":"color", "art":"color", "cards": [
+          { "id":"red", "art":"red", "blockers":{"key":"k2"} },
+          { "id":"blue", "art":"blue" },
+          { "id":"green", "art":"green" },
+          { "id":"yellow", "art":"yellow" }
+      ]},
+      { "id":"g_cat", "text":"cat", "art":"cat", "cards": [
+          { "id":"tabby", "art":"tabby" },
+          { "id":"persian", "art":"persian" },
+          { "id":"siamese", "art":"siamese" },
+          { "id":"bengal", "art":"bengal", "blockers":{"ice":2,"key":"k3"} }
+      ]},
+      { "id":"g_bird", "text":"bird", "art":"bird", "cards": [
+          { "id":"sparrow", "art":"sparrow", "blockers":{"ice":3} },
+          { "id":"pigeon", "art":"pigeon" },
+          { "id":"eagle", "art":"eagle" },
+          { "id":"parrot", "art":"parrot" }
+      ]},
+      { "id":"g_toy", "text":"toy", "art":"toy", "cards": [
+          { "id":"ball", "art":"ball" },
+          { "id":"kite", "art":"kite" },
+          { "id":"doll", "art":"doll" },
+          { "id":"robot", "art":"robot" }
+      ]}
+    ]
+  }
+}
