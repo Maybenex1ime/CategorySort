@@ -12,7 +12,7 @@ Nguyên tắc chi phối: **không bao giờ hoàn tác thứ người chơi đ�
 
 | # | Câu hỏi | Chốt |
 |---|---|---|
-| 1 | Nước đi vừa rồi làm nổ nhóm thì sao? | Hoàn tác **tất cả**, kể cả Clear/Collapse. Progress bar tụt lại, thẻ đã nổ hiện về |
+| 1 | Nước đi vừa rồi làm nổ nhóm thì sao? | ~~Hoàn tác **tất cả**, kể cả Clear/Collapse.~~ **Đảo 2026-09-14:** nước gây CLEAR/COLLAPSE **mất quyền undo** — xem `2026-09-14-booster-anim-design.md` Mục 2 quyết định 1 |
 | 2 | Lùi được mấy bước? | **Đúng 1**. Undo xong nút xám tới nước đi kế |
 | 3 | Undo được nước Magnet/Shuffle không? | **Không**. Dùng hai booster đó là mất quyền undo |
 | 4 | Undo cứu được thế thua không? | **Không**. Chỉ dùng khi `Status == Playing` |
