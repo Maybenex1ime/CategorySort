@@ -51,7 +51,7 @@ namespace WordStack.Board
         [SerializeField] GhostView ghostPrefab;
 
         [Header("Booster")]
-        // SO_BoosterAnim — thông số animation Nam châm + Undo. Chưa gán thì dùng giá trị
+        // SO_BoosterAnim — thông số animation Nam châm + Xáo + Undo. Chưa gán thì dùng giá trị
         // mặc định khai trong class, bàn không sập.
         [SerializeField] BoosterAnimSettings animSettings;
         BoosterAnimSettings animFallback;
@@ -84,15 +84,6 @@ namespace WordStack.Board
         [SerializeField] float mergeBloom = 0.30f;     // thẻ mới nở ra mất bao lâu
         [SerializeField] float mergeSpin = 140f;       // thẻ mới xoay bao nhiêu độ lúc nở (0 = tắt)
 
-        [SerializeField] float shuffleInDur = 1.1f;    // pha hút vào tâm — chậm để đọc được xoáy
-        [SerializeField] float shuffleOutDur = 0.55f;  // pha bung ra ô mới
-        [SerializeField] float shuffleTurns = 2f;      // số vòng xoáy mỗi pha
-        [SerializeField] float shuffleGatherScale = 0.4f; // cỡ thẻ lúc dồn về tâm — 0 thì không thấy hội tụ
-        [SerializeField] Ease shuffleSpinEase = Ease.OutCubic;   // xoay pivot; thẻ quay ngược dùng CÙNG ease này
-        [SerializeField] Ease shuffleMoveInEase = Ease.InBack;   // thẻ bay về tâm
-        [SerializeField] Ease shuffleMoveOutEase = Ease.OutBack; // thẻ bay về ô mới
-        [SerializeField] Ease shuffleScaleInEase = Ease.InQuad;  // thẻ co về gatherScale
-        [SerializeField] Ease shuffleScaleOutEase = Ease.OutQuad;// thẻ nở lại 1
 
         Game g;
         // Nội dung màn hiện tại — do BoardInitializer (DI, Meta) đưa qua LevelCommands
@@ -375,9 +366,9 @@ namespace WordStack.Board
         IEnumerator ShuffleAnimation(ShuffleResult r)
         {
             if (r.Moves.Length == 0) { RebuildBoardViews(); yield break; }
-            yield return Vortex(true, shuffleInDur);
+            yield return Vortex(true, A.shuffleInDur);
             RebuildBoardViews();
-            yield return Vortex(false, shuffleOutDur);
+            yield return Vortex(false, A.shuffleOutDur);
         }
 
         // ponytail: một pivot cho cả bàn — pivot XOAY tạo đường xoáy, mỗi thẻ tự bay về
@@ -398,25 +389,25 @@ namespace WordStack.Board
                 tv.transform.SetParent(pivot, true);   // giữ world pos → chưa nhúc nhích
             }
 
-            float spin = 360f * shuffleTurns;
+            float spin = 360f * A.shuffleTurns;
             if (!inward) pivot.localEulerAngles = new Vector3(0f, 0f, -spin);
 
             var seq = DOTween.Sequence().SetLink(pivot.gameObject);
             seq.Join(pivot.DORotate(new Vector3(0f, 0f, inward ? spin : 0f), dur, RotateMode.FastBeyond360)
-                          .SetEase(shuffleSpinEase));
+                          .SetEase(A.shuffleSpinEase));
             for (int i = 0; i < kids.Count; i++)
             {
                 Transform k = kids[i];
                 Vector3 slot = k.localPosition;        // ô của thẻ trong hệ pivot (đã tính rotation)
-                if (!inward) { k.localPosition = Vector3.zero; k.localScale = Vector3.one * shuffleGatherScale; }
+                if (!inward) { k.localPosition = Vector3.zero; k.localScale = Vector3.one * A.shuffleGatherScale; }
 
                 seq.Join(k.DOLocalMove(inward ? Vector3.zero : slot, dur)
-                          .SetEase(inward ? shuffleMoveInEase : shuffleMoveOutEase).SetLink(k.gameObject));
-                seq.Join(k.DOScale(inward ? shuffleGatherScale : 1f, dur)
-                          .SetEase(inward ? shuffleScaleInEase : shuffleScaleOutEase).SetLink(k.gameObject));
+                          .SetEase(inward ? A.shuffleMoveInEase : A.shuffleMoveOutEase).SetLink(k.gameObject));
+                seq.Join(k.DOScale(inward ? A.shuffleGatherScale : 1f, dur)
+                          .SetEase(inward ? A.shuffleScaleInEase : A.shuffleScaleOutEase).SetLink(k.gameObject));
                 // Giữ thẻ thẳng: quay ngược -spin CÙNG ease với pivot, tổng góc ≡ 0.
                 seq.Join(k.DOLocalRotate(new Vector3(0f, 0f, -spin), dur, RotateMode.FastBeyond360)
-                          .SetEase(shuffleSpinEase).SetLink(k.gameObject));
+                          .SetEase(A.shuffleSpinEase).SetLink(k.gameObject));
             }
             yield return seq.WaitForCompletion();
 

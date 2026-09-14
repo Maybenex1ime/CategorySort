@@ -446,15 +446,6 @@ MonoBehaviour:
   mergeHold: 0.07
   mergeBloom: 0.3
   mergeSpin: 140
-  shuffleInDur: 1.9
-  shuffleOutDur: 0.9
-  shuffleTurns: 3
-  shuffleGatherScale: 0.4
-  shuffleSpinEase: 9
-  shuffleMoveInEase: 26
-  shuffleMoveOutEase: 27
-  shuffleScaleInEase: 5
-  shuffleScaleOutEase: 6
 --- !u!4 &1107977327
 Transform:
   m_ObjectHideFlags: 0

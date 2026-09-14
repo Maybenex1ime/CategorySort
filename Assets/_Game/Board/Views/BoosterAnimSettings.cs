@@ -1,6 +1,6 @@
-// Thông số animation của booster Nam châm và Undo — một asset (SO_BoosterAnim) để chỉnh
-// trong Inspector mà không mở scene. Shuffle vẫn giữ field trên BoardController (làm
-// trước, chưa dời). Giá trị mặc định ở đây là bản chạy được khi asset chưa gán.
+// Thông số animation của ba booster (Nam châm, Xáo, Undo) — một asset (SO_BoosterAnim) để
+// chỉnh trong Inspector mà không mở scene. Giá trị mặc định ở đây là bản chạy được khi
+// asset chưa gán.
 using DG.Tweening;
 using UnityEngine;
 
@@ -29,6 +29,22 @@ namespace WordStack.Board
         public float magnetHold = 0.08f;
         public float magnetBurstDur = 0.20f;
         public Ease magnetBurstEase = Ease.InBack;
+
+        [Header("Xáo — cả lớp trên xoáy vào tâm bàn rồi bung ra ô mới")]
+        [Tooltip("Pha hút vào tâm — chậm để đọc được xoáy (giây)")]
+        public float shuffleInDur = 1.1f;
+        [Tooltip("Pha bung ra ô mới")]
+        public float shuffleOutDur = 0.55f;
+        [Tooltip("Số vòng xoáy mỗi pha")]
+        public float shuffleTurns = 2f;
+        [Tooltip("Cỡ thẻ lúc dồn về tâm — 0 thì không thấy hội tụ")]
+        public float shuffleGatherScale = 0.4f;
+        [Tooltip("Xoay pivot; thẻ quay ngược dùng CÙNG ease này để luôn thẳng")]
+        public Ease shuffleSpinEase = Ease.OutCubic;
+        public Ease shuffleMoveInEase = Ease.InBack;
+        public Ease shuffleMoveOutEase = Ease.OutBack;
+        public Ease shuffleScaleInEase = Ease.InQuad;
+        public Ease shuffleScaleOutEase = Ease.OutQuad;
 
         [Header("Undo — thẻ bay ngược về ô cũ")]
         public float undoPopScale = 1.10f;

@@ -24,6 +24,15 @@ MonoBehaviour:
   magnetHold: 0.08
   magnetBurstDur: 0.2
   magnetBurstEase: 26
+  shuffleInDur: 1.9
+  shuffleOutDur: 0.9
+  shuffleTurns: 3
+  shuffleGatherScale: 0.4
+  shuffleSpinEase: 9
+  shuffleMoveInEase: 26
+  shuffleMoveOutEase: 27
+  shuffleScaleInEase: 5
+  shuffleScaleOutEase: 6
   undoPopScale: 1.1
   undoPopDur: 0.08
   undoFlyDur: 0.22
