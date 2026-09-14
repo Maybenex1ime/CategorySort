@@ -192,6 +192,9 @@ namespace WordStack.Board
                         box.Slots[i] = null;
                     }
                 Cleared++;
+                // Nước vừa gây CLEAR/COLLAPSE thì không lùi được nữa — lùi là trả lại tiến độ
+                // đã đạt, người chơi có thể gom đi gom lại một nhóm để "thử" miễn phí.
+                ClearUndo();
                 // Nhóm có cha → COLLAPSE: sinh 1 thẻ mang mặt nhóm vừa gộp, là thành viên
                 // của nhóm cha, đặt vào ô trống đầu tiên của CHÍNH hộp này. Hộp không rỗng
                 // nên luật xoá hộp bên dưới tự im — hộp dưới không lộ ra.

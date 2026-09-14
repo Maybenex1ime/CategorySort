@@ -219,7 +219,8 @@ vật cản phải theo bảng cặp được phép (hiện: `ice` + `key`) · s
 thẻ mang · thẻ chìa và mọi thẻ cùng nhóm không nằm trong hoặc dưới hộp mà chìa đó mở.
 
 Nam châm bỏ qua nhóm có thành viên đang băng hoặc nằm trong hộp đóng; Xáo không đụng hai thứ
-đó; Undo không cần luật riêng vì ảnh chụp là toàn bàn.
+đó; Undo không cần luật riêng vì ảnh chụp là toàn bàn. Undo chỉ lùi được nước **không**
+gây CLEAR/COLLAPSE — nước vừa nổ nhóm thì mất quyền lùi (không trả lại tiến độ đã đạt).
 
 **Công cụ dựng màn.** `demo/wordstack.html` là tool duy nhất: tab Xếp level gắn blocker hộp
 ngay trên dòng hộp, blocker thẻ ở panel "Blocker thẻ"; Nhập và Xuất JSON giữ nguyên

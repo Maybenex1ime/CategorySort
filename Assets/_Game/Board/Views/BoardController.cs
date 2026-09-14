@@ -192,9 +192,9 @@ namespace WordStack.Board
             StartCoroutine(ShuffleSequence(r));
         }
 
-        // Booster Undo — trả bàn về trạng thái trước nước kéo thẻ gần nhất, kể cả khi nước
-        // đó đã gây CLEAR/COLLAPSE (ảnh chụp lấy TRƯỚC nước đi nên cascade nằm trọn phía
-        // sau nó). Cùng bộ chốt với hai booster kia.
+        // Booster Undo — trả bàn về trạng thái trước nước kéo thẻ gần nhất. Nước đã gây
+        // CLEAR/COLLAPSE thì không lùi được (SettleStep vứt ảnh chụp), nên tới đây là ảnh
+        // chụp luôn là một bàn không có cascade phía sau. Cùng bộ chốt với hai booster kia.
         void OnUndoRequested()
         {
             if (!BoosterGateOpen("Undo")) return;

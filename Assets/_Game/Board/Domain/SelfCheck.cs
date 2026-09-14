@@ -365,9 +365,9 @@ namespace WordStack.Board
             }
 
             // ---- 7. Undo (booster) ----
-            // Nước đi dựng tay để CHẮC CHẮN gây CLEAR: undo phải gỡ được cả cascade, không
-            // riêng việc thẻ đổi ô. Nhóm "zz" không có trong GroupDefs nên đi nhánh CLEAR
-            // thường, không nhánh COLLAPSE — kết quả xác định, không phụ thuộc level.
+            // Nước đi dựng tay để CHẮC CHẮN gây CLEAR: nước đó phải làm MẤT quyền undo
+            // (không trả lại tiến độ đã đạt). Nhóm "zz" không có trong GroupDefs nên đi
+            // nhánh CLEAR thường, không nhánh COLLAPSE — kết quả xác định, không phụ thuộc level.
             {
                 var g = load(Rules.RemoveEmptyNonBottomBox);
                 g.UndoEnabled = true;
@@ -388,14 +388,31 @@ namespace WordStack.Board
                 Ok(g.CanUndo, "nước đi được nhận thì phải có ảnh chụp");
                 g.Settle(Rules.RemoveEmptyNonBottomBox);
                 Ok(g.Cleared == clearedBefore + 1, "đủ 4 thẻ cùng nhóm thì phải CLEAR");
+                Ok(!g.CanUndo && g.ApplyUndo() == null, "nước gây CLEAR thì mất quyền undo");
+                Ok(g.Cleared == clearedBefore + 1 && g.Moves == movesBefore + 1,
+                   "không lùi được thì tiến độ giữ nguyên");
 
-                var back = g.ApplyUndo();
-                Ok(back != null, "có ảnh chụp thì ApplyUndo phải trả về bàn");
-                Ok(Solver.Encode(back) == before, "undo phải trả bàn về đúng trạng thái trước nước đi");
-                Ok(back.Cleared == clearedBefore, "undo gỡ cả CLEAR — Cleared tụt lại");
-                Ok(back.Moves == movesBefore, "undo gỡ cả nước đi — Moves tụt lại");
-                Ok(!back.CanUndo, "chỉ lùi được ĐÚNG một bước");
-                Ok(back.UndoEnabled, "bàn khôi phục phải tiếp tục chụp được nước sau");
+                // Nước thường (không nổ nhóm) thì lùi được, về đúng bàn trước đó.
+                var plain = load(Rules.RemoveEmptyNonBottomBox);
+                plain.UndoEnabled = true;
+                before = Solver.Encode(plain);
+                movesBefore = plain.Moves;
+                int dp = plain.Stacks.FindIndex(s => Game.FreeCount(s.Boxes[0]) > 0 && s != plain.Stacks[0]);
+                Ok(dp > 0 && plain.MoveTile(0, plain.TopBox(0).Slots.First(t => t != null).Uid, dp),
+                   "cần một nước đi hợp lệ để kiểm undo nước thường");
+                plain.Settle(Rules.RemoveEmptyNonBottomBox);
+                Ok(plain.CanUndo == (plain.Cleared == clearedBefore),
+                   "nước thường giữ ảnh chụp, nước nổ nhóm thì không");
+                var back = plain.ApplyUndo();
+                if (plain.Cleared == clearedBefore)
+                {
+                    Ok(back != null, "có ảnh chụp thì ApplyUndo phải trả về bàn");
+                    Ok(Solver.Encode(back) == before, "undo phải trả bàn về đúng trạng thái trước nước đi");
+                    Ok(back.Moves == movesBefore, "undo gỡ cả nước đi — Moves tụt lại");
+                    Ok(!back.CanUndo, "chỉ lùi được ĐÚNG một bước");
+                    Ok(back.UndoEnabled, "bàn khôi phục phải tiếp tục chụp được nước sau");
+                }
+                else back = plain;   // nước thường tình cờ nổ nhóm trên level này — các check dưới vẫn cần một bàn
 
                 // Nước bị từ chối không được để lại ảnh — undo sau đó sẽ lùi nhầm.
                 var rej = load(Rules.RemoveEmptyNonBottomBox);

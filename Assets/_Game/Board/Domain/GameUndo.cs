@@ -37,9 +37,10 @@ namespace WordStack.Board
         }
 
         /// <summary>
-        /// Vứt ảnh chụp — người chơi mất quyền undo. Gọi khi dùng booster khác: ảnh chụp
-        /// là TOÀN bàn, nên khôi phục sau một lần Magnet/Shuffle sẽ nuốt luôn hiệu ứng
-        /// người chơi vừa mua bằng coin.
+        /// Vứt ảnh chụp — người chơi mất quyền undo. Hai chỗ gọi: (1) dùng booster khác —
+        /// ảnh chụp là TOÀN bàn, khôi phục sau Magnet/Shuffle sẽ nuốt luôn hiệu ứng vừa mua
+        /// bằng coin; (2) SettleStep khi nước đi vừa gây CLEAR/COLLAPSE — undo chỉ lùi nước
+        /// không nổ nhóm, không trả lại tiến độ đã đạt.
         /// </summary>
         public void ClearUndo()
         {
