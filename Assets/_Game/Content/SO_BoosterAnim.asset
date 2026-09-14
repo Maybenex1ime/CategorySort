@@ -1,0 +1,34 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ea9497839f534db9b0fa4583100f2453, type: 3}
+  m_Name: SO_BoosterAnim
+  m_EditorClassIdentifier: WordStack.Board::WordStack.Board.BoosterAnimSettings
+  magnetGatherViewport: {x: 0.5, y: 0.5}
+  magnetRevealDur: 0.15
+  magnetPopScale: 1.12
+  magnetPopDur: 0.1
+  magnetFlyDur: 0.45
+  magnetFlyEase: 10
+  magnetStagger: 0.05
+  magnetGatherScale: 0.75
+  magnetSpin: 0
+  magnetHold: 0.08
+  magnetBurstDur: 0.2
+  magnetBurstEase: 26
+  undoPopScale: 1.1
+  undoPopDur: 0.08
+  undoFlyDur: 0.22
+  undoFlyEase: 9
+  undoBoxSlideFrom: {x: 0, y: 0.6}
+  undoBoxSlideDur: 0.25
+  undoBoxSlideEase: 9
+  undoBoxTilePopDur: 0.12

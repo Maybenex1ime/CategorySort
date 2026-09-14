@@ -50,6 +50,21 @@ namespace WordStack.Board
         [SerializeField] TileView tilePrefab;
         [SerializeField] GhostView ghostPrefab;
 
+        [Header("Booster")]
+        // SO_BoosterAnim — thông số animation Nam châm + Undo. Chưa gán thì dùng giá trị
+        // mặc định khai trong class, bàn không sập.
+        [SerializeField] BoosterAnimSettings animSettings;
+        BoosterAnimSettings animFallback;
+        BoosterAnimSettings A
+        {
+            get
+            {
+                if (animSettings != null) return animSettings;
+                if (animFallback == null) animFallback = ScriptableObject.CreateInstance<BoosterAnimSettings>();
+                return animFallback;
+            }
+        }
+
         // Tint palette (GDD §9.1 cũ) đã bỏ 2026-08-17: sprite trạng thái trùng nhóm
         // (TileView.SetMatchState) thay vai trò gợi ý — bg luôn trắng. Ordinal cặp
         // (Option 1/2) là state sticky của view (pairOrdinals), KHÔNG dùng
@@ -69,7 +84,6 @@ namespace WordStack.Board
         [SerializeField] float mergeBloom = 0.30f;     // thẻ mới nở ra mất bao lâu
         [SerializeField] float mergeSpin = 140f;       // thẻ mới xoay bao nhiêu độ lúc nở (0 = tắt)
 
-        [SerializeField] float magnetAnimDur = 0.6f;   // PLACEHOLDER: chỗ giữ nhịp cho animation nam châm
         [SerializeField] float shuffleInDur = 1.1f;    // pha hút vào tâm — chậm để đọc được xoáy
         [SerializeField] float shuffleOutDur = 0.55f;  // pha bung ra ô mới
         [SerializeField] float shuffleTurns = 2f;      // số vòng xoáy mỗi pha
@@ -79,7 +93,6 @@ namespace WordStack.Board
         [SerializeField] Ease shuffleMoveOutEase = Ease.OutBack; // thẻ bay về ô mới
         [SerializeField] Ease shuffleScaleInEase = Ease.InQuad;  // thẻ co về gatherScale
         [SerializeField] Ease shuffleScaleOutEase = Ease.OutQuad;// thẻ nở lại 1
-        [SerializeField] float undoAnimDur = 0.3f;     // PLACEHOLDER: chỗ giữ nhịp cho animation undo
 
         Game g;
         // Nội dung màn hiện tại — do BoardInitializer (DI, Meta) đưa qua LevelCommands
@@ -156,7 +169,14 @@ namespace WordStack.Board
             // đó tắt trong đúng mấy trường hợp này.
             if (!BoosterGateOpen("Magnet")) return;
 
-            MagnetResult r = g.ApplyMagnet();
+            // Chốt nhóm TRƯỚC rồi giữ lại Tile của nó: ApplyMagnet xoá thẻ khỏi Slots, mà
+            // thẻ đang chôn không có view — animation phải dựng thẻ tạm từ đúng mặt này.
+            string gid = g.FindMagnetTarget();
+            var faces = new Dictionary<string, Tile>();
+            if (gid != null)
+                foreach (var st in g.Stacks) foreach (var bx in st.Boxes) foreach (var t in bx.Slots)
+                    if (t != null && t.GroupId == gid) faces[t.Uid] = t;
+            MagnetResult r = gid == null ? new MagnetResult { Ok = false } : g.ApplyMagnet(gid);
             if (!r.Ok)
             {
                 Debug.Log("[Magnet] không có nhóm nào đủ 4 thẻ trên bàn để hút — bỏ qua.");
@@ -169,7 +189,7 @@ namespace WordStack.Board
             // undo sau đó khôi phục về trước nước đi cũ và nuốt luôn kết quả người chơi
             // vừa mua bằng coin.
             g.ClearUndo();
-            StartCoroutine(MagnetSequence(r));
+            StartCoroutine(MagnetSequence(r, faces));
         }
 
         // Cùng bộ chốt với nam châm. Không hoàn lượt ở đây — nút chỉ sáng khi
@@ -199,6 +219,7 @@ namespace WordStack.Board
         {
             if (!BoosterGateOpen("Undo")) return;
 
+            Game prev = g;
             Game restored = g.ApplyUndo();
             if (restored == null)
             {
@@ -209,7 +230,7 @@ namespace WordStack.Board
                       + " · nhóm đã gom " + g.Cleared + " → " + restored.Cleared);
 
             g = restored;
-            StartCoroutine(UndoSequence());
+            StartCoroutine(UndoSequence(prev));
         }
 
         // Khoá HAI vế suốt lúc diễn, thiếu vế nào cũng lọt input:
@@ -221,7 +242,7 @@ namespace WordStack.Board
         // nam châm KHÔNG tăng Moves nên truyền g.Moves vào là số y nguyên, HUD không
         // trôi. Phase quay về Playing ở cuối Settle (EvaluationCompleted +
         // AnimationCompleted) — đó cũng là chỗ overlay hạ xuống.
-        IEnumerator MagnetSequence(MagnetResult r)
+        IEnumerator MagnetSequence(MagnetResult r, Dictionary<string, Tile> faces)
         {
             locked = true;
             // Tắt CẢ BA: Settle() chỉ chạy sau animation, nên cờ nào còn bật là còn nói dối
@@ -243,29 +264,78 @@ namespace WordStack.Board
 
             LevelSignals.RaiseMoveCommitted(g.Moves);
 
-            yield return MagnetAnimation(r);
+            yield return MagnetAnimation(r, faces);
 
             RebuildBoardViews();
+            BloomTile(r.NewTileUid);   // COLLAPSE: thẻ cha nở ra thay vì hiện khan sau rebuild
             yield return Settle();   // dọn hộp rỗng, chạy cascade, chốt thắng/kẹt
         }
 
-        // PLACEHOLDER — chỗ DUY NHẤT cần thay khi làm animation thật.
-        //
-        // Chuỗi thật cần diễn, theo thứ tự:
-        //   1. Pick nào có Box > 0 (thẻ đang bị chôn): StackView chỉ vẽ peek layer trừu
-        //      tượng, KHÔNG có tile view thật để animate — phải Instantiate tilePrefab
-        //      tạm tại vị trí peek của stack đó rồi lật mặt thẻ lên.
-        //   2. Pick nào có Box == 0: dùng thẳng tile view đang có trong tileViews.
-        //   3. Cho cả 4 bay về hộp r.TargetStack, lệch pha nhau như RemoveTiles/MergeTiles.
-        //   4. Hiệu ứng gom + nổ tại hộp đích.
-        //   5. r.NewTileUid != null → thẻ cha nở ra ở stack r.NewTileStack.
-        //   6. Huỷ mấy tile view tạm dựng ở bước 1.
-        //
-        // Hiện chỉ giữ đúng NHỊP thời gian. Bỏ trắng thì overlay chớp một khung hình rồi
-        // tắt — không kiểm được phần chặn input có thật sự chạy hay không.
-        IEnumerator MagnetAnimation(MagnetResult r)
+        // Nam châm: 4 thẻ phồng một nhịp → bay về điểm hội tụ (viewport, chỉnh trong
+        // SO_BoosterAnim) → khựng → nổ về 0. Thẻ đang chôn không có view (StackView chỉ vẽ
+        // lớp lấp ló) nên dựng thẻ tạm ngay giữa hộp che, nở ra rồi bay như ba thẻ kia.
+        // Domain đã xoá 4 thẻ trước khi vào đây; Rebuild sau animation dọn phần còn lại.
+        IEnumerator MagnetAnimation(MagnetResult r, Dictionary<string, Tile> faces)
         {
-            yield return new WaitForSeconds(magnetAnimDur);
+            var a = A;
+            Vector3 center = cam.ViewportToWorldPoint(
+                new Vector3(a.magnetGatherViewport.x, a.magnetGatherViewport.y, -cam.transform.position.z));
+            center.z = 0f;
+
+            var seq = DOTween.Sequence();
+            int n = 0;
+            for (int i = 0; i < r.Picks.Length; i++)
+            {
+                var p = r.Picks[i];
+                TileView tv = null;
+                bool temp = p.Box > 0 || !tiles.TryGetValue(p.Uid, out tv) || tv == null;
+                if (temp)
+                {
+                    Tile face;
+                    if (!faces.TryGetValue(p.Uid, out face) || p.Stack < 0 || p.Stack >= boxViews.Length) continue;
+                    tv = Instantiate(tilePrefab, root, false);
+                    tv.transform.position = boxViews[p.Stack].transform.position;
+                    tv.transform.localScale = Vector3.zero;
+                    tv.Bind(face, ArtOf(face));
+                }
+                else
+                {
+                    tiles.Remove(p.Uid);
+                    tv.transform.SetParent(root, true);
+                }
+                tv.SetFlying(true);
+                var go = tv.gameObject;
+                var tr = tv.transform;
+                float at = i * a.magnetStagger;
+
+                if (temp)
+                {
+                    seq.Insert(at, tr.DOScale(1f, a.magnetRevealDur).SetEase(Ease.OutBack).SetLink(go));
+                    at += a.magnetRevealDur;
+                }
+                seq.Insert(at, tr.DOScale(a.magnetPopScale, a.magnetPopDur).SetEase(Ease.OutQuad).SetLink(go));
+                at += a.magnetPopDur;
+                seq.Insert(at, tr.DOMove(center, a.magnetFlyDur).SetEase(a.magnetFlyEase).SetLink(go));
+                seq.Insert(at, tr.DOScale(a.magnetGatherScale, a.magnetFlyDur).SetEase(Ease.InQuad).SetLink(go));
+                if (Mathf.Abs(a.magnetSpin) > 0.01f)
+                    seq.Insert(at, tr.DORotate(new Vector3(0f, 0f, a.magnetSpin), a.magnetFlyDur, RotateMode.FastBeyond360)
+                                     .SetEase(a.magnetFlyEase).SetLink(go));
+                at += a.magnetFlyDur + a.magnetHold;
+                seq.Insert(at, tr.DOScale(0f, a.magnetBurstDur).SetEase(a.magnetBurstEase).SetLink(go)
+                                 .OnComplete(() => Destroy(go)));
+                n++;
+            }
+            if (n == 0) { seq.Kill(); yield break; }
+            yield return seq.WaitForCompletion();
+        }
+
+        // Thẻ vừa sinh ra (COLLAPSE qua nam châm) nở từ 0 — view của nó đã có sau Rebuild.
+        void BloomTile(string uid)
+        {
+            TileView tv;
+            if (uid == null || !tiles.TryGetValue(uid, out tv) || tv == null) return;
+            tv.transform.localScale = Vector3.zero;
+            tv.transform.DOScale(1f, mergeBloom).SetEase(Ease.OutBack).SetLink(tv.gameObject);
         }
 
         // Khoá HAI vế suốt lúc diễn, y như nam châm — thiếu vế nào cũng lọt input:
@@ -367,7 +437,7 @@ namespace WordStack.Board
 
         // Khoá HAI vế y như hai booster kia. Mượn MoveCommitted được vì g đã là bàn khôi
         // phục: g.Moves lúc này chính là số nước SAU khi lùi, đúng thứ HUD phải hiện.
-        IEnumerator UndoSequence()
+        IEnumerator UndoSequence(Game prev)
         {
             locked = true;
             LevelSignals.SetMagnetAvailable(false);
@@ -384,7 +454,7 @@ namespace WordStack.Board
 
             LevelSignals.RaiseMoveCommitted(g.Moves);
 
-            yield return UndoAnimation();
+            yield return UndoAnimation(prev);
 
             RebuildBoardViews();
             // Trạng thái khôi phục vốn đã đứng yên nên SettleStep trả None ngay — nhưng
@@ -393,15 +463,98 @@ namespace WordStack.Board
             yield return Settle();
         }
 
-        // PLACEHOLDER — chỗ DUY NHẤT cần thay khi làm animation thật.
-        //
-        // Chuỗi thật cần diễn: thẻ vừa kéo bay ngược về ô cũ; nếu nước đó đã gây CLEAR /
-        // COLLAPSE thì mấy thẻ đã nổ phải hiện lại trước (và thẻ cha do COLLAPSE sinh ra
-        // biến mất). Trạng thái đích đã nằm sẵn trong g — cái thiếu là diff giữa hai bàn
-        // để biết cần diễn gì, nên nhịp làm animation sẽ cần ApplyUndo trả thêm mô tả.
-        IEnumerator UndoAnimation()
+        // Undo chỉ lùi nước KHÔNG nổ nhóm (SettleStep vứt ảnh chụp khi CLEAR), nên diff giữa
+        // bàn cũ (prev, view đang hiện) và bàn khôi phục (g) chỉ có hai thứ: đúng một thẻ
+        // đổi ô, và có thể một hộp từng lùi ra nay đứng lại. Diễn theo thứ tự đó: hộp cũ
+        // trượt từ trên xuống + hiện dần đè lên hộp vừa lộ, thẻ trong nó nở ra, rồi thẻ
+        // vừa kéo bay ngược về ô cũ. Xong Rebuild để view khớp g tuyệt đối.
+        IEnumerator UndoAnimation(Game prev)
         {
-            yield return new WaitForSeconds(undoAnimDur);
+            var a = A;
+            var before = TopPositions(prev);
+            var after = TopPositions(g);
+
+            string movedUid = null;
+            SlotRef movedTo = default(SlotRef);
+            foreach (var kv in after)
+            {
+                SlotRef was;
+                if (!before.TryGetValue(kv.Key, out was) || was.Stack != kv.Value.Stack || was.Slot != kv.Value.Slot)
+                {
+                    movedUid = kv.Key; movedTo = kv.Value;
+                    if (before.ContainsKey(kv.Key)) break;   // thẻ đổi ô là ứng viên chắc hơn thẻ mới lộ
+                }
+            }
+
+            // Hộp cũ đứng lại: stack nào bàn khôi phục sâu hơn bàn đang hiện.
+            for (int s = 0; s < g.Stacks.Count && s < prev.Stacks.Count; s++)
+            {
+                if (g.Stacks[s].Boxes.Count <= prev.Stacks[s].Boxes.Count) continue;
+
+                // Thẻ của hộp vừa lộ biến mất ngay — hộp cũ sắp đè lên, không ai thấy chúng.
+                foreach (var t in prev.Stacks[s].Boxes[0].Slots)
+                {
+                    TileView old;
+                    if (t != null && tiles.TryGetValue(t.Uid, out old) && old != null) { tiles.Remove(t.Uid); Destroy(old.gameObject); }
+                }
+
+                var bv = boxViews[s];
+                bv.ResetVisual();
+                bv.SetLock(false, null, null);
+                stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1, TilesInSecondBox(g.Stacks[s]));
+                bv.SetAlpha(0f);
+                bv.transform.localPosition = new Vector3(a.undoBoxSlideFrom.x, a.undoBoxSlideFrom.y, 0f);
+                var slide = DOTween.Sequence().SetLink(bv.gameObject);
+                slide.Join(bv.transform.DOLocalMove(Vector3.zero, a.undoBoxSlideDur).SetEase(a.undoBoxSlideEase));
+                slide.Join(DOTween.To(() => 0f, bv.SetAlpha, 1f, a.undoBoxSlideDur));
+                yield return slide.WaitForCompletion();
+
+                // Thẻ của hộp cũ nở ra — trừ thẻ sắp bay về, nó đang đứng ở chỗ khác.
+                var box = g.TopBox(s);
+                var pop = DOTween.Sequence();
+                for (int i = 0; i < box.Slots.Length; i++)
+                {
+                    var t = box.Slots[i];
+                    if (t == null || t.Uid == movedUid) continue;
+                    var tv = Instantiate(tilePrefab, bv.Slot(i), false);
+                    tv.transform.localPosition = Vector3.zero;
+                    tv.transform.localScale = Vector3.zero;
+                    tv.Bind(t, ArtOf(t));
+                    tiles[t.Uid] = tv;
+                    pop.Join(tv.transform.DOScale(1f, a.undoBoxTilePopDur).SetEase(Ease.OutBack).SetLink(tv.gameObject));
+                }
+                yield return pop.WaitForCompletion();
+            }
+
+            TileView mv;
+            if (movedUid != null && tiles.TryGetValue(movedUid, out mv) && mv != null
+                && movedTo.Stack >= 0 && movedTo.Stack < boxViews.Length)
+            {
+                var from = mv.transform.position;
+                mv.transform.SetParent(boxViews[movedTo.Stack].Slot(movedTo.Slot), false);
+                mv.transform.position = from;
+                mv.SetFlying(true);
+                var seq = DOTween.Sequence().SetLink(mv.gameObject);
+                seq.Append(mv.transform.DOScale(a.undoPopScale, a.undoPopDur).SetEase(Ease.OutQuad));
+                seq.Append(mv.transform.DOLocalMove(Vector3.zero, a.undoFlyDur).SetEase(a.undoFlyEase));
+                seq.Join(mv.transform.DOScale(1f, a.undoFlyDur).SetEase(Ease.OutQuad));
+                yield return seq.WaitForCompletion();
+                if (mv != null) mv.SetFlying(false);
+            }
+        }
+
+        // uid → ô đang đứng, chỉ xét hộp trên cùng (thẻ chìm không có view).
+        static Dictionary<string, SlotRef> TopPositions(Game game)
+        {
+            var d = new Dictionary<string, SlotRef>();
+            for (int s = 0; s < game.Stacks.Count; s++)
+            {
+                var box = game.TopBox(s);
+                if (box == null) continue;
+                for (int i = 0; i < box.Slots.Length; i++)
+                    if (box.Slots[i] != null) d[box.Slots[i].Uid] = new SlotRef { Stack = s, Box = 0, Slot = i };
+            }
+            return d;
         }
 
         // Chốt chung cho mọi booster. Log từng lý do từ chối — không có nó thì bấm xong
