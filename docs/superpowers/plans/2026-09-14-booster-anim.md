@@ -157,20 +157,20 @@ git -C D:\CategorySort commit -m "content(booster-anim): tune magnet and undo ti
 
 ---
 
-### Task 5: Ghi log phiên + trạng thái bàn giao
+### Task 5: Ghi log phiên + trạng thái bàn giao — **ĐÃ XONG** (log `2026-09-14-14.md`, Task 3 đánh dấu chưa chạy)
 
 **Files:**
 - Create: `docs/session-log/2026-09-14-<giờ>.md` — theo khuôn `2026-09-11-08.md`: trạng thái git · quyết định (6 dòng spec Mục 2) · gotcha mới (đánh số nối tiếp 31) · backlog delta · trạng thái cổng kiểm.
 - Modify: `production/session-state/active.md` — đoạn "Đang ở đâu": thêm dòng trỏ spec + plan này, ghi rõ "Undo không lùi CLEAR (đảo spec 08-28)", "ba booster đọc SO_BoosterAnim", và trạng thái nghiệm thu Task 3 (đã/chưa).
 
-- [ ] **Step 1: Viết log** với ít nhất các gotcha đã gặp trong phiên này:
+- [x] **Step 1: Viết log** với ít nhất các gotcha đã gặp trong phiên này:
   - 31. Lệnh xoá đứng chung `D:\CategorySort` bị harness chặn (đã có ở log 09-11-08 đợt 2 — chỉ trỏ tới).
   - 32. `ViewText.Apply` ép `fontSize 64` + đổi font — TextMesh nào author cỡ chữ riêng trong prefab (Lock Text 170) thì chỉ gán `.text`.
   - 33. Commit thẳng trên `main` trong khi worktree có commit riêng → `--ff-only` từ chối; gộp bằng `git merge main` ở worktree rồi ff (repo cấm rebase).
   - 34. Heredoc bash chứa script Python dài bị vỡ quoting — ghi script ra file scratchpad rồi chạy.
   - 35. Tool web hiện 🔑 dưới chữ "ben" ở thẻ vừa băng vừa chìa khi không có emoji icon — một dòng CSS, chưa sửa.
-- [ ] **Step 2: Cập nhật `active.md`** đoạn đầu.
-- [ ] **Step 3: Commit**
+- [x] **Step 2: Cập nhật `active.md`** đoạn đầu.
+- [x] **Step 3: Commit**
 
 ```powershell
 git -C D:\CategorySort add docs/session-log/2026-09-14-*.md production/session-state/active.md

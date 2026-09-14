@@ -1,8 +1,19 @@
 # Session State
 
-> Cập nhật cuối: 2026-09-11. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
+> Cập nhật cuối: 2026-09-14. File này là điểm bàn giao giữa các phiên — đọc trước khi làm gì.
 
 ## Đang ở đâu
+
+**Animation booster + Undo không lùi CLEAR (2026-09-13 → 09-14).** `main` = `c865f02`, **5 commit chưa push**
+(user tự push). Nguồn chi tiết: **`docs/session-log/2026-09-14-14.md`** (gotcha 32–37, backlog). Tóm: ba booster
+có animation thật — Nam châm 4 thẻ bay về điểm viewport rồi nổ (thẻ chôn dựng view tạm), Undo tua ngược kể cả
+hộp cũ trượt lại từ trên, Xáo giữ xoáy — **mọi thông số ở `Assets/_Game/Content/SO_BoosterAnim.asset`**
+(`BoosterAnimSettings`, gắn `BoardController.animSettings`). **Undo không lùi được nước gây CLEAR/COLLAPSE**
+(`SettleStep` vứt ảnh chụp — đảo spec 08-28). Spec `docs/superpowers/specs/2026-09-14-booster-anim-design.md`,
+plan `docs/superpowers/plans/2026-09-14-booster-anim.md`: Task 1–2 xong, **Task 3 (nghiệm thu mắt 9 bước trong
+Unity) CHƯA chạy** — việc kế tiếp là user Play theo checklist rồi Task 4 chỉnh số. Màn thử mới **lv-010
+"Blocker showcase"** (đủ blocker ở lớp trên, CHEAT → Level 5, cần Build Level Catalog trước). Số trên hộp khoá
+giữ cỡ chữ prefab (không qua `ViewText.Apply`). Tool web đã đủ ba blocker — không cần plan sửa tool.
 
 **Blocker + HUD booster (2026-09-03 → 09-10).** `main` đã push tới `baa1c0a`.
 Nguồn chi tiết: **`docs/session-log/2026-09-11-08.md`** (logic, tool, lv-009 — quyết định, gotcha 25–30,
