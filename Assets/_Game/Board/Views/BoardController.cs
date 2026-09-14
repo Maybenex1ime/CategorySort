@@ -54,6 +54,12 @@ namespace WordStack.Board
         // SO_BoosterAnim — thông số animation Nam châm + Xáo + Undo. Chưa gán thì dùng giá trị
         // mặc định khai trong class, bàn không sập.
         [SerializeField] BoosterAnimSettings animSettings;
+        // Tấm nền xám bật suốt lúc booster diễn: chặn click uGUI và làm nền cho thẻ bay.
+        // User tự dựng Panel; code chỉ bật/tắt (có CanvasGroup thì mờ dần theo SO). Muốn thẻ
+        // bay NỔI TRÊN tấm nền thì Panel phải nằm dưới sorting 90 của thẻ bay — tức Canvas
+        // riêng Screen Space-Camera (order 20..89) hoặc SpriteRenderer world-space; Canvas
+        // Screen Space-Overlay luôn vẽ đè lên mọi sprite.
+        [SerializeField] GameObject boosterBackdrop;
         BoosterAnimSettings animFallback;
         BoosterAnimSettings A
         {
@@ -255,7 +261,9 @@ namespace WordStack.Board
 
             LevelSignals.RaiseMoveCommitted(g.Moves);
 
+            yield return Backdrop(true);
             yield return MagnetAnimation(r, faces);
+            yield return Backdrop(false);
 
             RebuildBoardViews();
             BloomTile(r.NewTileUid);   // COLLAPSE: thẻ cha nở ra thay vì hiện khan sau rebuild
@@ -307,7 +315,7 @@ namespace WordStack.Board
                 seq.Insert(at, tr.DOScale(a.magnetPopScale, a.magnetPopDur).SetEase(Ease.OutQuad).SetLink(go));
                 at += a.magnetPopDur;
                 seq.Insert(at, tr.DOMove(center, a.magnetFlyDur).SetEase(a.magnetFlyEase).SetLink(go));
-                seq.Insert(at, tr.DOScale(a.magnetGatherScale, a.magnetFlyDur).SetEase(Ease.InQuad).SetLink(go));
+                seq.Insert(at, tr.DOScale(a.magnetGatherScale, a.magnetFlyDur).SetEase(Ease.OutQuad).SetLink(go));
                 if (Mathf.Abs(a.magnetSpin) > 0.01f)
                     seq.Insert(at, tr.DORotate(new Vector3(0f, 0f, a.magnetSpin), a.magnetFlyDur, RotateMode.FastBeyond360)
                                      .SetEase(a.magnetFlyEase).SetLink(go));
@@ -354,7 +362,9 @@ namespace WordStack.Board
 
             LevelSignals.RaiseMoveCommitted(g.Moves);
 
+            yield return Backdrop(true);
             yield return ShuffleAnimation(r);   // tự RebuildBoardViews giữa hai pha xoáy
+            yield return Backdrop(false);
 
             yield return Settle();   // dọn hộp rỗng, chạy cascade, chốt thắng/kẹt
         }
@@ -445,7 +455,9 @@ namespace WordStack.Board
 
             LevelSignals.RaiseMoveCommitted(g.Moves);
 
+            yield return Backdrop(true);
             yield return UndoAnimation(prev);
+            yield return Backdrop(false);
 
             RebuildBoardViews();
             // Trạng thái khôi phục vốn đã đứng yên nên SettleStep trả None ngay — nhưng
@@ -546,6 +558,28 @@ namespace WordStack.Board
                     if (box.Slots[i] != null) d[box.Slots[i].Uid] = new SlotRef { Stack = s, Box = 0, Slot = i };
             }
             return d;
+        }
+
+        // Bật/tắt tấm nền booster. Có CanvasGroup → mờ dần theo backdropFadeIn/Out; không có →
+        // SetActive khan. Chưa gán → không làm gì (bàn vẫn chạy). Tắt xong mới Rebuild để nền
+        // không che cascade sau đó.
+        IEnumerator Backdrop(bool on)
+        {
+            if (boosterBackdrop == null) yield break;
+            var a = A;
+            var cg = boosterBackdrop.GetComponent<CanvasGroup>();
+            float dur = on ? a.backdropFadeIn : a.backdropFadeOut;
+            if (cg == null || dur <= 0f)
+            {
+                boosterBackdrop.SetActive(on);
+                if (cg != null) cg.alpha = on ? 1f : 0f;
+                yield break;
+            }
+            if (on) { cg.alpha = 0f; boosterBackdrop.SetActive(true); }
+            var tw = DOTween.To(() => cg.alpha, v => cg.alpha = v, on ? 1f : 0f, dur)
+                            .SetEase(Ease.OutQuad).SetLink(boosterBackdrop);
+            yield return tw.WaitForCompletion();
+            if (!on) boosterBackdrop.SetActive(false);
         }
 
         // Chốt chung cho mọi booster. Log từng lý do từ chối — không có nó thì bấm xong

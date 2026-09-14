@@ -9,6 +9,11 @@ namespace WordStack.Board
     [CreateAssetMenu(menuName = "WordStack/Booster Anim Settings", fileName = "SO_BoosterAnim")]
     public class BoosterAnimSettings : ScriptableObject
     {
+        [Header("Tấm nền xám suốt lúc booster diễn (BoardController.boosterBackdrop)")]
+        [Tooltip("Mờ dần vào (giây) — chỉ khi Panel có CanvasGroup; 0 = bật khan")]
+        public float backdropFadeIn = 0.15f;
+        public float backdropFadeOut = 0.15f;
+
         [Header("Nam châm — 4 thẻ bay về một điểm rồi nổ")]
         [Tooltip("Điểm hội tụ theo toạ độ viewport của camera: (0.5, 0.5) = giữa màn hình")]
         public Vector2 magnetGatherViewport = new Vector2(0.5f, 0.5f);
@@ -21,8 +26,8 @@ namespace WordStack.Board
         public Ease magnetFlyEase = Ease.InOutCubic;
         [Tooltip("Lệch pha giữa 4 thẻ")]
         public float magnetStagger = 0.05f;
-        [Tooltip("Cỡ thẻ khi tới điểm hội tụ (1 = không co)")]
-        public float magnetGatherScale = 0.75f;
+        [Tooltip("Cỡ thẻ khi tới điểm hội tụ — >1 phóng to dần trên đường bay, 1 = giữ nguyên")]
+        public float magnetGatherScale = 1.6f;
         [Tooltip("Thẻ xoay bao nhiêu độ trên đường bay (0 = tắt)")]
         public float magnetSpin = 0f;
         [Tooltip("Khựng ở điểm hội tụ trước khi nổ")]

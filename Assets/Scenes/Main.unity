@@ -436,6 +436,7 @@ MonoBehaviour:
   tilePrefab: {fileID: 4861135893841585508, guid: 445cf073a5835f14ab672e87b9f37a21, type: 3}
   ghostPrefab: {fileID: 7371472208493756918, guid: 1a8653ac5cf502f469803b39a6364ee4, type: 3}
   animSettings: {fileID: 11400000, guid: 226ee7bdb0844b2aafc095127171a1d5, type: 2}
+  boosterBackdrop: {fileID: 0}
   flyDur: 0.16
   clearDur: 0.26
   clearStagger: 0.04

@@ -12,6 +12,8 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: ea9497839f534db9b0fa4583100f2453, type: 3}
   m_Name: SO_BoosterAnim
   m_EditorClassIdentifier: WordStack.Board::WordStack.Board.BoosterAnimSettings
+  backdropFadeIn: 0.15
+  backdropFadeOut: 0.15
   magnetGatherViewport: {x: 0.5, y: 0.5}
   magnetRevealDur: 0.15
   magnetPopScale: 1.12
@@ -19,7 +21,7 @@ MonoBehaviour:
   magnetFlyDur: 0.45
   magnetFlyEase: 10
   magnetStagger: 0.05
-  magnetGatherScale: 0.75
+  magnetGatherScale: 1.6
   magnetSpin: 0
   magnetHold: 0.08
   magnetBurstDur: 0.2
