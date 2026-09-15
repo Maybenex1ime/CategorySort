@@ -266,7 +266,6 @@ namespace WordStack.Board
             yield return Backdrop(false);
 
             RebuildBoardViews();
-            BloomTile(r.NewTileUid);   // COLLAPSE: thẻ cha nở ra thay vì hiện khan sau rebuild
             yield return Settle();   // dọn hộp rỗng, chạy cascade, chốt thắng/kẹt
         }
 
@@ -274,6 +273,7 @@ namespace WordStack.Board
         // SO_BoosterAnim) → khựng → nổ về 0. Thẻ đang chôn không có view (StackView chỉ vẽ
         // lớp lấp ló) nên dựng thẻ tạm ngay giữa hộp che, nở ra rồi bay như ba thẻ kia.
         // Domain đã xoá 4 thẻ trước khi vào đây; Rebuild sau animation dọn phần còn lại.
+        // Nhóm có cha (COLLAPSE) thì thẻ cha nở ra tại điểm gộp rồi bay về ô của nó.
         IEnumerator MagnetAnimation(MagnetResult r, Dictionary<string, Tile> faces)
         {
             var a = A;
@@ -283,6 +283,7 @@ namespace WordStack.Board
 
             var seq = DOTween.Sequence();
             int n = 0;
+            float lastBurst = 0f;   // lúc thẻ CUỐI bắt đầu nổ — thẻ cha nở đúng nhịp đó
             for (int i = 0; i < r.Picks.Length; i++)
             {
                 var p = r.Picks[i];
@@ -320,21 +321,50 @@ namespace WordStack.Board
                     seq.Insert(at, tr.DORotate(new Vector3(0f, 0f, a.magnetSpin), a.magnetFlyDur, RotateMode.FastBeyond360)
                                      .SetEase(a.magnetFlyEase).SetLink(go));
                 at += a.magnetFlyDur + a.magnetHold;
+                if (at > lastBurst) lastBurst = at;
                 seq.Insert(at, tr.DOScale(0f, a.magnetBurstDur).SetEase(a.magnetBurstEase).SetLink(go)
                                  .OnComplete(() => Destroy(go)));
                 n++;
             }
             if (n == 0) { seq.Kill(); yield break; }
+            AppendParentFlight(seq, r, center, lastBurst);
             yield return seq.WaitForCompletion();
         }
 
-        // Thẻ vừa sinh ra (COLLAPSE qua nam châm) nở từ 0 — view của nó đã có sau Rebuild.
-        void BloomTile(string uid)
+        // COLLAPSE qua nam châm: thẻ cha nở ra TẠI ĐIỂM GỘP đúng lúc thẻ cuối nổ, khựng một nhịp,
+        // rồi bay về ô mà domain đã đặt nó trong hộp r.NewTileStack, co về cỡ thường. Là thẻ
+        // tạm dưới root — nó nằm yên ở ô đó tới khi Rebuild (DestroyBoard) huỷ và dựng thẻ thật
+        // đúng chỗ, nên không có khung hình nào ô bị trống.
+        void AppendParentFlight(Sequence seq, MagnetResult r, Vector3 center, float at)
         {
-            TileView tv;
-            if (uid == null || !tiles.TryGetValue(uid, out tv) || tv == null) return;
+            if (r.NewTileUid == null || r.NewTileStack < 0 || r.NewTileStack >= boxViews.Length) return;
+            var box = g.TopBox(r.NewTileStack);
+            int slot = box == null ? -1 : Array.FindIndex(box.Slots, t => t != null && t.Uid == r.NewTileUid);
+            if (slot < 0) return;
+
+            var a = A;
+            var t = box.Slots[slot];
+            var tv = Instantiate(tilePrefab, root, false);
+            tv.transform.position = center;
             tv.transform.localScale = Vector3.zero;
-            tv.transform.DOScale(1f, mergeBloom).SetEase(Ease.OutBack).SetLink(tv.gameObject);
+            tv.Bind(t, ArtOf(t));
+            var cc = GroupCountsIn(box);
+            tv.SetMatchState(cc[t.GroupId], OrdinalOf(PairOrdinalsFor(r.NewTileStack, box, cc), t.GroupId));
+            tv.SetFlying(true);
+
+            var go = tv.gameObject;
+            var tr = tv.transform;
+            Vector3 dest = boxViews[r.NewTileStack].Slot(slot).position;
+
+            seq.Insert(at, tr.DOScale(a.magnetGatherScale, a.magnetParentBloomDur).SetEase(Ease.OutBack).SetLink(go));
+            if (Mathf.Abs(mergeSpin) > 0.01f)
+            {
+                tr.localEulerAngles = new Vector3(0f, 0f, mergeSpin);
+                seq.Insert(at, tr.DOLocalRotate(Vector3.zero, a.magnetParentBloomDur).SetEase(Ease.OutCubic).SetLink(go));
+            }
+            at += a.magnetParentBloomDur + a.magnetParentHold;
+            seq.Insert(at, tr.DOMove(dest, a.magnetParentFlyDur).SetEase(a.magnetParentFlyEase).SetLink(go));
+            seq.Insert(at, tr.DOScale(1f, a.magnetParentFlyDur).SetEase(Ease.OutQuad).SetLink(go));
         }
 
         // Khoá HAI vế suốt lúc diễn, y như nam châm — thiếu vế nào cũng lọt input:

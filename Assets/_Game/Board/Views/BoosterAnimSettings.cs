@@ -34,6 +34,13 @@ namespace WordStack.Board
         public float magnetHold = 0.08f;
         public float magnetBurstDur = 0.20f;
         public Ease magnetBurstEase = Ease.InBack;
+        [Tooltip("Nhóm có cha (COLLAPSE): thẻ cha nở ra tại điểm gộp lúc thẻ cuối nổ (giây)")]
+        public float magnetParentBloomDur = 0.25f;
+        [Tooltip("Thẻ cha đứng ở điểm gộp bao lâu trước khi bay về hộp")]
+        public float magnetParentHold = 0.12f;
+        [Tooltip("Thẻ cha bay từ điểm gộp về ô của nó trong hộp, co về cỡ thường")]
+        public float magnetParentFlyDur = 0.35f;
+        public Ease magnetParentFlyEase = Ease.InOutCubic;
 
         [Header("Xáo — cả lớp trên xoáy vào tâm bàn rồi bung ra ô mới")]
         [Tooltip("Pha hút vào tâm — chậm để đọc được xoáy (giây)")]

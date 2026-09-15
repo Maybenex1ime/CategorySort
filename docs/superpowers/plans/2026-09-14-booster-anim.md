@@ -43,7 +43,7 @@ Commit `72e9032` (domain + SelfCheck mục 7 + rules.md) và `2e08c0d` (view + S
 - Modify: `Assets/_Game/Board/Domain/SelfCheck.cs` — mục 7: ca ép CLEAR phải `!CanUndo`; ca nước thường lùi về đúng `Solver.Encode` trước đó.
 - Create: `Assets/_Game/Board/Views/BoosterAnimSettings.cs` (+ `.meta`) — class `BoosterAnimSettings : ScriptableObject`, `[CreateAssetMenu("WordStack/Booster Anim Settings")]`.
 - Create: `Assets/_Game/Content/SO_BoosterAnim.asset` (+ `.meta`).
-- Modify: `Assets/_Game/Board/Views/BoardController.cs` — field `animSettings`, property `A`, `OnMagnetRequested` giữ `faces`, `MagnetAnimation(r, faces)`, `BloomTile`, `OnUndoRequested` giữ `prev`, `UndoAnimation(prev)`, `TopPositions`.
+- Modify: `Assets/_Game/Board/Views/BoardController.cs` — field `animSettings`, property `A`, `OnMagnetRequested` giữ `faces`, `MagnetAnimation(r, faces)`, `AppendParentFlight`, `OnUndoRequested` giữ `prev`, `UndoAnimation(prev)`, `TopPositions`.
 - Modify: `Assets/Scenes/Main.unity` — `animSettings: {fileID: 11400000, guid: 226ee7bdb0844b2aafc095127171a1d5, type: 2}` trên BoardController; bỏ `magnetAnimDur`/`undoAnimDur`.
 - Modify: `docs/wordstack-rules.md` Mục 11 — câu luật Undo.
 
@@ -51,7 +51,7 @@ Commit `72e9032` (domain + SelfCheck mục 7 + rules.md) và `2e08c0d` (view + S
 - `BoosterAnimSettings A { get; }` trong `BoardController` — luôn khác null.
 - `IEnumerator MagnetAnimation(MagnetResult r, Dictionary<string, Tile> faces)`.
 - `IEnumerator UndoAnimation(Game prev)` · `static Dictionary<string, SlotRef> TopPositions(Game game)`.
-- `void BloomTile(string uid)`.
+- `void AppendParentFlight(Sequence seq, MagnetResult r, Vector3 center, float at)` — thay `BloomTile` từ 2026-09-15.
 
 - [x] Step 1–6: đã làm, kiểm `./selfcheck.sh Temp/sc-lv010` OK · `./compilecheck.sh` 3 OK.
 
@@ -87,7 +87,7 @@ Không có kiểm tự động cho view. Mỗi bước là một thứ phải NH
 - [ ] **Step 2: Nam châm — nhóm toàn ở lớp trên**
 
   lv-010 mọi hộp đều đơn tầng, nên nhóm `dog` (poodle · corgi · husky · chihuahua, 3 hộp hàng 0) là ứng viên đầu (`onTop` cao nhất).
-  Bấm Magnet. Phải thấy, theo thứ tự: 4 thẻ dog phồng nhẹ → bay lệch pha về **giữa màn hình** → co còn ~0.75 → khựng → nổ về 0. Progress `1/5`. Không thẻ nào còn sót ở hộp cũ sau khi bàn đứng yên. Nút Undo **xám** (Magnet xoá ảnh chụp).
+  Bấm Magnet. Phải thấy, theo thứ tự: 4 thẻ dog phồng nhẹ → bay lệch pha về **giữa màn hình** → to dần tới ~1.6 → khựng → nổ về 0. Progress `1/5`. Không thẻ nào còn sót ở hộp cũ sau khi bàn đứng yên. Nút Undo **xám** (Magnet xoá ảnh chụp).
   Đổi `magnetGatherViewport` thành (0.5, 0.85) trong Inspector (lúc Play được, SO sửa runtime giữ tới khi thoát Play) → R nạp lại → Magnet: điểm hội tụ phải lên gần mép trên. Trả về (0.5, 0.5).
 
 - [ ] **Step 3: Nam châm — có thẻ chôn**
@@ -97,7 +97,7 @@ Không có kiểm tự động cho view. Mỗi bước là một thứ phải NH
 
 - [ ] **Step 4: Nam châm — nhóm có cha (COLLAPSE)**
 
-  lv-001: `dog/cat/bird` là con của `pet`. Khi Magnet hút một nhóm con, sau khi 4 thẻ nổ ở giữa màn, **thẻ cha nở ra từ 0** ở ô mà domain đặt (hộp hội tụ) — `BloomTile`. Không được hiện khan.
+  lv-001: `dog/cat/bird` là con của `pet`. Khi Magnet hút một nhóm con, đúng lúc 4 thẻ nổ, **thẻ cha nở ra tại điểm gộp** (giữa màn, cỡ ~1.6, xoay về thẳng), khựng một nhịp rồi **bay về ô của nó trong hộp hội tụ**, co về cỡ thường — `AppendParentFlight`. Bàn đứng yên thì thẻ cha nằm đúng ô đó; không nháy, không có khung hình ô trống lúc Rebuild.
 
 - [ ] **Step 5: Undo — nước thường**
 
@@ -183,4 +183,4 @@ git -C D:\CategorySort commit -m "docs(session): booster animations, SO_BoosterA
 
 - **Phủ spec:** Mục 2 QĐ1 → Task 1 · QĐ2 → Task 1 + Task 3 Step 7 · QĐ3/4 → Task 1 + Task 3 Step 2–4 · QĐ5 → Task 1 + Task 2 · QĐ6 → Task 1. Mục 4 bảng field → Task 3 Step 1 kiểm Inspector, Task 4 chỉnh. Mục 5 ràng buộc → Global Constraints. Mục 6 nghiệm thu → Task 3.
 - **Placeholder:** không có TBD; mọi step nghiệm thu nêu đúng màn, đúng thẻ, đúng thứ phải thấy.
-- **Tên nhất quán:** `A`, `MagnetAnimation(r, faces)`, `UndoAnimation(prev)`, `BloomTile`, `TopPositions` khớp code đã commit; field asset khớp `BoosterAnimSettings.cs`.
+- **Tên nhất quán:** `A`, `MagnetAnimation(r, faces)`, `UndoAnimation(prev)`, `AppendParentFlight`, `TopPositions` khớp code đã commit; field asset khớp `BoosterAnimSettings.cs`.

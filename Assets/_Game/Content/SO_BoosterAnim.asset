@@ -26,6 +26,10 @@ MonoBehaviour:
   magnetHold: 0.08
   magnetBurstDur: 0.2
   magnetBurstEase: 26
+  magnetParentBloomDur: 0.25
+  magnetParentHold: 0.12
+  magnetParentFlyDur: 0.35
+  magnetParentFlyEase: 10
   shuffleInDur: 1.9
   shuffleOutDur: 0.9
   shuffleTurns: 3

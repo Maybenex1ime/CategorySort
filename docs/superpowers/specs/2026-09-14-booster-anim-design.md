@@ -21,6 +21,7 @@ Nguyên tắc chi phối, giữ từ các spec trước:
 | 4 | Thẻ đang chôn (không có view) diễn thế nào? | Dựng **thẻ tạm** ngay giữa hộp che, nở ra (OutBack) rồi bay như ba thẻ kia. Hộp che đứng yên. | `StackView` chỉ vẽ lớp lấp ló trừu tượng. Không "xé" hộp che — lúc Rebuild lớp lấp ló tự cập nhật. |
 | 5 | Thông số sống ở đâu? | **Một ScriptableObject `SO_BoosterAnim`** (`BoosterAnimSettings`) cho cả ba booster. `BoardController` chỉ giữ tham chiếu; thiếu asset thì dùng mặc định trong class. | User yêu cầu file data. Shuffle dời theo để một chỗ. |
 | 6 | Có sửa domain không? | **Chỉ** một dòng `ClearUndo()` trong `SettleStep` (quyết định 1). Mọi thứ khác ở view. | Diff Undo tính ở view bằng cách so `prev` với bàn khôi phục; mặt thẻ Nam châm giữ ở view trước khi `ApplyMagnet`. |
+| 7 | Nam châm hút nhóm con (COLLAPSE) — thẻ cha hiện ra thế nào? | **Nở tại điểm gộp rồi bay về ô** domain đặt trong hộp hội tụ (chốt 2026-09-15). | Nối liền hình "4 thẻ gộp thành 1" với chỗ thẻ cha thật sự nằm. Thay bản cũ `BloomTile` (nở tại chỗ sau Rebuild — đứt mạch với điểm gộp giữa màn). |
 
 ## 3. Chuỗi hình từng booster
 
@@ -32,16 +33,19 @@ OnMagnetRequested
   faces = Tile của 4 thẻ nhóm đó    — giữ mặt thẻ, vì ApplyMagnet xoá khỏi Slots
   r = ApplyMagnet(gid) · ClearUndo()
 MagnetSequence
-  khoá 2 vế → MagnetAnimation(r, faces) → RebuildBoardViews → BloomTile(NewTileUid) → Settle()
+  khoá 2 vế → MagnetAnimation(r, faces) → RebuildBoardViews → Settle()
 ```
 
 Mỗi pick, lệch pha `magnetStagger`:
 1. Thẻ ở hộp trên: dùng view thật, tách khỏi `tiles`, reparent lên `root`. Thẻ chôn: `Instantiate(tilePrefab)` tại `boxViews[stack].position`, scale 0 → 1 trong `magnetRevealDur`.
 2. Phồng `magnetPopScale` trong `magnetPopDur`.
-3. `DOMove` về điểm hội tụ (`cam.ViewportToWorldPoint(magnetGatherViewport)`), `magnetFlyDur` + `magnetFlyEase`; đồng thời co về `magnetGatherScale`; xoay `magnetSpin` nếu ≠ 0.
+3. `DOMove` về điểm hội tụ (`cam.ViewportToWorldPoint(magnetGatherViewport)`), `magnetFlyDur` + `magnetFlyEase`; đồng thời đổi cỡ về `magnetGatherScale` (> 1 = to dần khi vào tâm); xoay `magnetSpin` nếu ≠ 0.
 4. Khựng `magnetHold`, rồi co về 0 trong `magnetBurstDur` (`magnetBurstEase`), `Destroy`.
 
-Sau Rebuild, nếu nhóm có cha (COLLAPSE) thì thẻ cha nở từ 0 bằng `mergeBloom` (`BloomTile`).
+Nhóm có cha (COLLAPSE, `r.NewTileUid != null`) — `AppendParentFlight`, cùng một Sequence:
+5. Đúng lúc thẻ cuối bắt đầu nổ, một **thẻ cha tạm** nở ra **tại điểm gộp**: 0 → `magnetGatherScale` (OutBack, `magnetParentBloomDur`), xoay `mergeSpin` về 0.
+6. Khựng `magnetParentHold`, rồi **bay về ô domain đã đặt nó** trong hộp `r.NewTileStack` (`magnetParentFlyDur` / `magnetParentFlyEase`), co về 1.
+7. Thẻ tạm nằm dưới `root` nên đứng yên ở ô đó tới khi `RebuildBoardViews` huỷ nó và dựng thẻ thật đúng chỗ — không có khung hình ô trống.
 
 ### 3.2 Xáo (`ShuffleAnimation` — không đổi, chỉ dời số)
 
@@ -68,15 +72,18 @@ Không có ca "thẻ đã nổ hiện lại" — quyết định 1 loại nó.
 
 | Nhóm | Field | Mặc định | Ý nghĩa |
 |---|---|---|---|
+| Nền | `backdropFadeIn` / `backdropFadeOut` | 0.15 / 0.15 | Panel `BoardController.boosterBackdrop` mờ vào/ra (cần CanvasGroup) |
 | Nam châm | `magnetGatherViewport` | (0.5, 0.5) | điểm hội tụ theo viewport camera |
 | | `magnetRevealDur` | 0.15 | thẻ chôn nhô lên |
 | | `magnetPopScale` / `magnetPopDur` | 1.12 / 0.10 | phồng trước khi bị hút |
 | | `magnetFlyDur` / `magnetFlyEase` | 0.45 / InOutCubic | bay về điểm hội tụ |
 | | `magnetStagger` | 0.05 | lệch pha 4 thẻ |
-| | `magnetGatherScale` | 0.75 | cỡ khi tới nơi |
+| | `magnetGatherScale` | 1.6 | cỡ khi tới nơi (> 1 = to dần khi vào tâm) |
 | | `magnetSpin` | 0 | độ xoay trên đường bay (0 = tắt) |
 | | `magnetHold` | 0.08 | khựng trước khi nổ |
 | | `magnetBurstDur` / `magnetBurstEase` | 0.20 / InBack | nổ về 0 |
+| | `magnetParentBloomDur` / `magnetParentHold` | 0.25 / 0.12 | COLLAPSE: thẻ cha nở tại điểm gộp, khựng |
+| | `magnetParentFlyDur` / `magnetParentFlyEase` | 0.35 / InOutCubic | thẻ cha bay về ô trong hộp |
 | Xáo | `shuffleInDur` / `shuffleOutDur` | 1.9 / 0.9 (asset) | hai pha xoáy — asset chép số user đã chỉnh trong scene, mặc định class là 1.1 / 0.55 |
 | | `shuffleTurns` | 3 (asset) / 2 | số vòng |
 | | `shuffleGatherScale` | 0.4 | cỡ ở tâm |
