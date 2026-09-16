@@ -21,3 +21,34 @@ MonoBehaviour:
     _displayName: Magnet
   - _id: 3
     _displayName: Undo
+  _screenPresets:
+  - _label: HD 16:9 low-end
+    _width: 720
+    _height: 1280
+  - _label: FHD 16:9
+    _width: 1080
+    _height: 1920
+  - _label: HD+ 20:9 Galaxy A0x
+    _width: 720
+    _height: 1600
+  - _label: FHD+ 19.5:9 Galaxy A5x
+    _width: 1080
+    _height: 2340
+  - _label: FHD+ 20:9 most common
+    _width: 1080
+    _height: 2400
+  - _label: QHD+ 20:9 Galaxy S Ultra
+    _width: 1440
+    _height: 3200
+  - _label: 21:9 Xperia
+    _width: 1080
+    _height: 2520
+  - _label: Fold open Z Fold
+    _width: 1812
+    _height: 2176
+  - _label: Tablet 16:10 Galaxy Tab
+    _width: 1600
+    _height: 2560
+  - _label: Tablet 5:3 Tab A7 Lite
+    _width: 800
+    _height: 1340
