@@ -436,7 +436,7 @@ MonoBehaviour:
   tilePrefab: {fileID: 4861135893841585508, guid: 445cf073a5835f14ab672e87b9f37a21, type: 3}
   ghostPrefab: {fileID: 7371472208493756918, guid: 1a8653ac5cf502f469803b39a6364ee4, type: 3}
   animSettings: {fileID: 11400000, guid: 226ee7bdb0844b2aafc095127171a1d5, type: 2}
-  boosterBackdrop: {fileID: 1580885636}
+  boosterBackdrop: {fileID: 0}
   flyDur: 0.16
   clearDur: 0.26
   clearStagger: 0.04
@@ -723,11 +723,6 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
---- !u!1 &1580885636 stripped
-GameObject:
-  m_CorrespondingSourceObject: {fileID: 5806365186994091580, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
-  m_PrefabInstance: {fileID: 1950749825}
-  m_PrefabAsset: {fileID: 0}
 --- !u!1001 &1661448850
 PrefabInstance:
   m_ObjectHideFlags: 0

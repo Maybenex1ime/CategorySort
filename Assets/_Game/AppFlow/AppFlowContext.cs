@@ -249,18 +249,26 @@ namespace WordStack.Meta.AppFlow
 
         private async Awaitable ShowCompletedPopupAsync()
         {
+            int rewardCoinAmount = _coinReward != null ? _coinReward.LastAwardedAmount : 0;
             CompletedPopupArgs args = new CompletedPopupArgs
             {
                 LevelTitle = $"Level {_playingLevelIndex + 1}",
-                RewardCoinAmount = _coinReward != null ? _coinReward.LastAwardedAmount : 0,
+                RewardCoinAmount = rewardCoinAmount,
                 // WS trừ tim lúc VÀO màn nên sang màn kế cũng cần tim (khác aquapark).
                 OnClaim = () => RunGatedByHearts(
                     () => TriggerDeferred(new NextLevelTrigger()), returnToMenuOnClose: true),
+                // Chụp số coin ngay lúc tạo popup: ResetLastAwarded() bên dưới chạy trước khi người chơi bấm x2.
+                OnDoubleReward = () => OnDoubleRewardRequested(rewardCoinAmount),
             };
 
             await _uiManager.ShowPopupImmediate<CompletedPopup, CompletedPopupArgs>(args);
 
             if (_coinReward != null) _coinReward.ResetLastAwarded();
+        }
+
+        private void OnDoubleRewardRequested(int baseRewardCoinAmount)
+        {
+            // TODO: xem rewarded ad → thành công thì cộng thêm baseRewardCoinAmount coin (x2), rồi đóng popup / sang màn kế.
         }
 
         private Awaitable ShowFailedPopupAsync()
