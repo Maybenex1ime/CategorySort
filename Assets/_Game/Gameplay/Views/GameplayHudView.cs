@@ -1,4 +1,5 @@
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using LogosGame.Features.Gameplay.Flow;
 using LogosGame.Features.Gameplay.Services;
 using LogosMeta.Economy;
@@ -41,6 +42,7 @@ namespace LogosGame.Features.Gameplay.Views
         [SerializeField] private Sprite _crazySprite;
 
         private DisposableBag _disposables;
+        private MotionHandle _progressTween;
 
         private void Awake()
         {
@@ -107,14 +109,19 @@ namespace LogosGame.Features.Gameplay.Views
             if (_progressFill != null)
             {
                 float target = (float)cleared / total;
-                _progressFill.DOKill();
+                _progressTween.TryCancel();
                 if (cleared == 0)
                 {
                     _progressFill.fillAmount = 0f;   // vào màn/chơi lại: snap, khỏi tween tụt về 0
                 }
                 else
                 {
-                    _progressFill.DOFillAmount(target, 0.25f);
+                    // Không SetEase ở bản DOTween → OutQuad (ease mặc định trong DOTweenSettings).
+                    _progressTween = LMotion.Create(_progressFill.fillAmount, target, 0.25f)
+                        .WithEase(Ease.OutQuad)
+                        .WithCancelOnError()
+                        .BindToFillAmount(_progressFill)
+                        .AddTo(_progressFill.gameObject);
                 }
             }
 

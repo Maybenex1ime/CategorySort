@@ -1,7 +1,8 @@
+using LitMotion;
+using LitMotion.Extensions;
+using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
-using TMPro;
-using DG.Tweening;
 
 namespace BoosterModule
 {
@@ -19,17 +20,18 @@ namespace BoosterModule
         [SerializeField] private Button _button;
 
         private BoosterSlotViewModel _viewModel;
+        private MotionHandle _punch;
 
         private void Start()
         {
             _viewModel = new BoosterSlotViewModel(_id);
             _viewModel.OnCountChanged += UpdateUI;
-            
+
             if (_button != null)
             {
                 _button.onClick.AddListener(OnClicked);
             }
-            
+
             // Initial state
             UpdateUI(_viewModel.Count);
         }
@@ -45,10 +47,16 @@ namespace BoosterModule
 
         private void OnClicked()
         {
-            // Visual feedback
-            transform.DOKill(true);
-            transform.DOPunchScale(Vector3.one * (_punchScale - 1f), _animationDuration);
-            
+            // Visual feedback — kết thúc cú trước (DOKill(complete) cũ) rồi punch lại.
+            // DOPunchScale mặc định vibrato 10, elasticity 1; công thức LitMotion khác — Task 8 so mắt.
+            _punch.TryComplete();
+            _punch = LMotion.Punch.Create(transform.localScale, Vector3.one * (_punchScale - 1f), _animationDuration)
+                .WithFrequency(10)
+                .WithDampingRatio(1f)
+                .WithCancelOnError()
+                .BindToLocalScale(transform)
+                .AddTo(gameObject);
+
             _viewModel.RequestUse();
         }
 
@@ -58,7 +66,7 @@ namespace BoosterModule
             {
                 _countText.text = count.ToString();
             }
-            
+
             if (_canvasGroup != null)
             {
                 _canvasGroup.alpha = count > 0 ? 1f : 0.5f;

@@ -1,5 +1,6 @@
 using System;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using R3;
 using Reflex.Attributes;
 using TMPro;
@@ -26,7 +27,7 @@ namespace LogosMeta.CheatPanel
         [SerializeField] private float _fadeDuration = 0.35f;
 
         private DisposableBag _disposables;
-        private Sequence _activeSequence;
+        private MotionHandle _activeSequence;
         private Vector2 _restAnchoredPosition;
 
         private void Awake()
@@ -45,7 +46,7 @@ namespace LogosMeta.CheatPanel
 
         private void OnDestroy()
         {
-            _activeSequence?.Kill();
+            _activeSequence.TryCancel();
             _disposables.Dispose();
         }
 
@@ -56,7 +57,7 @@ namespace LogosMeta.CheatPanel
 
         private void ShowToast(CheatNotification notification)
         {
-            _activeSequence?.Kill();
+            _activeSequence.TryCancel();
 
             if (_label != null)
             {
@@ -67,20 +68,28 @@ namespace LogosMeta.CheatPanel
             if (_root != null) _root.anchoredPosition = _restAnchoredPosition;
             if (_canvasGroup != null) _canvasGroup.alpha = 0f;
 
-            _activeSequence = DOTween.Sequence().SetLink(gameObject);
+            // Mốc thời gian chép đúng bản DOTween: Append/AppendInterval đặt ở CUỐI toàn chuỗi,
+            // tính cả cú trôi lên đã Join. Không SetEase ở bản cũ → OutQuad (mặc định DOTweenSettings).
+            float fadeInEnd = _canvasGroup != null ? _fadeDuration : 0f;
+            float floatEnd = _root != null ? _visibleDuration + _fadeDuration : 0f;
+            float fadeOutAt = Math.Max(fadeInEnd, floatEnd) + Math.Max(0f, _visibleDuration - _fadeDuration);
+            float end = fadeOutAt + (_canvasGroup != null ? _fadeDuration : 0f);
 
+            var seq = LSequence.Create();
             if (_canvasGroup != null)
-                _activeSequence.Append(_canvasGroup.DOFade(1f, _fadeDuration));
-
+            {
+                seq.Insert(0f, LMotion.Create(0f, 1f, _fadeDuration)
+                                      .WithEase(Ease.OutQuad).WithCancelOnError().BindToAlpha(_canvasGroup));
+                seq.Insert(fadeOutAt, LMotion.Create(1f, 0f, _fadeDuration)
+                                             .WithEase(Ease.OutQuad).WithCancelOnError().BindToAlpha(_canvasGroup));
+            }
             if (_root != null)
-                _activeSequence.Join(_root.DOAnchorPosY(_restAnchoredPosition.y + _floatDistance, _visibleDuration + _fadeDuration).SetEase(Ease.OutCubic));
+                seq.Insert(0f, LMotion.Create(_restAnchoredPosition.y, _restAnchoredPosition.y + _floatDistance, _visibleDuration + _fadeDuration)
+                                      .WithEase(Ease.OutCubic).WithCancelOnError().BindToAnchoredPositionY(_root));
+            // Mốc rỗng giữ đúng tổng thời lượng khi thiếu CanvasGroup (DOTween vẫn đếm AppendInterval).
+            seq.Insert(end, LMotion.Create(0f, 0f, 0f).RunWithoutBinding());
 
-            _activeSequence.AppendInterval(Math.Max(0f, _visibleDuration - _fadeDuration));
-
-            if (_canvasGroup != null)
-                _activeSequence.Append(_canvasGroup.DOFade(0f, _fadeDuration));
-
-            _activeSequence.OnComplete(HideImmediate);
+            _activeSequence = seq.Run(b => b.WithCancelOnError().WithOnComplete(HideImmediate)).AddTo(gameObject);
         }
 
         private void HideImmediate()
