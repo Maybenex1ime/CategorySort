@@ -3,7 +3,9 @@
     "rootNamespace": "WordStack.Board",
     "references": [
         "WordStack.Contracts",
-        "Unity.InputSystem"
+        "Unity.InputSystem",
+        "LitMotion",
+        "LitMotion.Extensions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

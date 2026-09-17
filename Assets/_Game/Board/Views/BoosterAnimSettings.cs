@@ -1,7 +1,7 @@
 // Thông số animation của ba booster (Nam châm, Xáo, Undo) — một asset (SO_BoosterAnim) để
 // chỉnh trong Inspector mà không mở scene. Giá trị mặc định ở đây là bản chạy được khi
 // asset chưa gán.
-using DG.Tweening;
+using LitMotion;
 using UnityEngine;
 
 namespace WordStack.Board
