@@ -1,4 +1,5 @@
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using LogosSDK.UI.Animation;
 using Reflex.Attributes;
 using UnityEngine;
@@ -14,8 +15,8 @@ namespace LogosSDK.UI.Components
 
         private UIButtonFeedbackSO _resolvedProfile;
         private RectTransform _resolvedTarget;
-        private Tween _pulseTween;
-        private Tween _wobbleTween;
+        private MotionHandle _pulseTween;
+        private MotionHandle _wobbleTween;
         private WaitForSeconds _wobbleWait;
 
         private void Awake()
@@ -55,8 +56,8 @@ namespace LogosSDK.UI.Components
 
         private void OnDisable()
         {
-            _pulseTween?.Kill();
-            _wobbleTween?.Kill();
+            _pulseTween.TryCancel();
+            _wobbleTween.TryCancel();
             StopAllCoroutines();
             if (_resolvedTarget != null)
                 _resolvedTarget.localScale = Vector3.one;
@@ -71,13 +72,14 @@ namespace LogosSDK.UI.Components
 
         private void StartPulse()
         {
-            _pulseTween?.Kill();
-            _pulseTween = _resolvedTarget
-                .DOScale(_resolvedProfile.PulseScale, _resolvedProfile.PulseDuration)
-                .SetEase(Ease.InOutSine)
-                .SetLoops(-1, LoopType.Yoyo)
-                .SetLink(gameObject)
-                .SetUpdate(true);
+            _pulseTween.TryCancel();
+            _pulseTween = LMotion.Create(_resolvedTarget.localScale, Vector3.one * _resolvedProfile.PulseScale, _resolvedProfile.PulseDuration)
+                .WithEase(Ease.InOutSine)
+                .WithLoops(-1, LoopType.Yoyo)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToLocalScale(_resolvedTarget)
+                .AddTo(gameObject);
         }
 
         private System.Collections.IEnumerator WobbleRoutine()
@@ -86,11 +88,16 @@ namespace LogosSDK.UI.Components
             {
                 yield return _wobbleWait;
                 if (!enabled || !gameObject.activeInHierarchy) yield break;
-                _wobbleTween?.Kill();
-                _wobbleTween = _resolvedTarget
-                    .DOPunchRotation(new Vector3(0f, 0f, _resolvedProfile.WobbleAngle), _resolvedProfile.WobbleDuration, 10, 0.5f)
-                    .SetLink(gameObject)
-                    .SetUpdate(true);
+                _wobbleTween.TryCancel();
+                // DOPunchRotation(…, vibrato 10, elasticity 0.5). Công thức punch LitMotion khác
+                // DOTween — Task 8 so bằng mắt.
+                _wobbleTween = LMotion.Punch.Create(_resolvedTarget.localEulerAngles, new Vector3(0f, 0f, _resolvedProfile.WobbleAngle), _resolvedProfile.WobbleDuration)
+                    .WithFrequency(10)
+                    .WithDampingRatio(0.5f)
+                    .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                    .WithCancelOnError()
+                    .BindToLocalEulerAngles(_resolvedTarget)
+                    .AddTo(gameObject);
             }
         }
     }

@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Animation.UIPanelAnimationSO
   _enterType: 3
   _enterDuration: 0.22
-  _enterEase: 27
+  _enterEase: 26
   _exitType: 0
   _exitDuration: 0.18
-  _exitEase: 26
+  _exitEase: 25

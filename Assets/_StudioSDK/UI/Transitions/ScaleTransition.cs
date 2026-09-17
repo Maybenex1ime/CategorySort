@@ -1,4 +1,6 @@
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
+using LogosSDK.Tween;
 using UnityEngine;
 
 namespace LogosSDK.UI.Transitions
@@ -13,22 +15,24 @@ namespace LogosSDK.UI.Transitions
         public async Awaitable PlayEnter(RectTransform target)
         {
             target.localScale = Vector3.zero;
-            await target
-                .DOScale(Vector3.one, _enterDuration)
-                .SetEase(_enterEase)
-                .SetUpdate(true)
-                .SetLink(gameObject)
-                .AsyncWaitForCompletion();
+            await LMotion.Create(Vector3.zero, Vector3.one, _enterDuration)
+                .WithEase(_enterEase)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToLocalScale(target)
+                .AddTo(gameObject)
+                .WaitAsync();
         }
 
         public async Awaitable PlayExit(RectTransform target)
         {
-            await target
-                .DOScale(Vector3.zero, _exitDuration)
-                .SetEase(_exitEase)
-                .SetUpdate(true)
-                .SetLink(gameObject)
-                .AsyncWaitForCompletion();
+            await LMotion.Create(target.localScale, Vector3.zero, _exitDuration)
+                .WithEase(_exitEase)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToLocalScale(target)
+                .AddTo(gameObject)
+                .WaitAsync();
             target.localScale = Vector3.one;
         }
     }

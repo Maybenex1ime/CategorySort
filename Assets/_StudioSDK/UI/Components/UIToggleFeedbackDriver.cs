@@ -1,4 +1,5 @@
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using LogosSDK.UI.Animation;
 using Reflex.Attributes;
 using UnityEngine;
@@ -14,7 +15,7 @@ namespace LogosSDK.UI.Components
 
         private UIButtonFeedbackSO _resolvedProfile;
         private RectTransform _resolvedTarget;
-        private Tween _activeTween;
+        private MotionHandle _activeTween;
 
         private void Awake()
         {
@@ -34,27 +35,33 @@ namespace LogosSDK.UI.Components
         public void SetState(bool on)
         {
             if (_resolvedProfile == null || _resolvedTarget == null) return;
-            _activeTween?.Kill();
+            _activeTween.TryCancel();
             if (on)
             {
-                _activeTween = DOTween.Sequence()
-                    .Append(_resolvedTarget.DOScale(_resolvedProfile.ToggleOnScale, 0.1f).SetEase(_resolvedProfile.ToggleOnEase))
-                    .Append(_resolvedTarget.DOScale(1f, 0.08f).SetEase(Ease.OutQuad))
-                    .SetLink(gameObject)
-                    .SetUpdate(true);
+                var up = Vector3.one * _resolvedProfile.ToggleOnScale;
+                _activeTween = LSequence.Create()
+                    .Insert(0f, LMotion.Create(_resolvedTarget.localScale, up, 0.1f)
+                                       .WithEase(_resolvedProfile.ToggleOnEase).WithCancelOnError().BindToLocalScale(_resolvedTarget))
+                    .Insert(0.1f, LMotion.Create(up, Vector3.one, 0.08f)
+                                         .WithEase(Ease.OutQuad).WithCancelOnError().BindToLocalScale(_resolvedTarget))
+                    .Run(b => b.WithCancelOnError().WithScheduler(MotionScheduler.UpdateIgnoreTimeScale))
+                    .AddTo(gameObject);
             }
             else if (_resolvedProfile.ToggleOffShake)
             {
-                _activeTween = _resolvedTarget
-                    .DOShakeScale(0.25f, 0.12f, 8, 90f)
-                    .SetLink(gameObject)
-                    .SetUpdate(true);
+                // DOShakeScale(0.25f, 0.12f, vibrato 8, randomness 90). Công thức shake khác — Task 8 so mắt.
+                _activeTween = LMotion.Shake.Create(_resolvedTarget.localScale, Vector3.one * 0.12f, 0.25f)
+                    .WithFrequency(8)
+                    .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                    .WithCancelOnError()
+                    .BindToLocalScale(_resolvedTarget)
+                    .AddTo(gameObject);
             }
         }
 
         private void OnDisable()
         {
-            _activeTween?.Kill();
+            _activeTween.TryCancel();
             if (_resolvedTarget != null)
                 _resolvedTarget.localScale = Vector3.one;
         }

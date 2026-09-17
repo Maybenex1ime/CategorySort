@@ -1,4 +1,6 @@
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
+using LogosSDK.Tween;
 using UnityEngine;
 
 namespace LogosSDK.UI.Transitions
@@ -14,24 +16,27 @@ namespace LogosSDK.UI.Transitions
 
         public async Awaitable PlayEnter(RectTransform target)
         {
-            target.anchoredPosition = GetOffscreenPos(target, _enterFrom);
-            await target
-                .DOAnchorPos(Vector2.zero, _duration)
-                .SetEase(_enterEase)
-                .SetUpdate(true)
-                .SetLink(gameObject)
-                .AsyncWaitForCompletion();
+            Vector2 startPos = GetOffscreenPos(target, _enterFrom);
+            target.anchoredPosition = startPos;
+            await LMotion.Create(startPos, Vector2.zero, _duration)
+                .WithEase(_enterEase)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToAnchoredPosition(target)
+                .AddTo(gameObject)
+                .WaitAsync();
         }
 
         public async Awaitable PlayExit(RectTransform target)
         {
             Vector2 endPos = GetOffscreenPos(target, _enterFrom);
-            await target
-                .DOAnchorPos(endPos, _duration)
-                .SetEase(_exitEase)
-                .SetUpdate(true)
-                .SetLink(gameObject)
-                .AsyncWaitForCompletion();
+            await LMotion.Create(target.anchoredPosition, endPos, _duration)
+                .WithEase(_exitEase)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToAnchoredPosition(target)
+                .AddTo(gameObject)
+                .WaitAsync();
             target.anchoredPosition = Vector2.zero;
         }
 

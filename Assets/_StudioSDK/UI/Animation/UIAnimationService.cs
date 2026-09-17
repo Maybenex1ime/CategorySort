@@ -1,6 +1,10 @@
+using System;
 using System.Collections.Generic;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Adapters;
+using LitMotion.Extensions;
 using LogosSDK.Core.Logging;
+using LogosSDK.Tween;
 using UnityEngine;
 using ILogger = LogosSDK.Core.Logging.ILogger;
 
@@ -8,6 +12,11 @@ namespace LogosSDK.UI.Animation
 {
     public sealed class UIAnimationService : IUIAnimationService
     {
+        // SetUpdate(true) của bản DOTween = unscaled time. CancelOnError: target bị huỷ giữa
+        // chừng thì huỷ cả chuỗi (bản DOTween dựa vào safe mode).
+        private static readonly Action<MotionBuilder<double, NoOptions, DoubleMotionAdapter>> Unscaled =
+            b => b.WithCancelOnError().WithScheduler(MotionScheduler.UpdateIgnoreTimeScale);
+
         private readonly UIAnimationSettingsSO _settings;
         private readonly ILogger _logger = LogManager.GetLogger<UIAnimationService>();
 
@@ -43,12 +52,12 @@ namespace LogosSDK.UI.Animation
             switch (profile.EnterType)
             {
                 case PanelEnterType.ScaleFade:       await PlayScaleFadeEnter(rt, cg, profile); break;
-                case PanelEnterType.SlideUpBounce:   await PlaySlideUpBounceEnter(rt, cg, profile); break;
-                case PanelEnterType.SlideDownBounce: await PlaySlideDownBounceEnter(rt, cg, profile); break;
-                case PanelEnterType.DropBounce:      await PlayDropBounceEnter(rt, cg, profile); break;
+                case PanelEnterType.SlideUpBounce:   await PlaySlideBounceEnter(rt, cg, profile, -300f); break;
+                case PanelEnterType.SlideDownBounce: await PlaySlideBounceEnter(rt, cg, profile, 300f); break;
+                case PanelEnterType.DropBounce:      await PlayDropBounceEnter(rt, cg); break;
                 case PanelEnterType.FadeOnly:        await PlayFadeEnter(cg, profile); break;
                 default:
-                    throw new System.ArgumentOutOfRangeException(nameof(profile.EnterType), profile.EnterType, null);
+                    throw new ArgumentOutOfRangeException(nameof(profile.EnterType), profile.EnterType, null);
             }
         }
 
@@ -58,11 +67,11 @@ namespace LogosSDK.UI.Animation
             switch (profile.ExitType)
             {
                 case PanelExitType.ScaleFade: await PlayScaleFadeExit(rt, cg, profile); break;
-                case PanelExitType.SlideDown: await PlaySlideDownExit(rt, cg, profile); break;
-                case PanelExitType.SlideUp:   await PlaySlideUpExit(rt, cg, profile); break;
+                case PanelExitType.SlideDown: await PlaySlideExit(rt, cg, profile, -300f); break;
+                case PanelExitType.SlideUp:   await PlaySlideExit(rt, cg, profile, 300f); break;
                 case PanelExitType.FadeOnly:  await PlayFadeExit(cg, profile); break;
                 default:
-                    throw new System.ArgumentOutOfRangeException(nameof(profile.ExitType), profile.ExitType, null);
+                    throw new ArgumentOutOfRangeException(nameof(profile.ExitType), profile.ExitType, null);
             }
         }
 
@@ -75,8 +84,7 @@ namespace LogosSDK.UI.Animation
                 if (elements[i] != null) { linkTarget = elements[i].gameObject; break; }
             if (linkTarget == null) return;
 
-            var masterSeq = DOTween.Sequence();
-            masterSeq.SetUpdate(true).SetLink(linkTarget);
+            var seq = LSequence.Create();
 
             for (int i = 0; i < elements.Count; i++)
             {
@@ -90,19 +98,24 @@ namespace LogosSDK.UI.Animation
                 switch (profile.StaggerType)
                 {
                     case StaggerType.Pop:
+                    {
+                        var peak = Vector3.one * 1.15f;
                         element.localScale = Vector3.zero;
-                        masterSeq.Insert(delay, element.DOScale(1.15f, dur * 0.6f).SetEase(profile.ElementEase).SetUpdate(true));
-                        masterSeq.Insert(delay + dur * 0.6f, element.DOScale(1f, dur * 0.4f).SetEase(Ease.OutQuad).SetUpdate(true));
-                        if (elemCg != null) { elemCg.alpha = 0f; masterSeq.Insert(delay, elemCg.DOFade(1f, dur * 0.5f).SetUpdate(true)); }
+                        seq.Insert(delay, Scale(element, Vector3.zero, peak, dur * 0.6f, profile.ElementEase));
+                        seq.Insert(delay + dur * 0.6f, Scale(element, peak, Vector3.one, dur * 0.4f, Ease.OutQuad));
+                        if (elemCg != null) { elemCg.alpha = 0f; seq.Insert(delay, Fade(elemCg, 0f, 1f, dur * 0.5f, Ease.OutQuad)); }
                         break;
+                    }
 
                     case StaggerType.SlideUp:
-                        var startPos = new Vector2(element.anchoredPosition.x, element.anchoredPosition.y - 24f);
+                    {
                         var endPos = element.anchoredPosition;
+                        var startPos = new Vector2(endPos.x, endPos.y - 24f);
                         element.anchoredPosition = startPos;
-                        masterSeq.Insert(delay, element.DOAnchorPos(endPos, dur).SetEase(profile.ElementEase).SetUpdate(true));
-                        if (elemCg != null) { elemCg.alpha = 0f; masterSeq.Insert(delay, elemCg.DOFade(1f, dur * 0.7f).SetUpdate(true)); }
+                        seq.Insert(delay, Move(element, startPos, endPos, dur, profile.ElementEase));
+                        if (elemCg != null) { elemCg.alpha = 0f; seq.Insert(delay, Fade(elemCg, 0f, 1f, dur * 0.7f, Ease.OutQuad)); }
                         break;
+                    }
 
                     case StaggerType.FadeIn:
                         if (elemCg == null)
@@ -112,33 +125,43 @@ namespace LogosSDK.UI.Animation
                             break;
                         }
                         elemCg.alpha = 0f;
-                        masterSeq.Insert(delay, elemCg.DOFade(1f, dur).SetEase(profile.ElementEase).SetUpdate(true));
+                        seq.Insert(delay, Fade(elemCg, 0f, 1f, dur, profile.ElementEase));
                         break;
 
                     case StaggerType.PopWithSpin:
+                    {
+                        var peak = Vector3.one * 1.1f;
+                        var tilt = Quaternion.Euler(0f, 0f, -15f);
                         element.localScale = Vector3.zero;
-                        element.localRotation = Quaternion.Euler(0f, 0f, -15f);
-                        masterSeq.Insert(delay, element.DOScale(1.1f, dur * 0.6f).SetEase(profile.ElementEase).SetUpdate(true));
-                        masterSeq.Insert(delay + dur * 0.6f, element.DOScale(1f, dur * 0.4f).SetEase(Ease.OutQuad).SetUpdate(true));
-                        masterSeq.Insert(delay, element.DOLocalRotate(Vector3.zero, dur * 0.7f).SetEase(Ease.OutBack).SetUpdate(true));
-                        if (elemCg != null) { elemCg.alpha = 0f; masterSeq.Insert(delay, elemCg.DOFade(1f, dur * 0.5f).SetUpdate(true)); }
+                        element.localRotation = tilt;
+                        seq.Insert(delay, Scale(element, Vector3.zero, peak, dur * 0.6f, profile.ElementEase));
+                        seq.Insert(delay + dur * 0.6f, Scale(element, peak, Vector3.one, dur * 0.4f, Ease.OutQuad));
+                        seq.Insert(delay, LMotion.Create(tilt, Quaternion.identity, dur * 0.7f)
+                                                 .WithEase(Ease.OutBack).WithCancelOnError().BindToLocalRotation(element));
+                        if (elemCg != null) { elemCg.alpha = 0f; seq.Insert(delay, Fade(elemCg, 0f, 1f, dur * 0.5f, Ease.OutQuad)); }
                         break;
+                    }
 
                     case StaggerType.StampDrop:
-                        var stampRestPos = element.anchoredPosition;
-                        element.anchoredPosition = new Vector2(stampRestPos.x, stampRestPos.y + 60f);
+                    {
+                        var rest = element.anchoredPosition;
+                        var high = new Vector2(rest.x, rest.y + 60f);
+                        var squash = new Vector3(1.18f, 0.82f, 1f);
+                        element.anchoredPosition = high;
                         element.localScale = Vector3.one;
-                        masterSeq.Insert(delay, element.DOAnchorPos(stampRestPos, dur * 0.35f).SetEase(Ease.InQuad).SetUpdate(true));
-                        masterSeq.Insert(delay + dur * 0.35f, element.DOScale(new Vector3(1.18f, 0.82f, 1f), dur * 0.15f).SetEase(Ease.OutQuad).SetUpdate(true));
-                        masterSeq.Insert(delay + dur * 0.5f, element.DOScale(Vector3.one, dur * 0.5f).SetEase(Ease.OutBack).SetUpdate(true));
+                        seq.Insert(delay, Move(element, high, rest, dur * 0.35f, Ease.InQuad));
+                        seq.Insert(delay + dur * 0.35f, Scale(element, Vector3.one, squash, dur * 0.15f, Ease.OutQuad));
+                        seq.Insert(delay + dur * 0.5f, Scale(element, squash, Vector3.one, dur * 0.5f, Ease.OutBack));
                         break;
+                    }
 
                     default:
-                        throw new System.ArgumentOutOfRangeException(nameof(profile.StaggerType), profile.StaggerType, null);
+                        seq.Dispose();
+                        throw new ArgumentOutOfRangeException(nameof(profile.StaggerType), profile.StaggerType, null);
                 }
             }
 
-            await masterSeq.AsyncWaitForCompletion();
+            await seq.Run(Unscaled).AddTo(linkTarget).WaitAsync();
         }
 
         // ── Panel Enter helpers ──────────────────────────────────────────────
@@ -146,99 +169,101 @@ namespace LogosSDK.UI.Animation
         private async Awaitable PlayScaleFadeEnter(RectTransform rt, CanvasGroup cg, UIPanelAnimationSO profile)
         {
             rt.localScale = Vector3.zero;
-            var s = DOTween.Sequence();
-            s.Join(rt.DOScale(Vector3.one, profile.EnterDuration).SetEase(profile.EnterEase));
-            if (cg != null) { cg.alpha = 0f; s.Join(cg.DOFade(1f, profile.EnterDuration).SetEase(Ease.OutCubic)); }
-            s.SetLink(rt.gameObject).SetUpdate(true);
-            await s.AsyncWaitForCompletion();
+            var seq = LSequence.Create();
+            seq.Insert(0f, Scale(rt, Vector3.zero, Vector3.one, profile.EnterDuration, profile.EnterEase));
+            if (cg != null) { cg.alpha = 0f; seq.Insert(0f, Fade(cg, 0f, 1f, profile.EnterDuration, Ease.OutCubic)); }
+            await seq.Run(Unscaled).AddTo(rt.gameObject).WaitAsync();
         }
 
-        private async Awaitable PlaySlideUpBounceEnter(RectTransform rt, CanvasGroup cg, UIPanelAnimationSO profile)
+        // offsetY âm = trồi từ dưới lên (SlideUpBounce), dương = rơi từ trên xuống (SlideDownBounce).
+        private async Awaitable PlaySlideBounceEnter(RectTransform rt, CanvasGroup cg, UIPanelAnimationSO profile, float offsetY)
         {
             var restPos = rt.anchoredPosition;
-            rt.anchoredPosition = new Vector2(restPos.x, restPos.y - 300f);
-            var s = DOTween.Sequence();
-            s.Join(rt.DOAnchorPos(restPos, profile.EnterDuration).SetEase(profile.EnterEase));
-            if (cg != null) { cg.alpha = 0f; s.Join(cg.DOFade(1f, profile.EnterDuration * 0.7f).SetEase(Ease.OutCubic)); }
-            s.SetLink(rt.gameObject).SetUpdate(true);
-            await s.AsyncWaitForCompletion();
+            var startPos = new Vector2(restPos.x, restPos.y + offsetY);
+            rt.anchoredPosition = startPos;
+            var seq = LSequence.Create();
+            seq.Insert(0f, Move(rt, startPos, restPos, profile.EnterDuration, profile.EnterEase));
+            if (cg != null) { cg.alpha = 0f; seq.Insert(0f, Fade(cg, 0f, 1f, profile.EnterDuration * 0.7f, Ease.OutCubic)); }
+            await seq.Run(Unscaled).AddTo(rt.gameObject).WaitAsync();
         }
 
-        private async Awaitable PlaySlideDownBounceEnter(RectTransform rt, CanvasGroup cg, UIPanelAnimationSO profile)
+        // Mốc thời gian chép đúng bản DOTween: Append đặt ở CUỐI toàn chuỗi, tính cả cú mờ vào đã
+        // Join — có CanvasGroup thì cú co bắt đầu sau 0.1s, không có thì bắt đầu ngay.
+        private async Awaitable PlayDropBounceEnter(RectTransform rt, CanvasGroup cg)
         {
-            var restPos = rt.anchoredPosition;
-            rt.anchoredPosition = new Vector2(restPos.x, restPos.y + 300f);
-            var s = DOTween.Sequence();
-            s.Join(rt.DOAnchorPos(restPos, profile.EnterDuration).SetEase(profile.EnterEase));
-            if (cg != null) { cg.alpha = 0f; s.Join(cg.DOFade(1f, profile.EnterDuration * 0.7f).SetEase(Ease.OutCubic)); }
-            s.SetLink(rt.gameObject).SetUpdate(true);
-            await s.AsyncWaitForCompletion();
-        }
-
-        private async Awaitable PlayDropBounceEnter(RectTransform rt, CanvasGroup cg, UIPanelAnimationSO profile)
-        {
-            rt.localScale = new Vector3(1.3f, 1.3f, 1.3f);
-            var s = DOTween.Sequence();
-            if (cg != null) { cg.alpha = 0f; s.Join(cg.DOFade(1f, 0.1f).SetEase(Ease.OutCubic)); }
-            s.Append(rt.DOScale(new Vector3(0.92f, 0.92f, 0.92f), 0.12f).SetEase(Ease.InQuad));
-            s.Append(rt.DOScale(Vector3.one, 0.1f).SetEase(Ease.OutBack));
-            s.SetLink(rt.gameObject).SetUpdate(true);
-            await s.AsyncWaitForCompletion();
+            var big = Vector3.one * 1.3f;
+            var small = Vector3.one * 0.92f;
+            rt.localScale = big;
+            var seq = LSequence.Create();
+            float at = 0f;
+            if (cg != null) { cg.alpha = 0f; seq.Insert(0f, Fade(cg, 0f, 1f, 0.1f, Ease.OutCubic)); at = 0.1f; }
+            seq.Insert(at, Scale(rt, big, small, 0.12f, Ease.InQuad));
+            seq.Insert(at + 0.12f, Scale(rt, small, Vector3.one, 0.1f, Ease.OutBack));
+            await seq.Run(Unscaled).AddTo(rt.gameObject).WaitAsync();
         }
 
         private async Awaitable PlayFadeEnter(CanvasGroup cg, UIPanelAnimationSO profile)
         {
             if (cg == null) return;
             cg.alpha = 0f;
-            await cg.DOFade(1f, profile.EnterDuration)
-                .SetEase(Ease.OutCubic)
-                .SetLink(cg.gameObject)
-                .SetUpdate(true)
-                .AsyncWaitForCompletion();
+            await LMotion.Create(0f, 1f, profile.EnterDuration)
+                .WithEase(Ease.OutCubic)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToAlpha(cg)
+                .AddTo(cg.gameObject)
+                .WaitAsync();
         }
 
         // ── Panel Exit helpers ───────────────────────────────────────────────
 
         private async Awaitable PlayScaleFadeExit(RectTransform rt, CanvasGroup cg, UIPanelAnimationSO profile)
         {
-            var s = DOTween.Sequence();
-            s.Join(rt.DOScale(Vector3.zero, profile.ExitDuration).SetEase(profile.ExitEase));
-            if (cg != null) s.Join(cg.DOFade(0f, profile.ExitDuration).SetEase(Ease.InCubic));
-            s.SetLink(rt.gameObject).SetUpdate(true);
-            await s.AsyncWaitForCompletion();
+            var seq = LSequence.Create();
+            seq.Insert(0f, Scale(rt, rt.localScale, Vector3.zero, profile.ExitDuration, profile.ExitEase));
+            if (cg != null) seq.Insert(0f, Fade(cg, cg.alpha, 0f, profile.ExitDuration, Ease.InCubic));
+            await seq.Run(Unscaled).AddTo(rt.gameObject).WaitAsync();
             if (rt != null) rt.localScale = Vector3.one;
         }
 
-        private async Awaitable PlaySlideDownExit(RectTransform rt, CanvasGroup cg, UIPanelAnimationSO profile)
+        // offsetY âm = trượt xuống (SlideDown), dương = trượt lên (SlideUp).
+        private async Awaitable PlaySlideExit(RectTransform rt, CanvasGroup cg, UIPanelAnimationSO profile, float offsetY)
         {
             var currentPos = rt.anchoredPosition;
-            var s = DOTween.Sequence();
-            s.Join(rt.DOAnchorPos(new Vector2(currentPos.x, currentPos.y - 300f), profile.ExitDuration).SetEase(profile.ExitEase));
-            if (cg != null) s.Join(cg.DOFade(0f, profile.ExitDuration * 0.5f).SetEase(Ease.InCubic));
-            s.SetLink(rt.gameObject).SetUpdate(true);
-            await s.AsyncWaitForCompletion();
-            if (rt != null) rt.anchoredPosition = currentPos;
-        }
-
-        private async Awaitable PlaySlideUpExit(RectTransform rt, CanvasGroup cg, UIPanelAnimationSO profile)
-        {
-            var currentPos = rt.anchoredPosition;
-            var s = DOTween.Sequence();
-            s.Join(rt.DOAnchorPos(new Vector2(currentPos.x, currentPos.y + 300f), profile.ExitDuration).SetEase(profile.ExitEase));
-            if (cg != null) s.Join(cg.DOFade(0f, profile.ExitDuration * 0.5f).SetEase(Ease.InCubic));
-            s.SetLink(rt.gameObject).SetUpdate(true);
-            await s.AsyncWaitForCompletion();
+            var seq = LSequence.Create();
+            seq.Insert(0f, Move(rt, currentPos, new Vector2(currentPos.x, currentPos.y + offsetY), profile.ExitDuration, profile.ExitEase));
+            if (cg != null) seq.Insert(0f, Fade(cg, cg.alpha, 0f, profile.ExitDuration * 0.5f, Ease.InCubic));
+            await seq.Run(Unscaled).AddTo(rt.gameObject).WaitAsync();
             if (rt != null) rt.anchoredPosition = currentPos;
         }
 
         private async Awaitable PlayFadeExit(CanvasGroup cg, UIPanelAnimationSO profile)
         {
             if (cg == null) return;
-            await cg.DOFade(0f, profile.ExitDuration)
-                .SetEase(Ease.InCubic)
-                .SetLink(cg.gameObject)
-                .SetUpdate(true)
-                .AsyncWaitForCompletion();
+            await LMotion.Create(cg.alpha, 0f, profile.ExitDuration)
+                .WithEase(Ease.InCubic)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToAlpha(cg)
+                .AddTo(cg.gameObject)
+                .WaitAsync();
+        }
+
+        // ── Motion con cho LSequence (scheduler đặt ở Run, không đặt ở đây) ─
+
+        private static MotionHandle Scale(Transform t, Vector3 from, Vector3 to, float dur, Ease ease)
+        {
+            return LMotion.Create(from, to, dur).WithEase(ease).WithCancelOnError().BindToLocalScale(t);
+        }
+
+        private static MotionHandle Move(RectTransform rt, Vector2 from, Vector2 to, float dur, Ease ease)
+        {
+            return LMotion.Create(from, to, dur).WithEase(ease).WithCancelOnError().BindToAnchoredPosition(rt);
+        }
+
+        private static MotionHandle Fade(CanvasGroup cg, float from, float to, float dur, Ease ease)
+        {
+            return LMotion.Create(from, to, dur).WithEase(ease).WithCancelOnError().BindToAlpha(cg);
         }
     }
 }

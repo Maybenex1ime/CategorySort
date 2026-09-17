@@ -488,8 +488,8 @@ MonoBehaviour:
   _canvasGroup: {fileID: 3505391438555173546}
   _enterDuration: 0
   _exitDuration: 0.2
-  _enterEase: 0
-  _exitEase: 8
+  _enterEase: 5
+  _exitEase: 7
 --- !u!225 &3505391438555173546
 CanvasGroup:
   m_ObjectHideFlags: 0
