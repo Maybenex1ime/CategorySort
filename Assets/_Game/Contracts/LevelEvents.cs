@@ -6,8 +6,8 @@ namespace WordStack.Contracts
     // Ranh giới giữa gameplay và tầng meta. Assembly này KHÔNG tham chiếu gì —
     // nhờ vậy BoardController (Assembly-CSharp) báo được sự kiện mà không kéo
     // R3/Reflex/LogosMeta/EventBus vào, thứ sẽ làm hỏng target `game` của
-    // compilecheck.sh: R3 là netstandard2.1 còn DOTween là mscorlib, và
-    // Core.EventBus dùng ValueTask — kiểu không có trong ref set 4.7.1-api.
+    // compilecheck.sh: R3 là netstandard2.1 còn target `game` build theo mscorlib 4.7.1,
+    // và Core.EventBus dùng ValueTask — kiểu không có trong ref set 4.7.1-api.
     //
     // Vì vậy gameplay bắn qua LevelSignals (C# thuần), MetaSession chuyển tiếp
     // lên Bus.Global để phía meta vẫn nghe bus đúng như aquapark.

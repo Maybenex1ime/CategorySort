@@ -12,8 +12,8 @@ namespace LogosSDK.UI.Animation
 {
     public sealed class UIAnimationService : IUIAnimationService
     {
-        // SetUpdate(true) của bản DOTween = unscaled time. CancelOnError: target bị huỷ giữa
-        // chừng thì huỷ cả chuỗi (bản DOTween dựa vào safe mode).
+        // SetUpdate(true) của bản cũ = unscaled time. CancelOnError: target bị huỷ giữa
+        // chừng thì huỷ cả chuỗi (bản cũ dựa vào safe mode).
         private static readonly Action<MotionBuilder<double, NoOptions, DoubleMotionAdapter>> Unscaled =
             b => b.WithCancelOnError().WithScheduler(MotionScheduler.UpdateIgnoreTimeScale);
 
@@ -187,7 +187,7 @@ namespace LogosSDK.UI.Animation
             await seq.Run(Unscaled).AddTo(rt.gameObject).WaitAsync();
         }
 
-        // Mốc thời gian chép đúng bản DOTween: Append đặt ở CUỐI toàn chuỗi, tính cả cú mờ vào đã
+        // Mốc thời gian chép đúng bản cũ: Append đặt ở CUỐI toàn chuỗi, tính cả cú mờ vào đã
         // Join — có CanvasGroup thì cú co bắt đầu sau 0.1s, không có thì bắt đầu ngay.
         private async Awaitable PlayDropBounceEnter(RectTransform rt, CanvasGroup cg)
         {

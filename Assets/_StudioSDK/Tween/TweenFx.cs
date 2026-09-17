@@ -7,7 +7,7 @@ namespace LogosSDK.Tween
     public static class TweenFx
     {
         // Nảy kiểu thạch: bẹt ngang → cao dọc → về gốc, ba nhịp bằng nhau.
-        // Port Fu.DOBouncingScale (Mukbang). Toàn Append nên nghĩa giống hệt DOTween.
+        // Port Fu.DOBouncingScale (Mukbang). Toàn Append nên nghĩa giống hệt bản cũ.
         public static MotionHandle BouncingScale(Transform target, float duration = 0.5f, float strength = 0.2f, Ease ease = Ease.Linear)
         {
             var original = target.localScale;

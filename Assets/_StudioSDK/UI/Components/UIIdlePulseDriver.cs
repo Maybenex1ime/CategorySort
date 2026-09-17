@@ -90,7 +90,7 @@ namespace LogosSDK.UI.Components
                 if (!enabled || !gameObject.activeInHierarchy) yield break;
                 _wobbleTween.TryCancel();
                 // DOPunchRotation(…, vibrato 10, elasticity 0.5). Công thức punch LitMotion khác
-                // DOTween — Task 8 so bằng mắt.
+                // bản cũ — Task 8 so bằng mắt.
                 _wobbleTween = LMotion.Punch.Create(_resolvedTarget.localEulerAngles, new Vector3(0f, 0f, _resolvedProfile.WobbleAngle), _resolvedProfile.WobbleDuration)
                     .WithFrequency(10)
                     .WithDampingRatio(0.5f)

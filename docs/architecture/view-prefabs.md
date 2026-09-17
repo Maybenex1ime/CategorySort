@@ -1,6 +1,6 @@
 # Thiết kế View bằng Prefab — WordStack
 
-> Status: **Approved** (user duyệt 2026-08-03). Q1 retained-mode · Q2 TextMesh · Q3 DOTween.
+> Status: **Approved** (user duyệt 2026-08-03). Q1 retained-mode · Q2 TextMesh · Q3 DOTween → **LitMotion** (đổi 2026-09-17, xem cuối Q3).
 > Script view đã port sang production: `Assets/_Game/Board/Views/*.cs` (assembly
 > `WordStack.Board`); 5 prefab ở `Assets/Prefabs/` đã dựng và chỉnh tay xong.
 > Domain (`Assets/_Game/Board/Domain/`) **không đổi một dòng** — thiết kế này chỉ đụng lớp view.
@@ -59,6 +59,17 @@ re-import từ Asset Store là thao tác tay, không tự động hoá được.
 
 Chỗ **không** dùng DOTween: ghost đuổi con trỏ. Đó là bám theo một đích *đang di chuyển* mỗi frame,
 không phải tween có điểm đến cố định — giữ `Vector3.Lerp` trong `Update()`.
+
+**Cập nhật 2026-09-17 — Q3 đổi sang LitMotion 2.0.2.** *(User chốt.)* Thống nhất với bộ công cụ
+animation của Mukbang ASMR (SacredTimeline, Spiral Move, dựng animation trong Inspector bằng
+`LitMotion.Animation`) — nay sống ở `Assets/_StudioSDK/Tween/` (assembly `LogosSDK.Tween`) — và
+không sinh rác bộ nhớ. Cài qua git URL khoá commit trong `Packages/manifest.json`, hết phải commit
+asset Asset Store vào repo public. Chuyển đổi: `docs/superpowers/plans/2026-09-17-litmotion-migration.md`.
+
+Ba điều phải nhớ khi viết tween mới:
+- LitMotion chốt giá trị đầu lúc **tạo** motion; trong `LSequence` mỗi nhịp phải khai "đi từ đâu".
+- `Append` của LitMotion không tính nhịp `Join`/`Insert` dài hơn — chuỗi có nhịp chồng nhau thì dùng `Insert(vị trí, …)`.
+- Không `Destroy` target trong lúc sequence còn chạy; huỷ sau khi chuỗi xong.
 
 ## 2. Bộ prefab — 5 cái, đặt tại `Assets/Prefabs/`
 

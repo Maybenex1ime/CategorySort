@@ -116,7 +116,7 @@ namespace LogosGame.Features.Gameplay.Views
                 }
                 else
                 {
-                    // Không SetEase ở bản DOTween → OutQuad (ease mặc định trong DOTweenSettings).
+                    // Không SetEase ở bản cũ → OutQuad (ease mặc định trong config cũ).
                     _progressTween = LMotion.Create(_progressFill.fillAmount, target, 0.25f)
                         .WithEase(Ease.OutQuad)
                         .WithCancelOnError()

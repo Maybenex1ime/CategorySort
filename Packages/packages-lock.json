@@ -20,12 +20,6 @@
       },
       "hash": "ab6e92bfe78ff911def2fd3c4e9c79bb5a186946"
     },
-    "com.brunomikoski.animationsequencer": {
-      "version": "file:com.brunomikoski.animationsequencer",
-      "depth": 0,
-      "source": "embedded",
-      "dependencies": {}
-    },
     "com.coffee.ui-particle": {
       "version": "file:com.coffee.ui-particle",
       "depth": 0,

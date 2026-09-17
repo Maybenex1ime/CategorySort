@@ -68,8 +68,8 @@ namespace LogosMeta.CheatPanel
             if (_root != null) _root.anchoredPosition = _restAnchoredPosition;
             if (_canvasGroup != null) _canvasGroup.alpha = 0f;
 
-            // Mốc thời gian chép đúng bản DOTween: Append/AppendInterval đặt ở CUỐI toàn chuỗi,
-            // tính cả cú trôi lên đã Join. Không SetEase ở bản cũ → OutQuad (mặc định DOTweenSettings).
+            // Mốc thời gian chép đúng bản cũ: Append/AppendInterval đặt ở CUỐI toàn chuỗi,
+            // tính cả cú trôi lên đã Join. Không SetEase ở bản cũ → OutQuad (mặc định config cũ).
             float fadeInEnd = _canvasGroup != null ? _fadeDuration : 0f;
             float floatEnd = _root != null ? _visibleDuration + _fadeDuration : 0f;
             float fadeOutAt = Math.Max(fadeInEnd, floatEnd) + Math.Max(0f, _visibleDuration - _fadeDuration);
@@ -86,7 +86,7 @@ namespace LogosMeta.CheatPanel
             if (_root != null)
                 seq.Insert(0f, LMotion.Create(_restAnchoredPosition.y, _restAnchoredPosition.y + _floatDistance, _visibleDuration + _fadeDuration)
                                       .WithEase(Ease.OutCubic).WithCancelOnError().BindToAnchoredPositionY(_root));
-            // Mốc rỗng giữ đúng tổng thời lượng khi thiếu CanvasGroup (DOTween vẫn đếm AppendInterval).
+            // Mốc rỗng giữ đúng tổng thời lượng khi thiếu CanvasGroup (bản cũ vẫn đếm AppendInterval).
             seq.Insert(end, LMotion.Create(0f, 0f, 0f).RunWithoutBinding());
 
             _activeSequence = seq.Run(b => b.WithCancelOnError().WithOnComplete(HideImmediate)).AddTo(gameObject);
