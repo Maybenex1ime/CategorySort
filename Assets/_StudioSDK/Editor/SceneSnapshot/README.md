@@ -69,12 +69,11 @@ Each implements `ISnapshotPostProcessor`. All run by default; toggle in the wind
 | Processor | What it does |
 |-----------|--------------|
 | `MissingScriptProcessor` | Strips MonoBehaviours with missing scripts (so the saved scene loads clean). |
-| `DOTweenKillProcessor` | Kills tweens whose target is anything in the cloned hierarchy — prevents ghost tweens persisting in the runtime tween manager. |
 | `ReflexClearProcessor` | Nulls fields of type `Reflex.Container` / `Reflex.Scope` and any field marked `[Inject]`. The container is runtime-only. |
 | `R3ClearProcessor` | Nulls `IDisposable`, `Subject<T>`, `ReactiveProperty<T>`, `DisposableBag`, `CompositeDisposable` fields. Subscriptions don't survive serialization. |
 | `AddressablesClearProcessor` | Resets `AsyncOperationHandle` fields. Handles are runtime-only and a serialized handle would point at a freed asset on next load. |
 
-The Reflex/R3/DOTween/Addressables processors use **reflection** to find the
+The Reflex/R3/Addressables processors use **reflection** to find the
 relevant types — the asmdef does not hard-reference these libraries, so the tool
 keeps working if you swap them out.
 
@@ -89,7 +88,6 @@ public class SnapshotOptions {
     public bool stripMissingScripts;          // default true
     public bool clearReflexContainerRefs;     // default true
     public bool clearR3References;            // default true
-    public bool killDOTweenTweens;            // default true
     public bool clearAddressablesHandles;     // default true
     public Predicate<GameObject> rootFilter;  // optional per-root filter
     public HideFlags excludedHideFlags;       // default DontSave | HideAndDontSave
@@ -122,7 +120,7 @@ Generate the test scene by running:
 
 This writes `Assets/_StudioSDK/Editor/SceneSnapshot/Tests/SnapshotTestScene.unity`
 containing a single `Spawner` GameObject with `SnapshotTestSpawner` (spawns 50
-randomly-positioned cubes + a DOTween rotation tween on the first cube).
+randomly-positioned cubes + a LitMotion rotation tween on the first cube).
 
 To verify the acceptance criteria:
 

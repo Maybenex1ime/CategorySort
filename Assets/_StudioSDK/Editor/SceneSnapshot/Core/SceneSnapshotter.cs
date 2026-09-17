@@ -18,7 +18,6 @@ namespace LogosGameLab.Editor.SceneSnapshot
         private static readonly List<ISnapshotPostProcessor> DefaultProcessors = new List<ISnapshotPostProcessor>
         {
             new MissingScriptProcessor(),
-            new DOTweenKillProcessor(),
             new ReflexClearProcessor(),
             new R3ClearProcessor(),
             new AddressablesClearProcessor(),

@@ -1,12 +1,13 @@
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using UnityEngine;
 
 namespace LogosGameLab.Editor.SceneSnapshot.Tests
 {
     /// <summary>
     /// Runtime helper for the SceneSnapshot acceptance tests.
-    /// Spawns N cubes at random positions and starts a DOTween rotation tween
-    /// on the first cube to verify tween-killing behavior in the snapshot.
+    /// Spawns N cubes at random positions and starts a LitMotion rotation tween
+    /// on the first cube to verify the snapshot carries no running tween.
     /// </summary>
     public sealed class SnapshotTestSpawner : MonoBehaviour
     {
@@ -30,9 +31,12 @@ namespace LogosGameLab.Editor.SceneSnapshot.Tests
 
                 if (_spawnTween && i == 0)
                 {
-                    go.transform.DORotate(new Vector3(0, 360, 0), 2f, RotateMode.FastBeyond360)
-                        .SetLoops(-1)
-                        .SetLink(go);
+                    // DORotate(0,360,0, FastBeyond360).SetLoops(-1): không SetEase → OutQuad.
+                    LMotion.Create(go.transform.eulerAngles.y, 360f, 2f)
+                        .WithEase(Ease.OutQuad)
+                        .WithLoops(-1)
+                        .BindToEulerAnglesY(go.transform)
+                        .AddTo(go);
                 }
             }
         }
