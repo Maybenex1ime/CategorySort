@@ -1,5 +1,25 @@
 {
   "dependencies": {
+    "com.annulusgames.lit-motion": {
+      "version": "https://github.com/annulusgames/LitMotion.git?path=src/LitMotion/Assets/LitMotion#ab6e92bfe78ff911def2fd3c4e9c79bb5a186946",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.unity.burst": "1.6.0",
+        "com.unity.collections": "1.5.1",
+        "com.unity.mathematics": "1.0.1"
+      },
+      "hash": "ab6e92bfe78ff911def2fd3c4e9c79bb5a186946"
+    },
+    "com.annulusgames.lit-motion.animation": {
+      "version": "https://github.com/annulusgames/LitMotion.git?path=src/LitMotion/Assets/LitMotion.Animation#ab6e92bfe78ff911def2fd3c4e9c79bb5a186946",
+      "depth": 0,
+      "source": "git",
+      "dependencies": {
+        "com.annulusgames.lit-motion": "2.0.0"
+      },
+      "hash": "ab6e92bfe78ff911def2fd3c4e9c79bb5a186946"
+    },
     "com.brunomikoski.animationsequencer": {
       "version": "file:com.brunomikoski.animationsequencer",
       "depth": 0,
@@ -172,7 +192,7 @@
     },
     "com.unity.burst": {
       "version": "1.8.27",
-      "depth": 2,
+      "depth": 1,
       "source": "registry",
       "dependencies": {
         "com.unity.mathematics": "1.2.1",

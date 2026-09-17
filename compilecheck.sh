@@ -32,6 +32,16 @@ INPUTSYS="$PWD/Library/ScriptAssemblies/Unity.InputSystem.dll"
 
 w() { cygpath -w "$1"; }
 
+# LitMotion + Burst/Collections/Mathematics là package → chỉ có dạng .dll sau khi Editor
+# import. Mượn Library/ScriptAssemblies giống INPUTSYS; worktree thì mượn của repo chính.
+SA="$PWD/Library/ScriptAssemblies"
+[ -d "$SA" ] || SA="$(git rev-parse --git-common-dir)/../Library/ScriptAssemblies"
+LITMOTION_REFS=()
+for d in LitMotion LitMotion.Extensions LitMotion.Animation Unity.Burst Unity.Collections Unity.Mathematics; do
+  [ -f "$SA/$d.dll" ] || { echo "Không thấy $d.dll — mở Unity một lần cho nó import LitMotion."; exit 1; }
+  LITMOTION_REFS+=("$SA/$d.dll")
+done
+
 # ---- WordStack.Board: domain + view (+ DOTween) ----
 {
   echo "-nologo"; echo "-target:library"; echo "-langversion:latest"; echo "-nostdlib"
@@ -42,6 +52,7 @@ w() { cygpath -w "$1"; }
   for f in "$MAN"/UnityEngine*.dll; do echo "-r:\"$(w "$f")\""; done
   echo "-r:\"$(w "$INPUTSYS")\""
   echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
+  for f in "${LITMOTION_REFS[@]}"; do echo "-r:\"$(w "$f")\""; done
   # mọi .cs dưới Assets/_Game/Board trừ Editor/ và Tests/ — đúng cách Unity gom asmdef
   # WordStack.Board. Kèm Contracts vì BoardController báo kết quả màn qua LevelSignals.
   # Contracts cố ý KHÔNG phụ thuộc gì nên nhập thẳng vào thế giới mscorlib này được; kéo
@@ -67,6 +78,7 @@ w() { cygpath -w "$1"; }
   for f in "$MAN"/UnityEngine*.dll "$MAN"/UnityEditor*.dll; do echo "-r:\"$(w "$f")\""; done
   echo "-r:\"$(w "$INPUTSYS")\""
   echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
+  for f in "${LITMOTION_REFS[@]}"; do echo "-r:\"$(w "$f")\""; done
   find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" -name '*.cs' \
        -not -path '*/Tests/*' | while read -r f; do
     echo "\"$(w "$f")\""
@@ -81,8 +93,6 @@ w() { cygpath -w "$1"; }
 # Reflex, TMP, ugui, Addressables chỉ có dạng .dll sau khi Editor import package,
 # nên mượn Library/ScriptAssemblies giống cách INPUTSYS ở trên. Chưa mở Unity lần
 # nào thì bỏ qua phần này thay vì báo fail — Unity vẫn là bên kiểm cuối.
-SA="$PWD/Library/ScriptAssemblies"
-[ -d "$SA" ] || SA="$(git rev-parse --git-common-dir)/../Library/ScriptAssemblies"
 NS_REF="$NS/ref/2.1.0/netstandard.dll"
 PKG="$PWD/Assets/Packages"
 
@@ -106,6 +116,7 @@ if [ "$meta_ready" = 1 ]; then
     done
     for f in "$MAN"/UnityEngine*.dll "$MAN"/UnityEditor*.dll; do echo "-r:\"$(w "$f")\""; done
     echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
+    for f in "${LITMOTION_REFS[@]}"; do echo "-r:\"$(w "$f")\""; done
     echo "-r:\"$(w "$PKG/R3.1.3.0/lib/netstandard2.1/R3.dll")\""
     echo "-r:\"$(w "$PKG/Microsoft.Bcl.TimeProvider.8.0.0/lib/netstandard2.0/Microsoft.Bcl.TimeProvider.dll")\""
     echo "-r:\"$(w "$PKG/Microsoft.Bcl.AsyncInterfaces.6.0.0/lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll")\""
