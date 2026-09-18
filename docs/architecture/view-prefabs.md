@@ -65,6 +65,7 @@ animation của Mukbang ASMR (SacredTimeline, Spiral Move, dựng animation tron
 `LitMotion.Animation`) — nay sống ở `Assets/_StudioSDK/Tween/` (assembly `LogosSDK.Tween`) — và
 không sinh rác bộ nhớ. Cài qua git URL khoá commit trong `Packages/manifest.json`, hết phải commit
 asset Asset Store vào repo public. Chuyển đổi: `docs/superpowers/plans/2026-09-17-litmotion-migration.md`.
+Máy build/CI cần `git` và mạng để Unity tải package LitMotion — khác DOTween trước đây nằm sẵn trong repo.
 
 Ba điều phải nhớ khi viết tween mới:
 - LitMotion chốt giá trị đầu lúc **tạo** motion; trong `LSequence` mỗi nhịp phải khai "đi từ đâu".
