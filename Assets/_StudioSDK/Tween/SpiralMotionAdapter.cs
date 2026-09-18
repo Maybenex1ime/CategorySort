@@ -2,7 +2,14 @@
 // đúng endValue. Port từ Mukbang ASMR (Utils/LitAnim/SpiralMotionAdapter.cs @ b050e5bb).
 using System;
 using LitMotion;
+using Unity.Jobs;
 using UnityEngine;
+using LogosSDK.Tween;
+
+// AOT (IL2CPP): đăng ký job generic của MotionUpdateJob cho SpiralOption/SpiralMotionAdapter —
+// không đăng ký thì build IL2CPP thiếu job cụ thể hoá này, theo đúng cách LitMotion tự đăng ký
+// cho các adapter build-in của nó (xem Runtime/Adapters/FixedStringMotionAdapters.cs).
+[assembly: RegisterGenericJobType(typeof(MotionUpdateJob<Vector3, SpiralOption, SpiralMotionAdapter>))]
 
 namespace LogosSDK.Tween
 {
