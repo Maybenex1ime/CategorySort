@@ -19,6 +19,7 @@ namespace LogosGame.Features.UI.Screens
         [SerializeField] private Button _playButton;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Button _shopButton;
+        [SerializeField] private Button _homeButton;
 
         [Header("Play Button Difficulty Sprites")]
         [SerializeField] private Image _playButtonImage;
@@ -34,6 +35,16 @@ namespace LogosGame.Features.UI.Screens
 
         [Header("Coins UI")]
         [SerializeField] private TextMeshProUGUI _coinCountText;
+
+        // Bottom bar: each button has its own "selected" background.
+        // Only the background of the last clicked button is active.
+        [Header("Bottom Bar Selected Backgrounds")]
+        [SerializeField] private GameObject _homeSelectedBg;
+        [SerializeField] private GameObject _shopSelectedBg;
+        [SerializeField] private GameObject _settingsSelectedBg;
+
+        [Header("Settings Panel")]
+        [SerializeField] private GameObject _settingsPanel;
 
         [Inject] private IHeartService _heartService;
         [Inject] private ICurrencyService _currencyService;
@@ -62,6 +73,14 @@ namespace LogosGame.Features.UI.Screens
             {
                 _shopButton.onClick.AddListener(OnShopClicked);
             }
+
+            if (_homeButton != null)
+            {
+                _homeButton.onClick.AddListener(OnHomeClicked);
+            }
+
+            ShowSelectedBg(_homeSelectedBg);
+            SetSettingsPanelVisible(false);
         }
 
         private void OnDestroy()
@@ -79,6 +98,11 @@ namespace LogosGame.Features.UI.Screens
             if (_shopButton != null)
             {
                 _shopButton.onClick.RemoveListener(OnShopClicked);
+            }
+
+            if (_homeButton != null)
+            {
+                _homeButton.onClick.RemoveListener(OnHomeClicked);
             }
 
             _disposables.Dispose();
@@ -108,12 +132,33 @@ namespace LogosGame.Features.UI.Screens
 
         private void OnSettingsClicked()
         {
-            RequestOpenSettings();
+            ShowSelectedBg(_settingsSelectedBg);
+            SetSettingsPanelVisible(true);
         }
 
         private void OnShopClicked()
         {
+            ShowSelectedBg(_shopSelectedBg);
+            SetSettingsPanelVisible(false);
             RequestOpenShop();
+        }
+
+        private void OnHomeClicked()
+        {
+            ShowSelectedBg(_homeSelectedBg);
+            SetSettingsPanelVisible(false);
+        }
+
+        private void SetSettingsPanelVisible(bool visible)
+        {
+            if (_settingsPanel != null) _settingsPanel.SetActive(visible);
+        }
+
+        private void ShowSelectedBg(GameObject selected)
+        {
+            if (_homeSelectedBg != null)     _homeSelectedBg.SetActive(_homeSelectedBg == selected);
+            if (_shopSelectedBg != null)     _shopSelectedBg.SetActive(_shopSelectedBg == selected);
+            if (_settingsSelectedBg != null) _settingsSelectedBg.SetActive(_settingsSelectedBg == selected);
         }
 
         private void ApplyArgs(MainMenuScreenArgs args)
@@ -152,14 +197,6 @@ namespace LogosGame.Features.UI.Screens
             if (_args != null && _args.OnStartLevel != null)
             {
                 _args.OnStartLevel();
-            }
-        }
-
-        private void RequestOpenSettings()
-        {
-            if (_args != null && _args.OnOpenSettings != null)
-            {
-                _args.OnOpenSettings();
             }
         }
 

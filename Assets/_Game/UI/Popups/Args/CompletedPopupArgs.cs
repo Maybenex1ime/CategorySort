@@ -7,5 +7,6 @@ namespace LogosGame.Features.UI.Popups.Args
         public string LevelTitle { get; set; }
         public int RewardCoinAmount { get; set; }
         public Action OnClaim { get; set; }
+        public Action OnDoubleReward { get; set; }
     }
 }

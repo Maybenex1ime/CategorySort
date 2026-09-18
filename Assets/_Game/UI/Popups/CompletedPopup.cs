@@ -11,6 +11,7 @@ namespace LogosGame.Features.UI.Popups
         [SerializeField] private TextMeshProUGUI _levelTitleText;
         [SerializeField] private TextMeshProUGUI _rewardAmountText;
         [SerializeField] private Button _claimButton;
+        [SerializeField] private Button _doubleRewardButton;
 
         protected override void Awake()
         {
@@ -20,6 +21,11 @@ namespace LogosGame.Features.UI.Popups
             {
                 _claimButton.onClick.AddListener(OnClaimClicked);
             }
+
+            if (_doubleRewardButton != null)
+            {
+                _doubleRewardButton.onClick.AddListener(OnDoubleRewardClicked);
+            }
         }
 
         private void OnDestroy()
@@ -27,6 +33,11 @@ namespace LogosGame.Features.UI.Popups
             if (_claimButton != null)
             {
                 _claimButton.onClick.RemoveListener(OnClaimClicked);
+            }
+
+            if (_doubleRewardButton != null)
+            {
+                _doubleRewardButton.onClick.RemoveListener(OnDoubleRewardClicked);
             }
         }
 
@@ -42,6 +53,11 @@ namespace LogosGame.Features.UI.Popups
                 bool hasReward = args.RewardCoinAmount > 0;
                 _rewardAmountText.gameObject.SetActive(hasReward);
                 if (hasReward) _rewardAmountText.text = "+" + args.RewardCoinAmount;
+            }
+
+            if (_doubleRewardButton != null)
+            {
+                _doubleRewardButton.gameObject.SetActive(args.RewardCoinAmount > 0 && args.OnDoubleReward != null);
             }
         }
 
@@ -60,6 +76,15 @@ namespace LogosGame.Features.UI.Popups
             if (Args != null && Args.OnClaim != null)
             {
                 Args.OnClaim();
+            }
+        }
+
+        // Không Dismiss ở đây: popup chờ kết quả rewarded ad (AppFlow quyết định đóng hay không).
+        private void OnDoubleRewardClicked()
+        {
+            if (Args != null && Args.OnDoubleReward != null)
+            {
+                Args.OnDoubleReward();
             }
         }
     }

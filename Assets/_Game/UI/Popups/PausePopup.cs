@@ -8,22 +8,16 @@ namespace LogosGame.Features.UI.Popups
     public sealed class PausePopup : PopupBase<PausePopupArgs>
     {
         [SerializeField] private Button _closeButton;
-        [SerializeField] private Button _musicButton;
-        [SerializeField] private Button _hapticButton;
+        [SerializeField] private Slider _musicSlider;
+        [SerializeField] private Slider _hapticSlider;
+        [SerializeField] private Slider _soundSlider;
         [SerializeField] private Button _resumeButton;
         [SerializeField] private Button _restartButton;
         [SerializeField] private Button _quitButton;
 
-        [Header("Toggle Icons")]
-        [SerializeField] private Image _musicIcon;
-        [SerializeField] private Sprite _musicOnSprite;
-        [SerializeField] private Sprite _musicOffSprite;
-        [SerializeField] private Image _hapticIcon;
-        [SerializeField] private Sprite _hapticOnSprite;
-        [SerializeField] private Sprite _hapticOffSprite;
-
         private bool _musicEnabled = true;
         private bool _hapticEnabled = true;
+        private bool _soundEnabled = true;
 
         protected override void Awake()
         {
@@ -34,14 +28,19 @@ namespace LogosGame.Features.UI.Popups
                 _closeButton.onClick.AddListener(OnCloseClicked);
             }
 
-            if (_musicButton != null)
+            if (_musicSlider != null)
             {
-                _musicButton.onClick.AddListener(OnMusicClicked);
+                _musicSlider.onValueChanged.AddListener(OnMusicChanged);
             }
 
-            if (_hapticButton != null)
+            if (_hapticSlider != null)
             {
-                _hapticButton.onClick.AddListener(OnHapticClicked);
+                _hapticSlider.onValueChanged.AddListener(OnHapticChanged);
+            }
+
+            if (_soundSlider != null)
+            {
+                _soundSlider.onValueChanged.AddListener(OnSoundChanged);
             }
 
             if (_resumeButton != null)
@@ -67,14 +66,19 @@ namespace LogosGame.Features.UI.Popups
                 _closeButton.onClick.RemoveListener(OnCloseClicked);
             }
 
-            if (_musicButton != null)
+            if (_musicSlider != null)
             {
-                _musicButton.onClick.RemoveListener(OnMusicClicked);
+                _musicSlider.onValueChanged.RemoveListener(OnMusicChanged);
             }
 
-            if (_hapticButton != null)
+            if (_hapticSlider != null)
             {
-                _hapticButton.onClick.RemoveListener(OnHapticClicked);
+                _hapticSlider.onValueChanged.RemoveListener(OnHapticChanged);
+            }
+
+            if (_soundSlider != null)
+            {
+                _soundSlider.onValueChanged.RemoveListener(OnSoundChanged);
             }
 
             if (_resumeButton != null)
@@ -97,22 +101,12 @@ namespace LogosGame.Features.UI.Popups
         {
             _musicEnabled = args.InitialMusicEnabled;
             _hapticEnabled = args.InitialHapticEnabled;
-            ApplyMusicIcon();
-            ApplyHapticIcon();
-        }
-
-        private void ApplyMusicIcon()
-        {
-            if (_musicIcon == null) return;
-            Sprite next = _musicEnabled ? _musicOnSprite : _musicOffSprite;
-            if (next != null) _musicIcon.sprite = next;
-        }
-
-        private void ApplyHapticIcon()
-        {
-            if (_hapticIcon == null) return;
-            Sprite next = _hapticEnabled ? _hapticOnSprite : _hapticOffSprite;
-            if (next != null) _hapticIcon.sprite = next;
+            _soundEnabled = args.InitialSoundEnabled;
+            // State is set first, so the value-changed event this fires is ignored by the handlers
+            // (no toggle) but still reaches listeners like SliderHandleSprite.
+            if (_musicSlider != null) _musicSlider.value = _musicEnabled ? 1f : 0f;
+            if (_hapticSlider != null) _hapticSlider.value = _hapticEnabled ? 1f : 0f;
+            if (_soundSlider != null) _soundSlider.value = _soundEnabled ? 1f : 0f;
         }
 
         private void OnCloseClicked()
@@ -125,10 +119,11 @@ namespace LogosGame.Features.UI.Popups
             }
         }
 
-        private void OnMusicClicked()
+        private void OnMusicChanged(float value)
         {
-            _musicEnabled = !_musicEnabled;
-            ApplyMusicIcon();
+            bool enabled = value > 0.5f;
+            if (enabled == _musicEnabled) return;
+            _musicEnabled = enabled;
 
             if (Args != null && Args.OnMusicSelected != null)
             {
@@ -136,14 +131,27 @@ namespace LogosGame.Features.UI.Popups
             }
         }
 
-        private void OnHapticClicked()
+        private void OnHapticChanged(float value)
         {
-            _hapticEnabled = !_hapticEnabled;
-            ApplyHapticIcon();
+            bool enabled = value > 0.5f;
+            if (enabled == _hapticEnabled) return;
+            _hapticEnabled = enabled;
 
             if (Args != null && Args.OnHapticSelected != null)
             {
                 Args.OnHapticSelected();
+            }
+        }
+
+        private void OnSoundChanged(float value)
+        {
+            bool enabled = value > 0.5f;
+            if (enabled == _soundEnabled) return;
+            _soundEnabled = enabled;
+
+            if (Args != null && Args.OnSoundSelected != null)
+            {
+                Args.OnSoundSelected();
             }
         }
 
