@@ -122,6 +122,11 @@ namespace WordStack.Board
         MotionHandle hoverPunch;           // cú giật hover đang chạy — TryComplete trước khi giật cú mới
         readonly Dictionary<int, MotionHandle> shakes = new Dictionary<int, MotionHandle>();   // stack → cú rung đang chạy
 
+        // MỌI LSequence mà controller này khởi động (Magnet, Vortex, Undo, RemoveTiles,
+        // MergeTiles, FadeBox, SpawnCollapsedTile...) — DestroyBoard() phải huỷ hết trong
+        // này TRƯỚC khi xoá GameObject bên dưới, vì target còn sống lúc Cancel mới an toàn.
+        readonly List<MotionHandle> running = new List<MotionHandle>();
+
         // ---- LitMotion (thay tween cũ 2026-09-17) — đọc Global Constraints của plan chuyển đổi.
         // Sequence: lỗi (target bị huỷ) thì huỷ cả chuỗi thay vì ghi lỗi mỗi frame.
         static readonly Action<MotionBuilder<double, NoOptions, DoubleMotionAdapter>> SeqCfg = b => b.WithCancelOnError();
@@ -357,7 +362,10 @@ namespace WordStack.Board
             }
             if (doomed.Count == 0) { seq.Dispose(); yield break; }
             AppendParentFlight(seq, r, center, lastBurst);
-            yield return seq.Run(SeqCfg).AddTo(this).ToYieldInstruction();
+            running.RemoveAll(mh => !mh.IsActive());
+            var h = seq.Run(SeqCfg).AddTo(this);
+            running.Add(h);
+            yield return h.ToYieldInstruction();
             DestroyAll(doomed);
         }
 
@@ -488,7 +496,10 @@ namespace WordStack.Board
                 seq.Insert(0f, LMotion.Create(k.localEulerAngles.z, -spin, dur)
                                       .WithEase(A.shuffleSpinEase).WithCancelOnError().BindToLocalEulerAnglesZ(k));
             }
-            yield return seq.Run(SeqCfg).AddTo(pivot.gameObject).ToYieldInstruction();
+            running.RemoveAll(mh => !mh.IsActive());
+            var h = seq.Run(SeqCfg).AddTo(pivot.gameObject);
+            running.Add(h);
+            yield return h.ToYieldInstruction();
 
             // Pha vào không cần trả parent (rebuild xoá sạch), pha ra thì BẮT BUỘC: thẻ
             // phải nằm lại dưới hộp của nó, không thì Settle sau tween sai gốc toạ độ.
@@ -582,7 +593,10 @@ namespace WordStack.Board
                 // Không SetEase ở bản cũ → OutQuad (ease mặc định trong config cũ).
                 slide.Insert(0f, LMotion.Create(0f, 1f, a.undoBoxSlideDur)
                                         .WithEase(Ease.OutQuad).WithCancelOnError().Bind(bv, (v, b) => b.SetAlpha(v)));
-                yield return slide.Run(SeqCfg).AddTo(bv.gameObject).ToYieldInstruction();
+                running.RemoveAll(mh => !mh.IsActive());
+                var slideH = slide.Run(SeqCfg).AddTo(bv.gameObject);
+                running.Add(slideH);
+                yield return slideH.ToYieldInstruction();
 
                 // Thẻ của hộp cũ nở ra — trừ thẻ sắp bay về, nó đang đứng ở chỗ khác.
                 var box = g.TopBox(s);
@@ -601,7 +615,13 @@ namespace WordStack.Board
                                           .WithEase(Ease.OutBack).WithCancelOnError().BindToLocalScale(tv.transform));
                     popped++;
                 }
-                if (popped > 0) yield return pop.Run(SeqCfg).AddTo(this).ToYieldInstruction();
+                if (popped > 0)
+                {
+                    running.RemoveAll(mh => !mh.IsActive());
+                    var popH = pop.Run(SeqCfg).AddTo(this);
+                    running.Add(popH);
+                    yield return popH.ToYieldInstruction();
+                }
                 else pop.Dispose();
             }
 
@@ -623,7 +643,10 @@ namespace WordStack.Board
                                                 .WithEase(a.undoFlyEase).WithCancelOnError().BindToLocalPosition(mt));
                 seq.Insert(a.undoPopDur, LMotion.Create(popS, Vector3.one, a.undoFlyDur)
                                                 .WithEase(Ease.OutQuad).WithCancelOnError().BindToLocalScale(mt));
-                yield return seq.Run(SeqCfg).AddTo(mv.gameObject).ToYieldInstruction();
+                running.RemoveAll(mh => !mh.IsActive());
+                var moveH = seq.Run(SeqCfg).AddTo(mv.gameObject);
+                running.Add(moveH);
+                yield return moveH.ToYieldInstruction();
                 if (mv != null) mv.SetFlying(false);
             }
         }
@@ -1149,7 +1172,10 @@ namespace WordStack.Board
                 doomed.Add(tv.gameObject);
             }
             if (doomed.Count == 0) { seq.Dispose(); yield break; }
-            yield return seq.Run(SeqCfg).AddTo(this).ToYieldInstruction();
+            running.RemoveAll(mh => !mh.IsActive());
+            var h = seq.Run(SeqCfg).AddTo(this);
+            running.Add(h);
+            yield return h.ToYieldInstruction();
             DestroyAll(doomed);
         }
 
@@ -1197,7 +1223,10 @@ namespace WordStack.Board
             }
             if (doomed.Count == 0) { seq.Dispose(); SpawnCollapsedTile(s, newUid); yield break; }
 
-            yield return seq.Run(SeqCfg).AddTo(this).ToYieldInstruction();
+            running.RemoveAll(mh => !mh.IsActive());
+            var h = seq.Run(SeqCfg).AddTo(this);
+            running.Add(h);
+            yield return h.ToYieldInstruction();
             DestroyAll(doomed);
             SpawnCollapsedTile(s, newUid);
         }
@@ -1213,7 +1242,10 @@ namespace WordStack.Board
             // Không SetEase ở bản cũ → OutQuad (ease mặc định trong config cũ).
             seq.Insert(0f, LMotion.Create(1f, 0f, clearDur)
                                   .WithEase(Ease.OutQuad).WithCancelOnError().Bind(bv, (v, b) => b.SetAlpha(v)));
-            yield return seq.Run(SeqCfg).AddTo(bv.gameObject).ToYieldInstruction();
+            running.RemoveAll(mh => !mh.IsActive());
+            var h = seq.Run(SeqCfg).AddTo(bv.gameObject);
+            running.Add(h);
+            yield return h.ToYieldInstruction();
         }
 
         // ------------------------------------------------- thao tác tăng dần
@@ -1272,7 +1304,8 @@ namespace WordStack.Board
                 seq.Insert(0f, LMotion.Create(tv.transform.localRotation, Quaternion.identity, mergeBloom)
                                       .WithEase(Ease.OutCubic).WithCancelOnError().BindToLocalRotation(tv.transform));
             }
-            seq.Run(SeqCfg).AddTo(go);
+            running.RemoveAll(mh => !mh.IsActive());
+            running.Add(seq.Run(SeqCfg).AddTo(go));
             tiles[t.Uid] = tv;
         }
 
@@ -1469,6 +1502,13 @@ namespace WordStack.Board
 
         void DestroyBoard()
         {
+            // Huỷ MỌI LSequence đang chạy TRƯỚC KHI xoá GameObject bên dưới: Cancel một
+            // sequence còn đọc SetTime trên state cuối của mỗi motion con, nên target phải
+            // còn sống lúc Cancel — xoá GameObject trước rồi mới Cancel là bind ném
+            // MissingReferenceException, làm khựng luôn UpdateRunner của LitMotion cả frame.
+            foreach (var h in running) h.TryCancel();
+            running.Clear();
+
             if (ghost != null) { Destroy(ghost.gameObject); ghost = null; }
             dragFrom = -1;
             dragUid = null;
