@@ -48,11 +48,12 @@ namespace BoosterModule
         private void OnClicked()
         {
             // Visual feedback — kết thúc cú trước (DOKill(complete) cũ) rồi punch lại.
-            // DOPunchScale mặc định vibrato 10, elasticity 1; công thức LitMotion khác — Task 8 so mắt.
+            // DOPunchScale mặc định vibrato 10, elasticity 1; công thức LitMotion khác. DampingRatio
+            // chọn để biên độ tắt còn ~5% lúc hết giờ — điểm khởi đầu cho Task 8 so mắt, chưa chốt.
             _punch.TryComplete();
             _punch = LMotion.Punch.Create(transform.localScale, Vector3.one * (_punchScale - 1f), _animationDuration)
                 .WithFrequency(10)
-                .WithDampingRatio(1f)
+                .WithDampingRatio(1.9f)
                 .WithCancelOnError()
                 .BindToLocalScale(transform)
                 .AddTo(gameObject);

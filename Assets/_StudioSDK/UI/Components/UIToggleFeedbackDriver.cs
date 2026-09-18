@@ -49,9 +49,11 @@ namespace LogosSDK.UI.Components
             }
             else if (_resolvedProfile.ToggleOffShake)
             {
-                // DOShakeScale(0.25f, 0.12f, vibrato 8, randomness 90). Công thức shake khác — Task 8 so mắt.
+                // DOShakeScale(0.25f, 0.12f, vibrato 8, randomness 90). Công thức shake khác. DampingRatio
+                // chọn để biên độ tắt còn ~5% lúc hết giờ — điểm khởi đầu cho Task 8 so mắt, chưa chốt.
                 _activeTween = LMotion.Shake.Create(_resolvedTarget.localScale, Vector3.one * 0.12f, 0.25f)
                     .WithFrequency(8)
+                    .WithDampingRatio(2.4f)
                     .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
                     .WithCancelOnError()
                     .BindToLocalScale(_resolvedTarget)

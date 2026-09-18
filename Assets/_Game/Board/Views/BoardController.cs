@@ -1090,9 +1090,11 @@ namespace WordStack.Board
             if (bv == null) return;
             MotionHandle prev;
             if (shakes.TryGetValue(stack, out prev)) prev.TryComplete();   // rung dồn: kết thúc cú trước đã
-            // DOPunchPosition(…, vibrato 6, elasticity 0.6) — Task 8 so bằng mắt.
+            // DOPunchPosition(…, vibrato 6, elasticity 0.6) cũ. DampingRatio chọn để biên độ
+            // tắt còn ~5% lúc hết giờ (envelope exp(-damping*frequency/2π*t)) — điểm khởi đầu
+            // cho Task 8 so bằng mắt, không phải số chốt cuối.
             shakes[stack] = LMotion.Punch.Create(bv.transform.localPosition, new Vector3(0.12f, 0f, 0f), 0.22f)
-                                   .WithFrequency(6).WithDampingRatio(0.6f).WithCancelOnError()
+                                   .WithFrequency(6).WithDampingRatio(3.1f).WithCancelOnError()
                                    .BindToLocalPosition(bv.transform).AddTo(bv.gameObject);
         }
 
