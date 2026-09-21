@@ -38,7 +38,17 @@ namespace LogosGame.Features.Shop
         IReadOnlyList<CoinBundleDefinition> CoinBundles { get; }
         IReadOnlyList<TransactionDefinition> ItemOffers { get; }
 
+        /// Khởi tạo store với mọi gói coin trong catalog. Gọi một lần lúc boot (không đợi mở
+        /// Shop): giao dịch đã trả tiền mà chưa trao chỉ được store gửi lại sau bước này.
+        Awaitable<bool> InitializeStore();
+
+        /// Giá đã bản địa hoá từ store; chưa có thì PriceLabelFallback của catalog; id lạ → null.
+        string GetPriceLabel(string productId);
+
         Awaitable<ShopPurchaseResult> PurchaseCoinBundle(string productId);
+
+        /// Khôi phục giao dịch non-consumable. iOS bắt buộc có nút này; Android tự khôi phục lúc khởi tạo.
+        Awaitable RestorePurchases();
         PurchaseResult PurchaseItem(string transactionId);
     }
 }
