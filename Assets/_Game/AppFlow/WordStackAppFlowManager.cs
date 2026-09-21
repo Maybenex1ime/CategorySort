@@ -39,7 +39,8 @@ namespace WordStack.Meta.AppFlow
             LogosGame.Features.Gameplay.Content.LevelCatalog levelCatalog = null,
             LogosSDK.Audio.IAudioService audioService = null,
             LogosSDK.Services.IHapticService hapticService = null,
-            LogosMeta.Economy.IHeartService heartService = null)
+            LogosMeta.Economy.IHeartService heartService = null,
+            LogosGame.Features.Shop.IShopService shopService = null)
         {
             if (uiManager == null)
                 throw new ArgumentNullException(nameof(uiManager));
@@ -47,7 +48,7 @@ namespace WordStack.Meta.AppFlow
             _stateMachine = new StateMachine<IAppFlowState, IAppFlowTrigger>();
             _context = new AppFlowContext(this, uiManager, minLoadingSeconds,
                 saveManager, coinReward, flow, levelService, levelCatalog,
-                audioService, hapticService, heartService);
+                audioService, hapticService, heartService, shopService);
 
             // Nguồn kết quả DUY NHẤT của AppFlow là ViewModel — nó công bố sau khi
             // máy phase chốt Win/Lose. MetaSession vẫn nghe LevelSignals.Finished

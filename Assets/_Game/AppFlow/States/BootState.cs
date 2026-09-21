@@ -18,6 +18,7 @@ namespace WordStack.Meta.AppFlow.States
         {
             _logger.Info("[AppFlow] Enter Boot");
             Context.SetPhase(AppFlowPhase.Boot);
+            Context.InitializeStoreInBackground();
             Context.TriggerDeferred(new BootToSplashTrigger());
             return AwaitableUtility.Completed();
         }

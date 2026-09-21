@@ -145,7 +145,11 @@ namespace WordStack.Meta.AppFlow.Installers
                         catalog,
                         audio,
                         haptic,
-                        c.Resolve<LogosMeta.Economy.IHeartService>());
+                        c.Resolve<LogosMeta.Economy.IHeartService>(),
+                        // Vắng khi ProjectScope chưa gắn ShopInstaller — boot vẫn chạy, chỉ không có store.
+                        c.TryGetResolver<LogosGame.Features.Shop.IShopService>(out _)
+                            ? c.Resolve<LogosGame.Features.Shop.IShopService>()
+                            : null);
                 },
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
