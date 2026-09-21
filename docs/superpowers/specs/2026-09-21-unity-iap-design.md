@@ -20,7 +20,7 @@ Nguyên tắc chi phối:
 | 1 | Dùng plugin bọc (Gley EasyIAP như Cooking) hay Unity IAP trực tiếp? | **Unity IAP trực tiếp**, một adapter `UnityIAPService : IIAPService`. | `IIAPService` đã là lớp bọc. Gley thêm một lớp nữa + enum sinh tự động + asset trả phí, không mua được gì thêm. |
 | 2 | Phiên bản package? | **`com.unity.purchasing` 4.12.2** — bản Cooking đang chạy thật. Bước đầu tiên của plan kiểm nó resolve và compile trên Unity 6000.3.8f1; nếu Unity ép lên 5.x thì chỉ file adapter đổi API. | API 4.x (`IDetailedStoreListener`) đã biết rõ. Rủi ro được nhốt trong một file nhờ quyết định 1. |
 | 3 | Ai cộng coin, lúc nào? | **Adapter nhận giao dịch → gọi `IIapFulfillment.Fulfill` → trao + lưu xong mới `ConfirmPendingPurchase`.** `ProcessPurchase` luôn trả `Pending`. `ShopService` là bên hiện thực `IIapFulfillment`; nó **không còn** cộng coin sau `await Purchase`. | Bản hiện tại cộng coin sau `await`: app chết giữa hai dòng là mất tiền của user. Giao dịch chưa Confirm được store gửi lại ở lần mở app sau — nên việc trao thưởng phải chạy được khi **không có popup nào mở**. (Cooking mắc lỗi này: listener bị huỷ khi đóng popup.) |
-| 4 | Chống trao hai lần khi store gửi lại? | **Sổ giao dịch đã trao** (`IapLedgerData`, domain save riêng): lưu `transactionID` đã xử lý, giữ 200 mục gần nhất. Thứ tự: cộng coin → ghi sổ → `SaveAll()` → Confirm. Gặp lại id đã có trong sổ thì chỉ Confirm. | Hai domain save không ghi nguyên tử được. Chọn thứ tự để cửa sổ lỗi (chết giữa "cộng coin" và "ghi sổ") nghiêng về phía **user được lợi** (trao hai lần), không phải mất tiền. |
+| 4 | Chống trao hai lần khi store gửi lại? | **Ví tự chống:** `ICurrencyService.AddOnce(amount, grantId)` — cộng coin đúng một lần cho mỗi mã, mã nằm **chung file** với số coin (`CurrencyData.GrantIds`, giữ 200 mục mới nhất), ghi đĩa ngay bằng `SaveImmediate`. `grantId` = `transactionID` của store. Gặp lại mã cũ thì không cộng, vẫn cho Confirm. *(Chốt 2026-09-21, thay phương án sổ riêng `IapLedgerData`.)* | `SafeFileWriter` ghi mỗi file theo kiểu nguyên tử (`.tmp` rồi đổi tên) → coin và mã hoặc cùng được ghi, hoặc không cái nào: **không còn khe trao hai lần** mà phương án hai-file để lại. Bớt một domain save, `ShopService` khỏi cần `ISaveManager`. "Cộng một lần theo mã" là khái niệm chung của ví — thưởng ngày, mã quà sau này dùng lại được. |
 | 5 | Xác thực hoá đơn? | **Có, nhưng ở pha 2.** Pha 1 đặt sẵn điểm móc `IReceiptValidator` (mặc định chấp nhận hết, log cảnh báo). Pha 2 bật `CrossPlatformValidator` khi có khoá Google Play. | File tangle sinh từ public key của app trên Play Console — app chưa tồn tại trên Console (`applicationIdentifier` còn là `com.DefaultCompany.2D-URP`). Cooking sinh tangle rồi để `useReceiptValidation: 0`; bản này ghi rõ là việc chưa làm thay vì làm nửa vời. |
 | 6 | Giá hiển thị? | Thêm `string GetLocalizedPrice(string productId)` vào `IIAPService`; trả `null` khi chưa có. `ShopCoinCellView` dùng giá store nếu có, không thì `PriceLabelFallback`. | Giá do store quyết theo vùng (49.000₫ / $1.99). Fallback đã có sẵn đúng cho việc này. |
 | 7 | Product id? | **Giữ nguyên** 6 id trong `ShopProductIds` (`coins_1000` … `coins_100000`), loại Consumable, dùng chung Android và iOS. | Chưa publish nên chưa bị khoá, nhưng đã nhất quán với test và catalog. Không cần quy ước `com.<app>.<gói>` của Cooking — Google chỉ đòi chữ thường, số, `.` và `_`. |
@@ -80,33 +80,56 @@ Quy tắc:
 - `RestorePurchases`: iOS gọi `IAppleExtensions.RestoreTransactions`; Android hoàn tất ngay (Google tự khôi phục lúc init).
 - Trước `UnityPurchasing.Initialize` phải `await UnityServices.InitializeAsync()` (Unity IAP 4.x cảnh báo nếu thiếu). Thất bại bước này **không** chặn init store — chỉ log.
 
-### 3.3 `ShopService` hiện thực `IIapFulfillment`
+### 3.3 Ví chống trao trùng — `_Modules/Economy/Currency`
 
-- Thêm phụ thuộc `ISaveManager` (tuỳ chọn như các service khác — vắng thì `Fulfill` trả `false`, không trao mà không lưu được).
+`CurrencyData` thêm một trường (file save cũ không có trường này vẫn đọc được — `AddOnce` tự khởi tạo khi gặp `null`, không cần nâng `SchemaVersion`):
+
+```csharp
+public List<string> GrantIds = new List<string>();   // mã các lần cộng "chỉ một lần", 200 mục mới nhất
+```
+
+`ICurrencyService` thêm một hàm:
+
+```csharp
+/// Cộng coin đúng MỘT lần cho mỗi grantId và ghi đĩa NGAY (SaveImmediate).
+/// Trả true = vừa cộng. Trả false = grantId đã được cộng trước đó, hoặc tham số không hợp lệ
+/// (amount <= 0, grantId rỗng) — không đổi gì.
+bool AddOnce(int amount, string grantId);
+
+/// grantId này đã từng được cộng chưa.
+bool HasGrant(string grantId);
+```
+
+`CurrencyService.AddOnce`: kiểm tham số → `HasGrant` thì trả `false` → `Coins += amount` → thêm mã vào cuối `GrantIds`, vượt 200 thì bỏ mục đầu → `_save.SaveImmediate(_data)` → đẩy `_coins.Value` → trả `true`. `Add` hiện có **không đổi** (vẫn `Save` trễ) — chỉ đường tiền thật mới cần ghi ngay.
+
+Mọi lớp hiện thực `ICurrencyService` khác (fake trong test) thêm hai hàm này.
+
+### 3.4 `ShopService` hiện thực `IIapFulfillment`
+
 - `Fulfill(productId, transactionId)`:
-  1. `transactionId` đã có trong `IapLedgerData` → trả `true` (đã trao rồi, cho Confirm).
-  2. Không tìm thấy gói trong catalog, hoặc thiếu `ICurrencyService` → log Warn, trả `false`.
-  3. `_currency.Add(bundle.Coins)` → thêm `transactionId` vào sổ (cắt còn 200 mục mới nhất) → `_save.SaveAll()` → trả `true`.
+  1. Không tìm thấy gói trong catalog, hoặc thiếu `ICurrencyService`, hoặc `transactionId` rỗng → log Warn, trả `false` (giao dịch ở lại Pending).
+  2. `bool granted = _currency.AddOnce(bundle.Coins, transactionId)`.
+  3. `granted == false` **và** `_currency.HasGrant(transactionId)` → store gửi lại giao dịch đã trao: trả `true` (cho Confirm), không log analytics.
+  4. `granted == true` → log analytics (mục 3.7), trả `true`.
+- `ShopService` **không** cần `ISaveManager` — ví tự ghi đĩa.
 - `PurchaseCoinBundle(productId)`: giữ các kiểm tra trước khi gọi store (`UnknownProduct`, `StoreUnavailable` — thêm điều kiện `!_iap.IsReady`), rồi `await _iap.Purchase(productId)`. **Bỏ dòng `_currency.Add`** — coin đã được cộng trong `Fulfill`. `CoinsGranted` lấy từ `bundle.Coins` khi thành công.
 - `IShopService` thêm `string GetPriceLabel(string productId)`: giá store nếu có, không thì `PriceLabelFallback`. `ShopCoinCellView` gọi hàm này thay vì tự đọc fallback.
 - `IShopService` thêm `Awaitable InitializeStore()`: gom `CoinBundles` thành `IapProduct[]` (Consumable) và gọi `_iap.Initialize(products, this)`.
 
-`IapLedgerData` (`Assets/_Game/Shop/IapLedgerData.cs`): `public List<string> ProcessedTransactionIds = new();` — đăng ký với `ISaveManager` trong `ShopInstaller` cùng kiểu các domain khác (storage giống `CurrencyData`).
-
-### 3.4 `StubIAPService`
+### 3.5 `StubIAPService`
 
 Cập nhật theo hợp đồng mới: `Initialize` giữ `fulfillment`, `IsReady = true`; `Purchase` gọi `fulfillment.Fulfill(id, "stub-" + Guid)` rồi trả kết quả của nó; `GetLocalizedPrice` trả `null` (UI rơi về fallback). Vẫn log Warn "GIẢ LẬP".
 
-### 3.5 Đi dây
+### 3.6 Đi dây
 
-- `ShopInstaller`: cờ `_useRealStore`; `#if UNITY_EDITOR` mặc định stub. Đăng ký `IapLedgerData` với `ISaveManager`. Truyền `ISaveManager` vào factory của `ShopService`.
+- `ShopInstaller`: cờ `_useRealStore`; `#if UNITY_EDITOR` mặc định stub. Factory của `ShopService` không đổi chữ ký.
 - `BootState`: sau khi save system sẵn sàng, resolve `IShopService` và gọi `InitializeStore()` **không await** (bọc try/catch, log lỗi). Đây cũng là chỗ khiến `ShopService` — vốn đăng ký Lazy — được dựng từ lúc boot.
 - `ShopPopup`: nút mua tắt khi đang có giao dịch dở; mã `StoreUnavailable` hiện thông báo "Cửa hàng chưa sẵn sàng, thử lại sau". Thêm nút Restore chỉ hiện trên iOS.
 - asmdef `WordStack.Meta` thêm reference `Unity.Purchasing`, `Unity.Purchasing.Stores`, `Unity.Services.Core`. `compilecheck.sh` target `meta` thêm các DLL này theo đúng cách đang mượn `Library/ScriptAssemblies`.
 
-### 3.6 Analytics
+### 3.7 Analytics
 
-Trong `Fulfill` lần đầu trao thành công (không phải ca "đã có trong sổ"): `IAnalyticsService.LogEvent("iap_purchase", { product_id, coins })` nếu service có mặt. Doanh thu do SDK attribution tự ghi khi được tích hợp — ngoài phạm vi.
+Trong `Fulfill`, chỉ khi `AddOnce` trả `true` (không phải ca store gửi lại): `IAnalyticsService.LogEvent("iap_purchase", { product_id, coins })` nếu service có mặt. Doanh thu do SDK attribution tự ghi khi được tích hợp — ngoài phạm vi.
 
 ## 4. Test
 
@@ -114,15 +137,25 @@ Trong `Fulfill` lần đầu trao thành công (không phải ca "đã có trong
 
 | Test | Kiểm gì |
 |---|---|
-| `Fulfill_GiaoDichMoi_CongCoin_GhiSo_VaLuu` | Coin tăng đúng, id vào sổ, `SaveAll` được gọi, trả `true` |
-| `Fulfill_GiaoDichDaCoTrongSo_KhongCongLan2_VanTraTrue` | Store gửi lại → không trao hai lần nhưng vẫn cho Confirm |
-| `Fulfill_GoiLaHoacThieuVi_TraFalse_KhongGhiSo` | Không trao được thì để Pending |
+| `Fulfill_GiaoDichMoi_CongCoinQuaAddOnce_TraTrue` | Coin tăng đúng, `AddOnce` nhận đúng `transactionId` |
+| `Fulfill_StoreGuiLaiGiaoDichDaTrao_KhongCongLan2_VanTraTrue` | Không trao hai lần nhưng vẫn cho Confirm; không log analytics lần hai |
+| `Fulfill_GoiLa_ThieuVi_HoacMaRong_TraFalse` | Không trao được thì để Pending |
 | `Fulfill_KhongCanPurchaseDangCho` | Gọi `Fulfill` trực tiếp (mô phỏng store gửi lại lúc boot) vẫn cộng coin |
-| `Fulfill_SoVuot200_CatMucCuNhat` | Sổ không phình vô hạn |
 | `PurchaseCoinBundle_ThanhCong_KhongCongCoinLan2` | Coin chỉ tăng **một lần** (trong `Fulfill`), không thêm sau `await` |
 | `PurchaseCoinBundle_StoreChuaSanSang_TraStoreUnavailable_KhongGoiStore` | `IsReady == false` |
 | `GetPriceLabel_CoGiaStore_DungGiaStore` / `_KhongCo_DungFallback` | Quyết định 6 |
 | 4 test mua cũ | Vẫn xanh sau khi đổi cơ chế |
+
+`CurrencyServiceTests` (mới, cùng assembly test, dùng `ISaveManager` giả ghi nhận lời gọi):
+
+| Test | Kiểm gì |
+|---|---|
+| `AddOnce_MaMoi_CongCoin_LuuMa_GhiDiaNgay` | Coin tăng, mã vào `GrantIds`, `SaveImmediate` được gọi đúng một lần (không phải `Save`) |
+| `AddOnce_MaCu_KhongCong_TraFalse_KhongGhiDia` | Chống trao trùng |
+| `AddOnce_AmountKhongDuong_HoacMaRong_TraFalse` | Tham số xấu không đổi gì |
+| `AddOnce_Vuot200Ma_BoMaCuNhat` | Danh sách không phình vô hạn; mã thứ 201 đẩy mã đầu ra |
+| `AddOnce_FileCuKhongCoGrantIds_KhongNem` | `GrantIds == null` sau khi load save cũ |
+| `Add_VanDungSaveTre` | Hàm cũ không bị đổi hành vi |
 
 Test config (`WordStack.Meta.Tests`, EditMode): `ShopInstaller` trên `ProjectScope.prefab` có `_useRealStore == true` **khi** define `RELEASE_BUILD` bật — canh quyết định 9. (Không có define thì test bỏ qua.)
 
@@ -134,7 +167,7 @@ Cổng máy: `./compilecheck.sh` 3/3 + toàn bộ EditMode xanh.
 
 **Làm được ngay, không cần Play Console** — Unity IAP có *fake store* trong Editor:
 1. Bật `_useRealStore` trong Editor, Play, mở Shop: giá hiện chuỗi fake store thay cho fallback.
-2. Mua một gói → hộp thoại fake store → Buy: coin tăng đúng một lần, sổ có 1 id.
+2. Mua một gói → hộp thoại fake store → Buy: coin tăng đúng một lần, file save của ví có 1 mã trong `GrantIds`.
 3. Mua → Cancel: coin không đổi, popup không kẹt, nút mua bấm lại được.
 4. Tắt Play giữa lúc hộp thoại đang mở, Play lại: không sập, không trao nhầm.
 5. Tắt `_useRealStore`: stub chạy như cũ.
@@ -165,7 +198,7 @@ Pha 1 code + test + nghiệm thu fake store **không phụ thuộc** bảng này
 
 1. Cài `com.unity.purchasing` 4.12.2, xác nhận compile trên 6000.3.8f1, nối DLL vào `compilecheck.sh`. **Dừng báo nếu Unity ép 5.x.**
 2. Hợp đồng mới (`IIAPService`, `IIapFulfillment`, `IapProduct`) + cập nhật `StubIAPService` và `FakeIap` — toàn bộ test cũ xanh lại.
-3. TDD `ShopService.Fulfill` + `IapLedgerData` + bỏ cộng coin sau `await` + `GetPriceLabel`/`InitializeStore`.
+3. TDD `CurrencyService.AddOnce`/`HasGrant` (module Economy), rồi TDD `ShopService.Fulfill` + bỏ cộng coin sau `await` + `GetPriceLabel`/`InitializeStore`.
 4. `UnityIAPService` + `IReceiptValidator` mặc định.
-5. Đi dây: `ShopInstaller` (cờ, ledger, save), `BootState`, `ShopCoinCellView`, `ShopPopup`.
+5. Đi dây: `ShopInstaller` (cờ), `BootState`, `ShopCoinCellView`, `ShopPopup`.
 6. Nghiệm thu fake store (mục 5 phần đầu).
