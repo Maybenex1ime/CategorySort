@@ -118,6 +118,15 @@ if [ "$meta_ready" = 1 ]; then
     # Newtonsoft là DLL tiền biên dịch của package, không đi qua ScriptAssemblies.
     NJ="$(ls "$SA/../PackageCache"/com.unity.nuget.newtonsoft-json*/Runtime/Newtonsoft.Json.dll 2>/dev/null | head -1)"
     [ -n "$NJ" ] && echo "-r:\"$(w "$NJ")\""
+    # Unity IAP là package → DLL chỉ có sau khi Editor import. Có thì bật define y như
+    # versionDefines của WordStack.Meta.asmdef để UnityIAPService.cs được compile; chưa có thì
+    # file đó rỗng (#if) và phần còn lại vẫn kiểm được.
+    if [ -f "$SA/UnityEngine.Purchasing.dll" ]; then
+      echo "-define:CATEGORYSORT_UNITY_IAP"
+      for d in UnityEngine.Purchasing UnityEngine.Purchasing.Stores Purchasing.Common Unity.Services.Core; do
+        [ -f "$SA/$d.dll" ] && echo "-r:\"$(w "$SA/$d.dll")\""
+      done
+    fi
     # DOTween/Modules đi kèm vì CheatToastView dùng DOFade/DOAnchorPosY trên UI
     # Bỏ Tests/: chúng cần NUnit + TestRunner, chỉ Unity mới dựng nổi ref đó.
     # Bỏ _Game/Board: đó là assembly WordStack.Board (target `game` ở trên) — nó sống ở
