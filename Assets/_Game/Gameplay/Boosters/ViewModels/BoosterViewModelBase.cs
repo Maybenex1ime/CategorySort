@@ -34,6 +34,17 @@ namespace LogosGame.Features.Gameplay.Boosters.ViewModels
 
         public ReadOnlyReactiveProperty<int> Count => _count;
 
+        /// <summary>Bàn có dùng được booster này lúc này không — view xám nút khi false.</summary>
+        public abstract ReadOnlyReactiveProperty<bool> IsUsable { get; }
+
+        public void OnButtonClicked()
+        {
+            if (!HasStock) return;             // hết lượt → View lo luồng mua
+            if (!IsUsable.CurrentValue) return; // bàn không dùng được → không được trừ lượt
+
+            RequestUse();
+        }
+
         public virtual void Dispose()
         {
             _slot.OnCountChanged -= OnCountChanged;

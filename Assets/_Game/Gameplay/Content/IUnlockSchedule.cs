@@ -17,6 +17,8 @@ namespace LogosGame.Features.Gameplay.Content
 
         int GetBoosterInitialCount(BoosterId boosterId);
 
+        bool TryGetBoosterUnlockLevel(BoosterId boosterId, out int unlockLevel);
+
         bool CheatGrantBoosters { get; }
         int CheatGrantAmount { get; }
     }

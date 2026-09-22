@@ -16,6 +16,10 @@ namespace LogosGame.Features.Cheat.Views
 
         [SerializeField] private Button _winButton;
         [SerializeField] private Button _loseButton;
+        [Tooltip("Ép thua KẸT → RevivePopup kiểu nam châm.")]
+        [SerializeField] private Button _loseReviveButton;
+        [Tooltip("Ép thua HẾT NƯỚC → RevivePopup kiểu +nước.")]
+        [SerializeField] private Button _loseOutOfMovesReviveButton;
 
         private void Start()
         {
@@ -24,6 +28,12 @@ namespace LogosGame.Features.Cheat.Views
 
             if (_loseButton != null)
                 _loseButton.onClick.AddListener(OnLoseClicked);
+
+            if (_loseReviveButton != null)
+                _loseReviveButton.onClick.AddListener(OnLoseReviveClicked);
+
+            if (_loseOutOfMovesReviveButton != null)
+                _loseOutOfMovesReviveButton.onClick.AddListener(OnLoseOutOfMovesReviveClicked);
         }
 
         private void OnDestroy()
@@ -33,10 +43,20 @@ namespace LogosGame.Features.Cheat.Views
 
             if (_loseButton != null)
                 _loseButton.onClick.RemoveListener(OnLoseClicked);
+
+            if (_loseReviveButton != null)
+                _loseReviveButton.onClick.RemoveListener(OnLoseReviveClicked);
+
+            if (_loseOutOfMovesReviveButton != null)
+                _loseOutOfMovesReviveButton.onClick.RemoveListener(OnLoseOutOfMovesReviveClicked);
         }
 
         private void OnWinClicked() => _cheatService?.ForceWin();
 
         private void OnLoseClicked() => _cheatService?.ForceLose();
+
+        private void OnLoseReviveClicked() => _cheatService?.ForceLoseStuckRevive();
+
+        private void OnLoseOutOfMovesReviveClicked() => _cheatService?.ForceLoseOutOfMovesRevive();
     }
 }

@@ -7,6 +7,7 @@ using LogosSDK.Core.Logging;
 using LogosSDK.UI.Base;
 using R3;
 using Reflex.Attributes;
+using Reflex.Core;
 using TMPro;
 using UnityEngine;
 using UnityEngine.UI;
@@ -26,9 +27,10 @@ namespace LogosGame.Features.UI.Popups
         [SerializeField] private TextMeshProUGUI _buyPriceText;
 
         [Inject] private IHeartService _heartService;
-        // WordStack chua co IPurchaseService — inject contract thieu la Reflex nem
-        // exception ngay luc popup instantiate. Nut mua bi an trong UpdateBuyButton;
-        // bat lai khi port he mua (cua hang).
+        [Inject] private ICurrencyService _currencyService;
+        // IPurchaseService chi co khi CurrencyInstaller duoc gan catalog — [Inject] thang
+        // ma thieu contract thi Reflex nem exception luc popup instantiate, nen resolve tay.
+        [Inject] private Container _container;
 
         private DisposableBag _disposables;
 
@@ -81,9 +83,31 @@ namespace LogosGame.Features.UI.Popups
 
         private void UpdateBuyButton()
         {
-            // Chua co he mua — an nut. Duong mua that quay lai khi port cua hang.
-            const bool canShow = false;
-            if (_buyButton != null) _buyButton.gameObject.SetActive(canShow);
+            if (_buyButton == null) return;
+
+            // Chi hien khi he mua co mat va catalog co gia tim.
+            bool canShow = _container != null
+                && _container.TryGetResolver<IPurchaseService>(out _)
+                && _container.Resolve<IPurchaseService>().TryGetTransaction(TransactionIds.Heart, out TransactionDefinition entry)
+                && SetupBuyButton(entry.Price);
+
+            _buyButton.gameObject.SetActive(canShow);
+        }
+
+        private bool SetupBuyButton(int price)
+        {
+            if (_buyPriceText != null) _buyPriceText.text = price.ToString();
+
+            // Thieu coin thi xam nut thay vi de BoosterPurchaseFlow mo NotEnoughGoldPopup:
+            // popup do se THAY popup nay ma khong goi Args.OnClose (mat duong ve menu).
+            if (_currencyService != null)
+            {
+                _currencyService.Coins
+                    .Subscribe(coins => _buyButton.interactable = coins >= price)
+                    .AddTo(ref _disposables);
+            }
+
+            return true;
         }
 
         private void OnDestroy()
@@ -121,28 +145,41 @@ namespace LogosGame.Features.UI.Popups
 
         private void OnBuyClicked()
         {
-            // Stub: chua ai nghe PurchaseRequestedEvent — nut nay dang an, giu lai
-            // de he mua sau nay chi can viet ben nghe.
+            // BoosterPurchaseFlow nghe va mua dong bo (tru coin → cong tim), nen doc lai
+            // so tim ngay sau Fire la biet mua duoc chua.
+            int before = _heartService != null ? _heartService.Current.CurrentValue : 0;
             Bus.Global.Fire(new PurchaseRequestedEvent(TransactionIds.Heart));
+            int after = _heartService != null ? _heartService.Current.CurrentValue : 0;
+            if (after <= before) return;
+
+            CloseWithHeartGranted();
         }
 
         // TEMP: ads not integrated yet — grant +1 heart on tap.
         private void OnAdClicked()
         {
             _logger.Info($"[NoHeartsPopup] OnAdClicked fired. heartService={(_heartService != null ? "OK" : "NULL")}");
-            if (_heartService != null)
+            if (_heartService == null)
             {
-                int before = _heartService.Current.CurrentValue;
-                _heartService.Add(1);
-                int after = _heartService.Current.CurrentValue;
-                _logger.Info($"[NoHeartsPopup] Hearts {before} → {after}");
+                OnCloseClicked();
+                return;
             }
 
+            int before = _heartService.Current.CurrentValue;
+            _heartService.Add(1);
+            int after = _heartService.Current.CurrentValue;
+            _logger.Info($"[NoHeartsPopup] Hearts {before} → {after}");
+
+            if (after > before) CloseWithHeartGranted();
+            else OnCloseClicked();
+        }
+
+        private void CloseWithHeartGranted()
+        {
             Dismiss();
-            if (Args != null && Args.OnClose != null)
-            {
-                Args.OnClose();
-            }
+            if (Args == null) return;
+            if (Args.OnHeartGranted != null) Args.OnHeartGranted();
+            else Args.OnClose?.Invoke();
         }
 
         private void OnCloseClicked()

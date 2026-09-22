@@ -27,5 +27,9 @@ namespace LogosGame.Features.Cheat.Services
         // thúc thắng/thua để test luồng Result. Chỉ có tác dụng trong Gameplay.
         void ForceWin();
         void ForceLose();
+
+        // Ép thua nhưng mở RevivePopup — test hai kiểu hồi sinh.
+        void ForceLoseStuckRevive();       // kẹt → nam châm (chạy thật lên bàn)
+        void ForceLoseOutOfMovesRevive();  // hết nước → +nước (chạy thật)
     }
 }

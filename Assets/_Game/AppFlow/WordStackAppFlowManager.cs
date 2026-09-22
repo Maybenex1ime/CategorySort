@@ -39,7 +39,11 @@ namespace WordStack.Meta.AppFlow
             LogosGame.Features.Gameplay.Content.LevelCatalog levelCatalog = null,
             LogosSDK.Audio.IAudioService audioService = null,
             LogosSDK.Services.IHapticService hapticService = null,
-            LogosMeta.Economy.IHeartService heartService = null)
+            LogosMeta.Economy.IHeartService heartService = null,
+            LogosMeta.Economy.ICurrencyService currencyService = null,
+            int revivePrice = 0,
+            GameplayFlowAdapter flowAdapter = null,
+            int reviveExtraMoves = 0)
         {
             if (uiManager == null)
                 throw new ArgumentNullException(nameof(uiManager));
@@ -47,7 +51,8 @@ namespace WordStack.Meta.AppFlow
             _stateMachine = new StateMachine<IAppFlowState, IAppFlowTrigger>();
             _context = new AppFlowContext(this, uiManager, minLoadingSeconds,
                 saveManager, coinReward, flow, levelService, levelCatalog,
-                audioService, hapticService, heartService);
+                audioService, hapticService, heartService, currencyService, revivePrice,
+                flowAdapter, reviveExtraMoves);
 
             // Nguồn kết quả DUY NHẤT của AppFlow là ViewModel — nó công bố sau khi
             // máy phase chốt Win/Lose. MetaSession vẫn nghe LevelSignals.Finished
@@ -61,6 +66,7 @@ namespace WordStack.Meta.AppFlow
             Bus.Global.On<JumpToLevelRequestedEvent>(OnJumpToLevelRequested);
             Bus.Global.On<PauseRequestedEvent>(OnPauseRequested);
             Bus.Global.On<ForceOutcomeRequestedEvent>(OnForceOutcomeRequested);
+            Bus.Global.On<RewardedBoosterRequestedEvent>(OnRewardedBoosterRequested);
         }
 
         public AppFlowPhase CurrentPhase { get; private set; }
@@ -134,6 +140,7 @@ namespace WordStack.Meta.AppFlow
             Bus.Global.Off<JumpToLevelRequestedEvent>(OnJumpToLevelRequested);
             Bus.Global.Off<PauseRequestedEvent>(OnPauseRequested);
             Bus.Global.Off<ForceOutcomeRequestedEvent>(OnForceOutcomeRequested);
+            Bus.Global.Off<RewardedBoosterRequestedEvent>(OnRewardedBoosterRequested);
         }
 
         internal void SetPhase(AppFlowPhase phase)
@@ -165,6 +172,14 @@ namespace WordStack.Meta.AppFlow
                 return;
             }
 
+            // Thua mà còn cứu được → hỏi hồi sinh trước, ở lại GameplayState. Bỏ cuộc thì
+            // popup tự bắn LevelFinishedTrigger.
+            if (evt.Result != null && !evt.Result.IsWin && _context.CanRevive(evt.Result.LoseReason))
+            {
+                _context.ShowRevivePopupInBackground(evt.Result);
+                return;
+            }
+
             _context.SetLastResult(evt.Result);
             _context.TriggerDeferred(new LevelFinishedTrigger());
         }
@@ -178,6 +193,17 @@ namespace WordStack.Meta.AppFlow
             }
 
             _context.RequestRetryGated();   // hết tim → NoHeartsPopup thay vì vào màn
+        }
+
+        private void OnRewardedBoosterRequested(RewardedBoosterRequestedEvent evt)
+        {
+            if (CurrentPhase != AppFlowPhase.Gameplay)
+            {
+                _logger.Warn($"[AppFlow] Bỏ qua xin rewarded booster ở phase {CurrentPhase}.");
+                return;
+            }
+
+            _context.RequestRewardedBooster(evt.BoosterId);
         }
 
         private void OnPauseRequested(PauseRequestedEvent evt)
@@ -211,14 +237,14 @@ namespace WordStack.Meta.AppFlow
                 return;
             }
 
-            ForceOutcomeInBackground(evt.IsWin);
+            ForceOutcomeInBackground(evt.IsWin, evt.LoseReason);
         }
 
-        private async void ForceOutcomeInBackground(bool isWin)
+        private async void ForceOutcomeInBackground(bool isWin, LoseReason loseReason)
         {
             try
             {
-                await _context.ForceOutcomeAsync(isWin);
+                await _context.ForceOutcomeAsync(isWin, loseReason);
             }
             catch (Exception ex)
             {

@@ -1,26 +1,26 @@
 using System;
 using BoosterModule;
 using LogosGame.Features.Currency.Events;
-using LogosGame.Features.Gameplay.Content;
 using LogosGame.Features.UI.Popups;
 using LogosGame.Features.UI.Popups.Args;
 using LogosMeta.Economy;
 using LogosSDK.Core.Events;
 using LogosSDK.Core.Logging;
 using LogosSDK.UI.Core;
-using UnityEngine;
 using ILogger = LogosSDK.Core.Logging.ILogger;
 
 namespace LogosGame.Features.Currency.UI.Impl
 {
     /// <summary>
-    /// Nghe PurchaseRequestedEvent (các nút booster bắn khi count = 0) qua Bus.Global
-    /// và mở BoosterPurchasePopup — caller ở scope nào cũng gọi được, không cần
-    /// inject UIManager.
+    /// Nghe PurchaseRequestedEvent (nút booster bắn khi hết lượt mà đủ coin) qua
+    /// Bus.Global và MUA THẲNG bằng coin — không còn popup xác nhận. Mua xong
+    /// BoosterManager cộng lượt, nút tự sang trạng thái còn lượt.
+    ///
+    /// Thiếu coin thì mở NotEnoughGoldPopup — nút booster tự chuyển sang rewarded ad
+    /// khi thiếu coin nên đường này chỉ còn là lưới an toàn (và cho mua tim).
     ///
     /// IPurchaseService có thể VẮNG (CurrencyInstaller chưa được gán
-    /// SO_TransactionCatalog): popup vẫn mở với giá "—", nút Mua chỉ log stub —
-    /// không trừ coin/cộng booster, không sập.
+    /// SO_TransactionCatalog): chỉ log, không trừ coin/cộng booster, không sập.
     /// </summary>
     public sealed class BoosterPurchaseFlow : IDisposable
     {
@@ -28,16 +28,11 @@ namespace LogosGame.Features.Currency.UI.Impl
 
         private readonly UIManager _uiManager;
         private readonly IPurchaseService _purchaseService;
-        private readonly ICurrencyService _currencyService;
-        private readonly IUnlockSchedule _unlockSchedule;
 
-        public BoosterPurchaseFlow(UIManager uiManager, IPurchaseService purchaseService,
-            ICurrencyService currencyService, IUnlockSchedule unlockSchedule)
+        public BoosterPurchaseFlow(UIManager uiManager, IPurchaseService purchaseService)
         {
             _uiManager = uiManager;
             _purchaseService = purchaseService;
-            _currencyService = currencyService;
-            _unlockSchedule = unlockSchedule;
             Bus.Global.On<PurchaseRequestedEvent>(OnPurchaseRequested);
             Bus.Global.On<BoosterExhaustedEvent>(OnBoosterExhausted);
         }
@@ -53,21 +48,12 @@ namespace LogosGame.Features.Currency.UI.Impl
         private void OnBoosterExhausted(BoosterExhaustedEvent evt)
         {
             if (evt.Id == BoosterId.None) return;
-            ShowForBooster(evt.Id);
+            ExecutePurchase(TransactionIds.ForBooster(evt.Id));
         }
 
         private void OnPurchaseRequested(PurchaseRequestedEvent evt)
         {
             if (string.IsNullOrEmpty(evt.TransactionId)) return;
-
-            if (TransactionIds.TryGetBoosterId(evt.TransactionId, out BoosterId boosterId))
-            {
-                ShowForBooster(boosterId);
-                return;
-            }
-
-            // Giao dịch ngoài booster (vd heart từ NoHeartsPopup): mua thẳng,
-            // không qua popup — như aquapark.
             ExecutePurchase(evt.TransactionId);
         }
 
@@ -80,70 +66,49 @@ namespace LogosGame.Features.Currency.UI.Impl
             }
 
             PurchaseResult result = _purchaseService.TryPurchase(transactionId);
-            if (!result.IsSuccess)
-                _logger.Warn($"[BoosterPurchaseFlow] Mua '{transactionId}' thất bại: {result.Code}.");
-        }
+            if (result.IsSuccess) return;
 
-        private void ShowForBooster(BoosterId boosterId)
-        {
-            if (_uiManager == null)
+            if (result.Code == PurchaseResultCode.NotEnoughCurrency)
             {
-                _logger.Warn($"[BoosterPurchaseFlow] UIManager chưa được bind — không mở được popup mua {boosterId}.");
+                ShowNotEnoughGold();
                 return;
             }
 
-            string transactionId = TransactionIds.ForBooster(boosterId);
-            bool hasEntry = false;
-            TransactionDefinition transaction = default;
-            if (_purchaseService != null)
+            _logger.Warn($"[BoosterPurchaseFlow] Mua '{transactionId}' thất bại: {result.Code}.");
+        }
+
+        private void ShowNotEnoughGold()
+        {
+            if (_uiManager == null)
             {
-                hasEntry = _purchaseService.TryGetTransaction(transactionId, out transaction);
-                if (!hasEntry)
-                    _logger.Warn($"[BoosterPurchaseFlow] Catalog không có entry '{transactionId}' — popup mở với giá '—'.");
+                _logger.Warn("[BoosterPurchaseFlow] UIManager chưa được bind — không mở được NotEnoughGoldPopup.");
+                return;
             }
 
-            string displayName = null;
-            string description = null;
-            Sprite icon = null;
-            _unlockSchedule?.TryGetBoosterInfo(boosterId, out displayName, out description, out icon);
-            if (string.IsNullOrEmpty(displayName) && hasEntry) displayName = transaction.Name;
-            if (string.IsNullOrEmpty(description) && hasEntry) description = transaction.Description;
-
             // Nút booster chỉ sống trong HUD gameplay → popup luôn đè lên bàn đang chơi.
-            // Gate như PausePopup (AppFlowContext): block trước khi mở, unblock ở MỌI
-            // đường thoát — popup gọi đúng một trong hai callback dưới khi Dismiss.
+            // Block trước khi mở, unblock khi popup đóng.
             WordStack.Contracts.LevelCommands.SetInputBlocked(true);
 
-            BoosterPurchasePopupArgs args = new BoosterPurchasePopupArgs
+            NotEnoughGoldPopupArgs args = new NotEnoughGoldPopupArgs
             {
-                Icon = icon,
-                BoosterName = string.IsNullOrEmpty(displayName) ? boosterId.ToString() : displayName,
-                Description = description,
-                Price = hasEntry ? transaction.Price : 0,
-                Coins = _currencyService?.Coins,
-                OnPurchaseConfirmed = () =>
-                {
-                    WordStack.Contracts.LevelCommands.SetInputBlocked(false);
-                    ExecutePurchase(transactionId);
-                },
-                OnClose = () => WordStack.Contracts.LevelCommands.SetInputBlocked(false)
+                OnClose = () => WordStack.Contracts.LevelCommands.SetInputBlocked(false),
             };
 
             ShowPopupInBackground(args);
         }
 
-        private async void ShowPopupInBackground(BoosterPurchasePopupArgs args)
+        private async void ShowPopupInBackground(NotEnoughGoldPopupArgs args)
         {
             try
             {
-                await _uiManager.ShowPopupImmediate<BoosterPurchasePopup, BoosterPurchasePopupArgs>(args);
+                await _uiManager.ShowPopupImmediate<NotEnoughGoldPopup, NotEnoughGoldPopupArgs>(args);
             }
             catch (Exception e)
             {
                 // Mở fail (vd prefab chưa đăng ký address) mà không unblock là bàn
                 // khoá vĩnh viễn — trả input rồi mới báo lỗi.
                 WordStack.Contracts.LevelCommands.SetInputBlocked(false);
-                _logger.Error($"[BoosterPurchaseFlow] Không mở được BoosterPurchasePopup: {e.Message}");
+                _logger.Error($"[BoosterPurchaseFlow] Không mở được NotEnoughGoldPopup: {e.Message}");
             }
         }
     }

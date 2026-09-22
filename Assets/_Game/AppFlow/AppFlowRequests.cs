@@ -1,3 +1,6 @@
+using BoosterModule;
+using LogosGame.Features.Gameplay.Flow;
+
 namespace WordStack.Meta.AppFlow
 {
     // View trong scene không inject IAppFlowManager (interface đó chỉ có StartAsync /
@@ -26,6 +29,19 @@ namespace WordStack.Meta.AppFlow
     }
 
     /// <summary>
+    /// Nút booster hết lượt + thiếu coin xin xem rewarded ad để nhận booster.
+    /// </summary>
+    public readonly struct RewardedBoosterRequestedEvent
+    {
+        public BoosterId BoosterId { get; }
+
+        public RewardedBoosterRequestedEvent(BoosterId boosterId)
+        {
+            BoosterId = boosterId;
+        }
+    }
+
+    /// <summary>
     /// Cheat: ép màn hiện tại kết thúc thắng/thua để test luồng Result.
     /// Chạy TRỌN luồng thật: cả kênh điều hướng (ViewModel → popup) lẫn kênh meta
     /// (LevelSignals.Finished → coin + progression) — thắng ép xong bấm Next là
@@ -35,9 +51,19 @@ namespace WordStack.Meta.AppFlow
     {
         public bool IsWin { get; }
 
-        public ForceOutcomeRequestedEvent(bool isWin)
+        /// <summary>
+        /// Chỉ khi thua — giả lập lý do thua để test luồng hồi sinh:
+        ///   None       — thua thẳng, vào FailedPopup (không hỏi hồi sinh).
+        ///   OutOfMoves — RevivePopup kiểu +nước; hồi sinh cộng nước thật, chơi tiếp được.
+        ///   Stuck      — RevivePopup kiểu nam châm; hồi sinh chạy nam châm thật lên bàn
+        ///                (dù bàn không kẹt) rồi chơi tiếp.
+        /// </summary>
+        public LoseReason LoseReason { get; }
+
+        public ForceOutcomeRequestedEvent(bool isWin, LoseReason loseReason = LoseReason.None)
         {
             IsWin = isWin;
+            LoseReason = loseReason;
         }
     }
 

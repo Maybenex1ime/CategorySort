@@ -81,9 +81,10 @@ namespace LogosGame.Features.Gameplay.Flow
         Awaitable NotifyAnimationSequenceCompletedAsync();
 
         /// <summary>
-        /// Xoá cờ đã-công-bố-kết-quả để lần thua sau còn bắn được outcome mới.
-        /// Phần khôi phục trạng thái bàn chơi (hồi sinh) chưa có — xem ghi chú trong impl.
+        /// Hồi sinh: xoá cờ đã-công-bố-kết-quả (để lần thua sau còn bắn được outcome
+        /// mới), đặt lại số nước còn lại và về Playing. Việc sửa bàn (nam châm) hay cộng
+        /// nước do bên gọi lo — xem AppFlowContext.ReviveInBackground.
         /// </summary>
-        Awaitable ResetOutcomeStateForReviveAsync();
+        Awaitable ResetOutcomeStateForReviveAsync(int remainingMoves);
     }
 }

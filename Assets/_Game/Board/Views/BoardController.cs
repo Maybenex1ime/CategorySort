@@ -60,6 +60,11 @@ namespace WordStack.Board
         // riêng Screen Space-Camera (order 20..89) hoặc SpriteRenderer world-space; Canvas
         // Screen Space-Overlay luôn vẽ đè lên mọi sprite.
         [SerializeField] GameObject boosterBackdrop;
+
+        // DEBUG: tự gắn bộ blocker mẫu (y như phím B) lên MỌI màn ngay lúc nạp. Level JSON
+        // chưa author blocker nên đây là cách duy nhất thấy chúng trong luồng chơi thật.
+        // Tắt đi khi có content thật — bộ mẫu không qua solver, có thể làm màn không giải được.
+        [SerializeField] bool autoDebugBlockers = true;
         BoosterAnimSettings animFallback;
         BoosterAnimSettings A
         {
@@ -140,6 +145,7 @@ namespace WordStack.Board
             LevelCommands.MagnetRequested += OnMagnetRequested;
             LevelCommands.ShuffleRequested += OnShuffleRequested;
             LevelCommands.UndoRequested += OnUndoRequested;
+            LevelCommands.ReviveRequested += OnReviveRequested;
         }
 
         void OnDestroy()
@@ -148,6 +154,7 @@ namespace WordStack.Board
             LevelCommands.MagnetRequested -= OnMagnetRequested;
             LevelCommands.ShuffleRequested -= OnShuffleRequested;
             LevelCommands.UndoRequested -= OnUndoRequested;
+            LevelCommands.ReviveRequested -= OnReviveRequested;
         }
 
         void OnLoadRequested(int index, string json)
@@ -165,7 +172,30 @@ namespace WordStack.Board
             // hoàn lượt ở đây: nút chỉ sáng khi LevelSignals.MagnetAvailable bật, mà cờ
             // đó tắt trong đúng mấy trường hợp này.
             if (!BoosterGateOpen("Magnet")) return;
+            RunMagnet();
+        }
 
+        // Hồi sinh (thua vì kẹt) = một phát nam châm miễn phí — LUÔN chạy, kể cả khi bàn
+        // không kẹt thật (cheat "Lose kẹt → Revive" ép thua trên bàn còn Playing). Không qua
+        // BoosterGateOpen: gate đó từ chối khi Status != Playing và khi popup meta đang mở —
+        // đúng hai điều thường đúng lúc hồi sinh. Hút xong Settle() chấm lại trạng thái: còn
+        // kẹt thì resultReported đã mở nên báo thua lần nữa (AppFlow lại hỏi hồi sinh), thoát
+        // kẹt thì chơi tiếp, hút sạch bàn thì thắng.
+        void OnReviveRequested()
+        {
+            LevelSignals.SetReviveAvailable(false);
+            if (g == null || locked)
+            {
+                Debug.Log("[Revive] bàn chưa nạp hoặc đang chạy cascade — bỏ qua.");
+                return;
+            }
+
+            resultReported = false;   // bàn kẹt thật đã báo thua; mở lại để còn báo kết quả mới
+            if (!RunMagnet()) Debug.Log("[Revive] không còn nhóm nào để hút — không hồi sinh được.");
+        }
+
+        bool RunMagnet()
+        {
             // Chốt nhóm TRƯỚC rồi giữ lại Tile của nó: ApplyMagnet xoá thẻ khỏi Slots, mà
             // thẻ đang chôn không có view — animation phải dựng thẻ tạm từ đúng mặt này.
             string gid = g.FindMagnetTarget();
@@ -177,7 +207,7 @@ namespace WordStack.Board
             if (!r.Ok)
             {
                 Debug.Log("[Magnet] không có nhóm nào đủ 4 thẻ trên bàn để hút — bỏ qua.");
-                return;
+                return false;
             }
             Debug.Log("[Magnet] hút nhóm '" + r.GroupId + "' · " + r.Picks.Length + " thẻ"
                       + (r.NewTileUid != null ? " · sinh thẻ cha ở stack " + r.NewTileStack : ""));
@@ -187,6 +217,7 @@ namespace WordStack.Board
             // vừa mua bằng coin.
             g.ClearUndo();
             StartCoroutine(MagnetSequence(r, faces));
+            return true;
         }
 
         // Cùng bộ chốt với nam châm. Không hoàn lượt ở đây — nút chỉ sáng khi
@@ -709,9 +740,11 @@ namespace WordStack.Board
                 return;
             }
             BuildBoard();
+            if (autoDebugBlockers) ApplyDebugBlockers();
             resultReported = false;
             firstInteractionRaised = false;
-            LevelSignals.RaiseStarted(levelIndex, g.TotalGroups);   // tầng meta trừ tim ở đây
+            LevelSignals.SetReviveAvailable(false);
+            LevelSignals.RaiseStarted(levelIndex, g.TotalGroups);
             StartCoroutine(Settle());          // hộp nạp sẵn nhóm đủ phải nổ ngay lúc load
         }
 
@@ -777,8 +810,9 @@ namespace WordStack.Board
             if (k.bKey.wasPressedThisFrame) ApplyDebugBlockers();   // DEBUG: xem ApplyDebugBlockers
         }
 
-        // DEBUG (phím B): gắn một bộ blocker mẫu lên bàn ĐANG chơi để xem phần nhìn và
-        // phần chặn input. Không phải content: bấm R nạp lại là sạch. Chọn mục tiêu theo
+        // DEBUG (phím B, hoặc tự động lúc nạp khi bật autoDebugBlockers): gắn một bộ blocker
+        // mẫu lên bàn ĐANG chơi để xem phần nhìn và phần chặn input. Không phải content:
+        // tắt autoDebugBlockers rồi bấm R nạp lại là sạch. Chọn mục tiêu theo
         // thứ tự cố định để lần nào cũng ra như nhau.
         //   stack có thẻ đầu tiên  → thẻ đầu đóng băng 3 nước
         //   stack tiếp theo        → hộp khoá, cần thêm 1 nhóm nữa
@@ -824,7 +858,7 @@ namespace WordStack.Board
             }
 
             Debug.Log("[Blocker] gắn mẫu: băng ở stack " + icedStack + " · hộp khoá ở stack " + lockedStack +
-                      " · hộp có ổ ở stack " + keyedStack + " (bấm R để nạp lại bàn sạch)");
+                      " · hộp có ổ ở stack " + keyedStack);
             RefreshZones();
             RefreshBlockerVisuals();
         }
@@ -1363,6 +1397,8 @@ namespace WordStack.Board
             if (!resultReported && g.Status != GameStatus.Playing)
             {
                 resultReported = true;
+                // Chốt TRƯỚC Finished: AppFlow đọc cờ này khi nhận kết quả thua.
+                LevelSignals.SetReviveAvailable(g.Status == GameStatus.Stuck && g.FindMagnetTarget() != null);
                 LevelSignals.RaiseFinished(g.Status == GameStatus.Won, levelIndex, g.Moves);
             }
         }
@@ -1424,7 +1460,7 @@ namespace WordStack.Board
             float minY = Mathf.Min(0f, (float)g.Stacks.Min(s => s.Y));
             float maxY = Mathf.Max(GridRows - 1f, (float)g.Stacks.Max(s => s.Y));
             float cx = (minX + maxX) / 2f * PitchX;
-            float cy = -(minY + maxY) / 2f * PitchY;
+            float cy = -(minY + maxY) / 2f * PitchY + 0.5f;   // camera lên 0.5 → bàn hiện thấp xuống 0.5 (root phải ở gốc vì hit-test so world với local)
             float halfW = (maxX - minX) / 2f * PitchX + BoxSize / 2f + 0.4f;
             float halfH = (maxY - minY) / 2f * PitchY + BoxSize / 2f + 1.5f;   // chừa HUD trên + gợi ý dưới
             cam.transform.position = new Vector3(cx, cy, -10f);

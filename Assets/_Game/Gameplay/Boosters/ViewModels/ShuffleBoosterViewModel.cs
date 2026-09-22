@@ -26,15 +26,7 @@ namespace LogosGame.Features.Gameplay.Boosters.ViewModels
         /// Lớp trên còn ô trống không. Hết ô trống thì không dựng nổi Nhóm mồi, mà lượt
         /// này người chơi mua bằng coin — để bấm hụt rồi mất lượt là mất tiền thật.
         /// </summary>
-        public ReadOnlyReactiveProperty<bool> IsUsable => _isUsable;
-
-        public void OnButtonClicked()
-        {
-            if (!HasStock) return;        // hết lượt → View lo mở luồng mua
-            if (!_isUsable.Value) return; // bàn không xáo được → không được trừ lượt
-
-            RequestUse();
-        }
+        public override ReadOnlyReactiveProperty<bool> IsUsable => _isUsable;
 
         public override void Dispose()
         {

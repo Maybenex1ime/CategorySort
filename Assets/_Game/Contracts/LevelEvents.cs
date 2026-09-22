@@ -114,6 +114,15 @@ namespace WordStack.Contracts
             MagnetAvailabilityChanged?.Invoke(available);
         }
 
+        /// <summary>
+        /// Màn vừa thua (kẹt) có hồi sinh được không = còn nhóm nào để nam châm hút.
+        /// Board chốt cờ này NGAY TRƯỚC khi bắn Finished(thua), nên AppFlow đọc lúc nhận
+        /// kết quả là đúng giá trị. Tắt lúc nạp màn và lúc bắt đầu hồi sinh.
+        /// </summary>
+        public static bool ReviveAvailable { get; private set; }
+
+        public static void SetReviveAvailable(bool available) => ReviveAvailable = available;
+
         /// <summary>Bàn có xáo được không — board đẩy sau mỗi lần settle và lúc nạp màn.</summary>
         public static event Action<bool> ShuffleAvailabilityChanged;
 
@@ -178,6 +187,7 @@ namespace WordStack.Contracts
             ShuffleAvailable = false;
             UndoAvailabilityChanged = null;
             UndoAvailable = false;
+            ReviveAvailable = false;
         }
     }
 }

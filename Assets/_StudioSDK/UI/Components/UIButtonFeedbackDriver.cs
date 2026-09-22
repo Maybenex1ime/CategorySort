@@ -3,6 +3,7 @@ using LogosSDK.UI.Animation;
 using Reflex.Attributes;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace LogosSDK.UI.Components
 {
@@ -15,11 +16,13 @@ namespace LogosSDK.UI.Components
 
         private UIButtonFeedbackSO _resolvedProfile;
         private RectTransform _resolvedTarget;
+        private Selectable _selectable;
         private Tween _activeTween;
 
         private void Awake()
         {
             _resolvedTarget = _target != null ? _target : GetComponent<RectTransform>();
+            TryGetComponent(out _selectable);
         }
 
         private void Start()
@@ -35,6 +38,9 @@ namespace LogosSDK.UI.Components
         public void OnPointerDown(PointerEventData eventData)
         {
             if (_resolvedTarget == null || _resolvedProfile == null) return;
+            // Nút đang tắt (Button.interactable = false hoặc CanvasGroup cha chặn) thì không
+            // nhún — IsInteractable() tính cả CanvasGroup. PointerUp vẫn chạy để trả scale về 1.
+            if (_selectable != null && !_selectable.IsInteractable()) return;
             _activeTween?.Kill();
             _activeTween = _resolvedTarget
                 .DOScale(_resolvedProfile.PressScale, _resolvedProfile.PressDuration)

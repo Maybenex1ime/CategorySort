@@ -45,6 +45,11 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 9467bfb7eb148134b89bf8eb886f161a
+    m_Address: RevivePopup
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 973c54ce3dfb14dd2826fcddf26519af
     m_Address: SettingsPopup
     m_ReadOnly: 0

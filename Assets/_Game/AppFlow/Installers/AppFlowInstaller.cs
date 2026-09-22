@@ -18,6 +18,10 @@ namespace WordStack.Meta.AppFlow.Installers
     public sealed class AppFlowInstaller : MonoBehaviour, IInstaller
     {
         [SerializeField, Min(0f)] private float _minLoadingSeconds = 2f;
+        [Tooltip("Giá hồi sinh bằng coin (RevivePopup).")]
+        [SerializeField, Min(0)] private int _revivePrice = 900;
+        [Tooltip("Số nước cộng thêm khi hồi sinh vì hết nước.")]
+        [SerializeField, Min(0)] private int _reviveExtraMoves = 5;
 
         public void InstallBindings(ContainerBuilder builder)
         {
@@ -70,22 +74,16 @@ namespace WordStack.Meta.AppFlow.Installers
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
 
-            // Nghe PurchaseRequestedEvent (nút booster bắn khi count = 0) → mở popup
-            // mua. Eager như GameplayFlowAdapter: không ai inject nó, toàn bộ việc
+            // Nghe PurchaseRequestedEvent (nút booster bắn khi count = 0) → mua thẳng
+            // bằng coin, thiếu coin thì mở NotEnoughGoldPopup. Eager như GameplayFlowAdapter: không ai inject nó, toàn bộ việc
             // nằm ở constructor (đăng ký bus) — Lazy là luồng mua im lặng biến mất.
             builder.RegisterFactory<LogosGame.Features.Currency.UI.Impl.BoosterPurchaseFlow>(
                 c => new LogosGame.Features.Currency.UI.Impl.BoosterPurchaseFlow(
                     c.TryGetResolver<UIManager>(out _) ? c.Resolve<UIManager>() : null,
                     // Vắng khi CurrencyInstaller chưa được gán SO_TransactionCatalog
-                    // — flow rơi về stub log, popup vẫn mở với giá "—".
+                    // — flow rơi về stub log.
                     c.TryGetResolver<LogosMeta.Economy.IPurchaseService>(out _)
                         ? c.Resolve<LogosMeta.Economy.IPurchaseService>()
-                        : null,
-                    c.TryGetResolver<LogosMeta.Economy.ICurrencyService>(out _)
-                        ? c.Resolve<LogosMeta.Economy.ICurrencyService>()
-                        : null,
-                    c.TryGetResolver<LogosGame.Features.Gameplay.Content.IUnlockSchedule>(out _)
-                        ? c.Resolve<LogosGame.Features.Gameplay.Content.IUnlockSchedule>()
                         : null),
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Eager);
@@ -145,7 +143,11 @@ namespace WordStack.Meta.AppFlow.Installers
                         catalog,
                         audio,
                         haptic,
-                        c.Resolve<LogosMeta.Economy.IHeartService>());
+                        c.Resolve<LogosMeta.Economy.IHeartService>(),
+                        c.Resolve<LogosMeta.Economy.ICurrencyService>(),
+                        _revivePrice,
+                        c.Resolve<GameplayFlowAdapter>(),
+                        _reviveExtraMoves);
                 },
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);

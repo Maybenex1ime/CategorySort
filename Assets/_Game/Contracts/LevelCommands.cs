@@ -58,6 +58,14 @@ namespace WordStack.Contracts
 
         public static void RequestUndo() => UndoRequested?.Invoke();
 
+        /// <summary>
+        /// Hồi sinh sau khi thua (bàn kẹt): bàn dùng nam châm miễn phí để mở chỗ trống
+        /// rồi chơi tiếp. AppFlow gọi sau khi người chơi đã trả (coin / ad).
+        /// </summary>
+        public static event Action ReviveRequested;
+
+        public static void RequestRevive() => ReviveRequested?.Invoke();
+
         // Event static sống sót qua lần Play kế tiếp khi Domain Reload tắt —
         // cùng lý do với LevelSignals.ResetStaticState.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -67,6 +75,7 @@ namespace WordStack.Contracts
             MagnetRequested = null;
             ShuffleRequested = null;
             UndoRequested = null;
+            ReviveRequested = null;
             InputBlocked = false;
         }
     }

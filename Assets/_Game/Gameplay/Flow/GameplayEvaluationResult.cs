@@ -8,6 +8,7 @@ namespace LogosGame.Features.Gameplay.Flow
         public bool HasPendingAnimation { get; set; }
         public bool IsWin { get; set; }
         public bool IsLose { get; set; }
+        public LoseReason LoseReason { get; set; }
         public string Title { get; set; }
         public string Subtitle { get; set; }
         public int Stars { get; set; }
