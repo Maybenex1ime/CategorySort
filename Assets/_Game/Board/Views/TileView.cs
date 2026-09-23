@@ -30,14 +30,7 @@ namespace WordStack.Board
         [SerializeField] GameObject iceRoot;     // lớp phủ băng, bật/tắt cả cụm
         [SerializeField] TextMesh iceCountText;  // số nước còn lại
 
-        // Chìa: MỘT sprite trắng cho mọi id, màu lấy từ SO_KeyColors rồi tô qua
-        // SpriteRenderer.color. Màu nhân vào vertex nên không thêm texture hay material, các thẻ
-        // vẫn chung batch. Thay art thì sprite mới cũng phải trắng hoặc xám sáng.
-        [Header("Chìa (blocker) — sprite trắng, màu tô theo id")]
-        [SerializeField] SpriteRenderer keyIcon;
-        [SerializeField] KeyColorPalette keyColors;   // SO_KeyColors — dùng chung với Box.prefab
-
-        // Chỉ để soi trong Inspector lúc Play: blocker đang gắn trên thẻ, ví dụ "ice 3 · key k1".
+        // Chỉ để soi trong Inspector lúc Play: blocker đang gắn trên thẻ, ví dụ "ice 3".
         // Trống là thẻ thường. Code không đọc lại field này nên sửa tay trong Inspector vô tác dụng.
         [Header("Debug — blocker trên thẻ (chỉ đọc)")]
         [SerializeField] string blockers;
@@ -86,40 +79,27 @@ namespace WordStack.Board
             }
         }
 
-        // Thẻ mang chìa (keyId khác null): hiện icon, tô màu theo SO_KeyColors.
-        public void SetKey(string keyId)
+        // Bên gọi tính sẵn số băng còn lại — view không đọc Lock, giống SetIce.
+        public void SetBlockerDebug(int iceLeft)
         {
-            if (keyIcon == null) return;
-            keyIcon.gameObject.SetActive(keyId != null);
-            if (keyId != null) keyIcon.color = keyColors != null ? keyColors.Get(keyId) : Color.white;
-        }
-
-        // Bên gọi tính sẵn số băng còn lại và id chìa — view không đọc Lock, giống SetIce.
-        public void SetBlockerDebug(int iceLeft, string keyId)
-        {
-            string ice = iceLeft > 0 ? "ice " + iceLeft : null;
-            string key = keyId != null ? "key " + keyId : null;
-            blockers = ice != null && key != null ? ice + " · " + key : ice ?? key ?? "";
+            blockers = iceLeft > 0 ? "ice " + iceLeft : "";
         }
 
         // Thẻ đang bay nổi lên trên mọi hộp/thẻ, hạ cánh thì trả về order author trong prefab.
         // Đây là chỗ DUY NHẤT code còn đụng sortingOrder — mọi giá trị tĩnh sống ở prefab.
         const int FlyOrder = 90;
-        int bgOrder, artOrder, keyOrder;
+        int bgOrder, artOrder;
 
         void Awake()
         {
             bgOrder = bg.sortingOrder;
             artOrder = art.sortingOrder;
-            if (keyIcon != null) keyOrder = keyIcon.sortingOrder;
         }
 
         public void SetFlying(bool flying)
         {
             bg.sortingOrder = flying ? FlyOrder : bgOrder;
             art.sortingOrder = flying ? FlyOrder + 1 : artOrder;
-            // Chìa bay theo thẻ: giữ order prefab thì nền thẻ đang bay (90) che mất nó.
-            if (keyIcon != null) keyIcon.sortingOrder = flying ? FlyOrder + 2 : keyOrder;
         }
     }
 }

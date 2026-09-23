@@ -29,6 +29,10 @@ mkdir -p "$OUT"
 INPUTSYS="$PWD/Library/ScriptAssemblies/Unity.InputSystem.dll"
 [ -f "$INPUTSYS" ] || INPUTSYS="$(git rev-parse --git-common-dir)/../Library/ScriptAssemblies/Unity.InputSystem.dll"
 [ -f "$INPUTSYS" ] || { echo "Không thấy Unity.InputSystem.dll — mở project bằng Unity một lần cho nó import package."; exit 1; }
+# TMP đi cùng com.unity.ugui, cũng chỉ có sau import. BoxView dùng TextMeshPro 3D cho số nhóm còn cần.
+TMPDLL="$(dirname "$INPUTSYS")/Unity.TextMeshPro.dll"
+[ -f "$TMPDLL" ] || { echo "Không thấy Unity.TextMeshPro.dll cạnh Unity.InputSystem.dll."; exit 1; }
+UGUIDLL="$(dirname "$INPUTSYS")/UnityEngine.UI.dll"   # TMP_Text kế thừa MaskableGraphic của uGUI
 
 w() { cygpath -w "$1"; }
 
@@ -41,6 +45,8 @@ w() { cygpath -w "$1"; }
   echo "-r:\"$(w "$API/Facades/netstandard.dll")\""      # cầu nối giữa hai thế giới ref
   for f in "$MAN"/UnityEngine*.dll; do echo "-r:\"$(w "$f")\""; done
   echo "-r:\"$(w "$INPUTSYS")\""
+  echo "-r:\"$(w "$TMPDLL")\""
+  echo "-r:\"$(w "$UGUIDLL")\""
   echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
   # mọi .cs dưới Assets/_Game/Board trừ Editor/ và Tests/ — đúng cách Unity gom asmdef
   # WordStack.Board. Kèm Contracts vì BoardController báo kết quả màn qua LevelSignals.
@@ -66,6 +72,8 @@ w() { cygpath -w "$1"; }
   echo "-r:\"$(w "$API/Facades/netstandard.dll")\""
   for f in "$MAN"/UnityEngine*.dll "$MAN"/UnityEditor*.dll; do echo "-r:\"$(w "$f")\""; done
   echo "-r:\"$(w "$INPUTSYS")\""
+  echo "-r:\"$(w "$TMPDLL")\""
+  echo "-r:\"$(w "$UGUIDLL")\""
   echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
   find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" -name '*.cs' \
        -not -path '*/Tests/*' | while read -r f; do

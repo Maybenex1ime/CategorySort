@@ -13,7 +13,7 @@
           { "slots": ["sparrow","bengal",null,"parrot"] }
       ]},
       { "pos": [2,0], "boxes": [
-          { "slots": ["kite","husky",null,"music"], "blockers": {"keylock":"k1"} }
+          { "slots": ["kite","husky",null,"music"], "blockers": {"grouplock":"g_cat"} }
       ]},
       { "pos": [0,1], "boxes": [
           { "slots": ["sport","poodle",null,null], "blockers": {"locked":1} }
@@ -46,7 +46,7 @@
           { "id":"tabby", "art":"tabby" },
           { "id":"persian", "art":"persian" },
           { "id":"siamese", "art":"siamese" },
-          { "id":"bengal", "art":"bengal", "blockers":{"ice":2,"key":"k1"} }
+          { "id":"bengal", "art":"bengal", "blockers":{"ice":2} }
       ]},
       { "id":"g_bird", "text":"bird", "art":"bird", "group":"g_pet", "cards": [
           { "id":"sparrow", "art":"sparrow" },

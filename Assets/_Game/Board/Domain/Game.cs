@@ -12,7 +12,6 @@ namespace WordStack.Board
     {
         public string Uid, CardId, GroupId, Text, Art;
         public Lock Lock;       // Kind = Moves khi còn băng; default = thẻ thường
-        public string KeyId;    // thẻ mang chìa; null = không mang
         public Tile Clone() { return (Tile)MemberwiseClone(); }   // struct + string: copy đủ
     }
 
@@ -20,7 +19,7 @@ namespace WordStack.Board
     {
         public bool IsBottom;
         public bool HadCollapse;   // đã từng xảy ra collapse — chế độ chặt dùng để xoá hộp rỗng
-        public Lock Lock;          // Clears hoặc Key; default = hộp thường
+        public Lock Lock;          // Clears hoặc Group; default = hộp thường
         public Tile[] Slots = new Tile[Rules.BoxCapacity];
         public Box Clone()
         {
@@ -87,8 +86,8 @@ namespace WordStack.Board
                     object bv;
                     if (bd.Blockers.TryGetValue(Blockers.Locked, out bv))
                         box.Lock = new Lock { Kind = LockKind.Clears, Need = (int)(double)bv };
-                    if (bd.Blockers.TryGetValue(Blockers.KeyLock, out bv))
-                        box.Lock = new Lock { Kind = LockKind.Key, KeyId = (string)bv };
+                    if (bd.Blockers.TryGetValue(Blockers.GroupLock, out bv))
+                        box.Lock = new Lock { Kind = LockKind.Group, GroupId = (string)bv };
 
                     for (int i = 0; i < bd.Slots.Length; i++)
                     {
@@ -103,8 +102,6 @@ namespace WordStack.Board
                         object cv;
                         if (c.Blockers.TryGetValue(Blockers.Ice, out cv))
                             tile.Lock = new Lock { Kind = LockKind.Moves, Need = (int)(double)cv };
-                        if (c.Blockers.TryGetValue(Blockers.Key, out cv))
-                            tile.KeyId = (string)cv;
                         box.Slots[i] = tile;
                     }
                     st.Boxes.Add(box);

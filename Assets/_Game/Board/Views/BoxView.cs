@@ -3,7 +3,9 @@
 //
 // Kích thước hộp + vị trí 4 slot author trong prefab (Mục 2 của view-prefabs.md). Đổi số ở đó
 // thì phải đổi hằng layout trong BoardController theo, vì hit-test tính từ hằng code.
+using TMPro;
 using UnityEngine;
+using UnityEngine.Serialization;
 
 namespace WordStack.Board
 {
@@ -15,14 +17,13 @@ namespace WordStack.Board
         // Hộp mở thì cả hai root tắt. Field nào chưa nối thì bỏ qua, bàn vẫn chạy như thường.
         [Header("Hộp khoá theo số nhóm (locked)")]
         [SerializeField] GameObject lockedRoot;
-        [SerializeField] TextMesh lockedCountText;   // số nhóm CÒN phải gom
+        [SerializeField] TextMeshPro lockedCountText;   // số nhóm CÒN phải gom (TMP 3D, world-space)
 
-        [Header("Hộp có ổ (keylock)")]
-        [SerializeField] GameObject keyLockRoot;
-        // Lớp DUY NHẤT đổi màu theo chìa: sprite trắng/xám, màu nhân từ SO_KeyColors theo id — cùng
-        // asset với chìa trên Tile.prefab. Xích, khiên, lỗ khoá là lớp riêng giữ màu gốc.
-        [SerializeField] SpriteRenderer keyLockTint;
-        [SerializeField] KeyColorPalette keyColors;
+        [Header("Hộp khoá theo nhóm (grouplock)")]
+        [FormerlySerializedAs("keyLockRoot")] [SerializeField] GameObject groupLockRoot;
+        // Renderer hiện art của nhóm phải gom sạch để mở — sprite do bên gọi load (GroupDef.Art).
+        // Xích, khiên là lớp riêng giữ màu gốc.
+        [FormerlySerializedAs("keyLockTint")] [SerializeField] SpriteRenderer groupArt;
 
         SpriteRenderer[] renderers;
         float[] baseAlpha;
@@ -38,25 +39,32 @@ namespace WordStack.Board
 
         public Transform Slot(int i) { return slotAnchors[i]; }
 
-        // Hộp đóng: không nhặt ra, không thả vào, không tự nổ (luật ở Domain).
-        // keyId khác null = hộp có ổ; null = hộp khoá theo số nhóm, label là số nhóm còn cần.
+        // Hộp đóng: không nhặt ra, không thả vào, không tự nổ (luật ở Domain). Ba trạng thái
+        // nhìn: mở, khoá theo số nhóm (label = số nhóm còn cần), khoá theo nhóm (sprite nhóm).
         // ResetVisual() cố ý KHÔNG đụng hai root: hộp vừa lộ ra có thể vẫn đang khoá,
         // RefreshBlockerVisuals mới là chỗ quyết định.
-        public void SetLock(bool closed, string label, string keyId)
+        public void SetOpen() { ShowRoots(false, false); }
+
+        public void SetCountLock(string label)
         {
-            bool keyed = closed && keyId != null;
-            bool counted = closed && keyId == null;
+            ShowRoots(true, false);
+            // Chỉ đổi chữ — font, size, outline giữ nguyên như author trong prefab.
+            if (lockedCountText != null) lockedCountText.text = label ?? "";
+        }
+
+        public void SetGroupLock(Sprite sprite)
+        {
+            ShowRoots(false, true);
+            if (groupArt == null) return;
+            groupArt.sprite = sprite;
+            var c = groupArt.color;
+            groupArt.color = new Color(1f, 1f, 1f, c.a);   // art nhóm tự mang màu; alpha thuộc SetAlpha
+        }
+
+        void ShowRoots(bool counted, bool grouped)
+        {
             if (lockedRoot != null) lockedRoot.SetActive(counted);
-            if (keyLockRoot != null) keyLockRoot.SetActive(keyed);
-            // Chỉ đổi chữ — font, fontSize, characterSize giữ nguyên như author trong prefab
-            // (ViewText.Apply ép fontSize 64 và đổi font, đè mất cỡ chữ của art hộp khoá).
-            if (counted && lockedCountText != null) lockedCountText.text = label ?? "";
-            if (keyed && keyLockTint != null && keyColors != null)
-            {
-                var c = keyColors.Get(keyId);
-                c.a = keyLockTint.color.a;   // alpha thuộc SetAlpha (hộp mờ dần), ở đây chỉ đổi màu
-                keyLockTint.color = c;
-            }
+            if (groupLockRoot != null) groupLockRoot.SetActive(grouped);
         }
 
         public void SetAlpha(float a)
