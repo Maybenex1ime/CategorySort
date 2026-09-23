@@ -35,6 +35,7 @@ namespace WordStack.Board
 
         SpriteRenderer[] renderers;
         float[] baseAlpha;
+        Vector3 lockedScale = Vector3.one, groupScale = Vector3.one;   // scale author trong prefab của hai root
 
         void Awake()
         {
@@ -43,7 +44,11 @@ namespace WordStack.Board
             renderers = GetComponentsInChildren<SpriteRenderer>(true);
             baseAlpha = new float[renderers.Length];
             for (int i = 0; i < renderers.Length; i++) baseAlpha[i] = renderers[i].color.a;
+            if (lockedRoot != null) lockedScale = lockedRoot.transform.localScale;
+            if (groupLockRoot != null) groupScale = groupLockRoot.transform.localScale;
         }
+
+        Vector3 BaseScale(GameObject root) { return root == lockedRoot ? lockedScale : groupScale; }
 
         public Transform Slot(int i) { return slotAnchors[i]; }
 
@@ -73,7 +78,7 @@ namespace WordStack.Board
             // Chỉ đổi chữ — font, size, outline giữ nguyên như author trong prefab.
             if (lockedCountText != null) lockedCountText.text = label ?? "";
             if (progressed && lockedRoot != null && lockPunch > 0f)
-                lockedRoot.transform.DOPunchScale(Vector3.one * lockPunch, lockPunchDur, 8, 0.6f).SetLink(lockedRoot);
+                lockedRoot.transform.DOPunchScale(lockedScale * lockPunch, lockPunchDur, 8, 0.6f).SetLink(lockedRoot);
         }
 
         public void SetGroupLock(Sprite sprite)
@@ -86,14 +91,14 @@ namespace WordStack.Board
             groupArt.color = new Color(1f, 1f, 1f, c.a);   // art nhóm tự mang màu; alpha thuộc SetAlpha
         }
 
-        // Bật đúng một root (hoặc không cái nào), giết tween dở và trả scale về 1.
+        // Bật đúng một root (hoặc không cái nào), giết tween dở và trả scale về giá trị author.
         void ShowRoots(GameObject keep)
         {
             foreach (var r in new[] { lockedRoot, groupLockRoot })
             {
                 if (r == null) continue;
                 r.transform.DOKill(true);
-                r.transform.localScale = Vector3.one;
+                r.transform.localScale = BaseScale(r);
                 r.SetActive(r == keep);
             }
         }
@@ -101,11 +106,12 @@ namespace WordStack.Board
         void Unlock(GameObject root)
         {
             var tr = root.transform;
+            var s0 = BaseScale(root);
             tr.DOKill(true);
             var seq = DOTween.Sequence().SetLink(root);
-            seq.Append(tr.DOScale(1.2f, unlockDur * 0.35f).SetEase(Ease.OutQuad));
+            seq.Append(tr.DOScale(s0 * 1.2f, unlockDur * 0.35f).SetEase(Ease.OutQuad));
             seq.Append(tr.DOScale(0f, unlockDur * 0.65f).SetEase(Ease.InBack));
-            seq.OnComplete(() => { root.SetActive(false); tr.localScale = Vector3.one; });
+            seq.OnComplete(() => { root.SetActive(false); tr.localScale = s0; });
         }
 
         public void SetAlpha(float a)

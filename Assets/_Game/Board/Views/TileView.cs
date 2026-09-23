@@ -87,6 +87,7 @@ namespace WordStack.Board
         bool iceKnown, iceShown;
         int iceLast, iceStage;
         SpriteRenderer[] iceSprites;
+        Vector3 iceScale = Vector3.one;   // scale author trong prefab của iceRoot
 
         public void SetIce(bool frozen, int movesLeft, int total)
         {
@@ -101,13 +102,13 @@ namespace WordStack.Board
             if (melt) { PlayMeltVfx(); Melt(); return; }
 
             iceRoot.transform.DOKill(true);
-            iceRoot.transform.localScale = Vector3.one;
+            iceRoot.transform.localScale = iceScale;
             SetIceAlpha(1f);
             iceRoot.SetActive(frozen);
             if (frozen && iceSprite != null && stage >= 0) iceSprite.sprite = iceStages[stage];
             if (changedStage) PlayMeltVfx();
             if (stepped && iceCrackPunch > 0f)
-                iceRoot.transform.DOPunchScale(Vector3.one * iceCrackPunch, iceCrackDur, 8, 0.6f).SetLink(iceRoot);
+                iceRoot.transform.DOPunchScale(iceScale * iceCrackPunch, iceCrackDur, 8, 0.6f).SetLink(iceRoot);
         }
 
         // -1 khi chưa author nấc nào. total ≤ 0 (thẻ không băng) → nấc đầu.
@@ -130,10 +131,10 @@ namespace WordStack.Board
             var tr = iceRoot.transform;
             tr.DOKill(true);
             var seq = DOTween.Sequence().SetLink(iceRoot);
-            seq.Append(tr.DOScale(1.15f, iceMeltDur * 0.3f).SetEase(Ease.OutQuad));
+            seq.Append(tr.DOScale(iceScale * 1.15f, iceMeltDur * 0.3f).SetEase(Ease.OutQuad));
             seq.Append(tr.DOScale(0f, iceMeltDur * 0.7f).SetEase(Ease.InBack));
             seq.Join(DOTween.To(() => 1f, SetIceAlpha, 0f, iceMeltDur * 0.7f));
-            seq.OnComplete(() => { iceRoot.SetActive(false); tr.localScale = Vector3.one; SetIceAlpha(1f); });
+            seq.OnComplete(() => { iceRoot.SetActive(false); tr.localScale = iceScale; SetIceAlpha(1f); });
         }
 
         void SetIceAlpha(float a)
@@ -158,6 +159,7 @@ namespace WordStack.Board
         {
             bgOrder = bg.sortingOrder;
             artOrder = art.sortingOrder;
+            if (iceRoot != null) iceScale = iceRoot.transform.localScale;
         }
 
         public void SetFlying(bool flying)
