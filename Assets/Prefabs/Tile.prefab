@@ -637,7 +637,13 @@ MonoBehaviour:
   bgFull: {fileID: 7756081628289855780, guid: b5502707574cb87428152673ab8019fa, type: 3}
   bgCollapsed: {fileID: 3304237426938700202, guid: da25f36bfb545ee44ab945f5fc880ce5, type: 3}
   iceRoot: {fileID: 6092948725693724880}
-  iceCountText: {fileID: 0}
+  iceSprite: {fileID: 7356844614517411851}
+  iceStages:
+  - {fileID: 590379509479548822, guid: 2d5b516ddc10e2a44834fa7672c08adf, type: 3}
+  - {fileID: 7265053458787076902, guid: 4fe23f1b3e0ac534ba139e52c53879f8, type: 3}
+  - {fileID: -4618478848712333200, guid: d04403dab41b7f74ca4dd9a4d481b682, type: 3}
+  iceCountText: {fileID: 306317250552321152}
+  iceMeltVfx: {fileID: 0}
   keyIcon: {fileID: 4217053480929441925}
   keyColors: {fileID: 11400000, guid: a41f7c2e9b5d4038ae6c1f82d7b9e054, type: 2}
   blockers: 

@@ -1380,7 +1380,7 @@ namespace WordStack.Board
                     if (!tiles.TryGetValue(t.Uid, out tv) || tv == null) continue;
                     bool frozen = Game.IsFrozen(t);
                     int iceLeft = frozen ? t.Lock.Need - t.Lock.Have : 0;
-                    tv.SetIce(frozen, iceLeft);
+                    tv.SetIce(frozen, iceLeft, frozen ? t.Lock.Need : 0);
                     tv.SetBlockerDebug(iceLeft);
                 }
             }

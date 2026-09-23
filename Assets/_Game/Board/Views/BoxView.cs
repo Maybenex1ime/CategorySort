@@ -3,6 +3,7 @@
 //
 // Kích thước hộp + vị trí 4 slot author trong prefab (Mục 2 của view-prefabs.md). Đổi số ở đó
 // thì phải đổi hằng layout trong BoardController theo, vì hit-test tính từ hằng code.
+using DG.Tweening;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -25,6 +26,13 @@ namespace WordStack.Board
         // Xích, khiên là lớp riêng giữ màu gốc.
         [FormerlySerializedAs("keyLockTint")] [SerializeField] SpriteRenderer groupArt;
 
+        [Header("Animation khoá")]
+        [Tooltip("Hộp khoá theo số: root nảy bao nhiêu mỗi lần số còn cần giảm (0 = tắt)")]
+        [SerializeField] float lockPunch = 0.12f;
+        [SerializeField] float lockPunchDur = 0.25f;
+        [Tooltip("Mở khoá: root bung lên rồi co về 0 (giây)")]
+        [SerializeField] float unlockDur = 0.3f;
+
         SpriteRenderer[] renderers;
         float[] baseAlpha;
 
@@ -41,30 +49,63 @@ namespace WordStack.Board
 
         // Hộp đóng: không nhặt ra, không thả vào, không tự nổ (luật ở Domain). Ba trạng thái
         // nhìn: mở, khoá theo số nhóm (label = số nhóm còn cần), khoá theo nhóm (sprite nhóm).
+        // Animation suy từ chuyển trạng thái giữa hai lần gọi: số giảm = nảy, đóng → mở = bung.
+        // Lần gọi đầu sau Awake/ResetVisual (hộp vừa dựng / vừa lộ / Undo) thì snap.
         // ResetVisual() cố ý KHÔNG đụng hai root: hộp vừa lộ ra có thể vẫn đang khoá,
         // RefreshBlockerVisuals mới là chỗ quyết định.
-        public void SetOpen() { ShowRoots(false, false); }
+        bool lockKnown;
+        GameObject shownRoot;   // root đang hiện, null = mở
+        string lastLabel;
+
+        public void SetOpen()
+        {
+            var was = lockKnown ? shownRoot : null;
+            lockKnown = true; shownRoot = null;
+            if (was != null) Unlock(was);
+            else ShowRoots(null);
+        }
 
         public void SetCountLock(string label)
         {
-            ShowRoots(true, false);
+            bool progressed = lockKnown && shownRoot == lockedRoot && label != lastLabel;
+            lockKnown = true; shownRoot = lockedRoot; lastLabel = label;
+            ShowRoots(lockedRoot);
             // Chỉ đổi chữ — font, size, outline giữ nguyên như author trong prefab.
             if (lockedCountText != null) lockedCountText.text = label ?? "";
+            if (progressed && lockedRoot != null && lockPunch > 0f)
+                lockedRoot.transform.DOPunchScale(Vector3.one * lockPunch, lockPunchDur, 8, 0.6f).SetLink(lockedRoot);
         }
 
         public void SetGroupLock(Sprite sprite)
         {
-            ShowRoots(false, true);
+            lockKnown = true; shownRoot = groupLockRoot;
+            ShowRoots(groupLockRoot);
             if (groupArt == null) return;
             groupArt.sprite = sprite;
             var c = groupArt.color;
             groupArt.color = new Color(1f, 1f, 1f, c.a);   // art nhóm tự mang màu; alpha thuộc SetAlpha
         }
 
-        void ShowRoots(bool counted, bool grouped)
+        // Bật đúng một root (hoặc không cái nào), giết tween dở và trả scale về 1.
+        void ShowRoots(GameObject keep)
         {
-            if (lockedRoot != null) lockedRoot.SetActive(counted);
-            if (groupLockRoot != null) groupLockRoot.SetActive(grouped);
+            foreach (var r in new[] { lockedRoot, groupLockRoot })
+            {
+                if (r == null) continue;
+                r.transform.DOKill(true);
+                r.transform.localScale = Vector3.one;
+                r.SetActive(r == keep);
+            }
+        }
+
+        void Unlock(GameObject root)
+        {
+            var tr = root.transform;
+            tr.DOKill(true);
+            var seq = DOTween.Sequence().SetLink(root);
+            seq.Append(tr.DOScale(1.2f, unlockDur * 0.35f).SetEase(Ease.OutQuad));
+            seq.Append(tr.DOScale(0f, unlockDur * 0.65f).SetEase(Ease.InBack));
+            seq.OnComplete(() => { root.SetActive(false); tr.localScale = Vector3.one; });
         }
 
         public void SetAlpha(float a)
@@ -81,6 +122,7 @@ namespace WordStack.Board
         {
             transform.localScale = Vector3.one;
             SetAlpha(1f);
+            lockKnown = false;   // hộp vừa lộ / vừa khôi phục: lần Set* tiếp theo snap, không diễn
         }
     }
 }
