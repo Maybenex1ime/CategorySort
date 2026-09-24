@@ -194,9 +194,8 @@ nào thêm loại nước đi mới. Đặc tả đầy đủ: `docs/superpowers
 | id | gắn vào | tham số | ý nghĩa |
 |---|---|---|---|
 | `locked` | hộp | số nguyên ≥ 1 | hộp đóng cho tới khi số nhóm đã gom trên toàn bàn đạt số đó |
-| `keylock` | hộp | id chìa | hộp đóng cho tới khi thẻ mang `key` cùng id biến mất khỏi bàn |
+| `grouplock` | hộp | id nhóm | hộp đóng cho tới khi nhóm đó (kể cả nhóm con) không còn thẻ nào trên bàn; hộp hiện art của nhóm |
 | `ice` | thẻ | số nguyên ≥ 1 | thẻ bất động và không tính bộ 4, tan sau đủ số nước kể từ lúc lộ ở hộp trên |
-| `key` | thẻ | id chìa | không khoá gì; thẻ bị gom là mở mọi `keylock` cùng id |
 
 Hộp đóng: không nhặt ra, không thả vào, không tự nổ, không tính là còn chỗ khi xét kẹt, không
 bị xoá dù rỗng. Thứ tự một lượt: nước đi → giảm băng → dây chuyền.
@@ -209,14 +208,14 @@ Dữ liệu: vật cản của thẻ nằm trên entry thẻ trong `meaning`, c�
 `layout`, đều trong object `blockers` với key là id ở bảng trên.
 
 ```json
-{ "id": "banana", "text": "Banana", "blockers": { "ice": 5, "key": "k1" } }
+{ "id": "banana", "text": "Banana", "blockers": { "ice": 5 } }
 { "slots": ["apple","banana",null,null], "blockers": { "locked": 3 } }
-{ "slots": ["grape","plum",null,null],   "blockers": { "keylock": "k1" } }
+{ "slots": ["grape","plum",null,null],   "blockers": { "grouplock": "g_fruit" } }
 ```
 
 Luật kiểm thêm: id phải có trong bảng và đúng phía · hộp tối đa một vật cản · thẻ mang nhiều
-vật cản phải theo bảng cặp được phép (hiện: `ice` + `key`) · số đếm ≥ 1 · mỗi id chìa đúng một
-thẻ mang · thẻ chìa và mọi thẻ cùng nhóm không nằm trong hoặc dưới hộp mà chìa đó mở.
+vật cản phải theo bảng cặp được phép (hiện rỗng) · số đếm ≥ 1 · `grouplock` trỏ một id nhóm có
+thật · không thẻ nào của nhóm đó (kể cả nhóm con) nằm trong hoặc dưới hộp mà nhóm đó mở.
 
 Nam châm bỏ qua nhóm có thành viên đang băng hoặc nằm trong hộp đóng; Xáo không đụng hai thứ
 đó; Undo không cần luật riêng vì ảnh chụp là toàn bàn. Undo chỉ lùi được nước **không**

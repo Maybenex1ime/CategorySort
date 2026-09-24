@@ -230,8 +230,23 @@ namespace WordStack.Board
             // Khối stack ở trên đã kiểm mọi id trong slots là id thẻ có thật, nên groupOf[id]
             // bên dưới an toàn.
             var groupOf = new Dictionary<string, string>();
-            foreach (var g in Groups) foreach (var c in g.Cards) groupOf[c.Id] = g.Id;
-            var keyOwner = new Dictionary<string, CardDef>();   // id chìa → thẻ mang
+            var parentOf = new Dictionary<string, string>();
+            foreach (var g in Groups)
+            {
+                parentOf[g.Id] = g.ParentId;
+                foreach (var c in g.Cards) groupOf[c.Id] = g.Id;
+            }
+            // Thẻ thuộc nhóm gid hoặc một nhóm con của nó (nhóm cha chỉ có thẻ sau khi con gộp).
+            Func<string, string, bool> inGroup = (cardId, gid) =>
+            {
+                for (string x = groupOf[cardId]; x != null;)
+                {
+                    if (x == gid) return true;
+                    string px;
+                    x = parentOf.TryGetValue(x, out px) ? px : null;
+                }
+                return false;
+            };
 
             foreach (var g in Groups)
                 foreach (var c in g.Cards)
@@ -251,14 +266,6 @@ namespace WordStack.Board
                     object v;
                     if (c.Blockers.TryGetValue(Blockers.Ice, out v) && !Blockers.IsCount(v))
                         die(at + ": ice phải là số nguyên >= 1");
-                    if (c.Blockers.TryGetValue(Blockers.Key, out v))
-                    {
-                        var kid = v as string;
-                        if (string.IsNullOrEmpty(kid)) die(at + ": key phải là chuỗi id chìa");
-                        if (keyOwner.ContainsKey(kid))
-                            die("id chìa \"" + kid + "\" có hai thẻ mang: " + keyOwner[kid].Id + " và " + c.Id);
-                        keyOwner[kid] = c;
-                    }
                 }
 
             for (int si = 0; si < Stacks.Count; si++)
@@ -277,21 +284,19 @@ namespace WordStack.Board
                     object v;
                     if (box.Blockers.TryGetValue(Blockers.Locked, out v) && !Blockers.IsCount(v))
                         die(at + ": locked phải là số nguyên >= 1");
-                    if (box.Blockers.TryGetValue(Blockers.KeyLock, out v))
+                    if (box.Blockers.TryGetValue(Blockers.GroupLock, out v))
                     {
-                        var kid = v as string;
-                        CardDef keyCard = null;   // die() không báo cho compiler là nó ném
-                        if (string.IsNullOrEmpty(kid) || !keyOwner.TryGetValue(kid, out keyCard))
-                            die(at + ": keylock \"" + kid + "\" không có thẻ nào mang chìa đó");
-                        // Luật 6: hộp có ổ không bao giờ rỗng nên hộp dưới nó không lộ ra chừng
-                        // nào chưa mở. Thẻ chìa — hay bất kỳ thẻ nào cùng nhóm, vì chìa chỉ bị gom
-                        // khi cả nhóm về chung hộp — nằm trong hoặc dưới đây là khoá vĩnh viễn.
-                        string kg = groupOf[keyCard.Id];
+                        var gid = v as string;
+                        if (string.IsNullOrEmpty(gid) || !parentOf.ContainsKey(gid))
+                            die(at + ": grouplock \"" + gid + "\" không phải id nhóm nào trong meaning");
+                        // Luật 6: hộp khoá theo nhóm không bao giờ rỗng nên hộp dưới nó không lộ ra
+                        // chừng nào chưa mở. Thẻ của nhóm đó (kể cả nhóm con) nằm trong hoặc dưới
+                        // đây thì nhóm không bao giờ gom sạch được — khoá vĩnh viễn.
                         for (int bj = bi; bj < Stacks[si].Boxes.Count; bj++)
                             foreach (var id in Stacks[si].Boxes[bj].Slots)
-                                if (id != null && groupOf[id] == kg)
-                                    die(at + ": thẻ \"" + id + "\" cùng nhóm với chìa \"" + kid +
-                                        "\" nằm trong hoặc dưới hộp mà chìa đó mở — khoá vĩnh viễn");
+                                if (id != null && inGroup(id, gid))
+                                    die(at + ": thẻ \"" + id + "\" thuộc nhóm \"" + gid +
+                                        "\" nằm trong hoặc dưới hộp mà nhóm đó mở — khoá vĩnh viễn");
                     }
                 }
 

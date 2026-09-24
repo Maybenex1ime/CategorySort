@@ -564,7 +564,7 @@ namespace WordStack.Board
 
                 var bv = boxViews[s];
                 bv.ResetVisual();
-                bv.SetLock(false, null, null);
+                bv.SetOpen();
                 stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1, TilesInSecondBox(g.Stacks[s]));
                 bv.SetAlpha(0f);
                 bv.transform.localPosition = new Vector3(a.undoBoxSlideFrom.x, a.undoBoxSlideFrom.y, 0f);
@@ -816,7 +816,7 @@ namespace WordStack.Board
         // thứ tự cố định để lần nào cũng ra như nhau.
         //   stack có thẻ đầu tiên  → thẻ đầu đóng băng 3 nước
         //   stack tiếp theo        → hộp khoá, cần thêm 1 nhóm nữa
-        //   stack tiếp theo        → hộp có ổ, chìa gắn lên một thẻ ở stack khác
+        //   stack tiếp theo        → hộp khoá theo nhóm, nhóm lấy từ một thẻ ở stack khác
         void ApplyDebugBlockers()
         {
             if (g == null || g.Status != GameStatus.Playing) { Debug.Log("[Blocker] chưa có bàn để gắn."); return; }
@@ -843,22 +843,29 @@ namespace WordStack.Board
 
             if (keyedStack >= 0)
             {
-                g.TopBox(keyedStack).Lock = new Lock { Kind = LockKind.Key, KeyId = "dbg" };
-                // Chìa phải nằm NGOÀI hộp nó mở, nếu không là khoá vĩnh viễn (spec luật 6).
-                for (int s = 0; s < g.Stacks.Count; s++)
+                // Nhóm bị khoá không được có thẻ nào TRONG hay DƯỚI hộp nó khoá, nếu không là
+                // khoá vĩnh viễn (spec luật 6). Lấy nhóm của thẻ đầu tiên thoả điều đó ở stack khác.
+                string gid = null;
+                for (int s = 0; s < g.Stacks.Count && gid == null; s++)
                 {
                     if (s == keyedStack) continue;
                     var box = g.TopBox(s);
                     if (box == null) continue;
-                    bool done = false;
                     foreach (var t in box.Slots)
-                        if (t != null && !Game.IsFrozen(t)) { t.KeyId = "dbg"; done = true; break; }
-                    if (done) break;
+                    {
+                        if (t == null || Game.IsFrozen(t)) continue;
+                        bool inside = false;
+                        foreach (var b in g.Stacks[keyedStack].Boxes)
+                            foreach (var u in b.Slots)
+                                if (u != null && g.InGroup(u.GroupId, t.GroupId)) inside = true;
+                        if (!inside) { gid = t.GroupId; break; }
+                    }
                 }
+                if (gid != null) g.TopBox(keyedStack).Lock = new Lock { Kind = LockKind.Group, GroupId = gid };
             }
 
             Debug.Log("[Blocker] gắn mẫu: băng ở stack " + icedStack + " · hộp khoá ở stack " + lockedStack +
-                      " · hộp có ổ ở stack " + keyedStack);
+                      " · hộp khoá theo nhóm ở stack " + keyedStack);
             RefreshZones();
             RefreshBlockerVisuals();
         }
@@ -913,7 +920,6 @@ namespace WordStack.Board
             var gt = Instantiate(tilePrefab, ghost.TileAnchor, false);
             gt.transform.localPosition = Vector3.zero;
             gt.Bind(t, ArtOf(t));
-            gt.SetKey(t.KeyId);      // thẻ ma là một bản prefab mới, phải gắn chìa lại
             gt.SetFlying(true);      // thẻ đang kéo = thẻ đang bay: nổi trên mọi hộp/thẻ trên bàn
 
             DOTween.Kill(HoverPunchId, true);             // trả góc quay về 0 trước khi nhấc
@@ -1348,7 +1354,7 @@ namespace WordStack.Board
         }
 
         // Trạng thái blocker đổi ở bốn thời điểm: dựng bàn, sau mỗi nước đi (băng đếm),
-        // khi hộp dưới lộ ra, và cuối cascade (một lần gom có thể mở hộp khoá hoặc hộp có ổ).
+        // khi hộp dưới lộ ra, và cuối cascade (một lần gom có thể mở hộp khoá theo số hoặc theo nhóm).
         // Quét cả bàn thay vì lần theo từng thay đổi: bàn tối đa vài chục ô, và bỏ sót một
         // chỗ thì hình nói dối về thứ người chơi bấm được.
         void RefreshBlockerVisuals()
@@ -1359,9 +1365,12 @@ namespace WordStack.Board
                 var box = g.TopBox(s);
                 if (box == null) continue;
 
-                bool closed = !g.IsOpen(box.Lock);
-                if (boxViews[s] != null) boxViews[s].SetLock(closed, LockLabel(box.Lock),
-                                                       box.Lock.Kind == LockKind.Key ? box.Lock.KeyId : null);
+                if (boxViews[s] != null)
+                {
+                    if (g.IsOpen(box.Lock)) boxViews[s].SetOpen();
+                    else if (box.Lock.Kind == LockKind.Group) boxViews[s].SetGroupLock(GroupArt(box.Lock.GroupId));
+                    else boxViews[s].SetCountLock(LockLabel(box.Lock));
+                }
 
                 for (int i = 0; i < box.Slots.Length; i++)
                 {
@@ -1371,20 +1380,25 @@ namespace WordStack.Board
                     if (!tiles.TryGetValue(t.Uid, out tv) || tv == null) continue;
                     bool frozen = Game.IsFrozen(t);
                     int iceLeft = frozen ? t.Lock.Need - t.Lock.Have : 0;
-                    tv.SetIce(frozen, iceLeft);
-                    tv.SetBlockerDebug(iceLeft, t.KeyId);
-                    tv.SetKey(t.KeyId);
+                    tv.SetIce(frozen, iceLeft, frozen ? t.Lock.Need : 0);
+                    tv.SetBlockerDebug(iceLeft);
                 }
             }
         }
 
-        // Hộp khoá hiện số nhóm CÒN CẦN. Hộp có ổ không có chữ — màu chìa (SO_KeyColors) đã nói
-        // nó mở bằng chìa nào. Hộp đã mở không có nhãn.
+        // Hộp khoá theo số hiện số nhóm CÒN CẦN. Hộp đã mở không có nhãn.
         string LockLabel(Lock l)
         {
             if (g == null) return null;
             if (l.Kind == LockKind.Clears) return Mathf.Max(l.Need - g.Cleared, 0).ToString();
             return null;
+        }
+
+        // Hộp khoá theo nhóm hiện art của nhóm phải gom sạch (GroupDef.Art, cùng nguồn với thẻ collapse).
+        Sprite GroupArt(string gid)
+        {
+            GroupDef d;
+            return g.GroupDefs != null && g.GroupDefs.TryGetValue(gid, out d) && d.Art != null ? LoadArt(d.Art) : null;
         }
 
         // HUD prototype (HudView) đã bỏ — HUD thật là GamePlayUIRoot của tầng meta.

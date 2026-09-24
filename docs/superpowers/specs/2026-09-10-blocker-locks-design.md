@@ -1,5 +1,9 @@
 # Blocker — Hộp khoá, Thẻ băng, Chìa khoá
 
+> **2026-09-23:** cặp ổ/chìa (`keylock` + `key`) đã thay bằng `grouplock`: hộp gắn art của một
+> nhóm và mở khi nhóm đó gom sạch khỏi bàn. Thẻ không mang chìa nữa. Luật hiện hành:
+> `docs/wordstack-rules.md` §11. Phần chìa dưới đây giữ lại làm lịch sử.
+
 Ngày chốt: 2026-09-10 · Trạng thái: đã duyệt thiết kế
 
 ## 1. Mục tiêu

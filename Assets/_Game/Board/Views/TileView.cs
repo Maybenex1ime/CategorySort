@@ -3,6 +3,8 @@
 // Thẻ chỉ còn ảnh (bỏ label chữ + vành outline 2026-08-17 — hướng art mới là icon thuần).
 // Kích thước và vị trí Bg/Art author THẲNG TRONG PREFAB, code không đụng scale — root giữ
 // scale 1 để tween (hover / nhấc lên / CLEAR) đọc thẳng 0..1.
+using DG.Tweening;
+using TMPro;
 using UnityEngine;
 
 namespace WordStack.Board
@@ -26,18 +28,21 @@ namespace WordStack.Board
 
         // Blocker — CHƯA GÁN, người dùng tự làm phần nhìn (nhịp 2). Tất cả nullable:
         // chưa kéo gì vào thì SetIce là no-op và bàn chạy y như không có blocker.
-        [Header("Băng (blocker) — để trống, gắn art sau")]
-        [SerializeField] GameObject iceRoot;     // lớp phủ băng, bật/tắt cả cụm
-        [SerializeField] TextMesh iceCountText;  // số nước còn lại
+        [Header("Băng (blocker)")]
+        [SerializeField] GameObject iceRoot;         // lớp phủ băng, bật/tắt cả cụm
+        [SerializeField] SpriteRenderer iceSprite;   // lớp băng — đổi sprite theo nấc
+        [Tooltip("Các nấc băng theo tiến trình về 0: [0] = đầy băng … [cuối] = sắp tan")]
+        [SerializeField] Sprite[] iceStages = new Sprite[0];
+        [SerializeField] TextMeshPro iceCountText;   // số nước còn lại (TMP 3D, con của iceRoot)
+        [Tooltip("VFX băng tan: bắn mỗi lần đổi nấc và lúc tan hẳn. Đặt NGOÀI iceRoot để không bị tắt/co theo. Trống = không VFX")]
+        [SerializeField] ParticleSystem iceMeltVfx;
+        [Tooltip("Băng nảy bao nhiêu mỗi lần bớt một nước (0 = tắt)")]
+        [SerializeField] float iceCrackPunch = 0.15f;
+        [SerializeField] float iceCrackDur = 0.25f;
+        [Tooltip("Tan hẳn: phồng lên rồi co về 0 và mờ dần (giây)")]
+        [SerializeField] float iceMeltDur = 0.35f;
 
-        // Chìa: MỘT sprite trắng cho mọi id, màu lấy từ SO_KeyColors rồi tô qua
-        // SpriteRenderer.color. Màu nhân vào vertex nên không thêm texture hay material, các thẻ
-        // vẫn chung batch. Thay art thì sprite mới cũng phải trắng hoặc xám sáng.
-        [Header("Chìa (blocker) — sprite trắng, màu tô theo id")]
-        [SerializeField] SpriteRenderer keyIcon;
-        [SerializeField] KeyColorPalette keyColors;   // SO_KeyColors — dùng chung với Box.prefab
-
-        // Chỉ để soi trong Inspector lúc Play: blocker đang gắn trên thẻ, ví dụ "ice 3 · key k1".
+        // Chỉ để soi trong Inspector lúc Play: blocker đang gắn trên thẻ, ví dụ "ice 3".
         // Trống là thẻ thường. Code không đọc lại field này nên sửa tay trong Inspector vô tác dụng.
         [Header("Debug — blocker trên thẻ (chỉ đọc)")]
         [SerializeField] string blockers;
@@ -75,51 +80,92 @@ namespace WordStack.Board
         }
 
         // Thẻ băng: bất động và không tính bộ 4 (luật ở Domain). Ở đây chỉ hiện trạng thái.
-        // movesLeft là số nước CÒN LẠI, đã tính sẵn bên gọi — view không đọc Lock.
-        public void SetIce(bool frozen, int movesLeft)
+        // movesLeft / total là số nước CÒN LẠI và tổng, đã tính sẵn bên gọi — view không đọc Lock.
+        // Nấc băng = tiến trình về 0 chia đều lên iceStages. Animation suy từ chuyển trạng thái
+        // giữa hai lần gọi: đổi nấc = VFX tan + nảy, về 0 = VFX tan + co mờ. Lần gọi đầu (thẻ
+        // vừa dựng / vừa lộ) và chiều ngược (Undo đóng băng lại) thì snap.
+        bool iceKnown, iceShown;
+        int iceLast, iceStage;
+        SpriteRenderer[] iceSprites;
+        Vector3 iceScale = Vector3.one;   // scale author trong prefab của iceRoot
+
+        public void SetIce(bool frozen, int movesLeft, int total)
         {
-            if (iceRoot != null) iceRoot.SetActive(frozen);
-            if (iceCountText != null)
-            {
-                iceCountText.gameObject.SetActive(frozen);
-                if (frozen) ViewText.Apply(iceCountText, movesLeft.ToString(), 1f, 0.4f);
-            }
+            if (iceRoot == null) return;
+            int stage = StageOf(movesLeft, total);
+            bool stepped = iceKnown && iceShown && frozen && movesLeft < iceLast;
+            bool changedStage = stepped && stage != iceStage;
+            bool melt = iceKnown && iceShown && !frozen;
+            iceKnown = true; iceShown = frozen; iceLast = movesLeft; iceStage = stage;
+
+            if (iceCountText != null) iceCountText.text = movesLeft.ToString();
+            if (melt) { PlayMeltVfx(); Melt(); return; }
+
+            iceRoot.transform.DOKill(true);
+            iceRoot.transform.localScale = iceScale;
+            SetIceAlpha(1f);
+            iceRoot.SetActive(frozen);
+            if (frozen && iceSprite != null && stage >= 0) iceSprite.sprite = iceStages[stage];
+            if (changedStage) PlayMeltVfx();
+            if (stepped && iceCrackPunch > 0f)
+                iceRoot.transform.DOPunchScale(iceScale * iceCrackPunch, iceCrackDur, 8, 0.6f).SetLink(iceRoot);
         }
 
-        // Thẻ mang chìa (keyId khác null): hiện icon, tô màu theo SO_KeyColors.
-        public void SetKey(string keyId)
+        // -1 khi chưa author nấc nào. total ≤ 0 (thẻ không băng) → nấc đầu.
+        int StageOf(int movesLeft, int total)
         {
-            if (keyIcon == null) return;
-            keyIcon.gameObject.SetActive(keyId != null);
-            if (keyId != null) keyIcon.color = keyColors != null ? keyColors.Get(keyId) : Color.white;
+            int n = iceStages != null ? iceStages.Length : 0;
+            if (n == 0) return -1;
+            if (total <= 0) return 0;
+            float done = 1f - Mathf.Clamp01((float)movesLeft / total);
+            return Mathf.Clamp(Mathf.FloorToInt(done * n), 0, n - 1);
         }
 
-        // Bên gọi tính sẵn số băng còn lại và id chìa — view không đọc Lock, giống SetIce.
-        public void SetBlockerDebug(int iceLeft, string keyId)
+        void PlayMeltVfx()
         {
-            string ice = iceLeft > 0 ? "ice " + iceLeft : null;
-            string key = keyId != null ? "key " + keyId : null;
-            blockers = ice != null && key != null ? ice + " · " + key : ice ?? key ?? "";
+            if (iceMeltVfx != null) iceMeltVfx.Play(true);
+        }
+
+        void Melt()
+        {
+            var tr = iceRoot.transform;
+            tr.DOKill(true);
+            var seq = DOTween.Sequence().SetLink(iceRoot);
+            seq.Append(tr.DOScale(iceScale * 1.15f, iceMeltDur * 0.3f).SetEase(Ease.OutQuad));
+            seq.Append(tr.DOScale(0f, iceMeltDur * 0.7f).SetEase(Ease.InBack));
+            seq.Join(DOTween.To(() => 1f, SetIceAlpha, 0f, iceMeltDur * 0.7f));
+            seq.OnComplete(() => { iceRoot.SetActive(false); tr.localScale = iceScale; SetIceAlpha(1f); });
+        }
+
+        void SetIceAlpha(float a)
+        {
+            if (iceSprites == null) iceSprites = iceRoot.GetComponentsInChildren<SpriteRenderer>(true);
+            foreach (var sr in iceSprites) { var c = sr.color; c.a = a; sr.color = c; }
+            if (iceCountText != null) iceCountText.alpha = a;
+        }
+
+        // Bên gọi tính sẵn số băng còn lại — view không đọc Lock, giống SetIce.
+        public void SetBlockerDebug(int iceLeft)
+        {
+            blockers = iceLeft > 0 ? "ice " + iceLeft : "";
         }
 
         // Thẻ đang bay nổi lên trên mọi hộp/thẻ, hạ cánh thì trả về order author trong prefab.
         // Đây là chỗ DUY NHẤT code còn đụng sortingOrder — mọi giá trị tĩnh sống ở prefab.
         const int FlyOrder = 90;
-        int bgOrder, artOrder, keyOrder;
+        int bgOrder, artOrder;
 
         void Awake()
         {
             bgOrder = bg.sortingOrder;
             artOrder = art.sortingOrder;
-            if (keyIcon != null) keyOrder = keyIcon.sortingOrder;
+            if (iceRoot != null) iceScale = iceRoot.transform.localScale;
         }
 
         public void SetFlying(bool flying)
         {
             bg.sortingOrder = flying ? FlyOrder : bgOrder;
             art.sortingOrder = flying ? FlyOrder + 1 : artOrder;
-            // Chìa bay theo thẻ: giữ order prefab thì nền thẻ đang bay (90) che mất nó.
-            if (keyIcon != null) keyIcon.sortingOrder = flying ? FlyOrder + 2 : keyOrder;
         }
     }
 }

@@ -1,7 +1,7 @@
 {
   "id": "lv-010",
   "title": "Blocker showcase",
-  "note": "Moi blocker o hop tren cung de xem hinh: locked 1/2, keylock k2/k3, ice 3, key k2, ice 2 + key k3. Man test - go truoc release.",
+  "note": "Moi blocker o hop tren cung de xem hinh: locked 1/2, grouplock g_color/g_cat, ice 3, ice 2. Man test - go truoc release.",
   "moves": 30,
 
   "layout": {
@@ -28,10 +28,10 @@
           { "slots": ["pigeon","eagle",null,null], "blockers": {"locked":2} }
       ]},
       { "pos": [1,2], "boxes": [
-          { "slots": ["parrot","doll",null,null], "blockers": {"keylock":"k2"} }
+          { "slots": ["parrot","doll",null,null], "blockers": {"grouplock":"g_color"} }
       ]},
       { "pos": [2,2], "boxes": [
-          { "slots": ["kite","robot",null,null], "blockers": {"keylock":"k3"} }
+          { "slots": ["kite","robot",null,null], "blockers": {"grouplock":"g_cat"} }
       ]}
     ]
   },
@@ -45,7 +45,7 @@
           { "id":"chihuahua", "art":"chihuahua" }
       ]},
       { "id":"g_color", "text":"color", "art":"color", "cards": [
-          { "id":"red", "art":"red", "blockers":{"key":"k2"} },
+          { "id":"red", "art":"red" },
           { "id":"blue", "art":"blue" },
           { "id":"green", "art":"green" },
           { "id":"yellow", "art":"yellow" }
@@ -54,7 +54,7 @@
           { "id":"tabby", "art":"tabby" },
           { "id":"persian", "art":"persian" },
           { "id":"siamese", "art":"siamese" },
-          { "id":"bengal", "art":"bengal", "blockers":{"ice":2,"key":"k3"} }
+          { "id":"bengal", "art":"bengal", "blockers":{"ice":2} }
       ]},
       { "id":"g_bird", "text":"bird", "art":"bird", "cards": [
           { "id":"sparrow", "art":"sparrow", "blockers":{"ice":3} },
