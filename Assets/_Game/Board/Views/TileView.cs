@@ -34,7 +34,7 @@ namespace WordStack.Board
         [Tooltip("Các nấc băng theo tiến trình về 0: [0] = đầy băng … [cuối] = sắp tan")]
         [SerializeField] Sprite[] iceStages = new Sprite[0];
         [SerializeField] TextMeshPro iceCountText;   // số nước còn lại (TMP 3D, con của iceRoot)
-        [Tooltip("VFX băng tan: bắn mỗi lần đổi nấc và lúc tan hẳn. Đặt NGOÀI iceRoot để không bị tắt/co theo. Trống = không VFX")]
+        [Tooltip("VFX băng tan: bắn mỗi lần bớt một nước và lúc tan hẳn. Đặt NGOÀI iceRoot để không bị tắt/co theo. Trống = không VFX")]
         [SerializeField] ParticleSystem iceMeltVfx;
         [Tooltip("Băng nảy bao nhiêu mỗi lần bớt một nước (0 = tắt)")]
         [SerializeField] float iceCrackPunch = 0.15f;
@@ -82,7 +82,7 @@ namespace WordStack.Board
         // Thẻ băng: bất động và không tính bộ 4 (luật ở Domain). Ở đây chỉ hiện trạng thái.
         // movesLeft / total là số nước CÒN LẠI và tổng, đã tính sẵn bên gọi — view không đọc Lock.
         // Nấc băng = tiến trình về 0 chia đều lên iceStages. Animation suy từ chuyển trạng thái
-        // giữa hai lần gọi: đổi nấc = VFX tan + nảy, về 0 = VFX tan + co mờ. Lần gọi đầu (thẻ
+        // giữa hai lần gọi: bớt một nước = VFX tan + nảy, về 0 = VFX tan + co mờ. Lần gọi đầu (thẻ
         // vừa dựng / vừa lộ) và chiều ngược (Undo đóng băng lại) thì snap.
         bool iceKnown, iceShown;
         int iceLast, iceStage;
@@ -94,7 +94,6 @@ namespace WordStack.Board
             if (iceRoot == null) return;
             int stage = StageOf(movesLeft, total);
             bool stepped = iceKnown && iceShown && frozen && movesLeft < iceLast;
-            bool changedStage = stepped && stage != iceStage;
             bool melt = iceKnown && iceShown && !frozen;
             iceKnown = true; iceShown = frozen; iceLast = movesLeft; iceStage = stage;
 
@@ -106,7 +105,7 @@ namespace WordStack.Board
             SetIceAlpha(1f);
             iceRoot.SetActive(frozen);
             if (frozen && iceSprite != null && stage >= 0) iceSprite.sprite = iceStages[stage];
-            if (changedStage) PlayMeltVfx();
+            if (stepped) PlayMeltVfx();
             if (stepped && iceCrackPunch > 0f)
                 iceRoot.transform.DOPunchScale(iceScale * iceCrackPunch, iceCrackDur, 8, 0.6f).SetLink(iceRoot);
         }

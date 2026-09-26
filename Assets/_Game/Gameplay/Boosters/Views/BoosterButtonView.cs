@@ -100,6 +100,7 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
             ViewModel.Count.Subscribe(_ => Refresh()).AddTo(ref _disposables);
             ViewModel.IsUsable.Subscribe(_ => Refresh()).AddTo(ref _disposables);
             _currencyService?.Coins.Subscribe(_ => Refresh()).AddTo(ref _disposables);
+            _flow?.CurrentPhase.Subscribe(_ => Refresh()).AddTo(ref _disposables);
             _flow?.LevelTitle.Subscribe(title =>
             {
                 _currentLevel = ParseLevelNumber(title);
@@ -196,7 +197,12 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
             // CanvasGroup gốc chỉ khoá input lúc Locked (thắng mọi Button.interactable bên dưới).
             if (_canvasGroup != null) _canvasGroup.interactable = !locked;
 
-            bool unusable = !locked && !ViewModel.IsUsable.CurrentValue;
+            // Thẻ đang bay / cascade (Evaluating, Animating): bàn tắt cờ IsUsable để chặn
+            // trừ lượt, nhưng KHÔNG mờ nút — cùng cách Settings đứng yên giữa move. Bấm lúc
+            // này rơi vào guard IsUsable trong ViewModel, không mất lượt.
+            GameplayPhase phase = _flow != null ? _flow.CurrentPhase.CurrentValue : GameplayPhase.None;
+            bool busy = phase is GameplayPhase.Evaluating or GameplayPhase.Animating;
+            bool unusable = !locked && !busy && !ViewModel.IsUsable.CurrentValue;
             if (_button != null) _button.interactable = !unusable;
             if (_buttonFadeGroup != null) _buttonFadeGroup.alpha = unusable ? _unusableAlpha : 1f;
         }
