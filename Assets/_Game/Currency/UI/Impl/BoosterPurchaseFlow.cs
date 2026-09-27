@@ -47,8 +47,8 @@ namespace LogosGame.Features.Currency.UI.Impl
         // *BoosterButtonView (kiểu aquapark) bắn PurchaseRequestedEvent trực tiếp.
         private void OnBoosterExhausted(BoosterExhaustedEvent evt)
         {
-            if (evt.Id == BoosterId.None) return;
-            ExecutePurchase(TransactionIds.ForBooster(evt.Id));
+            if (!ResourceTypeExtensions.TryFromBooster(evt.Id, out ResourceType type)) return;
+            ExecutePurchase(TransactionIds.For(type));
         }
 
         private void OnPurchaseRequested(PurchaseRequestedEvent evt)

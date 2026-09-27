@@ -1,3 +1,4 @@
+using LogosGame.Features.Currency;
 using LogosGame.Features.Currency.Events;
 using LogosGame.Features.Currency.UI;
 using LogosGame.Features.UI.Popups.Args;
@@ -88,7 +89,7 @@ namespace LogosGame.Features.UI.Popups
             // Chi hien khi he mua co mat va catalog co gia tim.
             bool canShow = _container != null
                 && _container.TryGetResolver<IPurchaseService>(out _)
-                && _container.Resolve<IPurchaseService>().TryGetTransaction(TransactionIds.Heart, out TransactionDefinition entry)
+                && _container.Resolve<IPurchaseService>().TryGetTransaction(TransactionIds.For(ResourceType.Heart), out TransactionDefinition entry)
                 && SetupBuyButton(entry.Price);
 
             _buyButton.gameObject.SetActive(canShow);
@@ -148,7 +149,7 @@ namespace LogosGame.Features.UI.Popups
             // BoosterPurchaseFlow nghe va mua dong bo (tru coin → cong tim), nen doc lai
             // so tim ngay sau Fire la biet mua duoc chua.
             int before = _heartService != null ? _heartService.Current.CurrentValue : 0;
-            Bus.Global.Fire(new PurchaseRequestedEvent(TransactionIds.Heart));
+            Bus.Global.Fire(new PurchaseRequestedEvent(TransactionIds.For(ResourceType.Heart)));
             int after = _heartService != null ? _heartService.Current.CurrentValue : 0;
             if (after <= before) return;
 

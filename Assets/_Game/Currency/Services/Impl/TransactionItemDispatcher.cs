@@ -1,5 +1,4 @@
 using BoosterModule;
-using LogosGame.Features.Currency.Transactions;
 using LogosMeta.Economy;
 using LogosSDK.Core.Events;
 using LogosSDK.Core.Logging;
@@ -28,22 +27,25 @@ namespace LogosGame.Features.Currency.Services.Impl
         {
             if (amount <= 0) return;
 
-            switch (itemId)
+            if (!ResourceTypeExtensions.TryParseItemId(itemId, out ResourceType type))
             {
-                case ItemIds.BoosterMagnet:
-                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Magnet, amount));
-                    break;
-                case ItemIds.BoosterShuffle:
-                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Shuffle, amount));
-                    break;
-                case ItemIds.BoosterUndo:
-                    Bus.Global.Fire(new BoosterAddedEvent(BoosterId.Undo, amount));
-                    break;
-                case ItemIds.Heart:
+                _logger.Warn($"[TransactionItemDispatcher] Unhandled item id '{itemId}'.");
+                return;
+            }
+
+            if (type.TryGetBoosterId(out BoosterId boosterId))
+            {
+                Bus.Global.Fire(new BoosterAddedEvent(boosterId, amount));
+                return;
+            }
+
+            switch (type)
+            {
+                case ResourceType.Heart:
                     if (_hearts != null) _hearts.Add(amount);
                     break;
                 default:
-                    _logger.Warn($"[TransactionItemDispatcher] Unhandled item id '{itemId}'.");
+                    _logger.Warn($"[TransactionItemDispatcher] '{type}' không trao qua dispatcher.");
                     break;
             }
         }

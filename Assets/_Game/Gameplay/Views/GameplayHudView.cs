@@ -1,7 +1,8 @@
 using DG.Tweening;
+using LogosGame.Features.Currency;
+using LogosGame.Features.Currency.Services;
 using LogosGame.Features.Gameplay.Flow;
 using LogosGame.Features.Gameplay.Services;
-using LogosMeta.Economy;
 using R3;
 using Reflex.Attributes;
 using TMPro;
@@ -14,7 +15,7 @@ namespace LogosGame.Features.Gameplay.Views
     public sealed class GameplayHudView : MonoBehaviour
     {
         [Inject] private readonly IFeedbackDispatcher _feedbackDispatcher;
-        [Inject] private readonly ICurrencyService _currencyService;
+        [Inject] private readonly IResourceService _resources;
         [Inject] private readonly IDifficultyStateProvider _difficultyProvider;
         [Inject] private readonly IGameplayFlowController _flowController;
 
@@ -52,9 +53,9 @@ namespace LogosGame.Features.Gameplay.Views
 
         private void Start()
         {
-            if (_currencyService != null && _coinText != null)
+            if (_resources != null && _coinText != null)
             {
-                _currencyService.Coins
+                _resources.Observe(ResourceType.Coin)
                     .Subscribe(value => _coinText.text = value.ToString())
                     .AddTo(ref _disposables);
             }

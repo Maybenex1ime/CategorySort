@@ -55,6 +55,21 @@ namespace WordStack.Meta.AppFlow.Installers
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Eager);
 
+            // Đọc số lượng mọi tài nguyên theo ResourceType cho UI (MainMenu, HUD). Đăng ký ở
+            // scene vì cần BoosterManager (scene) cùng ví/tim (ProjectScope); ví/tim vắng thì
+            // loại đó hiện 0 thay vì sập.
+            builder.RegisterFactory<LogosGame.Features.Currency.Services.IResourceService>(
+                c => new LogosGame.Features.Currency.Services.Impl.ResourceService(
+                    c.TryGetResolver<LogosMeta.Economy.ICurrencyService>(out _)
+                        ? c.Resolve<LogosMeta.Economy.ICurrencyService>()
+                        : null,
+                    c.TryGetResolver<LogosMeta.Economy.IHeartService>(out _)
+                        ? c.Resolve<LogosMeta.Economy.IHeartService>()
+                        : null,
+                    c.Resolve<BoosterModule.BoosterManager>()),
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Lazy);
+
             // Booster: mỗi ViewModel bọc một slot của BoosterModule, view inject theo kiểu cụ thể.
             // Lazy được — các *BoosterButtonView inject nên chúng tự bị dựng khi
             // prefab HUD xuất hiện.

@@ -1,3 +1,5 @@
+using LogosGame.Features.Currency;
+using LogosGame.Features.Currency.Services;
 using LogosMeta.Economy;
 using LogosSDK.Core.Logging;
 using LogosSDK.UI.Base;
@@ -47,7 +49,7 @@ namespace LogosGame.Features.UI.Screens
         [SerializeField] private GameObject _settingsPanel;
 
         [Inject] private IHeartService _heartService;
-        [Inject] private ICurrencyService _currencyService;
+        [Inject] private IResourceService _resources;
 
         private MainMenuScreenArgs _args;
         private DisposableBag _disposables;
@@ -211,13 +213,13 @@ namespace LogosGame.Features.UI.Screens
         private void BindHeartUI()
         {
             _logger.Info($"[MainMenuScreen] BindHeartUI: _heartService={(_heartService == null ? "NULL" : "instance=" + _heartService.GetHashCode())} _heartCountText={(_heartCountText == null ? "NULL" : "OK")} _heartFullLabel={(_heartFullLabel == null ? "NULL" : "OK")}");
-            if (_heartService == null) return;
+            if (_heartService == null || _resources == null) return;
 
             _heartService.IsFull
                 .Subscribe(SetHeartLayoutForFullState)
                 .AddTo(ref _disposables);
 
-            _heartService.Current
+            _resources.Observe(ResourceType.Heart)
                 .Subscribe(count =>
                 {
                     _logger.Info($"[MainMenuScreen] Current.Subscribe fired with count={count}");
@@ -237,8 +239,8 @@ namespace LogosGame.Features.UI.Screens
 
         private void BindCoinUI()
         {
-            if (_currencyService == null || _coinCountText == null) return;
-            _currencyService.Coins
+            if (_resources == null || _coinCountText == null) return;
+            _resources.Observe(ResourceType.Coin)
                 .Subscribe(value => _coinCountText.text = value.ToString())
                 .AddTo(ref _disposables);
         }

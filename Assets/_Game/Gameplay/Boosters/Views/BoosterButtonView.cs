@@ -1,3 +1,4 @@
+using LogosGame.Features.Currency;
 using LogosGame.Features.Currency.Events;
 using LogosGame.Features.Currency.UI;
 using LogosGame.Features.Gameplay.Boosters.ViewModels;
@@ -74,6 +75,12 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
         private int _price;
         private bool _hasPrice;
 
+        // Mã giao dịch mua 1 lượt booster này bằng coin — đi qua ResourceType, không map BoosterId tay.
+        private string PurchaseTransactionId =>
+            ResourceTypeExtensions.TryFromBooster(ViewModel.BoosterId, out ResourceType type)
+                ? TransactionIds.For(type)
+                : null;
+
         private Sprite _unlockedBgSprite;
         private Sprite _unlockedIconSprite;
         private int _currentLevel;
@@ -125,7 +132,7 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
 
             if (_container.TryGetResolver<IPurchaseService>(out _)
                 && _container.Resolve<IPurchaseService>().TryGetTransaction(
-                    TransactionIds.ForBooster(ViewModel.BoosterId), out TransactionDefinition entry))
+                    PurchaseTransactionId, out TransactionDefinition entry))
             {
                 _price = entry.Price;
                 _hasPrice = true;
@@ -152,7 +159,7 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
 
                 // Mua xong BoosterManager bắn InventoryChanged → Count = 1 → Refresh sang HasStock.
                 case State.Buyable:
-                    Bus.Global.Fire(new PurchaseRequestedEvent(TransactionIds.ForBooster(ViewModel.BoosterId)));
+                    Bus.Global.Fire(new PurchaseRequestedEvent(PurchaseTransactionId));
                     break;
 
                 case State.WatchAd:
