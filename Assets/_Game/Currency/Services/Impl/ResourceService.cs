@@ -21,6 +21,7 @@ namespace LogosGame.Features.Currency.Services.Impl
         private readonly BoosterManager _boosters;
         private readonly Dictionary<ResourceType, ReactiveProperty<int>> _boosterCounts =
             new Dictionary<ResourceType, ReactiveProperty<int>>();
+        private ReadOnlyReactiveProperty<int> _unlimitedMinutes;
 
         public ResourceService(ICurrencyService currency, IHeartService hearts, BoosterManager boosters)
         {
@@ -30,7 +31,11 @@ namespace LogosGame.Features.Currency.Services.Impl
             Bus.Global.On<BoosterInventoryChangedEvent>(OnBoosterChanged);
         }
 
-        public void Dispose() => Bus.Global.Off<BoosterInventoryChangedEvent>(OnBoosterChanged);
+        public void Dispose()
+        {
+            Bus.Global.Off<BoosterInventoryChangedEvent>(OnBoosterChanged);
+            _unlimitedMinutes?.Dispose();
+        }
 
         public ReadOnlyReactiveProperty<int> Observe(ResourceType type)
         {
@@ -38,9 +43,19 @@ namespace LogosGame.Features.Currency.Services.Impl
             {
                 case ResourceType.Coin: return _currency != null ? _currency.Coins : Zero;
                 case ResourceType.Heart: return _hearts != null ? _hearts.Current : Zero;
+                case ResourceType.UnlimitedHeart: return UnlimitedMinutes();
             }
 
             return type.TryGetBoosterId(out BoosterId id) ? BoosterCount(type, id) : Zero;
+        }
+
+        // Cùng đơn vị với Amount của reward (phút), làm tròn LÊN: còn 30 giây vẫn hiện 1.
+        private ReadOnlyReactiveProperty<int> UnlimitedMinutes()
+        {
+            if (_hearts == null) return Zero;
+            return _unlimitedMinutes ??= _hearts.UnlimitedTimeLeft
+                .Select(left => (int)Math.Ceiling(left.TotalMinutes))
+                .ToReadOnlyReactiveProperty();
         }
 
         private ReactiveProperty<int> BoosterCount(ResourceType type, BoosterId id)

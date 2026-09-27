@@ -14,6 +14,9 @@ namespace LogosGame.Features.Currency
         BoosterShuffle = 2,
         BoosterMagnet = 3,
         BoosterUndo = 4,
+
+        // Tim vô hạn theo thời gian — Amount tính bằng PHÚT (60 = 1 giờ), không phải số lượng.
+        UnlimitedHeart = 5,
     }
 
     /// <summary>
@@ -29,6 +32,7 @@ namespace LogosGame.Features.Currency
             ResourceType.BoosterShuffle => ItemIds.BoosterShuffle,
             ResourceType.BoosterMagnet => ItemIds.BoosterMagnet,
             ResourceType.BoosterUndo => ItemIds.BoosterUndo,
+            ResourceType.UnlimitedHeart => ItemIds.UnlimitedHeart,
             _ => null,
         };
 
@@ -40,6 +44,7 @@ namespace LogosGame.Features.Currency
                 case ItemIds.BoosterShuffle: type = ResourceType.BoosterShuffle; return true;
                 case ItemIds.BoosterMagnet: type = ResourceType.BoosterMagnet; return true;
                 case ItemIds.BoosterUndo: type = ResourceType.BoosterUndo; return true;
+                case ItemIds.UnlimitedHeart: type = ResourceType.UnlimitedHeart; return true;
                 default: type = default; return false;
             }
         }

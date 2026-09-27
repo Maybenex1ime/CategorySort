@@ -21,13 +21,17 @@ namespace LogosMeta.Economy
         private readonly ReactiveProperty<int>      _current;
         private readonly ReactiveProperty<bool>     _isFull;
         private readonly ReactiveProperty<TimeSpan> _timeUntilNext;
+        private readonly ReactiveProperty<bool>     _isUnlimited;
+        private readonly ReactiveProperty<TimeSpan> _unlimitedTimeLeft;
 
         private HeartData _data;
         private readonly CancellationTokenSource _tickCts = new CancellationTokenSource();
 
-        public ReadOnlyReactiveProperty<int>      Current       => _current;
-        public ReadOnlyReactiveProperty<bool>     IsFull        => _isFull;
-        public ReadOnlyReactiveProperty<TimeSpan> TimeUntilNext => _timeUntilNext;
+        public ReadOnlyReactiveProperty<int>      Current           => _current;
+        public ReadOnlyReactiveProperty<bool>     IsFull            => _isFull;
+        public ReadOnlyReactiveProperty<TimeSpan> TimeUntilNext     => _timeUntilNext;
+        public ReadOnlyReactiveProperty<bool>     IsUnlimited       => _isUnlimited;
+        public ReadOnlyReactiveProperty<TimeSpan> UnlimitedTimeLeft => _unlimitedTimeLeft;
 
         public HeartService(ISaveManager save, ITimeProvider time, HeartSettings settings)
         {
@@ -44,6 +48,9 @@ namespace LogosMeta.Economy
             _current       = new ReactiveProperty<int>(_data.Hearts);
             _isFull        = new ReactiveProperty<bool>(_data.Hearts >= _maxHearts);
             _timeUntilNext = new ReactiveProperty<TimeSpan>(ComputeTimeUntilNext());
+            TimeSpan unlimitedLeft = ComputeUnlimitedTimeLeft();
+            _isUnlimited       = new ReactiveProperty<bool>(unlimitedLeft > TimeSpan.Zero);
+            _unlimitedTimeLeft = new ReactiveProperty<TimeSpan>(unlimitedLeft);
 
             // Tick loop runs on Unity main thread via Awaitable.NextFrameAsync.
             // The R3 default scheduler runs off-thread, so Unity UI updates from
@@ -77,6 +84,9 @@ namespace LogosMeta.Economy
         // Public so hosts without a frame loop (and EditMode tests) can pump it.
         public void UpdateTick()
         {
+            // Trước nhánh "đầy tim" bên dưới: đầy tim vẫn phải đếm ngược vô hạn.
+            RefreshUnlimited();
+
             if (_data.Hearts >= _maxHearts) return;
 
             DateTime lastRegen = new DateTime(_data.LastRegenUtcTicks, DateTimeKind.Utc);
@@ -153,9 +163,35 @@ namespace LogosMeta.Economy
             _logger.Info($"[HeartService] SetHearts({hearts}) → Hearts={_data.Hearts}");
         }
 
+        public void AddUnlimited(TimeSpan duration)
+        {
+            if (duration <= TimeSpan.Zero) return;
+
+            // ponytail: tin đồng hồ máy như phần hồi tim đang làm — chỉnh giờ lùi là kéo dài
+            // vô hạn. Cần chống thì lấy giờ server.
+            DateTime now = _time.UtcNow;
+            DateTime until = new DateTime(_data.UnlimitedUntilUtcTicks, DateTimeKind.Utc);
+            DateTime start = until > now ? until : now;
+            _data.UnlimitedUntilUtcTicks = start.Add(duration).Ticks;
+
+            _save.SaveImmediate(_data);
+            RefreshUnlimited();
+
+            _logger.Info($"[HeartService] AddUnlimited({duration}) → vô hạn tới {new DateTime(_data.UnlimitedUntilUtcTicks, DateTimeKind.Utc):u}");
+        }
+
         public void ConsumeOne()
         {
             _logger.Info($"[HeartService] ConsumeOne called. Before: Hearts={_data.Hearts} (instance={GetHashCode()})");
+
+            // Hỏi đồng hồ trực tiếp, không đọc _isUnlimited: tick loop có thể chưa kịp tắt cờ
+            // đúng frame hết hạn.
+            if (ComputeUnlimitedTimeLeft() > TimeSpan.Zero)
+            {
+                _logger.Info("[HeartService] ConsumeOne bỏ qua — đang tim vô hạn.");
+                return;
+            }
+
             if (_data.Hearts <= 0) return;
 
             bool wasFull = _data.Hearts >= _maxHearts;
@@ -182,6 +218,8 @@ namespace LogosMeta.Economy
             _current.Dispose();
             _isFull.Dispose();
             _timeUntilNext.Dispose();
+            _isUnlimited.Dispose();
+            _unlimitedTimeLeft.Dispose();
         }
 
         private void ClampHearts()
@@ -227,6 +265,22 @@ namespace LogosMeta.Economy
             }
 
             _save.SaveImmediate(_data);
+        }
+
+        // Chỉ phát khi đổi theo giây, cùng lý do throttle của TimeUntilNext.
+        private void RefreshUnlimited()
+        {
+            TimeSpan left = ComputeUnlimitedTimeLeft();
+            if (_unlimitedTimeLeft.Value != left) _unlimitedTimeLeft.Value = left;
+
+            bool active = left > TimeSpan.Zero;
+            if (_isUnlimited.Value != active) _isUnlimited.Value = active;
+        }
+
+        private TimeSpan ComputeUnlimitedTimeLeft()
+        {
+            TimeSpan left = new DateTime(_data.UnlimitedUntilUtcTicks, DateTimeKind.Utc) - _time.UtcNow;
+            return left.Ticks <= 0 ? TimeSpan.Zero : TimeSpan.FromSeconds((long)left.TotalSeconds);
         }
 
         private TimeSpan ComputeTimeUntilNext()

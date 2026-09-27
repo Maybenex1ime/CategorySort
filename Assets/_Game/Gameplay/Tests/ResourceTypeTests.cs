@@ -62,6 +62,7 @@ namespace WordStack.Meta.Tests
             Assert.AreEqual("t_booster_shuffle", TransactionIds.For(ResourceType.BoosterShuffle));
             Assert.AreEqual("t_booster_magnet", TransactionIds.For(ResourceType.BoosterMagnet));
             Assert.AreEqual("t_booster_undo", TransactionIds.For(ResourceType.BoosterUndo));
+            Assert.IsNull(TransactionIds.For(ResourceType.UnlimitedHeart), "tim vô hạn chỉ bán qua gói tiền thật");
         }
 
         [Test]

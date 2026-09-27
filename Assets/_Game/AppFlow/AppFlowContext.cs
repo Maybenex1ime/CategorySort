@@ -420,7 +420,10 @@ namespace WordStack.Meta.AppFlow
         // --- Hearts gate --------------------------------------------------------
 
         // Không có HeartService (chưa gắn installer) thì không chặn — giữ hành vi cũ.
-        private bool HasHearts => _heartService == null || _heartService.Current.CurrentValue > 0;
+        // Đang tim vô hạn thì chơi được dù 0 tim.
+        private bool HasHearts => _heartService == null
+                                  || _heartService.IsUnlimited.CurrentValue
+                                  || _heartService.Current.CurrentValue > 0;
 
         /// <summary>Đủ tim thì chạy tiếp, hết tim thì thay bằng NoHeartsPopup.</summary>
         private void RunGatedByHearts(Action proceed, bool returnToMenuOnClose)

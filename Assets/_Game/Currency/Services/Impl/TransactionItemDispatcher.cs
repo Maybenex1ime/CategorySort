@@ -44,6 +44,9 @@ namespace LogosGame.Features.Currency.Services.Impl
                 case ResourceType.Heart:
                     if (_hearts != null) _hearts.Add(amount);
                     break;
+                case ResourceType.UnlimitedHeart:
+                    if (_hearts != null) _hearts.AddUnlimited(System.TimeSpan.FromMinutes(amount));
+                    break;
                 default:
                     _logger.Warn($"[TransactionItemDispatcher] '{type}' không trao qua dispatcher.");
                     break;
