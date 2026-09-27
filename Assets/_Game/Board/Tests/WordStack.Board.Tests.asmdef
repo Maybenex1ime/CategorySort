@@ -3,6 +3,8 @@
     "rootNamespace": "WordStack.Board.Tests",
     "references": [
         "WordStack.Board",
+        "LitMotion",
+        "LitMotion.Animation",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
