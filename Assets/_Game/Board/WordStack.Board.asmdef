@@ -3,6 +3,8 @@
     "rootNamespace": "WordStack.Board",
     "references": [
         "WordStack.Contracts",
+        "LitMotion",
+        "LitMotion.Animation",
         "Unity.InputSystem",
         "Unity.TextMeshPro",
         "UnityEngine.UI"

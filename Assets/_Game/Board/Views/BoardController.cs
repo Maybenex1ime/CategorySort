@@ -85,6 +85,10 @@ namespace WordStack.Board
         [SerializeField] float flyDur = 0.16f;
         [SerializeField] float clearDur = 0.26f;
         [SerializeField] float clearStagger = 0.04f;
+        [Tooltip("Nhóm vừa mở được group lock: 4 thẻ bay vào icon trên lồng thay vì co tại chỗ")]
+        [SerializeField] float lockFlyDur = 0.3f;
+        [SerializeField] float lockFlyStagger = 0.04f;
+        [SerializeField] float lockFlyGatherScale = 0.35f;
         [SerializeField] float cascadeGap = 0.35f;     // nhịp giữa hai bước cascade (§R6)
 
         [Header("Gộp 4 thẻ thành 1 (COLLAPSE)")]
@@ -802,6 +806,20 @@ namespace WordStack.Board
         // Phím tắt dev: R nạp lại JSON đang cache — không qua AppFlow nên KHÔNG đổi
         // LevelProgressData.CurrentLevel. N và 1-9 đã bỏ: board không còn danh sách
         // level để nhảy tới, muốn đổi màn thì đi qua AppFlow (hoặc cheat panel sau này).
+        // DEBUG: bật Gizmos (Scene view, hoặc nút Gizmos trên Game view) lúc Play để thấy vùng
+        // chạm thật: xanh = zone Stack (BoxSize), vàng = zone Tile (Shadow của slot). Vẽ từ chính
+        // danh sách zones nên cái nhìn thấy là cái hit-test dùng, không phải bản tính lại.
+        [SerializeField] bool drawZones = true;
+        void OnDrawGizmos()
+        {
+            if (!drawZones || zones == null) return;
+            foreach (var z in zones)
+            {
+                Gizmos.color = z.Kind == ZoneKind.Stack ? Color.cyan : Color.yellow;
+                Gizmos.DrawWireCube(z.Rect.center, z.Rect.size);
+            }
+        }
+
         void HandleKeys()
         {
             var k = Keyboard.current;
@@ -891,10 +909,19 @@ namespace WordStack.Board
         {
             var box = g.TopBox(s);
             if (box == null) return -1;
-            var pos = StackWorldPos(g.Stacks[s]);
             for (int i = 0; i < box.Slots.Length; i++)
-                if (RectAt(pos + SlotOffset(i), Vector2.one * SlotSize).Contains(pt)) return i;
+                if (SlotZone(s, i).Contains(pt)) return i;
             return -1;
+        }
+
+        // Vùng chạm của slot i trên stack s = AABB sprite Shadow trong Box.prefab (BoxView.SlotRect),
+        // nên khớp hình thật kể cả scale 1.15 của Stack và 1.1 của Slot. Chưa có view hoặc slot
+        // chưa nối Shadow thì lùi về hằng layout (ô vuông SlotSize) như trước.
+        Rect SlotZone(int s, int i)
+        {
+            var bv = boxViews != null && s < boxViews.Length ? boxViews[s] : null;
+            if (bv != null && bv.HasSlotRect(i)) return bv.SlotRect(i);
+            return RectAt(StackWorldPos(g.Stacks[s]) + SlotOffset(i), Vector2.one * SlotSize);
         }
 
         int TargetStack(Vector2 pt)
@@ -1065,14 +1092,23 @@ namespace WordStack.Board
             if (delay > 0f) yield return new WaitForSeconds(delay);
             for (;;)
             {
+                // Chụp group lock đang đóng TRƯỚC khi domain mutate: lock Group suy từ bàn, thẻ
+                // vừa bị xoá là IsOpen đổi ngay, không còn dấu vết "vừa mở bởi nhóm này".
+                var wasLocked = ClosedGroupLocks();
                 var ev = g.SettleStep(Rules.RemoveEmptyNonBottomBox);
                 if (ev.Kind == SettleKind.None) break;
                 hadCascade = true;
 
                 if (ev.Kind == SettleKind.Clear)
                 {
-                    var seq = RemoveTiles(ev.DoomedUids);   // 4 thẻ co về 0, lệch nhau clearStagger
-                    if (seq != null) yield return seq.WaitForCompletion();
+                    var opened = NowOpen(wasLocked);
+                    if (opened.Count > 0)
+                        yield return ClearIntoLock(ev.DoomedUids, opened);   // bay vào icon rồi lồng mở
+                    else
+                    {
+                        var seq = RemoveTiles(ev.DoomedUids);   // 4 thẻ co về 0, lệch nhau clearStagger
+                        if (seq != null) yield return seq.WaitForCompletion();
+                    }
                     RefreshTileVisuals(ev.Stack);
                 }
                 if (ev.Kind == SettleKind.Collapse)
@@ -1108,6 +1144,60 @@ namespace WordStack.Board
                 groupsCleared: g != null ? g.Cleared : 0);
 
             LevelSignals.RaiseAnimationCompleted();
+        }
+
+        // Stack có hộp trên cùng khoá theo nhóm và còn đóng. Gọi trước SettleStep (xem Settle).
+        List<int> ClosedGroupLocks()
+        {
+            var r = new List<int>();
+            for (int s = 0; s < g.Stacks.Count; s++)
+            {
+                var box = g.TopBox(s);
+                if (box != null && box.Lock.Kind == LockKind.Group && !g.IsOpen(box.Lock)) r.Add(s);
+            }
+            return r;
+        }
+
+        // Trong số stack chụp ở trên, stack nào giờ đã mở và có view để diễn.
+        List<int> NowOpen(List<int> stacks)
+        {
+            var r = new List<int>();
+            foreach (int s in stacks)
+            {
+                var box = g.TopBox(s);
+                if (box != null && g.IsOpen(box.Lock) && boxViews != null && s < boxViews.Length && boxViews[s] != null)
+                    r.Add(s);
+            }
+            return r;
+        }
+
+        // Nhóm vừa gom xong chính là nhóm mở lồng: 4 thẻ bay chụm về icon trên hộp đầu tiên
+        // (nhiều hộp cùng khoá một nhóm thì các hộp sau chỉ diễn phần lồng mở), co dần trên
+        // đường bay, tới nơi thì huỷ; rồi lồng mở (BoxView.OpenGroupLock). Sổ tiles cập nhật
+        // ngay như RemoveTiles để RefreshTileVisuals sau đó không đụng thẻ đã bay.
+        IEnumerator ClearIntoLock(string[] uids, List<int> opened)
+        {
+            var target = boxViews[opened[0]].GroupIconWorld;
+            var seq = DOTween.Sequence();
+            int n = 0;
+            for (int i = 0; i < uids.Length; i++)
+            {
+                TileView tv;
+                if (!tiles.TryGetValue(uids[i], out tv) || tv == null) continue;
+                tiles.Remove(uids[i]);
+                var go = tv.gameObject;
+                tv.SetFlying(true);   // sorting 90 > lồng 14–16, thẻ bay đè lên lồng
+                float at = i * lockFlyStagger;
+                seq.Insert(at, tv.transform.DOMove(target, lockFlyDur).SetEase(Ease.InCubic).SetLink(go));
+                seq.Insert(at, tv.transform.DOScale(lockFlyGatherScale, lockFlyDur).SetEase(Ease.InQuad).SetLink(go)
+                                 .OnComplete(() => Destroy(go)));
+                n++;
+            }
+            if (n > 0) yield return seq.WaitForCompletion(); else seq.Kill();
+
+            // Nhiều hộp cùng khoá một nhóm thì mở song song; cùng một animation nên chờ hộp đầu là đủ.
+            for (int k = 1; k < opened.Count; k++) StartCoroutine(boxViews[opened[k]].OpenGroupLock());
+            yield return boxViews[opened[0]].OpenGroupLock();
         }
 
         Sequence RemoveTiles(string[] uids)
@@ -1341,7 +1431,7 @@ namespace WordStack.Board
                         if (!g.IsPullable(t, box)) continue;
                         zones.Add(new Zone
                         {
-                            Rect = RectAt(pos + SlotOffset(i), Vector2.one * SlotSize),
+                            Rect = SlotZone(s, i),
                             Kind = ZoneKind.Tile, Stack = s, Uid = t.Uid
                         });
                     }

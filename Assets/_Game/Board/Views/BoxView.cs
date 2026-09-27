@@ -3,7 +3,9 @@
 //
 // Kích thước hộp + vị trí 4 slot author trong prefab (Mục 2 của view-prefabs.md). Đổi số ở đó
 // thì phải đổi hằng layout trong BoardController theo, vì hit-test tính từ hằng code.
+using System.Collections;
 using DG.Tweening;
+using LitMotion.Animation;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -33,9 +35,27 @@ namespace WordStack.Board
         [Tooltip("Mở khoá: root bung lên rồi co về 0 (giây)")]
         [SerializeField] float unlockDur = 0.3f;
 
+        [Header("Mở group lock sau khi nhóm bay vào icon")]
+        [Tooltip("Thẻ khoá (Key Tile, gồm icon nhóm) mờ dần về 0 trước khi cửa chớp chạy. Để trống = cha của Group Art")]
+        [SerializeField] Transform groupTile;
+        [Tooltip("Thời gian mờ Key Tile (giây), 0 = bỏ qua")]
+        [FormerlySerializedAs("groupIconPopDur")] [SerializeField] float groupTileFadeDur = 0.2f;
+        [Tooltip("Lồng trượt lên bấy nhiêu world unit trong lúc mờ dần")]
+        [SerializeField] float groupOpenLift = 0.25f;
+        [SerializeField] float groupOpenDur = 0.35f;
+        [SerializeField] Ease groupOpenEase = Ease.OutCubic;
+
         SpriteRenderer[] renderers;
         float[] baseAlpha;
+        SpriteRenderer[] slotShadows;   // sprite Shadow của từng slot — lấy ở Awake, trước khi thẻ mount vào
         Vector3 lockedScale = Vector3.one, groupScale = Vector3.one;   // scale author trong prefab của hai root
+        Vector3 groupArtScale = Vector3.one;                            // scale author của icon nhóm
+        // OpenGroupLock đang chạy: tween hiện tại, hàm trả root về trạng thái author, và token để
+        // coroutine cũ tự thoát khi bị cắt ngang (FinishOpen tăng token).
+        Tween openTween;
+        System.Action openRestore;
+        int openToken;
+        LitMotionAnimation shutter;   // cửa chớp trên groupLockRoot (Tools ▸ WordStack ▸ Build Lock Shutter Animation), null = không có
 
         void Awake()
         {
@@ -44,13 +64,42 @@ namespace WordStack.Board
             renderers = GetComponentsInChildren<SpriteRenderer>(true);
             baseAlpha = new float[renderers.Length];
             for (int i = 0; i < renderers.Length; i++) baseAlpha[i] = renderers[i].color.a;
+            slotShadows = new SpriteRenderer[slotAnchors.Length];
+            for (int i = 0; i < slotAnchors.Length; i++)
+                if (slotAnchors[i] != null) slotShadows[i] = slotAnchors[i].GetComponentInChildren<SpriteRenderer>(true);
             if (lockedRoot != null) lockedScale = lockedRoot.transform.localScale;
             if (groupLockRoot != null) groupScale = groupLockRoot.transform.localScale;
+            if (groupArt != null) groupArtScale = groupArt.transform.localScale;
+            if (groupLockRoot != null) shutter = groupLockRoot.GetComponent<LitMotionAnimation>();
+        }
+
+        /// <summary>Tâm icon nhóm trên lồng — đích cho 4 thẻ bay vào. Chưa nối icon thì lấy root.</summary>
+        public Vector3 GroupIconWorld
+        {
+            get
+            {
+                if (groupArt != null) return groupArt.transform.position;
+                return (groupLockRoot != null ? groupLockRoot.transform : transform).position;
+            }
         }
 
         Vector3 BaseScale(GameObject root) { return root == lockedRoot ? lockedScale : groupScale; }
 
         public Transform Slot(int i) { return slotAnchors[i]; }
+
+        /// <summary>Slot i có sprite Shadow để suy vùng chạm không.</summary>
+        public bool HasSlotRect(int i) { return slotShadows != null && i < slotShadows.Length && slotShadows[i] != null; }
+
+        /// <summary>
+        /// Vùng slot i theo world = AABB của sprite Shadow, nên đã gồm scale của Stack (1.15) lẫn
+        /// Slot (1.1) và khớp đúng hình thẻ nằm trong đó. Hit-test bên BoardController lấy từ đây
+        /// thay vì hằng layout. Gọi khi hộp đã đứng yên (RefreshZones chỉ chạy lúc đó).
+        /// </summary>
+        public Rect SlotRect(int i)
+        {
+            var b = slotShadows[i].bounds;
+            return new Rect((Vector2)b.center - (Vector2)b.size / 2f, b.size);
+        }
 
         // Hộp đóng: không nhặt ra, không thả vào, không tự nổ (luật ở Domain). Ba trạng thái
         // nhìn: mở, khoá theo số nhóm (label = số nhóm còn cần), khoá theo nhóm (sprite nhóm).
@@ -91,9 +140,90 @@ namespace WordStack.Board
             groupArt.color = new Color(1f, 1f, 1f, c.a);   // art nhóm tự mang màu; alpha thuộc SetAlpha
         }
 
+        // Mở group lock: Key Tile mờ dần → cửa chớp gập (LitMotionAnimation trên Lock Root, nếu có) →
+        // lồng trượt lên + mờ dần để lộ thẻ bên trong (thẻ order 10–14, lồng 14–16 nên chỉ cần lồng
+        // trong suốt là thẻ hiện). Xong tắt root và trả vị trí/alpha/scale về giá trị author để lần
+        // bind sau còn dùng. Đặt shownRoot = null ngay: SetOpen ở cuối Settle sẽ snap, không Unlock lần hai.
+        // Coroutine (bên gọi yield return) vì LitMotionAnimation không cho biết trước thời lượng — chờ IsPlaying.
+        public IEnumerator OpenGroupLock()
+        {
+            var root = groupLockRoot;
+            lockKnown = true; shownRoot = null;
+            if (root == null || !root.activeSelf) yield break;
+
+            FinishOpen();
+            int token = ++openToken;
+            var tr = root.transform;
+            var pos0 = tr.localPosition;
+            var srs = root.GetComponentsInChildren<SpriteRenderer>(true);
+            var a0 = new float[srs.Length];
+            for (int i = 0; i < srs.Length; i++) a0[i] = srs[i].color.a;
+            openRestore = () =>
+            {
+                if (shutter != null) shutter.Stop();   // OnStop của từng component trả tấm cửa về chỗ author
+                root.SetActive(false);
+                tr.localPosition = pos0;
+                tr.localScale = groupScale;
+                for (int i = 0; i < srs.Length; i++) { var c = srs[i].color; c.a = a0[i]; srs[i].color = c; }
+                if (groupArt != null) groupArt.transform.localScale = groupArtScale;
+            };
+            tr.DOKill(true);
+
+            // Key Tile mờ hẳn trước, rồi cửa chớp mới gập. Alpha trả lại trong openRestore (srs gồm cả nó).
+            var tile = groupTile != null ? groupTile : (groupArt != null ? groupArt.transform.parent : null);
+            if (tile == tr && groupArt != null) tile = groupArt.transform;   // icon gắn thẳng lên root: chỉ mờ icon, không mờ cả lồng
+            if (tile != null && groupTileFadeDur > 0f)
+            {
+                var fade = DOTween.Sequence().SetLink(root);
+                foreach (var sr in tile.GetComponentsInChildren<SpriteRenderer>(true))
+                {
+                    var r = sr;
+                    fade.Join(DOTween.ToAlpha(() => r.color, c => r.color = c, 0f, groupTileFadeDur).SetEase(Ease.OutQuad));
+                }
+                openTween = fade;
+                yield return fade.WaitForCompletion();
+                if (token != openToken) yield break;
+            }
+
+            if (shutter != null)
+            {
+                shutter.Stop();
+                shutter.Play();
+                while (shutter.IsPlaying)
+                {
+                    yield return null;
+                    if (token != openToken) yield break;
+                }
+            }
+
+            var seq = DOTween.Sequence().SetLink(root);
+            seq.Append(tr.DOLocalMoveY(pos0.y + groupOpenLift, groupOpenDur).SetEase(groupOpenEase));
+            foreach (var sr in srs)
+                if (sr != groupArt)
+                {
+                    var r = sr;   // capture riêng từng renderer
+                    seq.Join(DOTween.ToAlpha(() => r.color, c => r.color = c, 0f, groupOpenDur).SetEase(groupOpenEase));
+                }
+            openTween = seq;
+            yield return seq.WaitForCompletion();
+            if (token != openToken) yield break;
+            FinishOpen();
+        }
+
+        // Cắt OpenGroupLock đang dở (nếu có) và trả root về trạng thái author. Coroutine cũ thấy
+        // token đổi thì tự thoát ở lần kiểm kế tiếp.
+        void FinishOpen()
+        {
+            openToken++;
+            if (openTween != null) { openTween.Kill(); openTween = null; }
+            var restore = openRestore; openRestore = null;
+            restore?.Invoke();
+        }
+
         // Bật đúng một root (hoặc không cái nào), giết tween dở và trả scale về giá trị author.
         void ShowRoots(GameObject keep)
         {
+            FinishOpen();   // root về trạng thái author trước khi bật lại
             foreach (var r in new[] { lockedRoot, groupLockRoot })
             {
                 if (r == null) continue;

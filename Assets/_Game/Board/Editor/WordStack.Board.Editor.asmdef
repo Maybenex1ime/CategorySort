@@ -2,7 +2,9 @@
     "name": "WordStack.Board.Editor",
     "rootNamespace": "WordStack.Board.Editor",
     "references": [
-        "WordStack.Board"
+        "WordStack.Board",
+        "LitMotion",
+        "LitMotion.Animation"
     ],
     "includePlatforms": [
         "Editor"
