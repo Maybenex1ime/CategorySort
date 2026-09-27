@@ -1,5 +1,6 @@
 using System;
 using System.Text;
+using LogosGame.Features.Currency;
 using LogosGame.Features.Shop;
 using TMPro;
 using UnityEngine;
@@ -44,7 +45,7 @@ namespace LogosGame.Features.UI.Popups
             _onClick = onClick;
 
             if (_icon != null && bundle.Icon != null) _icon.sprite = bundle.Icon;
-            if (_coinsText != null) _coinsText.text = bundle.Coins.ToString("N0");
+            if (_coinsText != null) _coinsText.text = bundle.TotalCoins.ToString("N0");
 
             SetPrice(priceLabel);
             SetOptionalText(_titleText, bundle.Title);
@@ -61,16 +62,16 @@ namespace LogosGame.Features.UI.Popups
             label.text = text ?? string.Empty;
         }
 
-        // ponytail: hiện thẳng đuôi ItemId ("booster.shuffle" → "+5 shuffle"). Cần tên bản địa hoá
-        // hay icon từng item thì đổi ở đây.
+        // ponytail: hiện thẳng tên enum ("+5 BoosterShuffle"). Cần tên bản địa hoá hay icon từng
+        // tài nguyên thì đổi ở đây. Coin đã nằm trong _coinsText (TotalCoins) nên bỏ qua.
         private static string DescribeItems(CoinBundleDefinition bundle)
         {
             var sb = new StringBuilder();
             for (int i = 0; i < bundle.Items.Length; i++)
             {
-                string id = bundle.Items[i].ItemId ?? string.Empty;
+                if (bundle.Items[i].Type == ResourceType.Coin) continue;
                 if (sb.Length > 0) sb.Append("  ");
-                sb.Append('+').Append(bundle.Items[i].Amount).Append(' ').Append(id.Substring(id.LastIndexOf('.') + 1));
+                sb.Append('+').Append(bundle.Items[i].Amount).Append(' ').Append(bundle.Items[i].Type);
             }
             return sb.ToString();
         }

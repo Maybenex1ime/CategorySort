@@ -1,9 +1,9 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Reflection;
+using LogosGame.Features.Currency;
 using LogosGame.Features.Currency.Transactions;
 using LogosGame.Features.Shop;
-using LogosMeta.Economy;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
@@ -56,15 +56,27 @@ namespace WordStack.Meta.Tests
             ShopCatalog catalog = AssetDatabase.LoadAssetAtPath<ShopCatalog>(ShopCatalogPath);
             Assert.IsNotNull(catalog, "Chưa có " + ShopCatalogPath);
 
-            string[] known = ConstValues(typeof(ItemIds));
             foreach (CoinBundleDefinition b in catalog.CoinBundles)
             {
                 if (b.Items == null) continue;
-                foreach (TransactionItem item in b.Items)
+                foreach (ShopReward reward in b.Items)
                 {
-                    Assert.Contains(item.ItemId, known, $"'{b.ProductId}' có item lạ '{item.ItemId}' — TransactionItemDispatcher không biết trao gì.");
-                    Assert.Greater(item.Amount, 0, $"'{b.ProductId}' có '{item.ItemId}' với Amount <= 0.");
+                    Assert.IsTrue(System.Enum.IsDefined(typeof(ResourceType), reward.Type),
+                        $"'{b.ProductId}' có ResourceType lạ ({(int)reward.Type}) — enum bị đổi số?");
+                    Assert.Greater(reward.Amount, 0, $"'{b.ProductId}' có '{reward.Type}' với Amount <= 0.");
                 }
+            }
+        }
+
+        [Test]
+        public void MoiResourceType_DeuTraoDuoc()
+        {
+            // Thêm loại tài nguyên mới vào enum mà quên map sang ItemIds là gói có nó sẽ trao thiếu.
+            foreach (ResourceType type in System.Enum.GetValues(typeof(ResourceType)))
+            {
+                if (type == ResourceType.Coin) continue;
+                Assert.Contains(type.ToItemId(), ConstValues(typeof(ItemIds)),
+                    $"ResourceType.{type} chưa map sang ItemIds trong ResourceTypeExtensions.ToItemId.");
             }
         }
 

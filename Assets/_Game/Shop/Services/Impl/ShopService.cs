@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using LogosGame.Features.Currency;
 using LogosMeta.Economy;
 using LogosSDK.Core.Logging;
 using LogosSDK.Services;
@@ -92,11 +93,11 @@ namespace LogosGame.Features.Shop.Impl
             // Đơn đã trao (store gửi lại): báo true cho store thôi gửi, KHÔNG trao item lần nữa.
             if (_currency.HasGrant(transactionId)) return true;
 
-            // Coins <= 0 thì AddOnce từ chối và đơn bị gửi lại mãi — chặn trước khi trao item,
+            // Không có coin thì AddOnce từ chối và đơn bị gửi lại mãi — chặn trước khi trao item,
             // không thì mỗi lần gửi lại user nhận thêm một bộ item.
-            if (bundle.Coins <= 0)
+            if (bundle.TotalCoins <= 0)
             {
-                _logger.Warn($"[ShopService] Gói '{productId}' có Coins <= 0 — không trao, sửa SO_ShopCatalog.");
+                _logger.Warn($"[ShopService] Gói '{productId}' không có coin — không trao, sửa SO_ShopCatalog.");
                 return false;
             }
 
@@ -111,25 +112,27 @@ namespace LogosGame.Features.Shop.Impl
                 // ponytail: trao item TRƯỚC, AddOnce (ghi mã chống trùng) SAU. App chết đúng giữa hai
                 // bước thì đơn được gửi lại và item trao lần hai — lệch về phía có lợi cho user.
                 // Muốn tuyệt đối một lần thì phải lưu item + mã giao dịch trong cùng một lần ghi.
+                // Coin không đi qua dispatcher — đã cộng dồn vào TotalCoins, vào ví cùng AddOnce bên dưới.
                 for (int i = 0; i < bundle.Items.Length; i++)
                 {
-                    if (bundle.Items[i].Amount > 0)
-                        _items.Grant(bundle.Items[i].ItemId, bundle.Items[i].Amount);
+                    string itemId = bundle.Items[i].Type.ToItemId();
+                    if (itemId != null && bundle.Items[i].Amount > 0)
+                        _items.Grant(itemId, bundle.Items[i].Amount);
                 }
             }
 
-            if (!_currency.AddOnce(bundle.Coins, transactionId))
+            if (!_currency.AddOnce(bundle.TotalCoins, transactionId))
             {
                 _logger.Warn($"[ShopService] Ví từ chối cộng '{productId}' ({transactionId}) — để Pending.");
                 return false;
             }
 
-            _logger.Info($"[ShopService] Trao '{productId}' ({transactionId}): +{bundle.Coins} coin" +
+            _logger.Info($"[ShopService] Trao '{productId}' ({transactionId}): +{bundle.TotalCoins} coin" +
                          (bundle.HasItems ? $" + {bundle.Items.Length} loại item." : "."));
             _analytics?.LogEvent("iap_purchase", new Dictionary<string, object>
             {
                 { "product_id", productId },
-                { "coins", bundle.Coins },
+                { "coins", bundle.TotalCoins },
             });
             return true;
         }
@@ -159,7 +162,7 @@ namespace LogosGame.Features.Shop.Impl
 
             // KHÔNG cộng coin ở đây: store đã gọi Fulfill (cộng + ghi đĩa) TRƯỚC khi Purchase
             // trả true. Cộng sau await thì app chết giữa hai dòng là user mất tiền thật.
-            return new ShopPurchaseResult(ShopPurchaseCode.Success, productId, bundle.Coins);
+            return new ShopPurchaseResult(ShopPurchaseCode.Success, productId, bundle.TotalCoins);
         }
 
         public Awaitable RestorePurchases()

@@ -1,5 +1,5 @@
 using System;
-using LogosMeta.Economy;
+using LogosGame.Features.Currency;
 using UnityEngine;
 
 namespace LogosGame.Features.Shop
@@ -9,6 +9,13 @@ namespace LogosGame.Features.Shop
         None,
         Popular,
         BestValue,
+    }
+
+    [Serializable]
+    public struct ShopReward
+    {
+        public ResourceType Type;
+        [Min(1)] public int Amount;
     }
 
     [Serializable]
@@ -27,12 +34,25 @@ namespace LogosGame.Features.Shop
 
         public ShopTag Tag;
 
-        // Gói combo: tên hiển thị + item tặng kèm coin (booster, tim — xem ItemIds). Để trống
-        // Items là gói coin thường. Gói combo vẫn phải có Coins >= 1: AddOnce của ví là chốt
-        // chống trao trùng cho CẢ gói, kể cả phần item.
+        // Gói combo: tên hiển thị + tài nguyên tặng kèm (booster, tim; Coin thì cộng dồn vào
+        // Coins). Để trống Items là gói coin thường. Gói combo vẫn phải có Coins >= 1: AddOnce
+        // của ví là chốt chống trao trùng cho CẢ gói, kể cả phần item.
         public string Title;
-        public TransactionItem[] Items;
+        public ShopReward[] Items;
 
         public bool HasItems => Items != null && Items.Length > 0;
+
+        /// Coin thật sự nhận: Coins + mọi reward loại Coin trong Items.
+        public int TotalCoins
+        {
+            get
+            {
+                int total = Coins;
+                if (Items != null)
+                    for (int i = 0; i < Items.Length; i++)
+                        if (Items[i].Type == ResourceType.Coin) total += Items[i].Amount;
+                return total;
+            }
+        }
     }
 }

@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using LogosGame.Features.Currency;
 using LogosGame.Features.Shop;
 using LogosGame.Features.Shop.Impl;
 using LogosMeta.Economy;
@@ -199,7 +200,7 @@ namespace WordStack.Meta.Tests
             Assert.IsTrue(shop.Fulfill(Pack, "gpa-pack"));
             Assert.IsTrue(shop.Fulfill(Pack, "gpa-pack"), "store gửi lại đơn đã trao: vẫn báo true để nó thôi gửi");
 
-            Assert.AreEqual(2000, currency.Coins.CurrentValue);
+            Assert.AreEqual(2500, currency.Coins.CurrentValue, "reward Coin cộng dồn vào Coins của gói, cùng một lần AddOnce");
             CollectionAssert.AreEqual(new[] { "booster.shuffle x5", "heart x2" }, items.Granted,
                 "item của gói chỉ được trao MỘT lần dù store gửi lại");
         }
@@ -239,8 +240,9 @@ namespace WordStack.Meta.Tests
                     ProductId = Pack, Title = "Starter Pack", Coins = 2000, PriceLabelFallback = "4.99 $",
                     Items = new[]
                     {
-                        new TransactionItem { ItemId = "booster.shuffle", Amount = 5 },
-                        new TransactionItem { ItemId = "heart", Amount = 2 },
+                        new ShopReward { Type = ResourceType.BoosterShuffle, Amount = 5 },
+                        new ShopReward { Type = ResourceType.Heart, Amount = 2 },
+                        new ShopReward { Type = ResourceType.Coin, Amount = 500 },
                     },
                 },
             };
