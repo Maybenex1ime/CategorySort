@@ -43,7 +43,8 @@ namespace WordStack.Meta.AppFlow
             LogosMeta.Economy.ICurrencyService currencyService = null,
             int revivePrice = 0,
             GameplayFlowAdapter flowAdapter = null,
-            int reviveExtraMoves = 0)
+            int reviveExtraMoves = 0,
+            LogosGame.Features.Shop.IShopService shopService = null)
         {
             if (uiManager == null)
                 throw new ArgumentNullException(nameof(uiManager));
@@ -52,7 +53,7 @@ namespace WordStack.Meta.AppFlow
             _context = new AppFlowContext(this, uiManager, minLoadingSeconds,
                 saveManager, coinReward, flow, levelService, levelCatalog,
                 audioService, hapticService, heartService, currencyService, revivePrice,
-                flowAdapter, reviveExtraMoves);
+                flowAdapter, reviveExtraMoves, shopService);
 
             // Nguồn kết quả DUY NHẤT của AppFlow là ViewModel — nó công bố sau khi
             // máy phase chốt Win/Lose. MetaSession vẫn nghe LevelSignals.Finished

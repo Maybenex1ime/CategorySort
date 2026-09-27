@@ -41,10 +41,14 @@ namespace LogosGame.Features.UI.Popups
         [SerializeField] private Transform _itemGridRoot;
         [SerializeField] private ShopItemCellView _itemCellPrefab;
 
+        [Header("Restore (chỉ hiện trên iOS — Apple bắt buộc; Android tự khôi phục)")]
+        [SerializeField] private Button _restoreButton;
+
         [Inject] private IShopService _shopService;
         [Inject] private ICurrencyService _currencyService;
 
         private readonly List<ShopCoinCellView> _coinCells = new List<ShopCoinCellView>();
+        private readonly List<string> _coinCellProductIds = new List<string>();
 
         private IDisposable _coinCounterSubscription;
         private bool _built;
@@ -56,6 +60,12 @@ namespace LogosGame.Features.UI.Popups
             if (_closeButton != null) _closeButton.onClick.AddListener(OnCloseClicked);
             if (_coinTabButton != null) _coinTabButton.onClick.AddListener(ShowCoinTab);
             if (_itemTabButton != null) _itemTabButton.onClick.AddListener(ShowItemTab);
+
+            if (_restoreButton != null)
+            {
+                _restoreButton.gameObject.SetActive(Application.platform == RuntimePlatform.IPhonePlayer);
+                _restoreButton.onClick.AddListener(OnRestoreClicked);
+            }
         }
 
         private void OnDestroy()
@@ -64,6 +74,7 @@ namespace LogosGame.Features.UI.Popups
             if (_closeButton != null) _closeButton.onClick.RemoveListener(OnCloseClicked);
             if (_coinTabButton != null) _coinTabButton.onClick.RemoveListener(ShowCoinTab);
             if (_itemTabButton != null) _itemTabButton.onClick.RemoveListener(ShowItemTab);
+            if (_restoreButton != null) _restoreButton.onClick.RemoveListener(OnRestoreClicked);
         }
 
         // Chạy lại mỗi lần mở (UIManager cache instance và gọi SetArgs lại) — nên
@@ -72,6 +83,7 @@ namespace LogosGame.Features.UI.Popups
         {
             BindCoinCounter();
             BuildOnce();
+            RefreshPrices();
             ShowCoinTab();
         }
 
@@ -111,8 +123,22 @@ namespace LogosGame.Features.UI.Popups
             {
                 CoinBundleDefinition bundle = bundles[i];
                 ShopCoinCellView cell = Instantiate(_coinCellPrefab, _coinGridRoot);
-                cell.Bind(bundle, () => BuyCoinBundle(bundle.ProductId));
+                cell.Bind(bundle, _shopService.GetPriceLabel(bundle.ProductId), () => BuyCoinBundle(bundle.ProductId));
                 _coinCells.Add(cell);
+                _coinCellProductIds.Add(bundle.ProductId);
+            }
+        }
+
+        // Ô chỉ dựng một lần, còn giá store có thể về SAU lần mở đầu (store khởi tạo nền từ
+        // lúc boot) — nên mỗi lần mở lại hỏi giá lần nữa.
+        private void RefreshPrices()
+        {
+            if (_shopService == null) return;
+
+            for (int i = 0; i < _coinCells.Count; i++)
+            {
+                if (_coinCells[i] != null)
+                    _coinCells[i].SetPrice(_shopService.GetPriceLabel(_coinCellProductIds[i]));
             }
         }
 
@@ -187,6 +213,27 @@ namespace LogosGame.Features.UI.Popups
             PurchaseResult result = _shopService.PurchaseItem(transactionId);
             if (!result.IsSuccess)
                 _logger.Warn($"[ShopPopup] Mua item '{transactionId}' không thành: {result.Code}.");
+        }
+
+        private async void OnRestoreClicked()
+        {
+            if (_shopService == null || _isPurchasing) return;
+
+            _isPurchasing = true;
+            SetCoinCellsInteractable(false);
+            try
+            {
+                await _shopService.RestorePurchases();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "[ShopPopup] Lỗi khi khôi phục giao dịch.");
+            }
+            finally
+            {
+                _isPurchasing = false;
+                SetCoinCellsInteractable(true);
+            }
         }
 
         private void OnCloseClicked()

@@ -39,6 +39,7 @@ namespace WordStack.Meta.AppFlow
         private readonly int _revivePrice;
         private readonly GameplayFlowAdapter _flowAdapter;
         private readonly int _reviveExtraMoves;
+        private readonly LogosGame.Features.Shop.IShopService _shopService;
         private readonly float _minLoadingSeconds;
 
         private GameplayResultViewData _lastResult;
@@ -63,7 +64,8 @@ namespace WordStack.Meta.AppFlow
             LogosMeta.Economy.ICurrencyService currencyService = null,
             int revivePrice = 0,
             GameplayFlowAdapter flowAdapter = null,
-            int reviveExtraMoves = 0)
+            int reviveExtraMoves = 0,
+            LogosGame.Features.Shop.IShopService shopService = null)
         {
             _manager = manager ?? throw new ArgumentNullException(nameof(manager));
             _uiManager = uiManager ?? throw new ArgumentNullException(nameof(uiManager));
@@ -80,6 +82,31 @@ namespace WordStack.Meta.AppFlow
             _revivePrice = revivePrice;
             _flowAdapter = flowAdapter;
             _reviveExtraMoves = reviveExtraMoves;
+            _shopService = shopService;
+        }
+
+        /// <summary>
+        /// Khởi tạo store ngay lúc boot, KHÔNG chặn boot. Phải làm ở đây chứ không đợi mở
+        /// Shop: giao dịch đã trả tiền mà chưa trao (app chết giữa chừng hôm trước) chỉ
+        /// được store gửi lại sau bước này.
+        /// </summary>
+        public void InitializeStoreInBackground()
+        {
+            if (_shopService == null) return;
+            InitializeStoreAsync();
+        }
+
+        private async void InitializeStoreAsync()
+        {
+            try
+            {
+                bool ready = await _shopService.InitializeStore();
+                if (!ready) _logger.Warn("[AppFlow] Store chưa sẵn sàng — shop hiện giá dự phòng, nút mua báo StoreUnavailable.");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "[AppFlow] Lỗi khi khởi tạo store.");
+            }
         }
 
         public float MinLoadingSeconds => _minLoadingSeconds;

@@ -19,7 +19,10 @@
         "Unity.InputSystem",
         "Unity.Addressables",
         "Unity.ResourceManager",
-        "DOTween.Modules"
+        "DOTween.Modules",
+        "UnityEngine.Purchasing",
+        "UnityEngine.Purchasing.Stores",
+        "Unity.Services.Core"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -28,6 +31,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.purchasing",
+            "expression": "",
+            "define": "CATEGORYSORT_UNITY_IAP"
+        }
+    ],
     "noEngineReferences": false
 }

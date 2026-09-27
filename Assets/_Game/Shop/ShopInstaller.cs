@@ -16,6 +16,25 @@ namespace WordStack.Meta
     {
         [SerializeField] private ShopCatalog _shopCatalog;
 
+        [Tooltip("BẬT cho mọi build phát hành. Tắt = StubIAPService: luôn 'mua thành công', phát coin miễn phí.")]
+        [SerializeField] private bool _useRealStore;
+
+        /// Test cấu hình đọc cờ này để chặn build phát hành lỡ dùng stub.
+        public bool UseRealStore => _useRealStore;
+
+        // Một chỗ duy nhất quyết store thật hay giả. UnityIAPService chỉ tồn tại khi package
+        // com.unity.purchasing đã cài (define CATEGORYSORT_UNITY_IAP do asmdef versionDefines bật).
+        private System.Type ResolveIapServiceType()
+        {
+#if CATEGORYSORT_UNITY_IAP
+            if (_useRealStore) return typeof(UnityIAPService);
+#else
+            if (_useRealStore)
+                Debug.LogError("[ShopInstaller] _useRealStore bật nhưng com.unity.purchasing chưa cài — rơi về StubIAPService.");
+#endif
+            return typeof(StubIAPService);
+        }
+
         public void InstallBindings(ContainerBuilder builder)
         {
             // Catalog có thể vắng (chưa tạo asset) nhưng IShopService thì LUÔN phải
@@ -27,8 +46,7 @@ namespace WordStack.Meta
                 builder.RegisterValue(_shopCatalog, new[] { typeof(IShopCatalog) });
             }
 
-            // ĐỔI Ở ĐÂY khi lên store thật: StubIAPService → impl Unity IAP.
-            builder.RegisterType(typeof(StubIAPService),
+            builder.RegisterType(ResolveIapServiceType(),
                 new[] { typeof(IIAPService) },
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
@@ -45,6 +63,9 @@ namespace WordStack.Meta
                         : null,
                     c.TryGetResolver<LogosMeta.Economy.IPurchaseService>(out _)
                         ? c.Resolve<LogosMeta.Economy.IPurchaseService>()
+                        : null,
+                    c.TryGetResolver<IAnalyticsService>(out _)
+                        ? c.Resolve<IAnalyticsService>()
                         : null),
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);

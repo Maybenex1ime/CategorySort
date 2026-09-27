@@ -147,7 +147,11 @@ namespace WordStack.Meta.AppFlow.Installers
                         c.Resolve<LogosMeta.Economy.ICurrencyService>(),
                         _revivePrice,
                         c.Resolve<GameplayFlowAdapter>(),
-                        _reviveExtraMoves);
+                        _reviveExtraMoves,
+                        // Vắng khi ProjectScope chưa gắn ShopInstaller — boot vẫn chạy, chỉ không có store.
+                        c.TryGetResolver<LogosGame.Features.Shop.IShopService>(out _)
+                            ? c.Resolve<LogosGame.Features.Shop.IShopService>()
+                            : null);
                 },
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);

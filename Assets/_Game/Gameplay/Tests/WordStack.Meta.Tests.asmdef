@@ -6,6 +6,7 @@
         "WordStack.Contracts",
         "LogosMeta.Economy",
         "LogosSDK.Services",
+        "LogosSDK.Save",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
