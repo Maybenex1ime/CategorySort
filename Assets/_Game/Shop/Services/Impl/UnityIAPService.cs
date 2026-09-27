@@ -1,6 +1,7 @@
 // File DUY NHẤT trong project được biết Unity IAP là gì. Mọi thứ khác nói chuyện qua IIAPService.
 // Chỉ biên dịch khi package com.unity.purchasing đã cài — define do versionDefines của
 // WordStack.Meta.asmdef bật; chưa cài thì file này rỗng và ShopInstaller rơi về StubIAPService.
+// Viết theo API Unity IAP 5 (StoreController + event); IAP 4 hết hỗ trợ từ 08/06/2026.
 #if CATEGORYSORT_UNITY_IAP
 using System;
 using System.Collections.Generic;
@@ -9,7 +10,6 @@ using LogosSDK.Services;
 using Unity.Services.Core;
 using UnityEngine;
 using UnityEngine.Purchasing;
-using UnityEngine.Purchasing.Extension;
 using ILogger = LogosSDK.Core.Logging.ILogger;
 
 namespace LogosGame.Features.Shop.Impl
@@ -29,19 +29,19 @@ namespace LogosGame.Features.Shop.Impl
     }
 
     /// <summary>
-    /// Nguyên tắc: ProcessPurchase LUÔN trả Pending, chỉ ConfirmPendingPurchase sau khi
-    /// IIapFulfillment báo đã trao + đã lưu. App chết ở bất kỳ đâu trước Confirm thì store gửi
-    /// lại giao dịch ở lần khởi tạo sau — kể cả khi không có Purchase nào đang chờ.
+    /// Nguyên tắc: chỉ ConfirmPurchase sau khi IIapFulfillment báo đã trao + đã lưu. App chết ở bất
+    /// kỳ đâu trước Confirm thì đơn còn Pending — FetchPurchases() lúc khởi tạo gửi lại qua
+    /// OnPurchasePending, kể cả khi không có Purchase nào đang chờ.
     /// </summary>
-    public sealed class UnityIAPService : IIAPService, IDetailedStoreListener
+    public sealed class UnityIAPService : IIAPService
     {
         private static readonly ILogger _logger = LogManager.GetLogger<UnityIAPService>();
 
         private readonly IReceiptValidator _validator;
 
-        private IStoreController _controller;
-        private IExtensionProvider _extensions;
+        private StoreController _store;
         private IIapFulfillment _fulfillment;
+        private bool _productsReady;
 
         private AwaitableCompletionSource<bool> _initSource;
         private AwaitableCompletionSource<bool> _purchaseSource;
@@ -57,7 +57,7 @@ namespace LogosGame.Features.Shop.Impl
             _validator = validator ?? new AcceptAllReceiptValidator();
         }
 
-        public bool IsReady => _controller != null && _fulfillment != null;
+        public bool IsReady => _store != null && _productsReady && _fulfillment != null;
 
         // ------------------------------------------------------------------ init
 
@@ -83,8 +83,8 @@ namespace LogosGame.Features.Shop.Impl
         {
             try
             {
-                // Unity IAP 4.x cảnh báo nếu Gaming Services chưa khởi tạo. Thất bại ở đây
-                // (project chưa link UGS, offline) KHÔNG chặn store.
+                // IAP cảnh báo nếu Gaming Services chưa khởi tạo. Thất bại ở đây (project chưa
+                // link UGS, offline) KHÔNG chặn store.
                 try
                 {
                     await UnityServices.InitializeAsync();
@@ -94,16 +94,28 @@ namespace LogosGame.Features.Shop.Impl
                     _logger.Warn($"[UnityIAPService] UnityServices.InitializeAsync lỗi, vẫn khởi tạo store: {ex.Message}");
                 }
 
-                ConfigurationBuilder builder = ConfigurationBuilder.Instance(StandardPurchasingModule.Instance());
+                _store = UnityIAPServices.StoreController();
+                _store.OnPurchasePending += OnPurchasePending;
+                _store.OnPurchaseConfirmed += OnPurchaseConfirmed;
+                _store.OnPurchaseFailed += OnPurchaseFailed;
+                _store.OnPurchaseDeferred += OnPurchaseDeferred;
+                _store.OnProductsFetched += OnProductsFetched;
+                _store.OnProductsFetchFailed += OnProductsFetchFailed;
+                _store.OnPurchasesFetchFailed += OnPurchasesFetchFailed;
+                _store.OnStoreDisconnected += OnStoreDisconnected;
+
+                await _store.Connect();
+
+                var definitions = new List<ProductDefinition>(products.Count);
                 for (int i = 0; i < products.Count; i++)
                 {
-                    builder.AddProduct(products[i].Id,
+                    definitions.Add(new ProductDefinition(products[i].Id,
                         products[i].Kind == IapProductKind.NonConsumable
                             ? ProductType.NonConsumable
-                            : ProductType.Consumable);
+                            : ProductType.Consumable));
                 }
 
-                UnityPurchasing.Initialize(this, builder);
+                _store.FetchProducts(definitions);
             }
             catch (Exception ex)
             {
@@ -112,20 +124,32 @@ namespace LogosGame.Features.Shop.Impl
             }
         }
 
-        public void OnInitialized(IStoreController controller, IExtensionProvider extensions)
+        private void OnProductsFetched(List<Product> products)
         {
-            _controller = controller;
-            _extensions = extensions;
-            _logger.Info($"[UnityIAPService] Store sẵn sàng, {controller.products.all.Length} sản phẩm.");
+            _productsReady = true;
+            _logger.Info($"[UnityIAPService] Store sẵn sàng, {products.Count} sản phẩm.");
+
+            // Sau khi có sản phẩm mới hỏi đơn cũ: đơn Pending (trả tiền rồi mà chưa trao) được
+            // gửi lại qua OnPurchasePending — đây là lý do phải khởi tạo ngay lúc boot.
+            _store.FetchPurchases();
             _initSource.TrySetResult(true);
         }
 
-        public void OnInitializeFailed(InitializationFailureReason error) => OnInitializeFailed(error, null);
-
-        public void OnInitializeFailed(InitializationFailureReason error, string message)
+        private void OnProductsFetchFailed(ProductFetchFailed failure)
         {
-            _logger.Warn($"[UnityIAPService] Khởi tạo store thất bại: {error} {message}");
-            _initSource.TrySetResult(false);
+            _logger.Warn($"[UnityIAPService] Store không trả {failure.FailedFetchProducts.Count} sản phẩm: {failure.FailureReason}");
+
+            // Lỗi một phần vẫn bán được phần còn lại; chỉ báo thất bại khi không có sản phẩm nào.
+            if (_store.GetProducts().Count == 0) _initSource.TrySetResult(false);
+        }
+
+        private void OnPurchasesFetchFailed(PurchasesFetchFailureDescription failure) =>
+            _logger.Warn($"[UnityIAPService] Không lấy được đơn cũ: {failure.FailureReason} {failure.Message}");
+
+        private void OnStoreDisconnected(StoreConnectionFailureDescription failure)
+        {
+            _logger.Warn($"[UnityIAPService] Mất kết nối store: {failure.Message}");
+            _initSource?.TrySetResult(false);
         }
 
         // -------------------------------------------------------------- purchase
@@ -141,7 +165,7 @@ namespace LogosGame.Features.Shop.Impl
                 return source.Awaitable;
             }
 
-            Product product = _controller.products.WithID(productId);
+            Product product = _store.GetProductById(productId);
             if (product == null || !product.availableToPurchase)
             {
                 _logger.Warn($"[UnityIAPService] Store không bán '{productId}' (chưa tạo trên console?).");
@@ -151,28 +175,27 @@ namespace LogosGame.Features.Shop.Impl
 
             _purchaseSource = source;
             _purchasingProductId = productId;
-            _controller.InitiatePurchase(product);
+            _store.PurchaseProduct(product);
             return source.Awaitable;
         }
 
-        public PurchaseProcessingResult ProcessPurchase(PurchaseEventArgs args)
+        private void OnPurchasePending(PendingOrder order)
         {
-            Product product = args.purchasedProduct;
-            string productId = product.definition.id;
+            string productId = ProductIdOf(order);
             bool fulfilled = false;
 
             try
             {
-                if (!_validator.IsValid(product.receipt))
+                if (!_validator.IsValid(order.Info.Receipt))
                 {
                     // Hoá đơn giả: xác nhận cho store thôi gửi lại, KHÔNG trao.
                     _logger.Warn($"[UnityIAPService] Hoá đơn '{productId}' không hợp lệ — không trao.");
-                    _controller.ConfirmPendingPurchase(product);
+                    _store.ConfirmPurchase(order);
                 }
-                else if (_fulfillment != null && _fulfillment.Fulfill(productId, product.transactionID))
+                else if (_fulfillment != null && _fulfillment.Fulfill(productId, order.Info.TransactionID))
                 {
                     fulfilled = true;
-                    _controller.ConfirmPendingPurchase(product);
+                    _store.ConfirmPurchase(order);
                 }
                 else
                 {
@@ -186,25 +209,42 @@ namespace LogosGame.Features.Shop.Impl
             }
 
             CompletePurchase(productId, fulfilled);
-            return PurchaseProcessingResult.Pending;
         }
 
-        public void OnPurchaseFailed(Product product, PurchaseFailureDescription failure)
+        // Confirm hỏng thì đơn vẫn Pending, lần sau gửi lại; ví AddOnce chặn trao lần hai.
+        private void OnPurchaseConfirmed(Order order)
         {
-            string productId = product != null ? product.definition.id : failure.productId;
-            if (failure.reason == PurchaseFailureReason.UserCancelled)
+            if (order is FailedOrder failed)
+                _logger.Warn($"[UnityIAPService] Xác nhận '{ProductIdOf(order)}' với store thất bại: {failed.FailureReason} {failed.Details}");
+        }
+
+        private void OnPurchaseFailed(FailedOrder order)
+        {
+            string productId = ProductIdOf(order);
+            if (order.FailureReason == PurchaseFailureReason.UserCancelled)
                 _logger.Info($"[UnityIAPService] User huỷ mua '{productId}'.");
             else
-                _logger.Warn($"[UnityIAPService] Mua '{productId}' thất bại: {failure.reason} {failure.message}");
+                _logger.Warn($"[UnityIAPService] Mua '{productId}' thất bại: {order.FailureReason} {order.Details}");
 
             CompletePurchase(productId, false);
         }
 
-        public void OnPurchaseFailed(Product product, PurchaseFailureReason reason) =>
-            OnPurchaseFailed(product, new PurchaseFailureDescription(
-                product != null ? product.definition.id : null, reason, null));
+        // Ask to Buy / thanh toán chờ duyệt: chưa có tiền nên chưa trao. Khi duyệt xong đơn tới lại
+        // qua OnPurchasePending như mọi đơn khác.
+        private void OnPurchaseDeferred(DeferredOrder order)
+        {
+            string productId = ProductIdOf(order);
+            _logger.Info($"[UnityIAPService] Đơn '{productId}' đang chờ duyệt — trao khi store xác nhận.");
+            CompletePurchase(productId, false);
+        }
 
-        // Giao dịch store gửi lại lúc boot không có Purchase nào chờ → _purchaseSource null, bỏ qua.
+        private static string ProductIdOf(Order order)
+        {
+            IReadOnlyList<CartItem> items = order?.CartOrdered?.Items();
+            return items != null && items.Count > 0 ? items[0].Product?.definition?.id : null;
+        }
+
+        // Đơn store gửi lại lúc boot không có Purchase nào chờ → _purchaseSource null, bỏ qua.
         private void CompletePurchase(string productId, bool result)
         {
             if (_purchaseSource == null || _purchasingProductId != productId) return;
@@ -223,12 +263,12 @@ namespace LogosGame.Features.Shop.Impl
 
             if (!IsReady || Application.platform != RuntimePlatform.IPhonePlayer)
             {
-                // Google Play tự khôi phục lúc khởi tạo — không có gì để làm.
+                // Google Play tự khôi phục qua FetchPurchases lúc khởi tạo — không có gì để làm.
                 source.SetResult();
                 return source.Awaitable;
             }
 
-            _extensions.GetExtension<IAppleExtensions>().RestoreTransactions((ok, error) =>
+            _store.RestoreTransactions((ok, error) =>
             {
                 if (!ok) _logger.Warn($"[UnityIAPService] Khôi phục giao dịch thất bại: {error}");
                 source.TrySetResult();
@@ -240,7 +280,7 @@ namespace LogosGame.Features.Shop.Impl
         {
             if (!IsReady || string.IsNullOrEmpty(productId)) return false;
 
-            Product product = _controller.products.WithID(productId);
+            Product product = _store.GetProductById(productId);
             return product != null
                    && product.definition.type != ProductType.Consumable
                    && product.hasReceipt;
@@ -250,7 +290,7 @@ namespace LogosGame.Features.Shop.Impl
         {
             if (!IsReady || string.IsNullOrEmpty(productId)) return null;
 
-            Product product = _controller.products.WithID(productId);
+            Product product = _store.GetProductById(productId);
             string price = product?.metadata?.localizedPriceString;
             return string.IsNullOrEmpty(price) ? null : price;
         }

@@ -129,9 +129,9 @@ if [ "$meta_ready" = 1 ]; then
     # Unity IAP là package → DLL chỉ có sau khi Editor import. Có thì bật define y như
     # versionDefines của WordStack.Meta.asmdef để UnityIAPService.cs được compile; chưa có thì
     # file đó rỗng (#if) và phần còn lại vẫn kiểm được.
-    if [ -f "$SA/UnityEngine.Purchasing.dll" ]; then
+    if [ -f "$SA/Unity.Purchasing.dll" ]; then
       echo "-define:CATEGORYSORT_UNITY_IAP"
-      for d in UnityEngine.Purchasing UnityEngine.Purchasing.Stores Purchasing.Common Unity.Services.Core; do
+      for d in Unity.Purchasing Unity.Services.Core; do
         [ -f "$SA/$d.dll" ] && echo "-r:\"$(w "$SA/$d.dll")\""
       done
     fi

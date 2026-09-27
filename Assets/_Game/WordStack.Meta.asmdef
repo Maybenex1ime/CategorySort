@@ -20,8 +20,7 @@
         "Unity.Addressables",
         "Unity.ResourceManager",
         "DOTween.Modules",
-        "UnityEngine.Purchasing",
-        "UnityEngine.Purchasing.Stores",
+        "Unity.Purchasing",
         "Unity.Services.Core"
     ],
     "includePlatforms": [],

@@ -6,7 +6,7 @@
 
 **Architecture:** Code shop đã có gần đủ, nằm ở hai chỗ: `feat/safe-area` (hiện tại) có `ShopService`, `ShopPopup`, test; nhánh `origin/feat/unity-iap` chưa merge có `IIapFulfillment`, `UnityIAPService`, ví `AddOnce`, khởi tạo store lúc boot. Phần còn thiếu là **đi dây và asset**: merge nhánh IAP, gắn `ShopInstaller` + tạo `SO_ShopCatalog`, dựng prefab `ShopPopup` và đăng ký Addressables. **Không** port module `Logos.Shop` của Arrow Drop sang (xem phụ lục A).
 
-**Tech Stack:** Unity 6000.3.8f1, Reflex DI, R3, Addressables 2.3.1, `com.unity.purchasing` 4.12.2 (do nhánh IAP thêm), NUnit EditMode.
+**Tech Stack:** Unity 6000.3.8f1, Reflex DI, R3, Addressables 2.3.1, `com.unity.purchasing` 5.4.3 (IAP 4 hết hỗ trợ từ 08/06/2026), NUnit EditMode.
 
 ## Global Constraints
 
