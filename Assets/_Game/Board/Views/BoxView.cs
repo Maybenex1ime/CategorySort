@@ -33,8 +33,11 @@ namespace WordStack.Board
         [Tooltip("Hộp khoá theo số: root nảy bao nhiêu mỗi lần số còn cần giảm (0 = tắt)")]
         [SerializeField] float lockPunch = 0.12f;
         [SerializeField] float lockPunchDur = 0.25f;
-        [Tooltip("Mở khoá: root bung lên rồi co về 0 (giây)")]
-        [SerializeField] float unlockDur = 0.3f;
+        [Tooltip("Mở khoá (hộp khoá theo số): root trượt nhẹ lên + mờ dần — hiệu ứng cũ của Lock Box (giây)")]
+        [SerializeField] float unlockDur = 0.35f;
+        [Tooltip("Mở khoá: trượt lên bấy nhiêu unit (local của root) trong lúc mờ")]
+        [SerializeField] float unlockLift = 0.25f;
+        [SerializeField] Ease unlockEase = Ease.OutCubic;
 
         [Header("Mở group lock sau khi nhóm bay vào icon")]
         [Tooltip("Thẻ khoá (Key Tile, gồm icon nhóm) mờ dần về 0 trước khi cửa chớp chạy. Để trống = cha của Group Art")]
@@ -205,7 +208,8 @@ namespace WordStack.Board
         // Bật đúng một root (hoặc không cái nào), giết tween dở và trả scale về giá trị author.
         void ShowRoots(GameObject keep)
         {
-            FinishOpen();   // root về trạng thái author trước khi bật lại
+            FinishOpen();            // root về trạng thái author trước khi bật lại
+            unlockSeq?.Kill(true);   // mở khoá dở: OnComplete trả vị trí/alpha trước khi bật lại
             foreach (var r in new[] { lockedRoot, groupLockRoot })
             {
                 if (r == null) continue;
@@ -215,15 +219,47 @@ namespace WordStack.Board
             }
         }
 
+        // Mở khoá root đang hiện (hộp khoá theo số; group lock đi đường OpenGroupLock riêng): trượt
+        // nhẹ lên + mờ dần cả sprite lẫn chữ, xong tắt root và trả vị trí/scale/alpha về author.
+        // Giữ handle để ShowRoots cắt ngang được (Kill(true) → OnComplete trả trạng thái).
+        Sequence unlockSeq;
+
         void Unlock(GameObject root)
         {
+            unlockSeq?.Kill(true);
             var tr = root.transform;
+            var pos0 = tr.localPosition;
             var s0 = BaseScale(root);
+            var srs = root.GetComponentsInChildren<SpriteRenderer>(true);
+            var texts = root.GetComponentsInChildren<TMP_Text>(true);
+            var sa = new float[srs.Length];
+            var ta = new float[texts.Length];
+            for (int i = 0; i < srs.Length; i++) sa[i] = srs[i].color.a;
+            for (int i = 0; i < texts.Length; i++) ta[i] = texts[i].alpha;
             tr.DOKill(true);
+
             var seq = DOTween.Sequence().SetLink(root);
-            seq.Append(tr.DOScale(s0 * 1.2f, unlockDur * 0.35f).SetEase(Ease.OutQuad));
-            seq.Append(tr.DOScale(0f, unlockDur * 0.65f).SetEase(Ease.InBack));
-            seq.OnComplete(() => { root.SetActive(false); tr.localScale = s0; });
+            seq.Append(tr.DOLocalMoveY(pos0.y + unlockLift, unlockDur).SetEase(unlockEase));
+            foreach (var sr in srs)
+            {
+                var r = sr;
+                seq.Join(DOTween.ToAlpha(() => r.color, c => r.color = c, 0f, unlockDur).SetEase(unlockEase));
+            }
+            foreach (var tx in texts)
+            {
+                var t = tx;
+                seq.Join(DOTween.To(() => t.alpha, a => t.alpha = a, 0f, unlockDur).SetEase(unlockEase));
+            }
+            seq.OnComplete(() =>
+            {
+                unlockSeq = null;
+                root.SetActive(false);
+                tr.localPosition = pos0;
+                tr.localScale = s0;
+                for (int i = 0; i < srs.Length; i++) { var c = srs[i].color; c.a = sa[i]; srs[i].color = c; }
+                for (int i = 0; i < texts.Length; i++) texts[i].alpha = ta[i];
+            });
+            unlockSeq = seq;
         }
 
         public void SetAlpha(float a)

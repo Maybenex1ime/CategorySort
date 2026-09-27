@@ -1,0 +1,117 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 674d86830cefb5649ad3bda28e8ca121, type: 3}
+  m_Name: SO_ShopCatalog
+  m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Shop.ShopCatalog
+  _coinBundles:
+  - ProductId: coins_1000
+    Coins: 1000
+    PriceLabelFallback: 0.99 $
+    Icon: {fileID: 5456371542995731734, guid: 2d708b5f2e09feb42a4cd1c412027c00, type: 3}
+    Tag: 0
+    Title: 
+    Items: []
+  - ProductId: coins_5000
+    Coins: 5000
+    PriceLabelFallback: 3.99 $
+    Icon: {fileID: 8592605877083602747, guid: 54cdb0c4951a5dd488cb9450ab6aa3f6, type: 3}
+    Tag: 0
+    Title: 
+    Items: []
+  - ProductId: coins_10000
+    Coins: 10000
+    PriceLabelFallback: 6.99 $
+    Icon: {fileID: -8409941237662888558, guid: ab61f2c14e2f8ab4bb18d39358ee281a, type: 3}
+    Tag: 1
+    Title: 
+    Items: []
+  - ProductId: coins_25000
+    Coins: 25000
+    PriceLabelFallback: 14.99 $
+    Icon: {fileID: -6967766963783520431, guid: 3eebcecba8f3749469ee0db736620277, type: 3}
+    Tag: 0
+    Title: 
+    Items: []
+  - ProductId: coins_50000
+    Coins: 50000
+    PriceLabelFallback: 24.99 $
+    Icon: {fileID: -7036905207654265939, guid: 9661f4b0b87d2cf4db5a561764deb7b8, type: 3}
+    Tag: 0
+    Title: 
+    Items: []
+  - ProductId: coins_100000
+    Coins: 100000
+    PriceLabelFallback: 39.99 $
+    Icon: {fileID: 3797206802959891332, guid: 925584c0e63c74f44a119d74af22921d, type: 3}
+    Tag: 2
+    Title: 
+    Items: []
+  - ProductId: special_offer
+    Coins: 2000
+    PriceLabelFallback: 1.99 $
+    Icon: {fileID: 1195200316491170169, guid: 72ea8dd604bfd0d48ae261b784030275, type: 3}
+    Tag: 2
+    Title: Special Value
+    Items:
+    - Type: 2
+      Amount: 5
+    - Type: 3
+      Amount: 5
+    - Type: 4
+      Amount: 5
+    - Type: 1
+      Amount: 5
+  - ProductId: beginner
+    Coins: 2000
+    PriceLabelFallback: 1.99 $
+    Icon: {fileID: 4241048222472841911, guid: f2bcb887110ba354f9eebfd1743a3293, type: 3}
+    Tag: 2
+    Title: Beginner Pack
+    Items:
+    - Type: 2
+      Amount: 6
+    - Type: 3
+      Amount: 6
+    - Type: 4
+      Amount: 6
+    - Type: 1
+      Amount: 5
+  - ProductId: medium
+    Coins: 2000
+    PriceLabelFallback: 1.99 $
+    Icon: {fileID: 6888186149970136022, guid: cd03b81bde7923142a07e16f7000c66a, type: 3}
+    Tag: 2
+    Title: Medium Pack
+    Items:
+    - Type: 2
+      Amount: 5
+    - Type: 3
+      Amount: 5
+    - Type: 4
+      Amount: 5
+    - Type: 1
+      Amount: 5
+  - ProductId: high
+    Coins: 2000
+    PriceLabelFallback: 1.99 $
+    Icon: {fileID: -2810948513096768784, guid: ebcfd36387de75941935aa47f911a7c8, type: 3}
+    Tag: 2
+    Title: High Pack
+    Items:
+    - Type: 2
+      Amount: 8
+    - Type: 3
+      Amount: 8
+    - Type: 4
+      Amount: 8
+    - Type: 1
+      Amount: 5
