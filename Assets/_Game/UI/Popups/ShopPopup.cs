@@ -15,9 +15,10 @@ using ILogger = LogosSDK.Core.Logging.ILogger;
 namespace LogosGame.Features.UI.Popups
 {
     /// <summary>
-    /// Shop 2 tab: Coin (trả tiền thật qua IIAPService) và Item (trả coin qua
-    /// IPurchaseService). Lấy service qua [Inject] như MainMenuScreen — UIManager
-    /// đã InjectRecursive trước khi gọi SetArgs nên Initialize dùng được ngay.
+    /// Shop 2 tab, cả hai đều bán bằng tiền thật qua IIAPService: Coin (gói chỉ có coin)
+    /// và Item (gói combo — gói có Items trong SO_ShopCatalog). Hai tab dùng chung prefab ô.
+    /// Lấy service qua [Inject] như MainMenuScreen — UIManager đã InjectRecursive trước
+    /// khi gọi SetArgs nên Initialize dùng được ngay.
     /// </summary>
     public sealed class ShopPopup : PopupBase<ShopPopupArgs>
     {
@@ -37,9 +38,8 @@ namespace LogosGame.Features.UI.Popups
         [SerializeField] private Transform _coinGridRoot;
         [SerializeField] private ShopCoinCellView _coinCellPrefab;
 
-        [Header("Tab Item")]
+        [Header("Tab Item — gói combo, dùng chung prefab ô với tab Coin")]
         [SerializeField] private Transform _itemGridRoot;
-        [SerializeField] private ShopItemCellView _itemCellPrefab;
 
         [Header("Restore (chỉ hiện trên iOS — Apple bắt buộc; Android tự khôi phục)")]
         [SerializeField] private Button _restoreButton;
@@ -107,22 +107,24 @@ namespace LogosGame.Features.UI.Popups
                 return;
             }
 
-            BuildCoinTab();
-            BuildItemTab();
+            BuildCells();
         }
 
-        private void BuildCoinTab()
+        private void BuildCells()
         {
-            if (_coinGridRoot == null || _coinCellPrefab == null) return;
+            if (_coinCellPrefab == null) return;
 
             IReadOnlyList<CoinBundleDefinition> bundles = _shopService.CoinBundles;
             if (bundles.Count == 0)
-                _logger.Warn("[ShopPopup] SO_ShopCatalog chưa có gói coin nào — tab Coin trống.");
+                _logger.Warn("[ShopPopup] SO_ShopCatalog chưa có gói nào — shop trống.");
 
             for (int i = 0; i < bundles.Count; i++)
             {
                 CoinBundleDefinition bundle = bundles[i];
-                ShopCoinCellView cell = Instantiate(_coinCellPrefab, _coinGridRoot);
+                Transform grid = bundle.HasItems ? _itemGridRoot : _coinGridRoot;
+                if (grid == null) continue;
+
+                ShopCoinCellView cell = Instantiate(_coinCellPrefab, grid);
                 cell.Bind(bundle, _shopService.GetPriceLabel(bundle.ProductId), () => BuyCoinBundle(bundle.ProductId));
                 _coinCells.Add(cell);
                 _coinCellProductIds.Add(bundle.ProductId);
@@ -139,19 +141,6 @@ namespace LogosGame.Features.UI.Popups
             {
                 if (_coinCells[i] != null)
                     _coinCells[i].SetPrice(_shopService.GetPriceLabel(_coinCellProductIds[i]));
-            }
-        }
-
-        private void BuildItemTab()
-        {
-            if (_itemGridRoot == null || _itemCellPrefab == null) return;
-
-            IReadOnlyList<TransactionDefinition> offers = _shopService.ItemOffers;
-            for (int i = 0; i < offers.Count; i++)
-            {
-                TransactionDefinition entry = offers[i];
-                ShopItemCellView cell = Instantiate(_itemCellPrefab, _itemGridRoot);
-                cell.Bind(entry, _currencyService?.Coins, () => BuyItem(entry.TransactionId));
             }
         }
 
@@ -204,15 +193,6 @@ namespace LogosGame.Features.UI.Popups
             {
                 if (_coinCells[i] != null) _coinCells[i].SetInteractable(interactable);
             }
-        }
-
-        private void BuyItem(string transactionId)
-        {
-            if (_shopService == null) return;
-
-            PurchaseResult result = _shopService.PurchaseItem(transactionId);
-            if (!result.IsSuccess)
-                _logger.Warn($"[ShopPopup] Mua item '{transactionId}' không thành: {result.Code}.");
         }
 
         private async void OnRestoreClicked()

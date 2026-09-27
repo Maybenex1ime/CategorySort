@@ -8,10 +8,7 @@ namespace LogosGame.Features.Shop
     /// </summary>
     public interface IShopCatalog
     {
+        /// Gói coin thường + gói combo (có Items), đều bán bằng tiền thật.
         IReadOnlyList<CoinBundleDefinition> CoinBundles { get; }
-
-        /// Chỉ giữ mã giao dịch; tên/giá/nội dung resolve qua IPurchaseService
-        /// từ SO_TransactionCatalog — không nhân bản data sang đây.
-        IReadOnlyList<string> ItemTransactionIds { get; }
     }
 }

@@ -51,9 +51,8 @@ namespace WordStack.Meta
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
 
-            // Factory chứ không RegisterType: catalog và IPurchaseService đều tuỳ chọn
-            // (IPurchaseService vắng khi CurrencyInstaller chưa có SO_TransactionCatalog)
-            // nên phải resolve mềm, không thì cả ShopService sập theo.
+            // Factory chứ không RegisterType: catalog, ví và bên trao item đều resolve mềm —
+            // thiếu cái nào thì ShopService tự để giao dịch Pending, không sập cả shop.
             builder.RegisterFactory<IShopService>(
                 c => new ShopService(
                     c.TryGetResolver<IShopCatalog>(out _) ? c.Resolve<IShopCatalog>() : null,
@@ -61,8 +60,8 @@ namespace WordStack.Meta
                     c.TryGetResolver<LogosMeta.Economy.ICurrencyService>(out _)
                         ? c.Resolve<LogosMeta.Economy.ICurrencyService>()
                         : null,
-                    c.TryGetResolver<LogosMeta.Economy.IPurchaseService>(out _)
-                        ? c.Resolve<LogosMeta.Economy.IPurchaseService>()
+                    c.TryGetResolver<LogosMeta.Economy.ITransactionItemDispatcher>(out _)
+                        ? c.Resolve<LogosMeta.Economy.ITransactionItemDispatcher>()
                         : null,
                     c.TryGetResolver<IAnalyticsService>(out _)
                         ? c.Resolve<IAnalyticsService>()

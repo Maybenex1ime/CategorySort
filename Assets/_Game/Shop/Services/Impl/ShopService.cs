@@ -16,37 +16,25 @@ namespace LogosGame.Features.Shop.Impl
         private readonly IIAPService _iap;
         private readonly ICurrencyService _currency;
 
-        // Vắng khi CurrencyInstaller chưa được gán SO_TransactionCatalog — tab Item
-        // để trống, tab Coin vẫn chạy bình thường.
-        private readonly IPurchaseService _purchase;
+        // Trao item của gói combo (booster, tim). Vắng thì gói coin vẫn bán được, gói combo
+        // để Pending — không bao giờ nhận tiền mà thiếu item.
+        private readonly ITransactionItemDispatcher _items;
 
         // Tuỳ chọn — vắng thì chỉ không ghi sự kiện, đường tiền không đổi.
         private readonly IAnalyticsService _analytics;
 
-        private readonly List<TransactionDefinition> _itemOffers = new List<TransactionDefinition>();
-        private bool _itemOffersBuilt;
-
         public ShopService(IShopCatalog catalog, IIAPService iap, ICurrencyService currency,
-            IPurchaseService purchase, IAnalyticsService analytics = null)
+            ITransactionItemDispatcher items, IAnalyticsService analytics = null)
         {
             _catalog = catalog;
             _iap = iap;
             _currency = currency;
-            _purchase = purchase;
+            _items = items;
             _analytics = analytics;
         }
 
         public IReadOnlyList<CoinBundleDefinition> CoinBundles =>
             _catalog != null ? _catalog.CoinBundles : Array.Empty<CoinBundleDefinition>();
-
-        public IReadOnlyList<TransactionDefinition> ItemOffers
-        {
-            get
-            {
-                if (!_itemOffersBuilt) BuildItemOffers();
-                return _itemOffers;
-            }
-        }
 
         public Awaitable<bool> InitializeStore()
         {
@@ -101,23 +89,49 @@ namespace LogosGame.Features.Shop.Impl
                 return false;
             }
 
-            if (_currency.AddOnce(bundle.Coins, transactionId))
+            // Đơn đã trao (store gửi lại): báo true cho store thôi gửi, KHÔNG trao item lần nữa.
+            if (_currency.HasGrant(transactionId)) return true;
+
+            // Coins <= 0 thì AddOnce từ chối và đơn bị gửi lại mãi — chặn trước khi trao item,
+            // không thì mỗi lần gửi lại user nhận thêm một bộ item.
+            if (bundle.Coins <= 0)
             {
-                _logger.Info($"[ShopService] Trao '{productId}' ({transactionId}): +{bundle.Coins} coin.");
-                _analytics?.LogEvent("iap_purchase", new Dictionary<string, object>
-                {
-                    { "product_id", productId },
-                    { "coins", bundle.Coins },
-                });
-                return true;
+                _logger.Warn($"[ShopService] Gói '{productId}' có Coins <= 0 — không trao, sửa SO_ShopCatalog.");
+                return false;
             }
 
-            // AddOnce từ chối: hoặc store gửi lại giao dịch đã trao (báo true cho nó thôi gửi),
-            // hoặc dữ liệu gói sai (Coins <= 0) — khi đó để Pending, đừng nuốt tiền của user.
-            bool alreadyGranted = _currency.HasGrant(transactionId);
-            if (!alreadyGranted)
-                _logger.Warn($"[ShopService] Không trao được '{productId}' ({transactionId}) — kiểm tra Coins của gói.");
-            return alreadyGranted;
+            if (bundle.HasItems)
+            {
+                if (_items == null)
+                {
+                    _logger.Warn($"[ShopService] Thiếu ITransactionItemDispatcher — chưa trao gói combo '{productId}', để Pending.");
+                    return false;
+                }
+
+                // ponytail: trao item TRƯỚC, AddOnce (ghi mã chống trùng) SAU. App chết đúng giữa hai
+                // bước thì đơn được gửi lại và item trao lần hai — lệch về phía có lợi cho user.
+                // Muốn tuyệt đối một lần thì phải lưu item + mã giao dịch trong cùng một lần ghi.
+                for (int i = 0; i < bundle.Items.Length; i++)
+                {
+                    if (bundle.Items[i].Amount > 0)
+                        _items.Grant(bundle.Items[i].ItemId, bundle.Items[i].Amount);
+                }
+            }
+
+            if (!_currency.AddOnce(bundle.Coins, transactionId))
+            {
+                _logger.Warn($"[ShopService] Ví từ chối cộng '{productId}' ({transactionId}) — để Pending.");
+                return false;
+            }
+
+            _logger.Info($"[ShopService] Trao '{productId}' ({transactionId}): +{bundle.Coins} coin" +
+                         (bundle.HasItems ? $" + {bundle.Items.Length} loại item." : "."));
+            _analytics?.LogEvent("iap_purchase", new Dictionary<string, object>
+            {
+                { "product_id", productId },
+                { "coins", bundle.Coins },
+            });
+            return true;
         }
 
         public async Awaitable<ShopPurchaseResult> PurchaseCoinBundle(string productId)
@@ -157,42 +171,6 @@ namespace LogosGame.Features.Shop.Impl
             return source.Awaitable;
         }
 
-        public PurchaseResult PurchaseItem(string transactionId)
-        {
-            if (_purchase == null)
-            {
-                _logger.Warn($"[ShopService] Hệ mua chưa bind — bỏ qua '{transactionId}'.");
-                return new PurchaseResult(PurchaseResultCode.UnknownTransaction, transactionId, 0);
-            }
-
-            return _purchase.TryPurchase(transactionId);
-        }
-
-        private void BuildItemOffers()
-        {
-            _itemOffersBuilt = true;
-
-            if (_catalog == null) return;
-            IReadOnlyList<string> ids = _catalog.ItemTransactionIds;
-            if (ids == null || ids.Count == 0) return;
-
-            if (_purchase == null)
-            {
-                _logger.Warn("[ShopService] IPurchaseService vắng mặt (chưa gán SO_TransactionCatalog) — tab Item để trống.");
-                return;
-            }
-
-            for (int i = 0; i < ids.Count; i++)
-            {
-                string id = ids[i];
-                if (string.IsNullOrEmpty(id)) continue;
-
-                if (_purchase.TryGetTransaction(id, out TransactionDefinition entry))
-                    _itemOffers.Add(entry);
-                else
-                    _logger.Warn($"[ShopService] SO_ShopCatalog trỏ tới '{id}' nhưng SO_TransactionCatalog không có entry — bỏ qua.");
-            }
-        }
 
         private bool TryGetBundle(string productId, out CoinBundleDefinition bundle)
         {

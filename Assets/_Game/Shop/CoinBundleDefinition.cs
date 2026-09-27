@@ -1,4 +1,5 @@
 using System;
+using LogosMeta.Economy;
 using UnityEngine;
 
 namespace LogosGame.Features.Shop
@@ -25,5 +26,13 @@ namespace LogosGame.Features.Shop
         public Sprite Icon;
 
         public ShopTag Tag;
+
+        // Gói combo: tên hiển thị + item tặng kèm coin (booster, tim — xem ItemIds). Để trống
+        // Items là gói coin thường. Gói combo vẫn phải có Coins >= 1: AddOnce của ví là chốt
+        // chống trao trùng cho CẢ gói, kể cả phần item.
+        public string Title;
+        public TransactionItem[] Items;
+
+        public bool HasItems => Items != null && Items.Length > 0;
     }
 }

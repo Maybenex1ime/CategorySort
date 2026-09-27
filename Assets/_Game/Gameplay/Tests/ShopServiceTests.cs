@@ -17,6 +17,7 @@ namespace WordStack.Meta.Tests
     public sealed class ShopServiceTests
     {
         private const string Bundle = "coins_1000";
+        private const string Pack = "pack_starter";
 
         [Test]
         public void PurchaseCoinBundle_StoreChapNhan_CongDungSoCoin()
@@ -64,7 +65,7 @@ namespace WordStack.Meta.Tests
         public void PurchaseCoinBundle_ThieuCurrencyService_KhongChargeUser()
         {
             var iap = new FakeIap { Accept = true };
-            var shop = new ShopService(new FakeCatalog(), iap, null, new FakePurchase());
+            var shop = new ShopService(new FakeCatalog(), iap, null, new FakeItems());
 
             ShopPurchaseResult result = Await(shop.PurchaseCoinBundle(Bundle));
 
@@ -99,14 +100,16 @@ namespace WordStack.Meta.Tests
         }
 
         [Test]
-        public void InitializeStore_DangKyDuGoiCoinLaConsumable()
+        public void InitializeStore_DangKyDuGoiCoinVaGoiComboLaConsumable()
         {
             var iap = new FakeIap();
             Build(new FakeCurrency(0), iap);
 
-            Assert.AreEqual(1, iap.Products.Count);
+            Assert.AreEqual(2, iap.Products.Count);
             Assert.AreEqual(Bundle, iap.Products[0].Id);
+            Assert.AreEqual(Pack, iap.Products[1].Id);
             Assert.AreEqual(IapProductKind.Consumable, iap.Products[0].Kind);
+            Assert.AreEqual(IapProductKind.Consumable, iap.Products[1].Kind);
         }
 
         [Test]
@@ -150,7 +153,7 @@ namespace WordStack.Meta.Tests
             Assert.IsFalse(shop.Fulfill(Bundle, ""));
             Assert.AreEqual(0, currency.Coins.CurrentValue);
 
-            var noWallet = new ShopService(new FakeCatalog(), new FakeIap(), null, new FakePurchase());
+            var noWallet = new ShopService(new FakeCatalog(), new FakeIap(), null, new FakeItems());
             Assert.IsFalse(noWallet.Fulfill(Bundle, "gpa-2"), "không có ví thì không được báo đã trao");
         }
 
@@ -187,34 +190,37 @@ namespace WordStack.Meta.Tests
         }
 
         [Test]
-        public void ItemOffers_BoQuaMaGiaoDichKhongCoTrongCatalogGiaoDich()
+        public void Fulfill_GoiCombo_TraoCoinVaMoiItem_DungMotLan()
         {
-            var purchase = new FakePurchase();
-            purchase.Add("t_heart", 900);
-            // "t_khong_ton_tai" cố tình không thêm.
-            var catalog = new FakeCatalog(new[] { "t_heart", "t_khong_ton_tai" });
-            var shop = new ShopService(catalog, new FakeIap(), new FakeCurrency(0), purchase);
+            var currency = new FakeCurrency(0);
+            var items = new FakeItems();
+            ShopService shop = Build(currency, new FakeIap(), items: items);
 
-            IReadOnlyList<TransactionDefinition> offers = shop.ItemOffers;
+            Assert.IsTrue(shop.Fulfill(Pack, "gpa-pack"));
+            Assert.IsTrue(shop.Fulfill(Pack, "gpa-pack"), "store gửi lại đơn đã trao: vẫn báo true để nó thôi gửi");
 
-            Assert.AreEqual(1, offers.Count, "id không có entry phải bị loại, không dựng ô rỗng");
-            Assert.AreEqual("t_heart", offers[0].TransactionId);
+            Assert.AreEqual(2000, currency.Coins.CurrentValue);
+            CollectionAssert.AreEqual(new[] { "booster.shuffle x5", "heart x2" }, items.Granted,
+                "item của gói chỉ được trao MỘT lần dù store gửi lại");
         }
 
         [Test]
-        public void ItemOffers_ThieuPurchaseService_TraListRong()
+        public void Fulfill_GoiCombo_ThieuBenTraoItem_TraFalse_KhongTraoGi()
         {
-            var catalog = new FakeCatalog(new[] { "t_heart" });
-            var shop = new ShopService(catalog, new FakeIap(), new FakeCurrency(0), null);
+            var currency = new FakeCurrency(0);
+            var shop = new ShopService(new FakeCatalog(), new FakeIap(), currency, null);
 
-            Assert.AreEqual(0, shop.ItemOffers.Count);
+            Assert.IsFalse(shop.Fulfill(Pack, "gpa-pack"), "không trao được item thì để Pending, đừng nuốt tiền");
+            Assert.AreEqual(0, currency.Coins.CurrentValue);
+            Assert.IsTrue(shop.Fulfill(Bundle, "gpa-coin"), "gói chỉ có coin không cần bên trao item");
         }
 
         // --- helpers ------------------------------------------------------------
 
-        private static ShopService Build(FakeCurrency currency, FakeIap iap, FakeAnalytics analytics = null)
+        private static ShopService Build(FakeCurrency currency, FakeIap iap, FakeAnalytics analytics = null,
+            FakeItems items = null)
         {
-            var shop = new ShopService(new FakeCatalog(), iap, currency, new FakePurchase(), analytics);
+            var shop = new ShopService(new FakeCatalog(), iap, currency, items ?? new FakeItems(), analytics);
             shop.InitializeStore();   // FakeIap hoàn tất ngay — như BootState gọi lúc khởi động
             return shop;
         }
@@ -225,16 +231,19 @@ namespace WordStack.Meta.Tests
 
         private sealed class FakeCatalog : IShopCatalog
         {
-            private readonly string[] _itemIds;
-
-            public FakeCatalog(string[] itemIds = null) => _itemIds = itemIds ?? new string[0];
-
             public IReadOnlyList<CoinBundleDefinition> CoinBundles { get; } = new[]
             {
                 new CoinBundleDefinition { ProductId = Bundle, Coins = 1000, PriceLabelFallback = "1.99 $" },
+                new CoinBundleDefinition
+                {
+                    ProductId = Pack, Title = "Starter Pack", Coins = 2000, PriceLabelFallback = "4.99 $",
+                    Items = new[]
+                    {
+                        new TransactionItem { ItemId = "booster.shuffle", Amount = 5 },
+                        new TransactionItem { ItemId = "heart", Amount = 2 },
+                    },
+                },
             };
-
-            public IReadOnlyList<string> ItemTransactionIds => _itemIds;
         }
 
         private sealed class FakeIap : IIAPService
@@ -326,26 +335,11 @@ namespace WordStack.Meta.Tests
                 Events.Add(eventName);
         }
 
-        private sealed class FakePurchase : IPurchaseService
+        private sealed class FakeItems : ITransactionItemDispatcher
         {
-            private readonly Dictionary<string, TransactionDefinition> _entries =
-                new Dictionary<string, TransactionDefinition>();
+            public readonly List<string> Granted = new List<string>();
 
-            public void Add(string transactionId, int price) =>
-                _entries[transactionId] = new TransactionDefinition
-                {
-                    TransactionId = transactionId,
-                    Price = price,
-                    Items = new[] { new TransactionItem { ItemId = "heart", Amount = 1 } },
-                };
-
-            public bool TryGetTransaction(string transactionId, out TransactionDefinition entry) =>
-                _entries.TryGetValue(transactionId ?? string.Empty, out entry);
-
-            public PurchaseResult TryPurchase(string transactionId) =>
-                _entries.TryGetValue(transactionId ?? string.Empty, out TransactionDefinition entry)
-                    ? new PurchaseResult(PurchaseResultCode.Success, transactionId, entry.Price)
-                    : new PurchaseResult(PurchaseResultCode.UnknownTransaction, transactionId, 0);
+            public void Grant(string itemId, int amount) => Granted.Add($"{itemId} x{amount}");
         }
     }
 }

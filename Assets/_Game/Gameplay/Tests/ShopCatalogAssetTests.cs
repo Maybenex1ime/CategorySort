@@ -1,3 +1,6 @@
+using System.Collections.Generic;
+using System.Linq;
+using System.Reflection;
 using LogosGame.Features.Currency.Transactions;
 using LogosGame.Features.Shop;
 using LogosMeta.Economy;
@@ -9,20 +12,21 @@ namespace WordStack.Meta.Tests
 {
     /// <summary>
     /// Canh dữ liệu shop: gói nào trong ShopProductIds mà thiếu trong catalog là nút mua
-    /// báo UnknownProduct; mã item mà không có trong SO_TransactionCatalog là tab Item
-    /// lặng lẽ thiếu ô. Cả hai đều chỉ lộ ra khi người chơi bấm.
+    /// báo UnknownProduct; gói trong catalog mà không có trong ShopProductIds là product id
+    /// gõ tay chưa đăng ký; item lạ trong gói combo thì user trả tiền mà không nhận được gì.
+    /// Tất cả đều chỉ lộ ra khi người chơi bấm.
     /// </summary>
     public sealed class ShopCatalogAssetTests
     {
         private const string ShopCatalogPath = "Assets/_Game/Content/SO_ShopCatalog.asset";
-        private const string TransactionCatalogPath = "Assets/_Game/Content/SO_TransactionCatalog.asset";
         private const string ProjectScopePath = "Assets/Prefabs/ProjectScope.prefab";
 
-        private static readonly string[] ExpectedProducts =
-        {
-            ShopProductIds.Coins1000, ShopProductIds.Coins5000, ShopProductIds.Coins10000,
-            ShopProductIds.Coins25000, ShopProductIds.Coins50000, ShopProductIds.Coins100000,
-        };
+        // Đọc thẳng các hằng số: thêm gói mới vào ShopProductIds là test tự đòi có trong catalog.
+        private static string[] ConstValues(System.Type type) =>
+            type.GetFields(BindingFlags.Public | BindingFlags.Static)
+                .Where(f => f.IsLiteral && f.FieldType == typeof(string))
+                .Select(f => (string)f.GetRawConstantValue())
+                .ToArray();
 
         [Test]
         public void MoiProductId_CoGoiHopLeTrongCatalog()
@@ -30,33 +34,38 @@ namespace WordStack.Meta.Tests
             ShopCatalog catalog = AssetDatabase.LoadAssetAtPath<ShopCatalog>(ShopCatalogPath);
             Assert.IsNotNull(catalog, "Chưa có " + ShopCatalogPath + " — chạy WordStack ▸ Setup ▸ Build Shop.");
 
-            foreach (string id in ExpectedProducts)
+            string[] expected = ConstValues(typeof(ShopProductIds));
+            List<string> inCatalog = catalog.CoinBundles.Select(b => b.ProductId).ToList();
+
+            foreach (string id in expected)
+                Assert.Contains(id, inCatalog, $"Catalog thiếu gói '{id}'.");
+            foreach (string id in inCatalog)
+                Assert.Contains(id, expected, $"Gói '{id}' chưa có trong ShopProductIds — thêm hằng số, và tạo sản phẩm trên console.");
+
+            foreach (CoinBundleDefinition b in catalog.CoinBundles)
             {
-                CoinBundleDefinition? found = null;
-                foreach (CoinBundleDefinition b in catalog.CoinBundles)
-                    if (b.ProductId == id) found = b;
-
-                Assert.IsTrue(found.HasValue, $"Catalog thiếu gói '{id}'.");
-                Assert.Greater(found.Value.Coins, 0, $"'{id}' có Coins <= 0.");
-                Assert.IsFalse(string.IsNullOrEmpty(found.Value.PriceLabelFallback), $"'{id}' chưa có PriceLabelFallback.");
-                Assert.IsNotNull(found.Value.Icon, $"'{id}' chưa gán Icon.");
+                Assert.Greater(b.Coins, 0, $"'{b.ProductId}' có Coins <= 0 (gói combo cũng phải có coin).");
+                Assert.IsFalse(string.IsNullOrEmpty(b.PriceLabelFallback), $"'{b.ProductId}' chưa có PriceLabelFallback.");
+                Assert.IsNotNull(b.Icon, $"'{b.ProductId}' chưa gán Icon.");
             }
-
-            Assert.AreEqual(ExpectedProducts.Length, catalog.CoinBundles.Count,
-                "Catalog có gói ngoài ShopProductIds — thêm const vào ShopProductIds hoặc xoá gói.");
         }
 
         [Test]
-        public void MoiMaItem_CoTrongTransactionCatalog()
+        public void GoiCombo_ChiChuaItemHopLe()
         {
-            ShopCatalog shop = AssetDatabase.LoadAssetAtPath<ShopCatalog>(ShopCatalogPath);
-            TransactionCatalog tx = AssetDatabase.LoadAssetAtPath<TransactionCatalog>(TransactionCatalogPath);
-            Assert.IsNotNull(shop, "Chưa có " + ShopCatalogPath);
-            Assert.IsNotNull(tx, "Chưa có " + TransactionCatalogPath);
-            Assert.Greater(shop.ItemTransactionIds.Count, 0, "Tab Item đang trống.");
+            ShopCatalog catalog = AssetDatabase.LoadAssetAtPath<ShopCatalog>(ShopCatalogPath);
+            Assert.IsNotNull(catalog, "Chưa có " + ShopCatalogPath);
 
-            foreach (string id in shop.ItemTransactionIds)
-                Assert.IsTrue(tx.TryGet(id, out TransactionDefinition _), $"'{id}' không có trong SO_TransactionCatalog.");
+            string[] known = ConstValues(typeof(ItemIds));
+            foreach (CoinBundleDefinition b in catalog.CoinBundles)
+            {
+                if (b.Items == null) continue;
+                foreach (TransactionItem item in b.Items)
+                {
+                    Assert.Contains(item.ItemId, known, $"'{b.ProductId}' có item lạ '{item.ItemId}' — TransactionItemDispatcher không biết trao gì.");
+                    Assert.Greater(item.Amount, 0, $"'{b.ProductId}' có '{item.ItemId}' với Amount <= 0.");
+                }
+            }
         }
 
         [Test]

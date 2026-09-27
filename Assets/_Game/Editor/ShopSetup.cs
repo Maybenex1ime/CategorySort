@@ -12,8 +12,9 @@ namespace WordStack.Meta.Editor
 {
     /// <summary>
     /// Dựng trọn Shop bằng một menu: SO_ShopCatalog (chỉ điền khi còn rỗng — không đè số GD đã chỉnh),
-    /// ShopInstaller trên ProjectScope, prefab ShopPopup + 2 ô, address Addressables "ShopPopup".
-    /// Chạy lại an toàn: 3 prefab bị dựng lại từ đầu, catalog đã có dữ liệu thì giữ nguyên.
+    /// ShopInstaller trên ProjectScope, prefab ShopPopup + ô gói (dùng chung cho gói coin và gói combo),
+    /// address Addressables "ShopPopup". Catalog đã có dữ liệu thì giữ nguyên, nhưng 2 prefab bị dựng
+    /// lại từ đầu — chạy lại là MẤT mọi chỉnh tay trên ShopPopup / ShopCoinCell.
     /// Khung popup (nền, nút X, ô coin, transition) mượn từ BoosterPurchasePopup cho cùng style.
     /// </summary>
     internal static class ShopSetup
@@ -23,7 +24,6 @@ namespace WordStack.Meta.Editor
         private const string TemplatePath = "Assets/_Shared/Prefab/Popup/BoosterPurchasePopup.prefab";
         private const string PopupPath = "Assets/_Shared/Prefab/Popup/ShopPopup.prefab";
         private const string CoinCellPath = "Assets/_Shared/Prefab/Popup/ShopCoinCell.prefab";
-        private const string ItemCellPath = "Assets/_Shared/Prefab/Popup/ShopItemCell.prefab";
         private const string ShopArt = "Assets/_Game/Art/UI_New/Shop/";
         private const string CellBgPath = "Assets/_Game/Art/UI_New/Pop-Up/Popup In.png";
         private const string PopupAddress = "ShopPopup"; // UIManager load theo typeof(TPopup).Name
@@ -82,16 +82,6 @@ namespace WordStack.Meta.Editor
                 Debug.Log("SHOP: điền 6 gói coin vào catalog.");
             }
 
-            string[] itemIds = { "t_booster_shuffle", "t_booster_magnet", "t_booster_undo", "t_heart" };
-            SerializedProperty items = so.FindProperty("_itemTransactionIds");
-            if (items.arraySize == 0)
-            {
-                items.arraySize = itemIds.Length;
-                for (int i = 0; i < itemIds.Length; i++)
-                    items.GetArrayElementAtIndex(i).stringValue = itemIds[i];
-                Debug.Log("SHOP: điền 4 mã item vào catalog.");
-            }
-
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(catalog);
             return catalog;
@@ -134,7 +124,6 @@ namespace WordStack.Meta.Editor
                 var textTpl = titleTpl.GetComponent<TextMeshProUGUI>();
 
                 ShopCoinCellView coinCell = BuildCoinCell(root.transform, buttonTpl, textTpl);
-                ShopItemCellView itemCell = BuildItemCell(root.transform, buttonTpl, textTpl);
 
                 // Khung popup: bỏ nội dung booster, giữ nền / nút X / tiêu đề / ô coin.
                 Object.DestroyImmediate(root.GetComponent<BoosterPurchasePopup>());
@@ -147,7 +136,7 @@ namespace WordStack.Meta.Editor
                 textTpl.text = "SHOP";
 
                 Button coinTab = CloneButton(buttonTpl, box, "Coin Tab", "COINS", new Vector2(-140f, 360f), new Vector2(250f, 90f));
-                Button itemTab = CloneButton(buttonTpl, box, "Item Tab", "ITEMS", new Vector2(140f, 360f), new Vector2(250f, 90f));
+                Button itemTab = CloneButton(buttonTpl, box, "Item Tab", "PACKS", new Vector2(140f, 360f), new Vector2(250f, 90f));
                 Button restore = CloneButton(buttonTpl, box, "Restore Button", "RESTORE", new Vector2(0f, -440f), new Vector2(220f, 70f));
                 Object.DestroyImmediate(buttonTpl.gameObject);
 
@@ -164,7 +153,6 @@ namespace WordStack.Meta.Editor
                 SetRef(popup, "_coinGridRoot", coinGrid);
                 SetRef(popup, "_coinCellPrefab", coinCell);
                 SetRef(popup, "_itemGridRoot", itemGrid);
-                SetRef(popup, "_itemCellPrefab", itemCell);
                 SetRef(popup, "_restoreButton", restore);
 
                 PrefabUtility.SaveAsPrefabAsset(root, PopupPath);
@@ -184,11 +172,16 @@ namespace WordStack.Meta.Editor
             cell.gameObject.AddComponent<Image>().sprite = LoadSprite(CellBgPath);
 
             RectTransform icon = NewUI("Icon", cell);
-            Place(icon, new Vector2(0f, 50f), new Vector2(140f, 140f));
+            Place(icon, new Vector2(0f, 60f), new Vector2(110f, 110f));
             var iconImage = icon.gameObject.AddComponent<Image>();
             iconImage.preserveAspect = true;
 
-            TextMeshProUGUI coins = CloneText(textTpl, cell, "Coins", "1,000", new Vector2(0f, -40f), new Vector2(220f, 50f));
+            TextMeshProUGUI coins = CloneText(textTpl, cell, "Coins", "1,000", new Vector2(0f, -45f), new Vector2(220f, 40f));
+
+            // Chỉ gói combo dùng tới: ShopCoinCellView tự ẩn khi gói không có Title/Items.
+            TextMeshProUGUI title = CloneText(textTpl, cell, "Title", "Starter Pack", new Vector2(0f, 128f), new Vector2(220f, 36f));
+            TextMeshProUGUI items = CloneText(textTpl, cell, "Items", "+5 shuffle", new Vector2(0f, -10f), new Vector2(220f, 30f));
+            items.fontSizeMax = 24f;
             Button buy = CloneButton(buttonTpl, cell, "Buy Button", "0.99 $", new Vector2(0f, -110f), new Vector2(200f, 80f));
 
             GameObject popular = NewBadge(cell, "Popular Badge", $"{ShopArt}Icon Shop Tag 1.png");
@@ -198,33 +191,13 @@ namespace WordStack.Meta.Editor
             SetRef(view, "_icon", iconImage);
             SetRef(view, "_coinsText", coins);
             SetRef(view, "_priceText", buy.GetComponentInChildren<TextMeshProUGUI>(true));
+            SetRef(view, "_titleText", title);
+            SetRef(view, "_itemsText", items);
             SetRef(view, "_popularBadge", popular);
             SetRef(view, "_bestValueBadge", bestValue);
             SetRef(view, "_buyButton", buy);
 
             return SaveCell<ShopCoinCellView>(cell.gameObject, CoinCellPath);
-        }
-
-        private static ShopItemCellView BuildItemCell(Transform scratch, Transform buttonTpl, TextMeshProUGUI textTpl)
-        {
-            RectTransform cell = NewUI("ShopItemCell", scratch);
-            cell.sizeDelta = CellSize;
-            cell.gameObject.AddComponent<Image>().sprite = LoadSprite(CellBgPath);
-
-            TextMeshProUGUI title = CloneText(textTpl, cell, "Name", "Item", new Vector2(0f, 90f), new Vector2(220f, 60f));
-            TextMeshProUGUI desc = CloneText(textTpl, cell, "Description", "Description", new Vector2(0f, 10f), new Vector2(210f, 90f));
-            desc.fontSizeMax = 26f;
-
-            // Giữ icon coin của template: item trả bằng coin.
-            Button buy = CloneButton(buttonTpl, cell, "Buy Button", "0", new Vector2(0f, -110f), new Vector2(200f, 80f), keepCoinIcon: true);
-
-            var view = cell.gameObject.AddComponent<ShopItemCellView>();
-            SetRef(view, "_nameText", title);
-            SetRef(view, "_descriptionText", desc);
-            SetRef(view, "_priceText", buy.GetComponentInChildren<TextMeshProUGUI>(true));
-            SetRef(view, "_buyButton", buy);
-
-            return SaveCell<ShopItemCellView>(cell.gameObject, ItemCellPath);
         }
 
         private static T SaveCell<T>(GameObject cell, string path) where T : Component
@@ -272,15 +245,12 @@ namespace WordStack.Meta.Editor
         // --- UI helpers -------------------------------------------------------
 
         private static Button CloneButton(Transform tpl, Transform parent, string name, string label,
-            Vector2 pos, Vector2 size, bool keepCoinIcon = false)
+            Vector2 pos, Vector2 size)
         {
             GameObject go = Object.Instantiate(tpl.gameObject, parent);
             go.name = name;
-            if (!keepCoinIcon)
-            {
-                Transform icn = go.transform.Find("Coin icn");
-                if (icn != null) Object.DestroyImmediate(icn.gameObject);
-            }
+            Transform icn = go.transform.Find("Coin icn");
+            if (icn != null) Object.DestroyImmediate(icn.gameObject);
 
             Place((RectTransform)go.transform, pos, size);
 
@@ -289,7 +259,7 @@ namespace WordStack.Meta.Editor
             {
                 text.text = label;
                 text.enableAutoSizing = true;
-                if (!keepCoinIcon) Stretch(text.rectTransform, 10f, 10f, 5f, 5f);
+                Stretch(text.rectTransform, 10f, 10f, 5f, 5f);
             }
 
             return go.GetComponent<Button>();
