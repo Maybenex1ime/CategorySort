@@ -26,8 +26,9 @@ namespace WordStack.Board
     public class BoardController : MonoBehaviour
     {
         // ---- Layout (world units) — hằng bố cục gắn với thuật toán đặt lưới, ở lại code.
-        // Kích thước bên trong hộp (viền, slot) author trong Box.prefab; đổi bên đó phải đổi
-        // BoxSize/BoxPad/SlotGap theo, vì hit-test tính từ mấy hằng này.
+        // Kích thước bên trong hộp (viền, slot) author trong Box.prefab. Hit-test ô THẺ (Tile)
+        // giờ lấy từ bounds sprite Shadow của từng slot (BoxView.SlotRect qua SlotZone bên dưới),
+        // không còn tính từ hằng ở đây — chỉ zone STACK (BoxSize) còn dùng mấy hằng này.
         const float BoxSize = 1.6f;
         const float BoxPad = 0.09f;
         const float SlotGap = 0.08f;
@@ -809,7 +810,7 @@ namespace WordStack.Board
         // DEBUG: bật Gizmos (Scene view, hoặc nút Gizmos trên Game view) lúc Play để thấy vùng
         // chạm thật: xanh = zone Stack (BoxSize), vàng = zone Tile (Shadow của slot). Vẽ từ chính
         // danh sách zones nên cái nhìn thấy là cái hit-test dùng, không phải bản tính lại.
-        [SerializeField] bool drawZones = true;
+        [SerializeField] bool drawZones = false;
         void OnDrawGizmos()
         {
             if (!drawZones || zones == null) return;
@@ -1114,6 +1115,10 @@ namespace WordStack.Board
                 if (ev.Kind == SettleKind.Collapse)
                 {
                     yield return MergeTiles(ev.Stack, ev.DoomedUids, ev.NewTileUid);
+                    // COLLAPSE cũng xoá 4 thẻ của một nhóm nên có thể mở luôn group lock — nhưng
+                    // 4 thẻ đó đã bay chụm vào ô gộp rồi (MergeTiles), không bay lại vào icon nữa.
+                    var opened = NowOpen(wasLocked);
+                    if (opened.Count > 0) yield return OpenLocks(opened);
                     RefreshTileVisuals(ev.Stack);
                 }
                 if (ev.BoxRemoved)
@@ -1195,7 +1200,14 @@ namespace WordStack.Board
             }
             if (n > 0) yield return seq.WaitForCompletion(); else seq.Kill();
 
-            // Nhiều hộp cùng khoá một nhóm thì mở song song; cùng một animation nên chờ hộp đầu là đủ.
+            yield return OpenLocks(opened);
+        }
+
+        // Mở group lock trên từng hộp trong `opened` song song; cùng một animation nên chờ hộp
+        // đầu là đủ. Dùng chung cho ClearIntoLock (sau khi thẻ bay vào icon) và nhánh Collapse
+        // trong Settle (không có thẻ bay riêng — 4 thẻ đã gộp qua MergeTiles).
+        IEnumerator OpenLocks(List<int> opened)
+        {
             for (int k = 1; k < opened.Count; k++) StartCoroutine(boxViews[opened[k]].OpenGroupLock());
             yield return boxViews[opened[0]].OpenGroupLock();
         }

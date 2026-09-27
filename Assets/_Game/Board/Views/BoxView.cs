@@ -1,8 +1,9 @@
 // Hộp trên cùng của một stack. Một instance sống suốt level: khi hộp bị xoá, instance này
 // mờ đi rồi bind lại thành hộp vừa lộ (BoardController.RevealBox) — không tạo/huỷ.
 //
-// Kích thước hộp + vị trí 4 slot author trong prefab (Mục 2 của view-prefabs.md). Đổi số ở đó
-// thì phải đổi hằng layout trong BoardController theo, vì hit-test tính từ hằng code.
+// Kích thước hộp + vị trí 4 slot author trong prefab (Mục 2 của view-prefabs.md). Hit-test ô
+// thẻ của BoardController lấy từ bounds sprite Shadow của slot (SlotRect bên dưới), không còn
+// tính từ hằng layout nữa — chỉ zone Stack bên đó còn dùng BoxSize.
 using System.Collections;
 using DG.Tweening;
 using LitMotion.Animation;
@@ -143,9 +144,11 @@ namespace WordStack.Board
         {
             var root = groupLockRoot;
             lockKnown = true; shownRoot = null;
+            // Cắt coroutine dở TRƯỚC khi xét activeSelf: restore dở có thể SetActive(false) root
+            // — để nó chạy sau check là root qua được check rồi bị tắt ngay dưới chân.
+            FinishOpen();
             if (root == null || !root.activeSelf) yield break;
 
-            FinishOpen();
             int token = ++openToken;
             var tr = root.transform;
             var srs = root.GetComponentsInChildren<SpriteRenderer>(true);

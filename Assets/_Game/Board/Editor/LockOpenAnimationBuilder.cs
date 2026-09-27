@@ -50,7 +50,16 @@ namespace WordStack.Board.Editor
             var upper = rt.Find("Upper");
             if (upper == null) { Debug.LogWarning("[LockOpen] Không thấy con \"Upper\".", root); return; }
 
-            if (!TryLoadMiddleSprites(out var middleSprites)) return;
+            // MiddleTexture chỉ cần cắt sẵn 2 sprite khi Middle CHƯA tách Top/Bottom (chạy tool
+            // lần đầu) — chạy lại trên Middle đã tách rồi thì khỏi đòi hỏi texture nữa.
+            bool hasTop = middle.Find("Top") != null, hasBottom = middle.Find("Bottom") != null;
+            if (hasTop != hasBottom)
+            {
+                Debug.LogWarning("[LockOpen] Middle có đúng một trong hai con Top/Bottom — dở dang, kiểm tra lại prefab.", root);
+                return;
+            }
+            Sprite[] middleSprites = null;
+            if (!hasTop && !TryLoadMiddleSprites(out middleSprites)) return;
 
             // Validation passed; proceed with mutations.
             Undo.SetCurrentGroupName("Build Lock Open Animation");
@@ -198,6 +207,10 @@ namespace WordStack.Board.Editor
             Undo.RecordObject(anim, "Build Lock Open Animation");
 
             var so = new SerializedObject(anim);
+            // version = 1 + playOnAwake = false: né migration cũ trong LitMotionAnimation.OnAfterDeserialize
+            // (nó suy autoPlayMode TỪ playOnAwake khi version < 1, ghi đè đúng giá trị None vừa set dưới đây).
+            so.FindProperty("version").intValue = 1;
+            so.FindProperty("playOnAwake").boolValue = false;
             so.FindProperty("autoPlayMode").enumValueIndex = 0;    // None — BoxView.OpenGroupLock tự gọi Play
             so.FindProperty("animationMode").enumValueIndex = 0;   // Parallel
             var arr = so.FindProperty("components");
