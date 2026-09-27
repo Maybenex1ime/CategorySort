@@ -39,35 +39,51 @@ namespace WordStack.Board.Editor
             var root = Selection.activeGameObject;
             if (root == null) { Debug.LogWarning("[LockOpen] Chọn Lock Root (trong Box.prefab) trước."); return; }
 
-            Undo.SetCurrentGroupName("Build Lock Open Animation");
-            int undoGroup = Undo.GetCurrentGroup();
-            Undo.RegisterCompleteObjectUndo(root, "Remove missing scripts");
-            GameObjectUtility.RemoveMonoBehavioursWithMissingScript(root);
-
             var rt = root.transform;
-            var tracks = new List<Track>();
-            if (!AddShutters(rt, tracks)) return;
+
+            // Kiểm tra & chuẩn bị all validation trước khi mutate.
+            if (!CollectBacksAndUppers(rt, out var backs, out var uppers)) return;
 
             var middle = rt.Find("Middle");
             if (middle == null) { Debug.LogWarning("[LockOpen] Không thấy con \"Middle\".", root); return; }
-            if (!EnsureMiddleSplit(middle, out var top, out var bottom)) return;
-            foreach (var bar in new[] { top, bottom })
-            {
-                tracks.Add(T("Middle " + bar.name + " · Y", bar, Kind.Position, new Vector3(0f, -5f * PxToUnit, 0f), BarsAt, Snap));
-                tracks.Add(T("Middle " + bar.name + " · scaleY", bar, Kind.Scale, new Vector3(0f, -bar.localScale.y, 0f), BarsAt, Snap));
-            }
 
             var upper = rt.Find("Upper");
             if (upper == null) { Debug.LogWarning("[LockOpen] Không thấy con \"Upper\".", root); return; }
-            tracks.Add(T("Upper · Y", upper, Kind.Position, new Vector3(0f, -20f * PxToUnit, 0f), UpperDropAt, Snap));
 
-            tracks.Add(T("Lock Root · alpha", rt, Kind.GroupAlpha, Vector3.zero, FadeAt, Snap));
-            var s = rt.localScale;
-            tracks.Add(T("Lock Root · scale 0.9", rt, Kind.Scale, new Vector3(-0.1f * s.x, -0.1f * s.y, 0f), ShrinkAt, Snap));
+            if (!TryLoadMiddleSprites(out var middleSprites)) return;
 
-            Write(root, tracks);
-            Undo.CollapseUndoOperations(undoGroup);
-            Debug.Log($"[LockOpen] {tracks.Count} component trên {root.name}. Nhớ Save prefab.", root);
+            // Validation passed; proceed with mutations.
+            Undo.SetCurrentGroupName("Build Lock Open Animation");
+            int undoGroup = Undo.GetCurrentGroup();
+
+            try
+            {
+                Undo.RegisterCompleteObjectUndo(root, "Remove missing scripts");
+                GameObjectUtility.RemoveMonoBehavioursWithMissingScript(root);
+
+                var tracks = new List<Track>();
+                AddShutters(rt, backs, uppers, tracks);
+
+                EnsureMiddleSplit(middle, middleSprites, out var top, out var bottom);
+                foreach (var bar in new[] { top, bottom })
+                {
+                    tracks.Add(T("Middle " + bar.name + " · Y", bar, Kind.Position, new Vector3(0f, -5f * PxToUnit, 0f), BarsAt, Snap));
+                    tracks.Add(T("Middle " + bar.name + " · scaleY", bar, Kind.Scale, new Vector3(0f, -bar.localScale.y, 0f), BarsAt, Snap));
+                }
+
+                tracks.Add(T("Upper · Y", upper, Kind.Position, new Vector3(0f, -20f * PxToUnit, 0f), UpperDropAt, Snap));
+
+                tracks.Add(T("Lock Root · alpha", rt, Kind.GroupAlpha, Vector3.zero, FadeAt, Snap));
+                var s = rt.localScale;
+                tracks.Add(T("Lock Root · scale 0.9", rt, Kind.Scale, new Vector3(-0.1f * s.x, -0.1f * s.y, 0f), ShrinkAt, Snap));
+
+                Write(root, tracks);
+                Debug.Log($"[LockOpen] {tracks.Count} component trên {root.name}. Nhớ Save prefab.", root);
+            }
+            finally
+            {
+                Undo.CollapseUndoOperations(undoGroup);
+            }
         }
 
         static Track T(string name, Transform target, Kind kind, Vector3 end, float delay, float duration, AnimationCurve ease = null)
@@ -76,12 +92,12 @@ namespace WordStack.Board.Editor
                                ease = ease ?? FigmaEase.CssEaseOut01() };
         }
 
-        // Tấm nền = con tên bắt đầu "Lit"; lớp nan = "UpperLit" (con của nền thì tách ra cùng cha, giữ
-        // vị trí world), ghép với nền gần nhất theo x. Tấm bên phải tâm lật dấu X (gập về mép phải).
-        static bool AddShutters(Transform root, List<Track> tracks)
+        // Kiểm tra Lit/UpperLit tồn tại & số lượng khớp nhau.
+        // Dùng trong validation lẫn AddShutters để tránh duplicate logic.
+        static bool CollectBacksAndUppers(Transform root, out List<Transform> backs, out List<Transform> uppers)
         {
-            var backs = new List<Transform>();
-            var uppers = new List<Transform>();
+            backs = new List<Transform>();
+            uppers = new List<Transform>();
             foreach (Transform c in root)
             {
                 if (c.name.StartsWith("UpperLit")) { uppers.Add(c); continue; }
@@ -89,13 +105,35 @@ namespace WordStack.Board.Editor
                 backs.Add(c);
                 foreach (Transform g in c) if (g.name.StartsWith("UpperLit")) uppers.Add(g);
             }
-            foreach (var u in uppers)
-                if (u.parent != root) Undo.SetTransformParent(u, root, "Flatten shutter slats");
             if (backs.Count == 0 || backs.Count != uppers.Count)
             {
                 Debug.LogWarning($"[LockOpen] Cần số Lit bằng số UpperLit, đang {backs.Count}/{uppers.Count}.", root);
                 return false;
             }
+            return true;
+        }
+
+        // Kiểm tra MiddleTexture cắt đúng 2 sprite. Dùng trong validation lẫn EnsureMiddleSplit.
+        static bool TryLoadMiddleSprites(out Sprite[] sprites)
+        {
+            sprites = AssetDatabase.LoadAllAssetsAtPath(MiddleTexture).OfType<Sprite>()
+                                   .OrderByDescending(x => x.rect.y).ToArray();
+            if (sprites.Length != 2)
+            {
+                Debug.LogWarning($"[LockOpen] {MiddleTexture} cần cắt đúng 2 sprite (Sprite Editor ▸ Slice Automatic, pivot Center), đang có {sprites.Length}.");
+                return false;
+            }
+            return true;
+        }
+
+        // Tấm nền = con tên bắt đầu "Lit"; lớp nan = "UpperLit" (con của nền thì tách ra cùng cha, giữ
+        // vị trí world), ghép với nền gần nhất theo x. Tấm bên phải tâm lật dấu X (gập về mép phải).
+        // backs/uppers phải đã được verify bằng CollectBacksAndUppers.
+        static void AddShutters(Transform root, List<Transform> backs, List<Transform> uppers, List<Track> tracks)
+        {
+            var uppersCopy = new List<Transform>(uppers);
+            foreach (var u in uppersCopy)
+                if (u.parent != root) Undo.SetTransformParent(u, root, "Flatten shutter slats");
 
             // 8 mẫu Figma của lớp nan (giây, px), chuẩn hoá theo 0.458 s và 39 px.
             var upperSamples = new[] { (0f, 0f), (0.1f, 18.268f), (0.2f, 30.007f), (0.245f, 31.976f),
@@ -104,8 +142,8 @@ namespace WordStack.Board.Editor
 
             foreach (var b in backs)
             {
-                var u = uppers.OrderBy(x => Mathf.Abs(x.localPosition.x - b.localPosition.x)).First();
-                uppers.Remove(u);
+                var u = uppersCopy.OrderBy(x => Mathf.Abs(x.localPosition.x - b.localPosition.x)).First();
+                uppersCopy.Remove(u);
                 float dir = b.localPosition.x > 0f ? -1f : 1f;
                 tracks.Add(T(b.name + " · nền X", b, Kind.Position, new Vector3(dir * -37f * PxToUnit, 0f, 0f), 0f, ShutterEnd,
                              FigmaEase.EaseOut((0f, 0f), (0.5f, 30f / 37f), (1f, 1f))));
@@ -114,29 +152,21 @@ namespace WordStack.Board.Editor
                              FigmaEase.Linear(upperSamples)));
                 tracks.Add(T(b.name + " · nan scaleX", u, Kind.Scale, new Vector3(-u.localScale.x, 0f, 0f), UpperHold, ShutterEnd - UpperHold));
             }
-            return true;
         }
 
         // Middle cũ là một sprite Single pivot Center; sau khi cắt 2 sprite, đặt hai con Top/Bottom đúng
         // chỗ cũ: tâm rect so với tâm texture, chia PPU. Renderer của Middle tắt đi.
-        static bool EnsureMiddleSplit(Transform middle, out Transform top, out Transform bottom)
+        // sprites phải đã được verify bằng TryLoadMiddleSprites.
+        static void EnsureMiddleSplit(Transform middle, Sprite[] sprites, out Transform top, out Transform bottom)
         {
             top = middle.Find("Top");
             bottom = middle.Find("Bottom");
-            if (top != null && bottom != null) return true;
+            if (top != null && bottom != null) return;
 
-            var sprites = AssetDatabase.LoadAllAssetsAtPath(MiddleTexture).OfType<Sprite>()
-                                       .OrderByDescending(x => x.rect.y).ToArray();
-            if (sprites.Length != 2)
-            {
-                Debug.LogWarning($"[LockOpen] {MiddleTexture} cần cắt đúng 2 sprite (Sprite Editor ▸ Slice Automatic, pivot Center), đang có {sprites.Length}.");
-                return false;
-            }
             var src = middle.GetComponent<SpriteRenderer>();
             top = MakeBar(middle, "Top", sprites[0], src);
             bottom = MakeBar(middle, "Bottom", sprites[1], src);
             if (src != null) { Undo.RecordObject(src, "Split Middle"); src.enabled = false; }
-            return true;
         }
 
         static Transform MakeBar(Transform middle, string name, Sprite sprite, SpriteRenderer src)
