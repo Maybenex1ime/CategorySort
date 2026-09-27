@@ -86,10 +86,9 @@ namespace WordStack.Board
         [SerializeField] float flyDur = 0.16f;
         [SerializeField] float clearDur = 0.26f;
         [SerializeField] float clearStagger = 0.04f;
-        [Tooltip("Nhóm vừa mở được group lock: 4 thẻ bay vào icon trên lồng thay vì co tại chỗ")]
+        [Tooltip("Nhóm vừa mở được group lock: 4 thẻ gộp thành thẻ nhóm giữa hộp (nhịp như COLLAPSE), rồi thẻ đó bay vào icon trên lồng")]
         [SerializeField] float lockFlyDur = 0.3f;
-        [SerializeField] float lockFlyStagger = 0.04f;
-        [SerializeField] float lockFlyGatherScale = 0.35f;
+        [SerializeField] float lockFlyGatherScale = 0.35f;   // thẻ nhóm co còn bao nhiêu lúc chạm icon
         [SerializeField] float cascadeGap = 0.35f;     // nhịp giữa hai bước cascade (§R6)
 
         [Header("Gộp 4 thẻ thành 1 (COLLAPSE)")]
@@ -1104,7 +1103,7 @@ namespace WordStack.Board
                 {
                     var opened = NowOpen(wasLocked);
                     if (opened.Count > 0)
-                        yield return ClearIntoLock(ev.DoomedUids, opened);   // bay vào icon rồi lồng mở
+                        yield return ClearIntoLock(ev.Stack, ev.GroupId, ev.DoomedUids, opened);   // gộp giữa hộp → bay vào icon → lồng mở
                     else
                     {
                         var seq = RemoveTiles(ev.DoomedUids);   // 4 thẻ co về 0, lệch nhau clearStagger
@@ -1176,31 +1175,46 @@ namespace WordStack.Board
             return r;
         }
 
-        // Nhóm vừa gom xong chính là nhóm mở lồng: 4 thẻ bay chụm về icon trên hộp đầu tiên
-        // (nhiều hộp cùng khoá một nhóm thì các hộp sau chỉ diễn phần lồng mở), co dần trên
-        // đường bay, tới nơi thì huỷ; rồi lồng mở (BoxView.OpenGroupLock). Sổ tiles cập nhật
-        // ngay như RemoveTiles để RefreshTileVisuals sau đó không đụng thẻ đã bay.
-        IEnumerator ClearIntoLock(string[] uids, List<int> opened)
+        // Nhóm vừa gom xong chính là nhóm mở lồng. Nhìn như COLLAPSE: 4 thẻ bay chụm về TÂM hộp vừa
+        // gom (không phải một ô), nén lại, thẻ nhóm nở ra ở đó — rồi thẻ ấy bay vào icon trên hộp
+        // khoá đầu tiên (nhiều hộp cùng khoá một nhóm thì các hộp sau chỉ diễn phần lồng mở), co dần
+        // trên đường bay, tới nơi thì huỷ; rồi lồng mở (BoxView.OpenGroupLock). Clear xoá hẳn nhóm
+        // khỏi domain nên thẻ nhóm là thẻ tạm của view (SpawnGroupCard).
+        IEnumerator ClearIntoLock(int s, string gid, string[] uids, List<int> opened)
         {
-            var target = boxViews[opened[0]].GroupIconWorld;
-            var seq = DOTween.Sequence();
-            int n = 0;
-            for (int i = 0; i < uids.Length; i++)
+            var center = boxViews[s].transform.position;
+            var gather = GatherTiles(uids, center);
+            if (gather != null) yield return gather.WaitForCompletion();
+
+            var card = SpawnGroupCard(s, gid, center);
+            if (card != null)
             {
-                TileView tv;
-                if (!tiles.TryGetValue(uids[i], out tv) || tv == null) continue;
-                tiles.Remove(uids[i]);
-                var go = tv.gameObject;
-                tv.SetFlying(true);   // sorting 90 > lồng 14–16, thẻ bay đè lên lồng
-                float at = i * lockFlyStagger;
-                seq.Insert(at, tv.transform.DOMove(target, lockFlyDur).SetEase(Ease.InCubic).SetLink(go));
-                seq.Insert(at, tv.transform.DOScale(lockFlyGatherScale, lockFlyDur).SetEase(Ease.InQuad).SetLink(go)
-                                 .OnComplete(() => Destroy(go)));
-                n++;
+                yield return Bloom(card).WaitForCompletion();
+                var go = card.gameObject;
+                var fly = DOTween.Sequence().SetLink(go);
+                fly.Join(card.transform.DOMove(boxViews[opened[0]].GroupIconWorld, lockFlyDur).SetEase(Ease.InCubic));
+                fly.Join(card.transform.DOScale(lockFlyGatherScale, lockFlyDur).SetEase(Ease.InQuad));
+                yield return fly.WaitForCompletion();
+                Destroy(go);
             }
-            if (n > 0) yield return seq.WaitForCompletion(); else seq.Kill();
 
             yield return OpenLocks(opened);
+        }
+
+        // Thẻ tạm đại diện nhóm gid (text/art lấy từ GroupDef như thẻ collapse), nền "thẻ lẻ". Làm con
+        // của Slot(0) hộp s để ăn đúng scale thẻ trong hộp, đặt tại worldPos. Không vào sổ tiles —
+        // bên gọi tự huỷ. null khi level không có def của nhóm (không diễn gộp, lồng vẫn mở).
+        TileView SpawnGroupCard(int s, string gid, Vector3 worldPos)
+        {
+            GroupDef def;
+            if (g.GroupDefs == null || gid == null || !g.GroupDefs.TryGetValue(gid, out def)) return null;
+            var t = new Tile { Uid = "lock:" + gid, CardId = gid, GroupId = gid, Text = def.Text, Art = def.Art };
+            var tv = Instantiate(tilePrefab, boxViews[s].Slot(0), false);
+            tv.transform.position = worldPos;
+            tv.Bind(t, ArtOf(t));
+            tv.SetMatchState(1, 0);
+            tv.SetFlying(true);   // nổi trên hộp và lồng (sorting 90 > lồng 14–16)
+            return tv;
         }
 
         // Mở group lock trên từng hộp trong `opened` song song; cùng một animation nên chờ hộp
@@ -1249,16 +1263,25 @@ namespace WordStack.Board
                 yield break;
             }
 
-            var destPos = boxViews[s].Slot(dest).position;
+            var seq = GatherTiles(doomedUids, boxViews[s].Slot(dest).position);
+            if (seq != null) yield return seq.WaitForCompletion();
+            SpawnCollapsedTile(s, newUid);
+        }
+
+        // Các thẻ bay chụm về destPos, co còn mergeShrink trên đường, tới nơi nén nốt về 0 rồi huỷ.
+        // Sổ tiles cập nhật ngay. Dùng chung cho COLLAPSE (đích = ô thẻ mới) và nhóm mở khoá (đích =
+        // tâm hộp). null khi không còn view nào để diễn.
+        Sequence GatherTiles(string[] uids, Vector3 destPos)
+        {
             var seq = DOTween.Sequence();
             int n = 0;
-            for (int i = 0; i < doomedUids.Length; i++)
+            for (int i = 0; i < uids.Length; i++)
             {
                 TileView tv;
-                if (!tiles.TryGetValue(doomedUids[i], out tv) || tv == null) continue;
-                tiles.Remove(doomedUids[i]);
+                if (!tiles.TryGetValue(uids[i], out tv) || tv == null) continue;
+                tiles.Remove(uids[i]);
                 var go = tv.gameObject;
-                tv.SetFlying(true);                          // bay chụm về ô đích thì nổi lên trên hộp
+                tv.SetFlying(true);                          // bay chụm thì nổi lên trên hộp
                 float at = i * mergeStagger;
 
                 // InBack: nhích ra ngoài một chút rồi mới lao vào — cú lấy đà làm chuyển động
@@ -1267,17 +1290,16 @@ namespace WordStack.Board
                                  .SetEase(Ease.InBack, 0.6f).SetLink(go));
                 seq.Insert(at, tv.transform.DOScale(mergeShrink, mergeGather)
                                  .SetEase(Ease.InQuad).SetLink(go));
-                // Tới nơi thì nén nốt về 0: nhịp "cộp" ngăn giữa lúc 4 thẻ tắt và lúc thẻ mới bung.
+                // Tới nơi thì nén nốt về 0: nhịp "cộp" ngăn giữa lúc các thẻ tắt và lúc thẻ mới bung.
                 seq.Insert(at + mergeGather,
                            tv.transform.DOScale(0f, Mathf.Max(mergeHold, 0.01f))
                              .SetEase(Ease.InQuad).SetLink(go)
                              .OnComplete(() => Destroy(go)));
                 n++;
             }
-            if (n == 0) { seq.Kill(); SpawnCollapsedTile(s, newUid); yield break; }
-
-            yield return seq.WaitForCompletion();
-            SpawnCollapsedTile(s, newUid);
+            if (n > 0) return seq;
+            seq.Kill();
+            return null;
         }
 
         // Hộp co lại + mờ dần (GDD §9.3 "Xoá box"). Dùng DOTween.To trên BoxView.SetAlpha
@@ -1335,17 +1357,22 @@ namespace WordStack.Board
             tv.Bind(t, ArtOf(t));
             var cc = GroupCountsIn(box);
             tv.SetMatchState(cc[t.GroupId], OrdinalOf(PairOrdinalsFor(s, box, cc), t.GroupId));
-            tv.transform.localScale = Vector3.zero;
+            Bloom(tv);
+            tiles[t.Uid] = tv;
+        }
 
-            var go = tv.gameObject;
-            var seq = DOTween.Sequence().SetLink(go);
+        // Thẻ mới nở từ 0 (OutBack), kèm xoay mergeSpin về 0. Dùng cho thẻ collapse và thẻ nhóm mở khoá.
+        Sequence Bloom(TileView tv)
+        {
+            tv.transform.localScale = Vector3.zero;
+            var seq = DOTween.Sequence().SetLink(tv.gameObject);
             seq.Join(tv.transform.DOScale(1f, mergeBloom).SetEase(Ease.OutBack));
             if (Mathf.Abs(mergeSpin) > 0.01f)
             {
                 tv.transform.localEulerAngles = new Vector3(0f, 0f, mergeSpin);
                 seq.Join(tv.transform.DOLocalRotate(Vector3.zero, mergeBloom).SetEase(Ease.OutCubic));
             }
-            tiles[t.Uid] = tv;
+            return seq;
         }
 
         // Sprite nền theo số thẻ cùng nhóm — refresh sau nước đi (cả 2 hộp) và sau
