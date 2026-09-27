@@ -40,22 +40,17 @@ namespace WordStack.Board
         [SerializeField] Transform groupTile;
         [Tooltip("Thời gian mờ Key Tile (giây), 0 = bỏ qua")]
         [FormerlySerializedAs("groupIconPopDur")] [SerializeField] float groupTileFadeDur = 0.2f;
-        [Tooltip("Lồng trượt lên bấy nhiêu world unit trong lúc mờ dần")]
-        [SerializeField] float groupOpenLift = 0.25f;
-        [SerializeField] float groupOpenDur = 0.35f;
-        [SerializeField] Ease groupOpenEase = Ease.OutCubic;
 
         SpriteRenderer[] renderers;
         float[] baseAlpha;
         SpriteRenderer[] slotShadows;   // sprite Shadow của từng slot — lấy ở Awake, trước khi thẻ mount vào
         Vector3 lockedScale = Vector3.one, groupScale = Vector3.one;   // scale author trong prefab của hai root
-        Vector3 groupArtScale = Vector3.one;                            // scale author của icon nhóm
         // OpenGroupLock đang chạy: tween hiện tại, hàm trả root về trạng thái author, và token để
         // coroutine cũ tự thoát khi bị cắt ngang (FinishOpen tăng token).
         Tween openTween;
         System.Action openRestore;
         int openToken;
-        LitMotionAnimation shutter;   // cửa chớp trên groupLockRoot (Tools ▸ WordStack ▸ Build Lock Shutter Animation), null = không có
+        LitMotionAnimation openAnim;   // timeline mở trên groupLockRoot (Tools ▸ WordStack ▸ Build Lock Open Animation), null = không có
 
         void Awake()
         {
@@ -69,8 +64,7 @@ namespace WordStack.Board
                 if (slotAnchors[i] != null) slotShadows[i] = slotAnchors[i].GetComponentInChildren<SpriteRenderer>(true);
             if (lockedRoot != null) lockedScale = lockedRoot.transform.localScale;
             if (groupLockRoot != null) groupScale = groupLockRoot.transform.localScale;
-            if (groupArt != null) groupArtScale = groupArt.transform.localScale;
-            if (groupLockRoot != null) shutter = groupLockRoot.GetComponent<LitMotionAnimation>();
+            if (groupLockRoot != null) openAnim = groupLockRoot.GetComponent<LitMotionAnimation>();
         }
 
         /// <summary>Tâm icon nhóm trên lồng — đích cho 4 thẻ bay vào. Chưa nối icon thì lấy root.</summary>
@@ -140,11 +134,11 @@ namespace WordStack.Board
             groupArt.color = new Color(1f, 1f, 1f, c.a);   // art nhóm tự mang màu; alpha thuộc SetAlpha
         }
 
-        // Mở group lock: Key Tile mờ dần → cửa chớp gập (LitMotionAnimation trên Lock Root, nếu có) →
-        // lồng trượt lên + mờ dần để lộ thẻ bên trong (thẻ order 10–14, lồng 14–16 nên chỉ cần lồng
-        // trong suốt là thẻ hiện). Xong tắt root và trả vị trí/alpha/scale về giá trị author để lần
-        // bind sau còn dùng. Đặt shownRoot = null ngay: SetOpen ở cuối Settle sẽ snap, không Unlock lần hai.
-        // Coroutine (bên gọi yield return) vì LitMotionAnimation không cho biết trước thời lượng — chờ IsPlaying.
+        // Mở group lock: Key Tile mờ dần → LitMotionAnimation trên Lock Root chạy trọn timeline Figma
+        // (cửa chớp gập, thanh Middle ép dẹt, Upper rơi, cả khối mờ + co 0.9) → tắt root, trả alpha/scale
+        // về author để lần bind sau còn dùng. Đặt shownRoot = null ngay: SetOpen ở cuối Settle sẽ snap,
+        // không Unlock lần hai. Coroutine (bên gọi yield return) vì LitMotionAnimation không cho biết
+        // trước thời lượng — chờ IsPlaying.
         public IEnumerator OpenGroupLock()
         {
             var root = groupLockRoot;
@@ -154,24 +148,21 @@ namespace WordStack.Board
             FinishOpen();
             int token = ++openToken;
             var tr = root.transform;
-            var pos0 = tr.localPosition;
             var srs = root.GetComponentsInChildren<SpriteRenderer>(true);
             var a0 = new float[srs.Length];
             for (int i = 0; i < srs.Length; i++) a0[i] = srs[i].color.a;
             openRestore = () =>
             {
-                if (shutter != null) shutter.Stop();   // OnStop của từng component trả tấm cửa về chỗ author
+                if (openAnim != null) openAnim.Stop();   // OnStop từng component trả vị trí/scale/alpha lúc Play
                 root.SetActive(false);
-                tr.localPosition = pos0;
                 tr.localScale = groupScale;
                 for (int i = 0; i < srs.Length; i++) { var c = srs[i].color; c.a = a0[i]; srs[i].color = c; }
-                if (groupArt != null) groupArt.transform.localScale = groupArtScale;
             };
             tr.DOKill(true);
 
-            // Key Tile mờ hẳn trước, rồi cửa chớp mới gập. Alpha trả lại trong openRestore (srs gồm cả nó).
+            // Key Tile mờ hẳn trước, rồi timeline Figma mới chạy.
             var tile = groupTile != null ? groupTile : (groupArt != null ? groupArt.transform.parent : null);
-            if (tile == tr && groupArt != null) tile = groupArt.transform;   // icon gắn thẳng lên root: chỉ mờ icon, không mờ cả lồng
+            if (tile == tr && groupArt != null) tile = groupArt.transform;   // icon gắn thẳng lên root: chỉ mờ icon
             if (tile != null && groupTileFadeDur > 0f)
             {
                 var fade = DOTween.Sequence().SetLink(root);
@@ -185,28 +176,16 @@ namespace WordStack.Board
                 if (token != openToken) yield break;
             }
 
-            if (shutter != null)
+            if (openAnim != null)
             {
-                shutter.Stop();
-                shutter.Play();
-                while (shutter.IsPlaying)
+                openAnim.Stop();
+                openAnim.Play();
+                while (openAnim.IsPlaying)
                 {
                     yield return null;
                     if (token != openToken) yield break;
                 }
             }
-
-            var seq = DOTween.Sequence().SetLink(root);
-            seq.Append(tr.DOLocalMoveY(pos0.y + groupOpenLift, groupOpenDur).SetEase(groupOpenEase));
-            foreach (var sr in srs)
-                if (sr != groupArt)
-                {
-                    var r = sr;   // capture riêng từng renderer
-                    seq.Join(DOTween.ToAlpha(() => r.color, c => r.color = c, 0f, groupOpenDur).SetEase(groupOpenEase));
-                }
-            openTween = seq;
-            yield return seq.WaitForCompletion();
-            if (token != openToken) yield break;
             FinishOpen();
         }
 
