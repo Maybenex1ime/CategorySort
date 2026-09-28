@@ -1,7 +1,6 @@
 // Cửa sổ + thanh tool của Figma Motion Importer.
 //   Tools ▸ Figma Motion ▸ Importer          — cửa sổ đầy đủ: chọn root + file JSON (hoặc dán), Kiểm tra, Import.
-//   Scene view ▸ overlay "Figma Motion"     — hai nút: mở cửa sổ, Import lại file JSON lần trước lên
-//                                              GameObject đang chọn (vòng lặp chỉnh số Figma → xem ngay).
+//   Scene view ▸ overlay "Figma Motion"     — nút mở cửa sổ. Cửa sổ nhớ file JSON lần trước.
 // Import ghi đè LitMotionAnimation trên root; xem trước bằng nút Play trong Inspector của nó.
 using System.Text;
 using UnityEditor;
@@ -9,12 +8,11 @@ using UnityEditor.Overlays;
 using UnityEditor.Toolbars;
 using UnityEngine;
 
-namespace WordStack.Board.Editor
+namespace FigmaMotion.Editor
 {
     public sealed class FigmaMotionWindow : EditorWindow
     {
-        const string SamplePath = "Assets/_Game/Art/Blocker/Blocker_Box/LockOpen.figma-motion.json";
-        static string LastJsonKey => "WordStack.FigmaMotion.LastJson:" + Application.dataPath;   // EditorPrefs dùng chung mọi project
+        static string LastJsonKey => "FigmaMotion.LastJson:" + Application.dataPath;   // EditorPrefs dùng chung mọi project
 
         [SerializeField] GameObject root;
         [SerializeField] TextAsset json;
@@ -30,20 +28,6 @@ namespace WordStack.Board.Editor
             var w = GetWindow<FigmaMotionWindow>("Figma Motion");
             w.minSize = new Vector2(380f, 280f);
             if (Selection.activeGameObject != null) w.root = Selection.activeGameObject;
-        }
-
-        [MenuItem("Tools/Figma Motion/Import lại lên selection")]
-        public static void ReimportLastOnSelection()
-        {
-            var go = Selection.activeGameObject;
-            var asset = LoadLastJson();
-            if (go == null || asset == null)
-            {
-                Debug.LogWarning("[Figma Motion] Cần chọn GameObject gốc và đã Import một file JSON từ cửa sổ Figma Motion trước.");
-                Open();
-                return;
-            }
-            Log(FigmaMotionImporter.Import(asset.text, go), go, asset.name);
         }
 
         void OnEnable()
@@ -69,11 +53,6 @@ namespace WordStack.Board.Editor
                 GUILayout.FlexibleSpace();
                 if (GUILayout.Button(new GUIContent("← Selection", "Lấy GameObject đang chọn làm Root"), EditorStyles.toolbarButton))
                     root = Selection.activeGameObject;
-                if (GUILayout.Button(new GUIContent("JSON mẫu", "Mở file mẫu: mở hộp khoá nhóm"), EditorStyles.toolbarButton))
-                {
-                    var sample = AssetDatabase.LoadAssetAtPath<TextAsset>(SamplePath);
-                    if (sample != null) { json = sample; usePasted = false; EditorGUIUtility.PingObject(sample); }
-                }
             }
 
             EditorGUILayout.Space(4f);
@@ -146,35 +125,22 @@ namespace WordStack.Board.Editor
     }
 
     // Thanh tool trong Scene view (bật/tắt ở menu ⋮ Overlays của Scene view).
-    [Overlay(typeof(SceneView), "wordstack-figma-motion", "Figma Motion", true)]
+    [Overlay(typeof(SceneView), "figma-motion", "Figma Motion", true)]
     sealed class FigmaMotionToolbar : ToolbarOverlay
     {
-        FigmaMotionToolbar() : base(FigmaMotionOpenButton.Id, FigmaMotionReimportButton.Id) { }
+        FigmaMotionToolbar() : base(FigmaMotionOpenButton.Id) { }
     }
 
     [EditorToolbarElement(Id, typeof(SceneView))]
     sealed class FigmaMotionOpenButton : EditorToolbarButton
     {
-        public const string Id = "WordStack/FigmaMotion/Open";
+        public const string Id = "FigmaMotion/Open";
 
         public FigmaMotionOpenButton()
         {
             text = "Figma Motion";
             tooltip = "Mở Figma Motion Importer: JSON timeline Figma → LitMotionAnimation";
             clicked += FigmaMotionWindow.Open;
-        }
-    }
-
-    [EditorToolbarElement(Id, typeof(SceneView))]
-    sealed class FigmaMotionReimportButton : EditorToolbarButton
-    {
-        public const string Id = "WordStack/FigmaMotion/Reimport";
-
-        public FigmaMotionReimportButton()
-        {
-            text = "Import lại";
-            tooltip = "Import lại file JSON lần trước lên GameObject đang chọn";
-            clicked += FigmaMotionWindow.ReimportLastOnSelection;
         }
     }
 }

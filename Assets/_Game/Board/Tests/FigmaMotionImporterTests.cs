@@ -2,12 +2,13 @@
 // số đang nằm trong Box.prefab: bảng Figma của plan 2026-09-27-lock-box-open-animation, cộng phần chỉnh
 // tay ở commit 86fac84 (thanh Middle/Upper, mờ + co dài 0.1 s; mờ/co bắt đầu 0.57 s).
 using System.Linq;
+using FigmaMotion;
 using LitMotion.Animation;
 using LitMotion.Animation.Components;
 using NUnit.Framework;
 using UnityEditor;
 using UnityEngine;
-using WordStack.Board.Editor;
+using FigmaMotion.Editor;
 
 namespace WordStack.Board.Tests
 {
@@ -141,18 +142,18 @@ namespace WordStack.Board.Tests
         }
 
         [Test]
-        public void ConvertsUnits_FlipsY_MirrorsX_AndScalesByAuthorScale()
+        public void ConvertsUnits_FlipsY_AndScalesByAuthorScale()
         {
             var rt = Plain();
             rt.GetChild(0).localScale = new Vector3(2f, 2f, 1f);
             var r = FigmaMotionImporter.Resolve(@"{ ""pxToUnit"": 0.01, ""tracks"": [
                 { ""target"": ""A"", ""property"": ""y"", ""keys"": [ { ""time"": 0, ""value"": 100 }, { ""time"": 1, ""value"": 110 } ] },
-                { ""target"": ""A"", ""property"": ""x"", ""mirrorX"": true, ""keys"": [ { ""time"": 0, ""value"": 0 }, { ""time"": 1, ""value"": 10 } ] },
+                { ""target"": ""A"", ""property"": ""x"", ""keys"": [ { ""time"": 0, ""value"": 0 }, { ""time"": 1, ""value"": -10 } ] },
                 { ""target"": ""A"", ""property"": ""rotation"", ""keys"": [ { ""time"": 0, ""value"": 0 }, { ""time"": 1, ""value"": 90 } ] },
                 { ""target"": ""A"", ""property"": ""scaleY"", ""keys"": [ { ""time"": 0, ""value"": 1 }, { ""time"": 1, ""value"": 0.5 } ] } ] }", rt);
             Assert.IsTrue(r.Ok, string.Join("\n", r.errors));
             AssertVec(new Vector3(0f, -0.1f, 0f), r.tracks[0].end, "y lật");
-            AssertVec(new Vector3(-0.1f, 0f, 0f), r.tracks[1].end, "x gương");
+            AssertVec(new Vector3(-0.1f, 0f, 0f), r.tracks[1].end, "x giữ dấu");
             AssertVec(new Vector3(0f, 0f, 90f), r.tracks[2].end, "rotation");
             Assert.AreEqual(MotionKind.Rotation, r.tracks[2].kind);
             AssertVec(new Vector3(0f, -1f, 0f), r.tracks[3].end, "scaleY theo scale author 2");

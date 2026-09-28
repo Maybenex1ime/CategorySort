@@ -1,6 +1,5 @@
 // Importer chung: JSON timeline Figma → LitMotionAnimation (không tự chạy) trên một GameObject gốc.
-// Định dạng + cách lấy số từ Figma: docs/tools/figma-motion-importer.md. Mẫu thật:
-// Assets/_Game/Art/Blocker/Blocker_Box/LockOpen.figma-motion.json (mở hộp khoá nhóm).
+// Định dạng + cách lấy số từ Figma: README.md của module (Assets/_Modules/FigmaMotion).
 //
 // Một track = một thuộc tính của một node: các keyframe có thời điểm tuyệt đối, giá trị Figma và
 // easing từng đoạn. Importer suy delay/duration từ key đầu/cuối, đổi px → unit, lật trục Y (Figma
@@ -14,7 +13,7 @@ using LitMotion.Animation.Components;
 using UnityEditor;
 using UnityEngine;
 
-namespace WordStack.Board.Editor
+namespace FigmaMotion.Editor
 {
     [Serializable]
     public class FigmaMotionSpec
@@ -37,7 +36,6 @@ namespace WordStack.Board.Editor
         public string name;
         public string target;     // đường dẫn từ root: "" = root, "Middle/Top", "UpperLit[1]" = con thứ 2 tên UpperLit
         public string property;   // x | y | rotation | scale | scaleX | scaleY | opacity
-        public bool mirrorX;      // lật dấu x + rotation (node đối xứng qua trục dọc)
         public string ease;       // easing mặc định của track, đè ease của file
         public FigmaMotionKey[] keys;
     }
@@ -142,8 +140,9 @@ namespace WordStack.Board.Editor
                 }
             }
 
-            // Giá trị Figma → đại lượng vô hướng phía Unity (u), và trục mà u nhân vào.
-            float v0 = keys[0].value, mx = tr.mirrorX ? -1f : 1f, my = spec.flipY ? -1f : 1f, px = spec.pxToUnit;
+            // Giá trị Figma → đại lượng vô hướng phía Unity (u), và trục mà u nhân vào. Số đã tính theo
+            // group gốc, kể cả lật/xoay của layer (Exporter/export-figma-motion.js).
+            float v0 = keys[0].value, my = spec.flipY ? -1f : 1f, px = spec.pxToUnit;
             var s = target.localScale;
             Func<float, float> map;
             Vector3 axis;
@@ -152,10 +151,10 @@ namespace WordStack.Board.Editor
             string prop = (tr.property ?? "").Trim().ToLowerInvariant();
             switch (prop)
             {
-                case "x": kind = MotionKind.Position; axis = Vector3.right; map = v => (v - v0) * px * mx; break;
+                case "x": kind = MotionKind.Position; axis = Vector3.right; map = v => (v - v0) * px; break;
                 case "y": kind = MotionKind.Position; axis = Vector3.up; map = v => (v - v0) * px * my; break;
                 // Figma: độ dương = ngược chiều kim đồng hồ trên màn — trùng chiều z+ của Unity.
-                case "rotation": kind = MotionKind.Rotation; axis = Vector3.forward; map = v => (v - v0) * mx; break;
+                case "rotation": kind = MotionKind.Rotation; axis = Vector3.forward; map = v => v - v0; break;
                 case "scale":
                 case "scalex":
                 case "scaley":

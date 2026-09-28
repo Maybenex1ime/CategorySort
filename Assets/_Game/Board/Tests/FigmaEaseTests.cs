@@ -1,5 +1,6 @@
 // Curve dựng từ keyframe Figma phải trùng số Figma, không xấp xỉ.
 // Số chuẩn của cubic-bezier(0, 0, 0.58, 1) giải số x(u) = t (plan 2026-09-27, Global Constraints).
+using FigmaMotion;
 using NUnit.Framework;
 
 namespace WordStack.Board.Tests

@@ -1,16 +1,11 @@
 {
-    "name": "WordStack.Board.Editor",
-    "rootNamespace": "WordStack.Board.Editor",
+    "name": "FigmaMotion",
+    "rootNamespace": "FigmaMotion",
     "references": [
-        "WordStack.Board",
-        "FigmaMotion",
-        "FigmaMotion.Editor",
         "LitMotion",
         "LitMotion.Animation"
     ],
-    "includePlatforms": [
-        "Editor"
-    ],
+    "includePlatforms": [],
     "excludePlatforms": [],
     "allowUnsafeCode": false,
     "overrideReferences": false,

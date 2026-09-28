@@ -1651,7 +1651,7 @@ MonoBehaviour:
         relative: 1
         useWorldSpace: 0
     - rid: 3383131925013070182
-      type: {class: SpriteGroupAlphaAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      type: {class: SpriteGroupAlphaAnimation, ns: FigmaMotion, asm: FigmaMotion}
       data:
         displayName: "Lock Root \xB7 alpha"
         enabled: 1

@@ -4,6 +4,8 @@
     "references": [
         "WordStack.Board",
         "WordStack.Board.Editor",
+        "FigmaMotion",
+        "FigmaMotion.Editor",
         "LitMotion",
         "LitMotion.Animation",
         "UnityEngine.TestRunner",

@@ -64,7 +64,7 @@ done
   # Contracts cố ý KHÔNG phụ thuộc gì nên nhập thẳng vào thế giới mscorlib này được; kéo
   # EventBus hay WordStack.Meta vào đây thì hỏng (EventBus cần ValueTask — không có trong
   # 4.7.1-api; R3/Reflex là netstandard2.1, xung khắc ref set mscorlib 4.7.1). Đó là lý do có target meta riêng.
-  find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" -name '*.cs' \
+  find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" "$PWD/Assets/_Modules/FigmaMotion" -name '*.cs' \
        -not -path '*/Editor/*' -not -path '*/Tests/*' | while read -r f; do
     echo "\"$(w "$f")\""
   done
@@ -86,7 +86,7 @@ done
   echo "-r:\"$(w "$TMPDLL")\""
   echo "-r:\"$(w "$UGUIDLL")\""
   for f in "${LITMOTION_REFS[@]}"; do echo "-r:\"$(w "$f")\""; done
-  find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" -name '*.cs' \
+  find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" "$PWD/Assets/_Modules/FigmaMotion" -name '*.cs' \
        -not -path '*/Tests/*' | while read -r f; do
     echo "\"$(w "$f")\""
   done
@@ -147,8 +147,9 @@ if [ "$meta_ready" = 1 ]; then
     # Bỏ Tests/: chúng cần NUnit + TestRunner, chỉ Unity mới dựng nổi ref đó.
     # Bỏ _Game/Board: đó là assembly WordStack.Board (target `game` ở trên) — nó sống ở
     # thế giới mscorlib, trộn vào đây là xoá mất chính ranh giới compilecheck đang canh.
+    # _Modules/FigmaMotion cũng vậy (cần LitMotion.Animation) — đã gom vào game/editor ở trên.
     find "$PWD/Assets/_StudioSDK" "$PWD/Assets/_Modules" "$PWD/Assets/_Game" "$PWD/Assets/BoosterModule" -name '*.cs' \
-         -not -path '*/Tests/*' -not -path '*/_Game/Board/*' | while read -r f; do
+         -not -path '*/Tests/*' -not -path '*/_Game/Board/*' -not -path '*/_Modules/FigmaMotion/*' | while read -r f; do
       echo "\"$(w "$f")\""
     done
   } > "$OUT/meta.rsp"

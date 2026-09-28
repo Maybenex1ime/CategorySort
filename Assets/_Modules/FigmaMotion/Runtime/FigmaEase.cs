@@ -10,7 +10,7 @@ using System.Collections.Generic;
 using System.Globalization;
 using UnityEngine;
 
-namespace WordStack.Board
+namespace FigmaMotion
 {
     public static class FigmaEase
     {

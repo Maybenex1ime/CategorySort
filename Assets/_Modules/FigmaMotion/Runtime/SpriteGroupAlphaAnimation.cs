@@ -7,7 +7,7 @@ using LitMotion;
 using LitMotion.Animation;
 using UnityEngine;
 
-namespace WordStack.Board
+namespace FigmaMotion
 {
     [Serializable]
     [LitMotionAnimationComponentMenu("Custom/Sprite Group Alpha")]

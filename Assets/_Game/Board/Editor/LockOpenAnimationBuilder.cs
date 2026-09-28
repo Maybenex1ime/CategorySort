@@ -3,12 +3,13 @@
 // docs/superpowers/plans/2026-09-27-lock-box-open-animation.md) và đi qua FigmaMotionImporter; tool này
 // chỉ lo phần sửa cấu trúc một lần mà importer không làm.
 // Mở Box.prefab, chọn Lock Root, Tools ▸ WordStack ▸ Build Lock Open Animation, Save prefab.
-// Chỉnh số về sau: sửa JSON rồi bấm "Import lại" trên thanh Figma Motion — khỏi chạy lại tool này.
+// Chỉnh số về sau: sửa JSON rồi Import lại qua Tools ▸ Figma Motion ▸ Importer — khỏi chạy lại tool này.
 //
 // Tool làm, đều Undo được: gỡ script mất; tách UpperLit ra ngang hàng Lit (Figma để hai lớp là anh
 // em — JSON gọi chúng UpperLit[0] bên trái, UpperLit[1] bên phải); tách Middle thành Top/Bottom
 // (texture đã cắt 2 sprite); rồi import JSON (ghi đè LitMotionAnimation, Parallel, không tự chạy).
 using System.Collections.Generic;
+using FigmaMotion.Editor;
 using System.Linq;
 using UnityEditor;
 using UnityEngine;

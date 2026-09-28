@@ -1,4 +1,5 @@
 // Opacity cả group = alpha author của TỪNG renderer × một hệ số chung (không ghi đè về cùng một alpha).
+using FigmaMotion;
 using NUnit.Framework;
 using UnityEngine;
 
