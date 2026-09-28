@@ -132,7 +132,7 @@ namespace WordStack.Board
         readonly Dictionary<int, MotionHandle> shakes = new Dictionary<int, MotionHandle>();   // stack → cú rung đang chạy
 
         // MỌI LSequence mà controller này khởi động (Magnet, Vortex, Undo, RemoveTiles,
-        // MergeTiles, FadeBox, SpawnCollapsedTile...) — DestroyBoard() phải huỷ hết trong
+        // MergeTiles, LiftAwayBox, SpawnCollapsedTile...) — DestroyBoard() phải huỷ hết trong
         // này TRƯỚC khi xoá GameObject bên dưới, vì target còn sống lúc Cancel mới an toàn.
         readonly List<MotionHandle> running = new List<MotionHandle>();
 
@@ -1209,7 +1209,7 @@ namespace WordStack.Board
                 }
                 if (ev.BoxRemoved)
                 {
-                    yield return FadeBox(ev.Stack);
+                    yield return LiftAwayBox(ev.Stack);
                     RevealBox(ev.Stack);
                 }
 
@@ -1399,19 +1399,12 @@ namespace WordStack.Board
             DestroyAll(doomed);
         }
 
-        // Hộp co lại + mờ dần (GDD §9.3 "Xoá box"). Mờ qua BoxView.SetAlpha — hộp nhiều
-        // SpriteRenderer, không tween một renderer.
-        IEnumerator FadeBox(int s)
+        // Hộp rỗng bị xoá (GDD §9.3 "Xoá box"): nhấc lên + mờ dần, y như mở khoá hộp khoá theo số —
+        // số liệu ở BoxView (Unlock Dur / Unlock Lift / Unlock Ease), chỉnh một chỗ ăn cả hai.
+        IEnumerator LiftAwayBox(int s)
         {
-            var bv = boxViews[s];
-            var seq = LSequence.Create();
-            seq.Insert(0f, LMotion.Create(bv.transform.localScale, Vector3.one * 0.9f, clearDur)
-                                  .WithEase(Ease.InQuad).WithCancelOnError().BindToLocalScale(bv.transform));
-            // Không SetEase ở bản cũ → OutQuad (ease mặc định trong config cũ).
-            seq.Insert(0f, LMotion.Create(1f, 0f, clearDur)
-                                  .WithEase(Ease.OutQuad).WithCancelOnError().Bind(bv, (v, b) => b.SetAlpha(v)));
             running.RemoveAll(mh => !mh.IsActive());
-            var h = seq.Run(SeqCfg).AddTo(bv.gameObject);
+            var h = boxViews[s].LiftAway();
             running.Add(h);
             yield return h.ToYieldInstruction();
         }

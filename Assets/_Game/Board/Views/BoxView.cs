@@ -271,6 +271,25 @@ namespace WordStack.Board
                                   .AddTo(root);
         }
 
+        /// <summary>
+        /// Hộp rỗng bị xoá: nhấc lên + mờ hẳn, cùng unlockLift / unlockDur / unlockEase với mở khoá hộp
+        /// khoá theo số (Unlock) để hai cú "lùi ra" trông như một. Xong thì trả vị trí về chỗ cũ nhưng
+        /// giữ alpha 0 — RevealBox bind lại hộp vừa lộ và ResetVisual mới hiện nó lên.
+        /// </summary>
+        public MotionHandle LiftAway()
+        {
+            var tr = transform;
+            var pos0 = tr.localPosition;
+            return LMotion.Create(0f, 1f, unlockDur).WithEase(unlockEase).WithCancelOnError()
+                          .WithOnComplete(() => tr.localPosition = pos0)
+                          .Bind(k =>
+                          {
+                              var p = pos0; p.y += unlockLift * k; tr.localPosition = p;
+                              SetAlpha(1f - k);
+                          })
+                          .AddTo(gameObject);
+        }
+
         public void SetAlpha(float a)
         {
             for (int i = 0; i < renderers.Length; i++)
