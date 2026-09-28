@@ -1,0 +1,50 @@
+{
+  "schema": "figma-motion/v1",
+  "name": "Mở hộp khoá nhóm",
+  "source": "Figma webZuDwy5Y6uGxGt0psafX · Group 547 (node 373:1245). Root = Lock Root trong Box.prefab. Thanh Middle, Upper, mờ + co kéo dài 0.03 → 0.1 s và mờ/co lùi về 0.57 s theo chỉnh tay trong prefab (commit 86fac84).",
+  "pxToUnit": 0.005,
+  "flipY": true,
+  "timeUnit": "s",
+  "mode": "parallel",
+  "ease": "ease-out",
+  "tracks": [
+    { "name": "Lit · nền X", "target": "Lit", "property": "x",
+      "keys": [ { "time": 0, "value": 0 }, { "time": 0.229, "value": -30 }, { "time": 0.458, "value": -37 } ] },
+    { "name": "Lit · nền scaleX", "target": "Lit", "property": "scaleX",
+      "keys": [ { "time": 0.0577, "value": 1 }, { "time": 0.458, "value": 0 } ] },
+    { "name": "Lit · nan X", "target": "UpperLit[0]", "property": "x", "ease": "linear",
+      "keys": [ { "time": 0, "value": 0 }, { "time": 0.1, "value": -18.268 }, { "time": 0.2, "value": -30.007 },
+                { "time": 0.245, "value": -31.976 }, { "time": 0.25, "value": -32.275 }, { "time": 0.3, "value": -34.725 },
+                { "time": 0.4, "value": -38.237 }, { "time": 0.458, "value": -39 } ] },
+    { "name": "Lit · nan scaleX", "target": "UpperLit[0]", "property": "scaleX",
+      "keys": [ { "time": 0.063, "value": 1 }, { "time": 0.458, "value": 0 } ] },
+
+    { "name": "Lit (1) · nền X", "target": "Lit (1)", "property": "x", "mirrorX": true,
+      "keys": [ { "time": 0, "value": 0 }, { "time": 0.229, "value": -30 }, { "time": 0.458, "value": -37 } ] },
+    { "name": "Lit (1) · nền scaleX", "target": "Lit (1)", "property": "scaleX",
+      "keys": [ { "time": 0.0577, "value": 1 }, { "time": 0.458, "value": 0 } ] },
+    { "name": "Lit (1) · nan X", "target": "UpperLit[1]", "property": "x", "mirrorX": true, "ease": "linear",
+      "keys": [ { "time": 0, "value": 0 }, { "time": 0.1, "value": -18.268 }, { "time": 0.2, "value": -30.007 },
+                { "time": 0.245, "value": -31.976 }, { "time": 0.25, "value": -32.275 }, { "time": 0.3, "value": -34.725 },
+                { "time": 0.4, "value": -38.237 }, { "time": 0.458, "value": -39 } ] },
+    { "name": "Lit (1) · nan scaleX", "target": "UpperLit[1]", "property": "scaleX",
+      "keys": [ { "time": 0.063, "value": 1 }, { "time": 0.458, "value": 0 } ] },
+
+    { "name": "Middle Top · Y", "target": "Middle/Top", "property": "y",
+      "keys": [ { "time": 0.459, "value": 0 }, { "time": 0.559, "value": 5 } ] },
+    { "name": "Middle Top · scaleY", "target": "Middle/Top", "property": "scaleY",
+      "keys": [ { "time": 0.459, "value": 1 }, { "time": 0.559, "value": 0 } ] },
+    { "name": "Middle Bottom · Y", "target": "Middle/Bottom", "property": "y",
+      "keys": [ { "time": 0.459, "value": 0 }, { "time": 0.559, "value": 5 } ] },
+    { "name": "Middle Bottom · scaleY", "target": "Middle/Bottom", "property": "scaleY",
+      "keys": [ { "time": 0.459, "value": 1 }, { "time": 0.559, "value": 0 } ] },
+
+    { "name": "Upper · Y", "target": "Upper", "property": "y",
+      "keys": [ { "time": 0.46, "value": 0 }, { "time": 0.56, "value": 20 } ] },
+
+    { "name": "Lock Root · alpha", "target": "", "property": "opacity",
+      "keys": [ { "time": 0.57, "value": 1 }, { "time": 0.67, "value": 0 } ] },
+    { "name": "Lock Root · scale 0.9", "target": "", "property": "scale",
+      "keys": [ { "time": 0.57, "value": 1 }, { "time": 0.67, "value": 0.9 } ] }
+  ]
+}
