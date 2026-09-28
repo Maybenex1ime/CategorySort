@@ -1,37 +1,37 @@
 {
   "id": "lv-010",
-  "title": "Blocker showcase",
-  "note": "Moi blocker o hop tren cung de xem hinh: locked 1/2, grouplock g_color/g_cat, ice 3, ice 2. Man test - go truoc release.",
+  "title": "Blocker Box test",
+  "note": "Man test hop khoa theo so: 1 hop locked 4 o giua (chua 2 the toy), khong blocker nao khac. Gom 4 nhom dog/color/cat/bird de mo hop. Go truoc release.",
   "moves": 30,
 
   "layout": {
     "stacks": [
       { "pos": [0,0], "boxes": [
-          { "slots": ["poodle","corgi","red",null] }
+          { "slots": ["poodle","red","tabby",null] }
       ]},
       { "pos": [1,0], "boxes": [
-          { "slots": ["husky","bengal","blue",null] }
+          { "slots": ["corgi","blue","persian",null] }
       ]},
       { "pos": [2,0], "boxes": [
-          { "slots": ["chihuahua","green","sparrow",null] }
+          { "slots": ["husky","green","siamese",null] }
       ]},
       { "pos": [0,1], "boxes": [
-          { "slots": ["yellow","tabby",null,null] }
+          { "slots": ["chihuahua","yellow","bengal",null] }
       ]},
       { "pos": [1,1], "boxes": [
-          { "slots": [null,null,null,null] }
+          { "slots": ["ball","kite",null,null], "blockers": {"locked":4} }
       ]},
       { "pos": [2,1], "boxes": [
-          { "slots": ["persian","siamese","ball",null], "blockers": {"locked":1} }
+          { "slots": ["sparrow","pigeon","doll",null] }
       ]},
       { "pos": [0,2], "boxes": [
-          { "slots": ["pigeon","eagle",null,null], "blockers": {"locked":2} }
+          { "slots": ["eagle","parrot","robot",null] }
       ]},
       { "pos": [1,2], "boxes": [
-          { "slots": ["parrot","doll",null,null], "blockers": {"grouplock":"g_color"} }
+          { "slots": [null,null,null,null] }
       ]},
       { "pos": [2,2], "boxes": [
-          { "slots": ["kite","robot",null,null], "blockers": {"grouplock":"g_cat"} }
+          { "slots": [null,null,null,null] }
       ]}
     ]
   },
@@ -54,10 +54,10 @@
           { "id":"tabby", "art":"tabby" },
           { "id":"persian", "art":"persian" },
           { "id":"siamese", "art":"siamese" },
-          { "id":"bengal", "art":"bengal", "blockers":{"ice":2} }
+          { "id":"bengal", "art":"bengal" }
       ]},
       { "id":"g_bird", "text":"bird", "art":"bird", "cards": [
-          { "id":"sparrow", "art":"sparrow", "blockers":{"ice":3} },
+          { "id":"sparrow", "art":"sparrow" },
           { "id":"pigeon", "art":"pigeon" },
           { "id":"eagle", "art":"eagle" },
           { "id":"parrot", "art":"parrot" }
