@@ -6,7 +6,8 @@
         "FigmaMotion",
         "FigmaMotion.Editor",
         "LitMotion",
-        "LitMotion.Animation"
+        "LitMotion.Animation",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

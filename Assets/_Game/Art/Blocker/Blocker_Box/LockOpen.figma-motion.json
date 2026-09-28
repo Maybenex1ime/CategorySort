@@ -40,11 +40,11 @@
       "keys": [ { "time": 0.459, "value": 1 }, { "time": 0.559, "value": 0 } ] },
 
     { "name": "Upper · Y", "target": "Upper", "property": "y",
-      "keys": [ { "time": 0.46, "value": 0 }, { "time": 0.56, "value": 20 } ] },
+      "keys": [ { "time": 0.46, "value": 0 }, { "time": 0.56, "value": 2 } ] },
 
     { "name": "Lock Root · alpha", "target": "", "property": "opacity",
       "keys": [ { "time": 0.57, "value": 1 }, { "time": 0.67, "value": 0 } ] },
-    { "name": "Lock Root · scale 0.9", "target": "", "property": "scale",
-      "keys": [ { "time": 0.57, "value": 1 }, { "time": 0.67, "value": 0.9 } ] }
+    { "name": "Lock Root · scale 0.95", "target": "", "property": "scale",
+      "keys": [ { "time": 0.57, "value": 1 }, { "time": 0.67, "value": 0.95 } ] }
   ]
 }

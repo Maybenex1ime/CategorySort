@@ -872,8 +872,10 @@ namespace WordStack.Board
             {
                 Drop(pt);
             }
-            else
+            else if (!(p is Touchscreen))
             {
+                // Cảm ứng không có hover: nhấc tay rồi Pointer vẫn giữ vị trí cuối, nên thẻ nằm
+                // dưới chỗ nhấc tay sẽ phồng lên và đứng đó mãi.
                 Hover(pt);
             }
         }
@@ -1062,7 +1064,10 @@ namespace WordStack.Board
             int slot = SlotIndexOf(g.TopBox(to), uid);
             TileView tv;
             if (slot >= 0 && tiles.TryGetValue(uid, out tv) && tv != null)
+            {
                 FlyTo(tv, boxViews[to].Slot(slot), fromWorld);
+                hoverTile = tv;   // con trỏ còn đứng trên thẻ vừa thả: coi như đã hover sẵn để Hover() không phồng nó lên HoverScale
+            }
 
             // HAI hộp đổi màu, không chỉ hộp đích: hộp nguồn mất thẻ → cặp có thể tan.
             RefreshTileVisuals(from);
@@ -1600,7 +1605,7 @@ namespace WordStack.Board
                 {
                     if (g.IsOpen(box.Lock)) boxViews[s].SetOpen();
                     else if (box.Lock.Kind == LockKind.Group) boxViews[s].SetGroupLock(GroupArt(box.Lock.GroupId));
-                    else boxViews[s].SetCountLock(Mathf.Max(box.Lock.Need - g.Cleared, 0), box.Lock.Need);
+                    else boxViews[s].SetCountLock(Mathf.Max(box.Lock.Need - g.Cleared, 0));
                 }
 
                 for (int i = 0; i < box.Slots.Length; i++)
