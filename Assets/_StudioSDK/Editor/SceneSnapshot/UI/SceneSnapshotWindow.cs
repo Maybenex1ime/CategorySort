@@ -69,7 +69,6 @@ namespace LogosGameLab.Editor.SceneSnapshot
             _options.stripMissingScripts = EditorGUILayout.Toggle("Strip Missing Scripts", _options.stripMissingScripts);
             _options.clearReflexContainerRefs = EditorGUILayout.Toggle("Clear Reflex Container Refs", _options.clearReflexContainerRefs);
             _options.clearR3References = EditorGUILayout.Toggle("Clear R3 References", _options.clearR3References);
-            _options.killDOTweenTweens = EditorGUILayout.Toggle("Kill DOTween Tweens", _options.killDOTweenTweens);
             _options.clearAddressablesHandles = EditorGUILayout.Toggle("Clear Addressables Handles", _options.clearAddressablesHandles);
             _options.excludedHideFlags = (HideFlags)EditorGUILayout.EnumFlagsField("Exclude HideFlags", _options.excludedHideFlags);
 

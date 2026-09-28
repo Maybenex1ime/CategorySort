@@ -4,7 +4,8 @@
     "references": [
         "Core.EventBus",
         "Unity.TextMeshPro",
-        "DOTween.Modules"
+        "LitMotion",
+        "LitMotion.Extensions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

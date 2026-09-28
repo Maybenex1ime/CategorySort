@@ -5,8 +5,9 @@
 // thẻ của BoardController lấy từ bounds sprite Shadow của slot (SlotRect bên dưới), không còn
 // tính từ hằng layout nữa — chỉ zone Stack bên đó còn dùng BoxSize.
 using System.Collections;
-using DG.Tweening;
+using LitMotion;
 using LitMotion.Animation;
+using LitMotion.Extensions;
 using TMPro;
 using UnityEngine;
 using UnityEngine.Serialization;
@@ -49,9 +50,10 @@ namespace WordStack.Board
         float[] baseAlpha;
         SpriteRenderer[] slotShadows;   // sprite Shadow của từng slot — lấy ở Awake, trước khi thẻ mount vào
         Vector3 lockedScale = Vector3.one, groupScale = Vector3.one;   // scale author trong prefab của hai root
-        // OpenGroupLock đang chạy: tween hiện tại, hàm trả root về trạng thái author, và token để
+        // OpenGroupLock đang chạy: motion hiện tại, hàm trả root về trạng thái author, và token để
         // coroutine cũ tự thoát khi bị cắt ngang (FinishOpen tăng token).
-        Tween openTween;
+        MotionHandle openTween;
+        MotionHandle lockPunchH;   // cú nảy của hộp khoá theo số — TryComplete trả scale author
         System.Action openRestore;
         int openToken;
         LitMotionAnimation openAnim;   // timeline mở trên groupLockRoot (Tools ▸ WordStack ▸ Build Lock Open Animation), null = không có
@@ -125,7 +127,14 @@ namespace WordStack.Board
             // Chỉ đổi chữ — font, size, outline giữ nguyên như author trong prefab.
             if (lockedCountText != null) lockedCountText.text = label ?? "";
             if (progressed && lockedRoot != null && lockPunch > 0f)
-                lockedRoot.transform.DOPunchScale(lockedScale * lockPunch, lockPunchDur, 8, 0.6f).SetLink(lockedRoot);
+            {
+                // DOPunchScale(…, vibrato 8, elasticity 0.6) cũ. DampingRatio ≈ 18.85/frequency để biên
+                // độ tắt còn ~5% lúc hết giờ — cùng cách quy đổi với các punch khác, chờ so bằng mắt.
+                lockPunchH.TryComplete();
+                lockPunchH = LMotion.Punch.Create(lockedScale, lockedScale * lockPunch, lockPunchDur)
+                                          .WithFrequency(8).WithDampingRatio(2.4f).WithCancelOnError()
+                                          .BindToLocalScale(lockedRoot.transform).AddTo(lockedRoot);
+            }
         }
 
         public void SetGroupLock(Sprite sprite)
@@ -164,21 +173,26 @@ namespace WordStack.Board
                 tr.localScale = groupScale;
                 for (int i = 0; i < srs.Length; i++) { var c = srs[i].color; c.a = a0[i]; srs[i].color = c; }
             };
-            tr.DOKill(true);
 
-            // Key Tile mờ hẳn trước, rồi timeline Figma mới chạy.
+            // Key Tile mờ hẳn trước, rồi timeline Figma mới chạy. Một motion hệ số 1→0 nhân lên alpha
+            // của từng sprite: bản cũ mờ từng sprite từ alpha hiện tại về 0, cùng ease — y hệt nhau.
             var tile = groupTile != null ? groupTile : (groupArt != null ? groupArt.transform.parent : null);
             if (tile == tr && groupArt != null) tile = groupArt.transform;   // icon gắn thẳng lên root: chỉ mờ icon
             if (tile != null && groupTileFadeDur > 0f)
             {
-                var fade = DOTween.Sequence().SetLink(root);
-                foreach (var sr in tile.GetComponentsInChildren<SpriteRenderer>(true))
-                {
-                    var r = sr;
-                    fade.Join(DOTween.ToAlpha(() => r.color, c => r.color = c, 0f, groupTileFadeDur).SetEase(Ease.OutQuad));
-                }
-                openTween = fade;
-                yield return fade.WaitForCompletion();
+                var tileSrs = tile.GetComponentsInChildren<SpriteRenderer>(true);
+                var tileA = new float[tileSrs.Length];
+                for (int i = 0; i < tileSrs.Length; i++) tileA[i] = tileSrs[i].color.a;
+                openTween = LMotion.Create(1f, 0f, groupTileFadeDur).WithEase(Ease.OutQuad).WithCancelOnError()
+                                   .Bind(k =>
+                                   {
+                                       for (int i = 0; i < tileSrs.Length; i++)
+                                       {
+                                           var c = tileSrs[i].color; c.a = tileA[i] * k; tileSrs[i].color = c;
+                                       }
+                                   })
+                                   .AddTo(root);
+                yield return openTween.ToYieldInstruction();
                 if (token != openToken) yield break;
             }
 
@@ -200,20 +214,20 @@ namespace WordStack.Board
         void FinishOpen()
         {
             openToken++;
-            if (openTween != null) { openTween.Kill(); openTween = null; }
+            openTween.TryCancel();
             var restore = openRestore; openRestore = null;
             restore?.Invoke();
         }
 
-        // Bật đúng một root (hoặc không cái nào), giết tween dở và trả scale về giá trị author.
+        // Bật đúng một root (hoặc không cái nào), cắt motion dở và trả scale về giá trị author.
         void ShowRoots(GameObject keep)
         {
-            FinishOpen();            // root về trạng thái author trước khi bật lại
-            unlockSeq?.Kill(true);   // mở khoá dở: OnComplete trả vị trí/alpha trước khi bật lại
+            FinishOpen();                // root về trạng thái author trước khi bật lại
+            unlockMotion.TryComplete();  // mở khoá dở: OnComplete trả vị trí/alpha trước khi bật lại
+            lockPunchH.TryComplete();
             foreach (var r in new[] { lockedRoot, groupLockRoot })
             {
                 if (r == null) continue;
-                r.transform.DOKill(true);
                 r.transform.localScale = BaseScale(r);
                 r.SetActive(r == keep);
             }
@@ -221,12 +235,13 @@ namespace WordStack.Board
 
         // Mở khoá root đang hiện (hộp khoá theo số; group lock đi đường OpenGroupLock riêng): trượt
         // nhẹ lên + mờ dần cả sprite lẫn chữ, xong tắt root và trả vị trí/scale/alpha về author.
-        // Giữ handle để ShowRoots cắt ngang được (Kill(true) → OnComplete trả trạng thái).
-        Sequence unlockSeq;
+        // Giữ handle để ShowRoots cắt ngang được (TryComplete → OnComplete trả trạng thái).
+        MotionHandle unlockMotion;
 
         void Unlock(GameObject root)
         {
-            unlockSeq?.Kill(true);
+            unlockMotion.TryComplete();
+            lockPunchH.TryComplete();    // cú nảy dở về scale author trước khi trượt
             var tr = root.transform;
             var pos0 = tr.localPosition;
             var s0 = BaseScale(root);
@@ -236,30 +251,24 @@ namespace WordStack.Board
             var ta = new float[texts.Length];
             for (int i = 0; i < srs.Length; i++) sa[i] = srs[i].color.a;
             for (int i = 0; i < texts.Length; i++) ta[i] = texts[i].alpha;
-            tr.DOKill(true);
 
-            var seq = DOTween.Sequence().SetLink(root);
-            seq.Append(tr.DOLocalMoveY(pos0.y + unlockLift, unlockDur).SetEase(unlockEase));
-            foreach (var sr in srs)
-            {
-                var r = sr;
-                seq.Join(DOTween.ToAlpha(() => r.color, c => r.color = c, 0f, unlockDur).SetEase(unlockEase));
-            }
-            foreach (var tx in texts)
-            {
-                var t = tx;
-                seq.Join(DOTween.To(() => t.alpha, a => t.alpha = a, 0f, unlockDur).SetEase(unlockEase));
-            }
-            seq.OnComplete(() =>
-            {
-                unlockSeq = null;
-                root.SetActive(false);
-                tr.localPosition = pos0;
-                tr.localScale = s0;
-                for (int i = 0; i < srs.Length; i++) { var c = srs[i].color; c.a = sa[i]; srs[i].color = c; }
-                for (int i = 0; i < texts.Length; i++) texts[i].alpha = ta[i];
-            });
-            unlockSeq = seq;
+            // Một motion 0→1 lái cả trượt lẫn mờ: bản cũ cho mọi track cùng thời lượng + cùng ease.
+            unlockMotion = LMotion.Create(0f, 1f, unlockDur).WithEase(unlockEase).WithCancelOnError()
+                                  .WithOnComplete(() =>
+                                  {
+                                      root.SetActive(false);
+                                      tr.localPosition = pos0;
+                                      tr.localScale = s0;
+                                      for (int i = 0; i < srs.Length; i++) { var c = srs[i].color; c.a = sa[i]; srs[i].color = c; }
+                                      for (int i = 0; i < texts.Length; i++) texts[i].alpha = ta[i];
+                                  })
+                                  .Bind(k =>
+                                  {
+                                      var p = pos0; p.y += unlockLift * k; tr.localPosition = p;
+                                      for (int i = 0; i < srs.Length; i++) { var c = srs[i].color; c.a = sa[i] * (1f - k); srs[i].color = c; }
+                                      for (int i = 0; i < texts.Length; i++) texts[i].alpha = ta[i] * (1f - k);
+                                  })
+                                  .AddTo(root);
         }
 
         public void SetAlpha(float a)

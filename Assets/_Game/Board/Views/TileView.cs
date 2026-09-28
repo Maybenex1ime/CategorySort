@@ -3,7 +3,8 @@
 // Thẻ chỉ còn ảnh (bỏ label chữ + vành outline 2026-08-17 — hướng art mới là icon thuần).
 // Kích thước và vị trí Bg/Art author THẲNG TRONG PREFAB, code không đụng scale — root giữ
 // scale 1 để tween (hover / nhấc lên / CLEAR) đọc thẳng 0..1.
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using TMPro;
 using UnityEngine;
 
@@ -88,6 +89,9 @@ namespace WordStack.Board
         int iceLast, iceStage;
         SpriteRenderer[] iceSprites;
         Vector3 iceScale = Vector3.one;   // scale author trong prefab của iceRoot
+        // Cú nảy hoặc chuỗi tan đang chạy trên iceRoot — một handle cho cả hai để SetIce/Melt
+        // TryComplete được bất kể cái nào dở (tan dở: OnComplete giấu băng + trả scale/alpha).
+        MotionHandle iceMotion;
 
         public void SetIce(bool frozen, int movesLeft, int total)
         {
@@ -100,14 +104,18 @@ namespace WordStack.Board
             if (iceCountText != null) iceCountText.text = movesLeft.ToString();
             if (melt) { PlayMeltVfx(); Melt(); return; }
 
-            iceRoot.transform.DOKill(true);
+            iceMotion.TryComplete();
             iceRoot.transform.localScale = iceScale;
             SetIceAlpha(1f);
             iceRoot.SetActive(frozen);
             if (frozen && iceSprite != null && stage >= 0) iceSprite.sprite = iceStages[stage];
             if (stepped) PlayMeltVfx();
+            // DOPunchScale(…, vibrato 8, elasticity 0.6) cũ. DampingRatio ≈ 18.85/frequency để biên độ
+            // tắt còn ~5% lúc hết giờ — cùng cách quy đổi với các punch khác, chờ so bằng mắt.
             if (stepped && iceCrackPunch > 0f)
-                iceRoot.transform.DOPunchScale(iceScale * iceCrackPunch, iceCrackDur, 8, 0.6f).SetLink(iceRoot);
+                iceMotion = LMotion.Punch.Create(iceScale, iceScale * iceCrackPunch, iceCrackDur)
+                                   .WithFrequency(8).WithDampingRatio(2.4f).WithCancelOnError()
+                                   .BindToLocalScale(iceRoot.transform).AddTo(iceRoot);
         }
 
         // -1 khi chưa author nấc nào. total ≤ 0 (thẻ không băng) → nấc đầu.
@@ -128,12 +136,24 @@ namespace WordStack.Board
         void Melt()
         {
             var tr = iceRoot.transform;
-            tr.DOKill(true);
-            var seq = DOTween.Sequence().SetLink(iceRoot);
-            seq.Append(tr.DOScale(iceScale * 1.15f, iceMeltDur * 0.3f).SetEase(Ease.OutQuad));
-            seq.Append(tr.DOScale(0f, iceMeltDur * 0.7f).SetEase(Ease.InBack));
-            seq.Join(DOTween.To(() => 1f, SetIceAlpha, 0f, iceMeltDur * 0.7f));
-            seq.OnComplete(() => { iceRoot.SetActive(false); tr.localScale = iceScale; SetIceAlpha(1f); });
+            iceMotion.TryComplete();
+            // Phồng 1.15 (30 % thời lượng) rồi co về 0 + mờ (70 %). Hai motion scale nối nhau bằng
+            // Insert: trong LSequence motion bắt đầu sau ghi sau nên thắng. Giá trị "from" chốt lúc
+            // tạo nên đoạn co đi từ đúng 1.15 chứ không đọc lại scale.
+            var up = iceScale * 1.15f;
+            var seq = LSequence.Create();
+            seq.Insert(0f, LMotion.Create(iceScale, up, iceMeltDur * 0.3f)
+                                  .WithEase(Ease.OutQuad).WithCancelOnError().BindToLocalScale(tr));
+            seq.Insert(iceMeltDur * 0.3f, LMotion.Create(up, Vector3.zero, iceMeltDur * 0.7f)
+                                                 .WithEase(Ease.InBack).WithCancelOnError().BindToLocalScale(tr));
+            // Không SetEase ở bản cũ → OutQuad (ease mặc định trong config cũ).
+            seq.Insert(iceMeltDur * 0.3f, LMotion.Create(1f, 0f, iceMeltDur * 0.7f)
+                                                 .WithEase(Ease.OutQuad).WithCancelOnError().Bind(SetIceAlpha));
+            iceMotion = seq.Run(b => b.WithCancelOnError().WithOnComplete(() =>
+                           {
+                               iceRoot.SetActive(false); tr.localScale = iceScale; SetIceAlpha(1f);
+                           }))
+                           .AddTo(iceRoot);
         }
 
         void SetIceAlpha(float a)

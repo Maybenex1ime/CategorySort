@@ -123,7 +123,7 @@ Các ADR then chốt cần chốt:
 2. **Định dạng level data**: ScriptableObject vs JSON — đề xuất ScriptableObject cho editor-friendly.
 3. **Input**: Unity Input System, một `DragController` duy nhất.
 4. **Giao tiếp giữa systems**: C# events từ domain → presentation lắng nghe (không EventBus framework).
-5. **Không thêm dependency ngoài**: DOTween cân nhắc duy nhất cho tween (hoặc tự viết lerp đơn giản).
+5. **Không thêm dependency ngoài**: thư viện tween duy nhất là LitMotion (đổi từ DOTween 2026-09-17, xem `docs/architecture/view-prefabs.md` Q3).
 
 ## Giai đoạn 4 — Epics, Stories, Sprint (1 ngày)
 

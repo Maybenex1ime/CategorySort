@@ -1,4 +1,4 @@
-using DG.Tweening;
+using LitMotion;
 using UnityEngine;
 
 namespace LogosSDK.UI.Animation

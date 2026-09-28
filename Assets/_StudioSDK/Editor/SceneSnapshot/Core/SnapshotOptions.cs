@@ -11,7 +11,6 @@ namespace LogosGameLab.Editor.SceneSnapshot
         public bool stripMissingScripts = true;
         public bool clearReflexContainerRefs = true;
         public bool clearR3References = true;
-        public bool killDOTweenTweens = true;
         public bool clearAddressablesHandles = true;
 
         public Predicate<GameObject> rootFilter = null;

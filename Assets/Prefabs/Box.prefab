@@ -699,7 +699,7 @@ MonoBehaviour:
   lockPunchDur: 0.25
   unlockDur: 0.3
   unlockLift: 0.25
-  unlockEase: 9
+  unlockEase: 8
   groupTile: {fileID: 0}
   groupTileFadeDur: 0.15
 --- !u!1 &1994574902227301084

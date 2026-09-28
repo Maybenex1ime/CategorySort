@@ -15,4 +15,4 @@ MonoBehaviour:
   _staggerType: 4
   _delayBetweenElements: 0.05
   _elementDuration: 0.25
-  _elementEase: 27
+  _elementEase: 26

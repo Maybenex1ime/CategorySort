@@ -2,10 +2,11 @@
 // trễ chuyển động + lắc sin/cos + pop scale. Mọi hằng feel là SerializeField để chỉnh trong
 // Inspector mà không phải build lại.
 //
-// KHÔNG dùng DOTween cho phần đuổi con trỏ: đích di chuyển mỗi frame, không phải tween có
-// điểm đến cố định. DOTween chỉ lo cú pop lúc nhấc lên.
+// KHÔNG tween phần đuổi con trỏ: đích di chuyển mỗi frame, không phải tween có điểm đến
+// cố định. LitMotion chỉ lo cú pop lúc nhấc lên.
 using UnityEngine;
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 
 namespace WordStack.Board
 {
@@ -36,7 +37,7 @@ namespace WordStack.Board
         Vector3 shadowHome, swingTarget, swingCur;
         Vector2 lastPt;
         bool hasLastPt;
-        float lift;                                  // 0..shadowLift, DOTween nhấc lúc Begin
+        float lift;                                  // 0..shadowLift, tween nhấc lúc Begin
 
         public Transform TileAnchor { get { return tileAnchor; } }
 
@@ -55,14 +56,17 @@ namespace WordStack.Board
             swingCur = Vector3.zero;
             hasLastPt = false;
             lift = 0f;
-            transform.DOScale(dragScale, 0.12f).SetEase(Ease.OutBack).SetLink(gameObject);
+            LMotion.Create(transform.localScale, Vector3.one * dragScale, 0.12f)
+                   .WithEase(Ease.OutBack).WithCancelOnError()
+                   .BindToLocalScale(transform).AddTo(gameObject);
 
             // Bóng lùi ra xa lúc nhấc (CardVisual.PointerDown). Ghost chết lúc thả nên
             // không cần trả về chỗ cũ. Tween biến `lift` chứ không tween thẳng transform:
             // Follow() đặt lại vị trí bóng mỗi frame, hai bên ghi cùng một transform thì đá nhau.
             if (shadow != null)
-                DOTween.To(() => lift, v => lift = v, shadowLift, 0.12f)
-                       .SetEase(Ease.OutBack).SetLink(gameObject);
+                LMotion.Create(0f, shadowLift, 0.12f)
+                       .WithEase(Ease.OutBack).WithCancelOnError()
+                       .Bind(this, (v, self) => self.lift = v).AddTo(gameObject);
         }
 
         public void Follow(Vector2 pt, float dt)

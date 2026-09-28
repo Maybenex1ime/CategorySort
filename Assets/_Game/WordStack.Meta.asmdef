@@ -19,9 +19,11 @@
         "Unity.InputSystem",
         "Unity.Addressables",
         "Unity.ResourceManager",
-        "DOTween.Modules",
         "Unity.Purchasing",
-        "Unity.Services.Core"
+        "Unity.Services.Core",
+        "LitMotion",
+        "LitMotion.Extensions",
+        "LogosSDK.Tween"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
