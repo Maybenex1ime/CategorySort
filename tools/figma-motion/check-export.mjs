@@ -61,8 +61,9 @@ const figma = { getNodeByIdAsync: async id => byId[id] ?? null, setCurrentPageAs
 
 const src = readFileSync(new URL('../../Assets/_Modules/FigmaMotion/Exporter/export-figma-motion.js', import.meta.url), 'utf8');
 const run = new (Object.getPrototypeOf(async function () {}).constructor)('figma', src);
+const PRINT = process.argv.includes('--print');
 const { json, warnings } = await run(figma);
-if (process.argv.includes('--print')) { console.log(JSON.stringify(json, null, 2)); process.exit(0); }
+if (PRINT) console.log(JSON.stringify(json, null, 2));
 
 const get = (target, prop) => {
   const t = json.tracks.find(x => x.target === target && x.property === prop);
@@ -96,4 +97,51 @@ assert.deepEqual(get('Upper', 'y').keys.map(k => [k.time, k.value]), [[0.46, 0],
 assert.deepEqual(get('', 'opacity').keys.map(k => [k.time, k.value]), [[0.49, 1], [0.52, 0]]);
 assert.deepEqual(get('', 'scale').keys.map(k => [k.time, k.value]), [[0.492, 1], [0.522, 0.9]]);
 assert.equal(json.tracks.length, 15);
+assert.deepEqual(json.nodes, [], 'mock hộp khoá không có children → không có cây');
 console.log(`check-export OK — ${json.tracks.length} track, khớp số Figma (kể cả tấm lật và lớp nan chồng track)`);
+
+// ---- Cây layer (nút "Dựng hierarchy"): cây giả, dùng lại rootId của CONFIG, không có trong CONFIG.targets.
+// Card 200×100 tâm (1100, 2050). Panel lật ngang: số Figma của Door −10 mà trên màn trượt PHẢI.
+const tn = (id, name, type, abs, w, h, extra = {}) => ({ id, name, type, absoluteTransform: abs, width: w, height: h,
+  opacity: 1, visible: true, children: [], animations: {}, animationStyles: [], manualKeyframeTracks: {}, ...extra });
+const door = tn('900:3', 'Door', 'RECTANGLE', FLIP(1150, 2010), 20, 60, {
+  animations: { TRANSLATION_X: bind(1150, track('900:30', 'OFFSET', [0, 0], [0.3, -10])) },
+  animationStyles: [style('900:31', 'position', 0, 0.3)] });
+const panel = tn('900:2', 'Panel', 'GROUP', FLIP(1150, 2010), 40, 60, { opacity: 0.5,
+  children: [door, tn('900:4', 'Deco', 'VECTOR', FLIP(1170, 2010), 20, 60)] });
+const spin = tn('900:9', 'Spin', 'GROUP', [[0, 1, 1180], [-1, 0, 2070]], 10, 20, {   // xoay 90° ngược chiều kim đồng hồ
+  animations: { ROTATION: bind(90, track('900:90', 'OFFSET', [0, 0], [0.3, 45])) },
+  animationStyles: [style('900:91', 'rotation', 0, 0.3)] });
+const card = tn('373:1245', 'Card', 'FRAME', I(1000, 2000), 200, 100, { parent: { type: 'PAGE' }, children: [
+  tn('900:1', 'Bg', 'GROUP', I(1000, 2000), 200, 100, { children: [tn('900:11', 'v1', 'VECTOR', I(1000, 2000), 10, 10)] }),
+  panel,
+  tn('900:5', 'Label', 'TEXT', I(1010, 2080), 40, 10),
+  tn('900:6', 'Hidden', 'GROUP', I(1000, 2000), 10, 10, { visible: false }),
+  tn('900:7', 'Star', 'ELLIPSE', I(1020, 2020), 10, 10),
+  tn('900:8', 'Star', 'ELLIPSE', I(1040, 2020), 10, 10),
+  tn('900:10', 'Icon/Heart', 'VECTOR', I(1060, 2020), 10, 10),
+  spin] });
+const all = n => n.children.flatMap(c => [c, ...all(c)]);
+card.findAll = pred => all(card).filter(pred);
+const tree = await run({ getNodeByIdAsync: async id => (id === card.id ? card : all(card).find(n => n.id === id) ?? null),
+                         setCurrentPageAsync: async () => {} });
+if (PRINT) { console.log(JSON.stringify(tree.json, null, 2)); process.exit(0); }
+
+const nodeAt = p => { const n = tree.json.nodes.find(x => x.path === p); assert.ok(n, `thiếu node ${p}`); return n; };
+assert.deepEqual(tree.json.nodes.map(n => [n.path, n.sprite]), [
+  ['Bg', true],                  // nhánh tĩnh → 1 sprite, không đi xuống v1
+  ['Panel', false], ['Panel/Door', true], ['Panel/Deco', true],
+  ['Label', true], ['Star[0]', true], ['Star[1]', true], ['Icon-Heart', true], ['Spin', true]]);
+assert.deepEqual(nodeAt('Panel'), { path: 'Panel', x: 30, y: -10, rotation: 0, scaleX: -1, scaleY: 1,
+                                    width: 40, height: 60, opacity: 0.5, sprite: false });
+const d = nodeAt('Panel/Door');
+assert.deepEqual([d.x, d.y, d.rotation, d.scaleX, d.scaleY], [-10, 0, 0, 1, 1], 'Door theo trục của Panel (đã lật)');
+const s = nodeAt('Spin');
+assert.deepEqual([s.x, s.y, s.rotation, s.scaleX, s.scaleY], [90, 15, 90, 1, 1]);
+assert.deepEqual(tree.json.tracks.map(t => [t.target, t.property, t.keys.map(k => k.value)]), [
+  ['Panel/Door', 'x', [0, 10]],    // target mặc định = đường dẫn cây; lật → trượt phải
+  ['Spin', 'rotation', [0, 45]]]);
+assert.equal(tree.warnings.length, 3, tree.warnings.join('\n'));
+assert.ok(tree.warnings.some(w => w.includes('TEXT')) && tree.warnings.some(w => w.includes('"Icon-Heart"'))
+          && tree.warnings.some(w => w.includes('1 layer ẩn')), tree.warnings.join('\n'));
+console.log(`check-export OK — cây ${tree.json.nodes.length} node (lồng, lật, xoay, trùng tên, ẩn, TEXT, "/")`);

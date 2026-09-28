@@ -6,8 +6,10 @@ Module này chuyển animation dựng trên **timeline Motion của Figma** thà
 Figma (timeline Motion)
    │  Exporter/export-figma-motion.js  — chạy qua Figma MCP (use_figma), chỉ đọc
    ▼
-*.figma-motion.json  (figma-motion/v1, lưu trong Assets)
+*.figma-motion.json  (figma-motion/v1, lưu trong Assets: cây layer + track)
    │  Tools ▸ Figma Motion ▸ Importer  — hoặc nút "Figma Motion" trên Scene view
+   │    Dựng hierarchy  → GameObject + SpriteRenderer trống (anh gắn sprite tay)
+   │    Import          → LitMotionAnimation
    ▼
 LitMotionAnimation trên GameObject gốc (Auto Play = None)
    │  code game: anim.Play()
@@ -40,7 +42,7 @@ Xuất từ Figma cần thêm: **Figma MCP** (tool `use_figma`) nối với Clau
 |---|---|---|
 | `Runtime/FigmaEase.cs` | `FigmaMotion` | Dựng `AnimationCurve` trùng khít `cubic-bezier` của Figma |
 | `Runtime/SpriteGroupAlphaAnimation.cs` | `FigmaMotion` | Component LitMotion tự viết: mờ cả nhóm sprite (Figma opacity của group). Có trong menu Add ▸ Custom/Sprite Group Alpha |
-| `Editor/FigmaMotionImporter.cs` | `FigmaMotion.Editor` | Đọc JSON, quy đổi đơn vị, ghi `LitMotionAnimation` |
+| `Editor/FigmaMotionImporter.cs` | `FigmaMotion.Editor` | Đọc JSON, quy đổi đơn vị, dựng GameObject còn thiếu, ghi `LitMotionAnimation` |
 | `Editor/FigmaMotionWindow.cs` | `FigmaMotion.Editor` | Cửa sổ Importer, menu Tools, thanh overlay trên Scene view |
 | `Exporter/export-figma-motion.js` | — | Script Plugin API đọc timeline Figma, trả về JSON. Unity coi là file thường, không biên dịch |
 
@@ -68,12 +70,16 @@ Có thể dời thư mục đi chỗ khác trong `Assets` — asmdef tham chiế
 ## 4. Làm một animation mới
 
 1. **Figma:** dựng animation trên timeline Motion cho **một group**. Group này sẽ là Root bên Unity.
-2. **Prefab:** dựng hierarchy tương ứng dưới Root. Sprite hoặc RectTransform có scale/xoay thì để pivot **Center** (Figma scale và xoay quanh tâm).
-3. **Xuất JSON:** gửi Claude link node Figma của group, tên prefab và node Root. Claude sửa `CONFIG` trong `export-figma-motion.js` rồi chạy qua `use_figma`, lưu kết quả thành `Tên.figma-motion.json` trong `Assets`. Chi tiết `CONFIG` ở mục 5.
-4. **Import:** **Tools ▸ Figma Motion ▸ Importer** ▸ chọn **Root** và **File JSON** (hoặc bật *Dán JSON*) ▸ **Kiểm tra** (chỉ đọc, báo lỗi và cảnh báo) ▸ **Import** ▸ Save prefab.
-5. **Xem trước:** nút Play trong Inspector của `LitMotionAnimation`.
-6. **Gọi trong code:** mục 7.
-7. **Chỉnh số:** sửa Figma rồi xuất lại, hoặc sửa thẳng JSON, rồi mở Importer (file JSON lần trước đã chọn sẵn) ▸ **Import**.
+2. **Xuất JSON:** gửi Claude link node Figma của group (và prefab + node Root nếu đã có). Claude sửa `CONFIG` trong `export-figma-motion.js` rồi chạy qua `use_figma`, lưu kết quả thành `Tên.figma-motion.json` trong `Assets`. Chi tiết `CONFIG` ở mục 5.
+3. **Root:** tạo một GameObject rỗng làm Root (trong prefab hoặc scene). Root ứng với **tâm** group Figma. Nên thêm `SortingGroup` cho Root để `sortingOrder` của các sprite chỉ so với nhau, không lẫn với object khác.
+4. **Dựng hierarchy:** **Tools ▸ Figma Motion ▸ Importer** ▸ chọn **Root** và **File JSON** (hoặc bật *Dán JSON*) ▸ **Dựng hierarchy**. Cách dựng ở mục 6.
+5. **Gắn sprite:** export ảnh từ Figma như mọi khi, import vào Unity với pivot **Center**, rồi kéo vào các `SpriteRenderer` trống. Kích thước sprite trên màn nên bằng `width × pxToUnit` của layer Figma (xem JSON).
+6. **Import:** trong cửa sổ Importer bấm **Kiểm tra** (chỉ đọc, báo lỗi và cảnh báo) ▸ **Import** ▸ Save prefab.
+7. **Xem trước:** nút Play trong Inspector của `LitMotionAnimation`.
+8. **Gọi trong code:** mục 7.
+9. **Chỉnh số:** sửa Figma rồi xuất lại, hoặc sửa thẳng JSON, rồi mở Importer (file JSON lần trước đã chọn sẵn) ▸ **Import**. Figma có thêm layer mới thì bấm **Dựng hierarchy** lại — chỉ node còn thiếu được tạo.
+
+Prefab đã dựng tay từ trước (như hộp khoá) thì bỏ bước 3–5: đặt `targets` trong `CONFIG` cho khớp tên node rồi Import thẳng.
 
 Import **ghi đè toàn bộ** component của `LitMotionAnimation` trên Root (Undo được) và đặt Auto Play = None. Chỉnh tay trong Inspector sẽ mất ở lần import sau — chép số đã chỉnh ngược vào JSON.
 
@@ -87,9 +93,14 @@ Import **ghi đè toàn bộ** component của `LitMotionAnimation` trên Root (
 | `name` | Tên ghi vào JSON |
 | `pxToUnit` | 1 px Figma bằng bao nhiêu unit Unity (xem mục 6) |
 | `sampleRate` | Số mẫu/giây khi phải lấy mẫu (mặc định 120) |
-| `targets` | Bảng node id Figma → đường dẫn trong prefab tính từ Root (`''` = Root). Thiếu thì dùng tên layer Figma và cảnh báo |
+| `targets` | **Tuỳ chọn.** Mặc định mỗi track trỏ theo đường dẫn trong cây Figma — khớp hierarchy do nút Dựng hierarchy tạo. Chỉ cần khi trỏ vào prefab có sẵn đặt tên khác: node id Figma → đường dẫn từ Root (`''` = Root) |
 
 Script trả về `{ json, warnings }`. Nó **chỉ đọc**, không sửa file Figma.
+
+**Cây layer (`nodes`)** — script đi xuống mọi nhánh còn chứa layer có animation. Nhánh nào bên dưới không còn gì chuyển động thì dừng lại, cả nhánh thành **một sprite** (art xuất nguyên nhánh đó thành một ảnh). Ví dụ group trang trí 10 vector đứng yên → 1 sprite.
+
+- Layer ẩn bị bỏ qua. Layer TEXT, layer mask được cảnh báo: Unity dựng thành SpriteRenderer, cần tự đổi sang TextMeshPro / SpriteMask.
+- Tên trùng giữa các layer anh em thành `Tên[0]`, `Tên[1]`… Tên có `/` đổi thành `-` (vì `/` ngăn đường dẫn).
 
 Mọi số tính theo **group gốc**, không theo toạ độ world hay page:
 
@@ -162,6 +173,36 @@ Easing: `linear`, `ease`, `ease-in`, `ease-out`, `ease-in-out`, hoặc `cubic-be
 
 Mọi track trừ opacity đặt **Relative**: lúc `Play()` LitMotion chụp vị trí/xoay/scale hiện tại rồi **cộng** giá trị animation lên, nên đặt node ở đâu trong prefab cũng chạy đúng; `Stop()` trả về giá trị đã chụp. Track nào giá trị không đổi thì bỏ qua và cảnh báo.
 
+### Cây layer (`nodes`) và nút Dựng hierarchy
+
+Mảng tuỳ chọn, cha đứng trước con, theo thứ tự layer Figma từ dưới lên:
+
+```json
+"nodes": [
+  { "path": "Panel", "x": 30, "y": -10, "rotation": 0, "scaleX": -1, "scaleY": 1,
+    "width": 40, "height": 60, "opacity": 0.5, "sprite": false },
+  { "path": "Panel/Door", "x": -10, "y": 0, "rotation": 0, "scaleX": 1, "scaleY": 1,
+    "width": 20, "height": 60, "opacity": 1, "sprite": true }
+]
+```
+
+| Field | Ý nghĩa |
+|---|---|
+| `path` | Cùng cú pháp `target` của track |
+| `x`, `y` | Tâm layer so với tâm layer cha, px, theo trục của cha (y Figma hướng xuống) |
+| `rotation` | Độ, dương = ngược chiều kim đồng hồ |
+| `scaleX`, `scaleY` | Âm = lật (script để lật ngang ở `scaleX`) |
+| `width`, `height` | px — để đối chiếu khi gắn sprite, importer không dùng |
+| `opacity` | Của riêng layer |
+| `sprite` | `true` = lá, thêm `SpriteRenderer` |
+
+**Dựng hierarchy** làm:
+
+1. Với từng node, node **đã có** thì giữ nguyên, kể cả vị trí chỉnh tay. Chỉ node còn thiếu được tạo.
+2. Node mới: `localPosition = (x, −y) × pxToUnit`, xoay quanh trục z, `localScale = (scaleX, scaleY, 1)`.
+3. Lá có `SpriteRenderer` **trống** (gắn sprite tay). `sortingOrder` = 0, 1, 2… theo thứ tự lá trong JSON. Alpha = tích opacity của lá với mọi group cha (group không có component nào để giữ opacity).
+4. Toàn bộ là một bước Undo. Root là UI (`RectTransform`) thì báo lỗi — mới hỗ trợ sprite.
+
 ## 7. Gọi trong code
 
 ```csharp
@@ -181,6 +222,8 @@ while (anim.IsPlaying) yield return null;   // coroutine: LitMotionAnimation kh�
 
 - **Pivot:** Figma scale và xoay quanh tâm node. Pivot lệch thì kết quả lệch theo — nút *Kiểm tra* cảnh báo.
 - **Tên trùng:** phải ghi `Tên[i]`.
+- **Sprite lệch kích thước:** Dựng hierarchy không co giãn sprite. Ảnh xuất ở tỉ lệ khác hoặc PPU sai thì sprite to/nhỏ hơn layer Figma — so với `width × pxToUnit` trong JSON. Sprite bị cắt viền trong suốt (trim) làm tâm lệch khỏi tâm layer.
+- **Dựng hierarchy không sửa node đã có:** layout Figma đổi thì xoá node cũ rồi dựng lại, hoặc chỉnh tay.
 - **Chỉnh tay trong Inspector** mất khi import lại.
 - **Màu khi mờ dần khác Figma ở đoạn giữa:** project ở Linear color space trộn lớp trong suốt theo ánh sáng tuyến tính, Figma trộn theo sRGB. Đen 50% trên trắng: Figma ra `#808080`, Unity ra `#BCBCBC`. Đầu và cuối (100%, 0%) giống nhau. Animation mờ dài mà cần khớp thì chỉnh curve alpha trong JSON bằng mắt; không đáng đổi cả project sang Gamma.
 - **Opacity của group:** Figma vẽ gộp group rồi mới làm mờ, các lớp bên trong không lộ ra nhau. `SpriteGroupAlphaAnimation` mờ từng sprite, nên ở đoạn giữa chỗ các sprite chồng nhau nhìn xuyên được. Fade ngắn thì không thấy; cần khớp tuyệt đối thì phải vẽ group vào render texture.
@@ -191,4 +234,4 @@ while (anim.IsPlaying) yield return null;   // coroutine: LitMotionAnimation kh�
 - Mẫu thật: `Assets/_Game/Art/Blocker/Blocker_Box/LockOpen.figma-motion.json` — mở hộp khoá nhóm, Root = `Lock Root` trong `Assets/Prefabs/Box.prefab`, gọi từ `BoxView.OpenGroupLock`.
 - `Assets/_Game/Board/Editor/LockOpenAnimationBuilder.cs` — sửa cấu trúc prefab một lần rồi gọi importer (riêng của game, không nằm trong module).
 - Test EditMode: `Assets/_Game/Board/Tests/FigmaEaseTests.cs`, `FigmaMotionImporterTests.cs`, `SpriteGroupAlphaAnimationTests.cs`.
-- Kiểm script xuất không cần Figma: `node tools/figma-motion/check-export.mjs` chạy nó trên dữ liệu thật của hộp khoá và so với số Figma.
+- Kiểm script xuất không cần Figma: `node tools/figma-motion/check-export.mjs` chạy nó trên dữ liệu thật của hộp khoá (so với số Figma) và trên một cây giả (lồng, lật, xoay, trùng tên, ẩn, TEXT).

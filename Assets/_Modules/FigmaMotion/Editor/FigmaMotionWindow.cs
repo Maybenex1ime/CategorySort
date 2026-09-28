@@ -1,5 +1,6 @@
 // Cửa sổ + thanh tool của Figma Motion Importer.
-//   Tools ▸ Figma Motion ▸ Importer          — cửa sổ đầy đủ: chọn root + file JSON (hoặc dán), Kiểm tra, Import.
+//   Tools ▸ Figma Motion ▸ Importer          — cửa sổ đầy đủ: chọn root + file JSON (hoặc dán), Kiểm tra,
+//                                              Dựng hierarchy (tạo GameObject còn thiếu), Import.
 //   Scene view ▸ overlay "Figma Motion"     — nút mở cửa sổ. Cửa sổ nhớ file JSON lần trước.
 // Import ghi đè LitMotionAnimation trên root; xem trước bằng nút Play trong Inspector của nó.
 using System.Text;
@@ -18,8 +19,10 @@ namespace FigmaMotion.Editor
         [SerializeField] TextAsset json;
         [SerializeField] bool usePasted;
         [SerializeField] string pasted = "";
+        enum ReportKind { Check, Import, Build }
+
         FigmaMotionResult report;
-        bool reportIsImport;
+        ReportKind reportKind;
         Vector2 scroll;
 
         [MenuItem("Tools/Figma Motion/Importer")]
@@ -43,10 +46,16 @@ namespace FigmaMotion.Editor
                 if (GUILayout.Button(new GUIContent("Kiểm tra", "Đọc JSON + tra node, không ghi gì"), EditorStyles.toolbarButton))
                 {
                     report = FigmaMotionImporter.Resolve(Source(), root != null ? root.transform : null);
-                    reportIsImport = false;
+                    reportKind = ReportKind.Check;
                 }
                 using (new EditorGUI.DisabledScope(root == null))
                 {
+                    if (GUILayout.Button(new GUIContent("Dựng hierarchy", "Tạo GameObject còn thiếu dưới Root theo cây layer Figma; lá có SpriteRenderer trống (Undo được)"), EditorStyles.toolbarButton))
+                    {
+                        report = FigmaMotionImporter.BuildHierarchy(Source(), root);
+                        reportKind = ReportKind.Build;
+                        RememberJson();
+                    }
                     if (GUILayout.Button(new GUIContent("Import", "Ghi đè LitMotionAnimation trên Root (Undo được)"), EditorStyles.toolbarButton))
                         DoImport();
                 }
@@ -75,10 +84,15 @@ namespace FigmaMotion.Editor
         void DoImport()
         {
             report = FigmaMotionImporter.Import(Source(), root);
-            reportIsImport = true;
+            reportKind = ReportKind.Import;
+            RememberJson();
+            Log(report, root, usePasted ? "JSON dán" : json != null ? json.name : "?");
+        }
+
+        void RememberJson()
+        {
             if (report.Ok && !usePasted && json != null)
                 EditorPrefs.SetString(LastJsonKey, AssetDatabase.GetAssetPath(json));
-            Log(report, root, usePasted ? "JSON dán" : json != null ? json.name : "?");
         }
 
         void DrawReport()
@@ -87,10 +101,16 @@ namespace FigmaMotion.Editor
             scroll = EditorGUILayout.BeginScrollView(scroll);
             foreach (var e in report.errors) EditorGUILayout.HelpBox(e, MessageType.Error);
             foreach (var w in report.warnings) EditorGUILayout.HelpBox(w, MessageType.Warning);
-            if (report.Ok)
+            if (report.Ok && reportKind == ReportKind.Build)
             {
-                EditorGUILayout.LabelField(reportIsImport ? $"Đã ghi {report.tracks.Count} component. Nhớ Save prefab/scene."
-                                                          : $"Hợp lệ: {report.tracks.Count} track ({(report.sequential ? "Sequential" : "Parallel")}).",
+                EditorGUILayout.LabelField($"Đã tạo {report.created.Count} node, giữ nguyên {report.kept} node đã có. Gắn sprite rồi Import.",
+                                           EditorStyles.boldLabel);
+                foreach (var p in report.created) EditorGUILayout.LabelField(p);
+            }
+            else if (report.Ok)
+            {
+                EditorGUILayout.LabelField(reportKind == ReportKind.Import ? $"Đã ghi {report.tracks.Count} component. Nhớ Save prefab/scene."
+                                                                           : $"Hợp lệ: {report.tracks.Count} track ({(report.sequential ? "Sequential" : "Parallel")}).",
                                            EditorStyles.boldLabel);
                 foreach (var t in report.tracks)
                     EditorGUILayout.LabelField(t.name, $"{t.kind}  {t.delay:0.###}s → {t.delay + t.duration:0.###}s  {Fmt(t)}");

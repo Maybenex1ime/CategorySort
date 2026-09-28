@@ -1,4 +1,5 @@
 // Importer chung: JSON timeline Figma → LitMotionAnimation (không tự chạy) trên một GameObject gốc.
+// BuildHierarchy dựng trước các GameObject còn thiếu theo cây layer trong JSON ("nodes").
 // Định dạng + cách lấy số từ Figma: README.md của module (Assets/_Modules/FigmaMotion).
 //
 // Một track = một thuộc tính của một node: các keyframe có thời điểm tuyệt đối, giá trị Figma và
@@ -27,7 +28,21 @@ namespace FigmaMotion.Editor
         public float cycle;               // giây của một vòng timeline Figma — chỉ dùng khi timeUnit = "%"
         public string mode = "parallel";  // parallel | sequential
         public string ease = "ease-out";  // easing mặc định cho đoạn nào không ghi riêng
+        public FigmaMotionNode[] nodes;   // cây layer cho "Dựng hierarchy" (tuỳ chọn), cha đứng trước con
         public FigmaMotionTrack[] tracks;
+    }
+
+    /// <summary>Một layer Figma cho "Dựng hierarchy". Toạ độ = tâm layer so với tâm layer cha, trục của cha.</summary>
+    [Serializable]
+    public class FigmaMotionNode
+    {
+        public string path;                    // cùng cú pháp target: "Lit 3/Rectangle 309", "Star[1]"
+        public float x, y;                     // px; y Figma hướng xuống
+        public float rotation;                 // độ, dương = ngược chiều kim đồng hồ
+        public float scaleX = 1f, scaleY = 1f; // âm = lật
+        public float width, height;            // px — tham khảo khi gắn sprite
+        public float opacity = 1f;             // của riêng layer
+        public bool sprite;                    // lá: thêm SpriteRenderer trống để gắn sprite tay
     }
 
     [Serializable]
@@ -67,6 +82,8 @@ namespace FigmaMotion.Editor
         public readonly List<MotionTrack> tracks = new List<MotionTrack>();
         public readonly List<string> errors = new List<string>();
         public readonly List<string> warnings = new List<string>();
+        public readonly List<string> created = new List<string>();   // Dựng hierarchy: đường dẫn node vừa tạo
+        public int kept;                                              // Dựng hierarchy: node đã có, giữ nguyên
         public bool sequential;
         public string name;
         public bool Ok => errors.Count == 0;
@@ -232,14 +249,7 @@ namespace FigmaMotion.Editor
             if (string.IsNullOrEmpty(path) || path == ".") return true;
             foreach (var raw in path.Split('/'))
             {
-                string seg = raw;
-                int want = -1;
-                int lb = seg.LastIndexOf('[');
-                if (lb > 0 && seg.EndsWith("]") && int.TryParse(seg.Substring(lb + 1, seg.Length - lb - 2), out int idx) && idx >= 0)
-                {
-                    want = idx;
-                    seg = seg.Substring(0, lb);
-                }
+                var (seg, want) = Segment(raw);
                 Transform hit = null;
                 int n = 0;
                 foreach (Transform c in found)
@@ -254,6 +264,77 @@ namespace FigmaMotion.Editor
                 found = hit;
             }
             return true;
+        }
+
+        /// <summary>"Tên[i]" → (Tên, i); không có chỉ số → (Tên, -1).</summary>
+        static (string name, int index) Segment(string seg)
+        {
+            int lb = seg.LastIndexOf('[');
+            if (lb > 0 && seg.EndsWith("]") && int.TryParse(seg.Substring(lb + 1, seg.Length - lb - 2), out int idx) && idx >= 0)
+                return (seg.Substring(0, lb), idx);
+            return (seg, -1);
+        }
+
+        /// <summary>
+        /// Dựng các node còn thiếu dưới root theo "nodes" của JSON, trong một bước Undo. Node đã có giữ
+        /// nguyên (kể cả vị trí chỉnh tay). Lá được SpriteRenderer trống — gắn sprite tay — với sortingOrder
+        /// theo thứ tự layer Figma và alpha = tích opacity của nó với các group cha.
+        /// </summary>
+        public static FigmaMotionResult BuildHierarchy(string json, GameObject root)
+        {
+            var r = new FigmaMotionResult();
+            var spec = new FigmaMotionSpec();
+            try { JsonUtility.FromJsonOverwrite(json, spec); }
+            catch (Exception e) { r.errors.Add("JSON hỏng: " + e.Message); return r; }
+            r.name = spec.name;
+            if (root == null) { r.errors.Add("Chưa chọn GameObject gốc."); return r; }
+            if (root.transform is RectTransform) { r.errors.Add("Root là UI (RectTransform) — Dựng hierarchy mới hỗ trợ sprite."); return r; }
+            if (spec.nodes == null || spec.nodes.Length == 0) { r.errors.Add("JSON không có \"nodes\" — xuất lại bằng export-figma-motion.js bản mới."); return r; }
+            if (spec.pxToUnit <= 0f) { r.errors.Add("pxToUnit phải > 0."); return r; }
+
+            Undo.SetCurrentGroupName("Dựng hierarchy Figma");
+            int group = Undo.GetCurrentGroup();
+            float px = spec.pxToUnit, my = spec.flipY ? -1f : 1f;
+            var alpha = new Dictionary<string, float>();
+            int order = 0;
+            foreach (var n in spec.nodes)
+            {
+                if (string.IsNullOrEmpty(n.path)) { r.errors.Add("Có node thiếu \"path\"."); continue; }
+                int slash = n.path.LastIndexOf('/');
+                string parentPath = slash < 0 ? "" : n.path.Substring(0, slash);
+                float a = (alpha.TryGetValue(parentPath, out var pa) ? pa : 1f) * n.opacity;
+                alpha[n.path] = a;
+                int sortingOrder = n.sprite ? order++ : 0;   // node đã có vẫn giữ chỗ trong thứ tự
+
+                if (!TryFind(root.transform, parentPath, out var parent, out var err)) { r.errors.Add($"{n.path}: {err}"); continue; }
+                var (name, index) = Segment(slash < 0 ? n.path : n.path.Substring(slash + 1));
+                int same = 0;
+                foreach (Transform c in parent) if (c.name == name) same++;
+                if (same > Math.Max(index, 0))
+                {
+                    if (index < 0 && same > 1) r.warnings.Add($"{n.path}: đã có {same} con tên \"{name}\" — không tạo thêm.");
+                    r.kept++;
+                    continue;
+                }
+
+                var go = new GameObject(name);
+                Undo.RegisterCreatedObjectUndo(go, "Dựng hierarchy Figma");
+                var t = go.transform;
+                t.SetParent(parent, false);
+                t.localPosition = new Vector3(n.x * px, n.y * px * my, 0f);
+                t.localRotation = Quaternion.Euler(0f, 0f, n.rotation);
+                t.localScale = new Vector3(n.scaleX, n.scaleY, 1f);
+                if (n.sprite)
+                {
+                    var sr = go.AddComponent<SpriteRenderer>();
+                    sr.sortingOrder = sortingOrder;
+                    sr.color = new Color(1f, 1f, 1f, a);
+                }
+                r.created.Add(n.path);
+            }
+            Undo.CollapseUndoOperations(group);
+            if (r.created.Count > 0) EditorUtility.SetDirty(root);
+            return r;
         }
 
         static string PathOf(Transform root, Transform t)

@@ -214,6 +214,58 @@ namespace WordStack.Board.Tests
             Assert.IsFalse(FigmaMotionImporter.Resolve("{ not json", rt).Ok, "JSON hỏng");
         }
 
+        const string TreeJson = @"{ ""pxToUnit"": 0.01, ""nodes"": [
+            { ""path"": ""Bg"", ""x"": 0, ""y"": 0, ""rotation"": 0, ""scaleX"": 1, ""scaleY"": 1, ""opacity"": 1, ""sprite"": true },
+            { ""path"": ""Panel"", ""x"": 100, ""y"": 20, ""rotation"": 90, ""scaleX"": -1, ""scaleY"": 1, ""opacity"": 0.5, ""sprite"": false },
+            { ""path"": ""Panel/Door"", ""x"": -10, ""y"": 0, ""rotation"": 0, ""scaleX"": 1, ""scaleY"": 1, ""opacity"": 0.5, ""sprite"": true },
+            { ""path"": ""Star[0]"", ""x"": 0, ""y"": 0, ""rotation"": 0, ""scaleX"": 1, ""scaleY"": 1, ""opacity"": 1, ""sprite"": true },
+            { ""path"": ""Star[1]"", ""x"": 0, ""y"": 0, ""rotation"": 0, ""scaleX"": 1, ""scaleY"": 1, ""opacity"": 1, ""sprite"": true } ] }";
+
+        [Test]
+        public void BuildHierarchy_CreatesMissingNodes_KeepsExisting()
+        {
+            root = new GameObject("Root");
+            var bg = Child(root.transform, "Bg", 5f);   // đã có, chỉnh tay: phải giữ nguyên
+
+            var r = FigmaMotionImporter.BuildHierarchy(TreeJson, root);
+            Assert.IsTrue(r.Ok, string.Join("\n", r.errors));
+            Assert.AreEqual(1, r.kept);
+            CollectionAssert.AreEqual(new[] { "Panel", "Panel/Door", "Star[0]", "Star[1]" }, r.created);
+            AssertVec(new Vector3(5f, 0f, 0f), bg.localPosition, "node đã có giữ nguyên");
+            Assert.IsNull(bg.GetComponent<SpriteRenderer>());
+
+            var panel = root.transform.Find("Panel");
+            AssertVec(new Vector3(1f, -0.2f, 0f), panel.localPosition, "px → unit, y lật");
+            AssertVec(new Vector3(-1f, 1f, 1f), panel.localScale, "lật");
+            Assert.AreEqual(90f, panel.localEulerAngles.z, 1e-3f);
+            Assert.IsNull(panel.GetComponent<SpriteRenderer>(), "group không có sprite");
+
+            var door = panel.Find("Door").GetComponent<SpriteRenderer>();
+            Assert.IsNull(door.sprite, "sprite gắn tay");
+            Assert.AreEqual(0.25f, door.color.a, Eps, "alpha = 0.5 của Panel × 0.5 của Door");
+            Assert.AreEqual(1, door.sortingOrder, "Bg (đã có) vẫn giữ chỗ 0");
+            var stars = root.transform.Cast<Transform>().Where(t => t.name == "Star").ToArray();
+            Assert.AreEqual(2, stars.Length);
+            Assert.AreEqual(3, stars[1].GetComponent<SpriteRenderer>().sortingOrder);
+
+            var again = FigmaMotionImporter.BuildHierarchy(TreeJson, root);
+            Assert.AreEqual(0, again.created.Count, "chạy lại không tạo trùng");
+            Assert.AreEqual(5, again.kept);
+
+            Assert.IsTrue(FigmaMotionImporter.Resolve(@"{ ""tracks"": [ { ""target"": ""Panel/Door"", ""property"": ""x"",
+                ""keys"": [ { ""time"": 0, ""value"": 0 }, { ""time"": 1, ""value"": 10 } ] } ] }", root.transform).Ok, "track trỏ vào node vừa dựng");
+        }
+
+        [Test]
+        public void BuildHierarchy_NeedsNodesAndSpriteRoot()
+        {
+            root = new GameObject("Root");
+            Assert.IsFalse(FigmaMotionImporter.BuildHierarchy(@"{ ""tracks"": [] }", root).Ok, "thiếu nodes");
+            var ui = new GameObject("Ui", typeof(RectTransform));
+            try { Assert.IsFalse(FigmaMotionImporter.BuildHierarchy(TreeJson, ui).Ok, "Root UI"); }
+            finally { Object.DestroyImmediate(ui); }
+        }
+
         [Test]
         public void Write_BuildsComponentsInOrder_AddsCanvasGroupForUiOpacity_NoAutoPlay()
         {

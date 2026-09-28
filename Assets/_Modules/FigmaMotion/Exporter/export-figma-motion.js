@@ -11,14 +11,17 @@
 // Timeline: một thuộc tính có thể là tổng nhiều track (animation style preset + keyframe tay), mỗi
 // track có mốc bắt đầu riêng. Track không chồng nhau → giữ đúng easing từng đoạn (cubic-bezier);
 // chồng nhau → lấy mẫu CONFIG.sampleRate lần/giây, nội suy thẳng.
+// Cây layer (`nodes`) cho nút "Dựng hierarchy" bên Unity: đi xuống mọi nhánh còn chứa layer có
+// animation; nhánh bên dưới không còn gì chuyển động dừng lại thành MỘT sprite. Toạ độ = tâm layer so
+// với tâm layer cha (px, trục của cha); Root Unity = tâm group gốc.
 
 const CONFIG = {
   rootId: '373:1245',              // group/frame gốc của animation = Root trong Unity
   name: 'Mở hộp khoá nhóm',
   pxToUnit: 0.005,                 // ghi thẳng vào JSON; importer dùng khi đổi px → unit
   sampleRate: 120,
-  // node Figma có animation → đường dẫn trong prefab tính từ Root ("" = Root). Thiếu thì dùng tên
-  // layer Figma và cảnh báo — importer sẽ báo "không thấy node" nếu tên không khớp.
+  // Tuỳ chọn. Mặc định track trỏ theo đường dẫn trong cây Figma (khớp hierarchy do "Dựng hierarchy"
+  // tạo). Chỉ cần khi trỏ vào prefab có sẵn đặt tên khác: node id Figma → đường dẫn từ Root ("" = Root).
   targets: {
     '373:1245': '',                // Group 547
     '373:1225': 'Lit',             // Lit 2 › Rectangle 309 (tấm trái)
@@ -153,7 +156,7 @@ function keysFor(fn, segs) {
   return keys;
 }
 
-const r = (v, d) => Math.round(v * d) / d;
+const r = (v, d) => Math.round(v * d) / d + 0;   // + 0: bỏ -0
 const tracks = [];
 function emit(label, target, prop, keys, digits) {
   if (!keys || keys.length < 2) return;
@@ -161,14 +164,60 @@ function emit(label, target, prop, keys, digits) {
                 keys: keys.map(k => Object.assign({ time: r(k.time, 1e4), value: r(k.value, digits) }, k.ease ? { ease: easeName(k.ease) } : {})) });
 }
 const SUPPORTED = /^(TRANSLATION_(X|Y|XY)|SCALE_(X|Y|XY)|ROTATION|OPACITY)$/;
+const animatedNodes = [root, ...root.findAll(x => 'animations' in x && Object.keys(x.animations || {}).length > 0)];
 
-for (const n of [root, ...root.findAll(x => 'animations' in x && Object.keys(x.animations || {}).length > 0)]) {
+// ---- cây layer
+const animatedIds = new Set(animatedNodes.map(n => n.id));
+const kidsOf = n => (n.children || []).filter(c => c.visible !== false);
+const animBelow = new Map();
+const hasAnimBelow = n => {
+  if (!animBelow.has(n.id)) animBelow.set(n.id, kidsOf(n).some(c => animatedIds.has(c.id) || hasAnimBelow(c)));
+  return animBelow.get(n.id);
+};
+const centerOf = n => { const t = n.absoluteTransform, w = n.width / 2, h = n.height / 2;
+  return [t[0][0] * w + t[0][1] * h + t[0][2], t[1][0] * w + t[1][1] * h + t[1][2]]; };
+const nodes = [], pathOf = new Map([[root.id, '']]);
+let hidden = 0;
+(function walk(parent, parentPath) {
+  const kids = kidsOf(parent);
+  hidden += (parent.children || []).length - kids.length;
+  if (!kids.length) return;
+  const names = kids.map(c => c.name.replace(/\//g, '-'));   // "/" là dấu ngăn đường dẫn bên Unity
+  const seen = {};
+  const Pi = inv(lin(parent.absoluteTransform)), pc = centerOf(parent);
+  kids.forEach((c, i) => {
+    const name = names[i];
+    if (name !== c.name) warnings.push(`${c.name} (${c.id}): tên có "/" — đổi thành "${name}".`);
+    const k = seen[name] = (seen[name] ?? -1) + 1;
+    const seg = names.filter(x => x === name).length > 1 ? `${name}[${k}]` : name;
+    const path = parentPath === '' ? seg : parentPath + '/' + seg;
+    pathOf.set(c.id, path);
+
+    const cc = centerOf(c), d = [cc[0] - pc[0], cc[1] - pc[1]];
+    const L = mul(Pi, lin(c.absoluteTransform));   // hướng so với layer cha, trục y Figma hướng xuống
+    const a = L[0][0], b = L[1][0], det = a * L[1][1] - L[0][1] * b;
+    // Lật thì để scaleX âm (dễ đọc hơn "xoay 180° + scaleY âm"). Góc dương = ngược chiều kim đồng hồ.
+    const sx = det < 0 ? -Math.hypot(a, b) : Math.hypot(a, b);
+    const rot = (det < 0 ? Math.atan2(b, -a) : Math.atan2(-b, a)) * 180 / Math.PI;
+    const sprite = !hasAnimBelow(c);
+    nodes.push({ path, x: r(Pi[0][0] * d[0] + Pi[0][1] * d[1], 1e3), y: r(Pi[1][0] * d[0] + Pi[1][1] * d[1], 1e3),
+                 rotation: r(rot, 1e3), scaleX: r(sx, 1e4), scaleY: r(det / sx, 1e4),
+                 width: r(c.width, 1e3), height: r(c.height, 1e3), opacity: r(c.opacity ?? 1, 1e4), sprite });
+    if (c.type === 'TEXT') warnings.push(`${c.name} (${c.id}): TEXT — Unity dựng thành SpriteRenderer, cần tự đổi sang TextMeshPro.`);
+    if (c.isMask) warnings.push(`${c.name} (${c.id}): layer mask — Unity không dựng mask, cần làm tay (SpriteMask).`);
+    if (!sprite) walk(c, path);
+  });
+})(root, '');
+if (hidden) warnings.push(`Bỏ qua ${hidden} layer ẩn.`);
+
+// ---- track
+for (const n of animatedNodes) {
   const F = fieldsOf(n);
   if (!Object.keys(F).length) continue;
   for (const k of Object.keys(n.animations || {})) if (!SUPPORTED.test(k)) warnings.push(`${n.name} (${n.id}): thuộc tính ${k} chưa hỗ trợ — bỏ qua.`);
 
-  let target = CONFIG.targets[n.id];
-  if (target === undefined) { target = n.name; warnings.push(`${n.name} (${n.id}) chưa có trong CONFIG.targets — tạm dùng tên layer.`); }
+  let target = CONFIG.targets[n.id] ?? pathOf.get(n.id);
+  if (target === undefined) { target = n.name; warnings.push(`${n.name} (${n.id}) không nằm trong cây (layer ẩn?) — tạm dùng tên layer.`); }
   const label = target === '' ? root.name : target;
 
   const L = mul(rootInv, lin(n.absoluteTransform));   // hướng layer so với group gốc (xoay + lật)
@@ -210,6 +259,7 @@ return {
     timeUnit: 's',
     mode: 'parallel',
     ease: 'ease-out',
+    nodes,
     tracks,
   },
   warnings,
