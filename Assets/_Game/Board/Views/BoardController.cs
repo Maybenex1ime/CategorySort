@@ -1600,7 +1600,7 @@ namespace WordStack.Board
                 {
                     if (g.IsOpen(box.Lock)) boxViews[s].SetOpen();
                     else if (box.Lock.Kind == LockKind.Group) boxViews[s].SetGroupLock(GroupArt(box.Lock.GroupId));
-                    else boxViews[s].SetCountLock(LockLabel(box.Lock));
+                    else boxViews[s].SetCountLock(Mathf.Max(box.Lock.Need - g.Cleared, 0), box.Lock.Need);
                 }
 
                 for (int i = 0; i < box.Slots.Length; i++)
@@ -1617,13 +1617,6 @@ namespace WordStack.Board
             }
         }
 
-        // Hộp khoá theo số hiện số nhóm CÒN CẦN. Hộp đã mở không có nhãn.
-        string LockLabel(Lock l)
-        {
-            if (g == null) return null;
-            if (l.Kind == LockKind.Clears) return Mathf.Max(l.Need - g.Cleared, 0).ToString();
-            return null;
-        }
 
         // Hộp khoá theo nhóm hiện art của nhóm phải gom sạch (GroupDef.Art, cùng nguồn với thẻ collapse).
         Sprite GroupArt(string gid)
