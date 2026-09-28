@@ -162,7 +162,7 @@ function blockerFixture(){
     ok(!mv(st, 0, 'a2', 0).ok && tile(st, 'a1').ice.have === 0, 'nước bị từ chối không giảm băng'); }
   { const raw = base(); raw.stacks[2].boxes[0].blockers = { locked: 9 }; raw.cardBlockers = { b4: { ice: 1 } }; let st = load(raw);
     st = step(st, 0, 'a1', 4, 'nước hợp lệ');
-    ok(!tile(st, 'b4').ice, 'băng trong hộp khoá ở trên cùng vẫn tan theo nước đi'); }
+    ok(tile(st, 'b4').ice && tile(st, 'b4').ice.have === 0, 'băng trong hộp khoá ở trên cùng không đếm'); }
   { const raw = base(); [0, 1, 2, 3].forEach(i => raw.stacks[i].boxes[0].blockers = { locked: 99 });
     ok(load(raw).status === 'stuck', 'còn ô trống ở stack rỗng mà không thẻ nào nhặt được → kẹt'); }
   { const raw = base(); raw.cardBlockers = Object.fromEntries(['a1','a2','b1','b2','b3','c1','b4','c2','c3','c4'].map(w => [w, { ice: 99 }]));

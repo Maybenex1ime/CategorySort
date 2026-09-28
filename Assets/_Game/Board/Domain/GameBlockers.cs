@@ -78,15 +78,16 @@ namespace WordStack.Board
         public bool IsPullable(Tile t, Box b) { return !IsFrozen(t) && IsOpen(b.Lock); }
 
         /// <summary>
-        /// Sau mỗi nước đi thành công: mọi thẻ băng đang ở hộp trên cùng tiến một bước.
-        /// Đếm cả thẻ trong hộp đang khoá ở trên cùng (nó đang lộ), không đếm thẻ chìm.
+        /// Sau mỗi nước đi thành công: mọi thẻ băng đang ở hộp trên cùng VÀ hộp đó đang mở tiến
+        /// một bước. Không đếm thẻ chìm, không đếm thẻ trong hộp đang khoá (theo số hay theo nhóm)
+        /// — hộp mở rồi băng mới bắt đầu đếm.
         /// Tan thì Lock về default — thẻ tan không khác gì thẻ thường, kể cả với Encode.
         /// </summary>
         void TickIce()
         {
             foreach (var st in Stacks)
             {
-                if (st.Boxes.Count == 0) continue;
+                if (st.Boxes.Count == 0 || !IsOpen(st.Boxes[0].Lock)) continue;
                 var top = st.Boxes[0];
                 for (int i = 0; i < top.Slots.Length; i++)
                 {

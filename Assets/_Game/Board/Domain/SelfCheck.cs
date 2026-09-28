@@ -507,13 +507,16 @@ namespace WordStack.Board
                 Ok(!g4.MoveTile(0, uidOf(g4, "c2"), 0), "thả về chính stack bị từ chối");
                 Ok(Game.IsFrozen(ice4) && ice4.Lock.Have == 0, "nước bị từ chối không giảm băng");
 
-                // Băng trong hộp khoá đang ở trên cùng vẫn đếm — thẻ đang lộ (spec 4.4).
+                // Băng trong hộp khoá ở trên cùng KHÔNG đếm — hộp mở rồi mới đếm (spec 4.4).
                 var g5 = load(true);
                 g5.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
                 var iceInLocked = g5.TopBox(2).Slots[0];
                 iceInLocked.Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
                 Ok(g5.MoveTile(0, uidOf(g5, "c1"), 4), "nước hợp lệ");
-                Ok(!Game.IsFrozen(iceInLocked), "băng trong hộp khoá ở trên cùng vẫn tan theo nước đi");
+                Ok(Game.IsFrozen(iceInLocked) && iceInLocked.Lock.Have == 0, "băng trong hộp khoá ở trên cùng không đếm");
+                g5.Stacks[2].Boxes[0].Lock = default(Lock);   // hộp mở
+                Ok(g5.MoveTile(0, uidOf(g5, "c2"), 3), "nước hợp lệ sau khi hộp mở");
+                Ok(!Game.IsFrozen(iceInLocked), "hộp mở rồi thì băng đếm tiếp và tan");
 
                 // Kẹt phải là "hết nước đi hợp lệ", không phải "hết ô trống" — nếu không mọi
                 // thẻ lộ đều băng là thua ngầm (spec 2.1).
