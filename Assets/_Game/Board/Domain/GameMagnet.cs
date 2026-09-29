@@ -32,7 +32,7 @@ namespace WordStack.Board
         /// Nhóm mà nam châm nên gom; null nghĩa là KHÔNG có mục tiêu hợp lệ — nút phải
         /// xám và KHÔNG được trừ lượt (lượt này người chơi mua bằng coin).
         ///
-        /// Thứ tự chốt: nhiều thẻ ở hộp trên cùng nhất → nhóm gốc (không đẻ thẻ cha)
+        /// Thứ tự chốt: nhóm không có thẻ đóng đinh → nhiều thẻ ở hộp trên cùng nhất → nhóm gốc (không đẻ thẻ cha)
         /// → thẻ chôn nông nhất → khoá vị trí nhỏ nhất. Bậc cuối chỉ để kết quả XÁC ĐỊNH:
         /// cùng một bàn phải luôn ra cùng một nhóm, không thì không test lại được.
         /// </summary>
@@ -43,6 +43,7 @@ namespace WordStack.Board
             var deepest = new Dictionary<string, int>();
             var firstAt = new Dictionary<string, int>();
             var order = new List<string>();   // thứ tự gặp — KHÔNG duyệt Dictionary, thứ tự đó không đảm bảo
+            var fixedGroups = new HashSet<string>();   // nhóm có thẻ đóng đinh — hút được nhưng không ưu tiên
 
             for (int s = 0; s < Stacks.Count; s++)
             {
@@ -59,6 +60,7 @@ namespace WordStack.Board
                         // Hút được là phá vật cản miễn phí (spec 4.3).
                         if (!IsPullable(t, boxes[b])) continue;
                         string gid = t.GroupId;
+                        if (IsFixed(t)) fixedGroups.Add(gid);
 
                         int n;
                         if (!onBoard.TryGetValue(gid, out n))
@@ -92,14 +94,19 @@ namespace WordStack.Board
                 // nổ ở tận đáy, trông như không liên quan gì tới màn hình.
                 if (onTop[gid] <= 0) continue;
 
-                if (best == null || IsBetterTarget(gid, best, onTop, deepest, firstAt)) best = gid;
+                if (best == null || IsBetterTarget(gid, best, onTop, deepest, firstAt, fixedGroups)) best = gid;
             }
             return best;
         }
 
         bool IsBetterTarget(string a, string b, Dictionary<string, int> onTop,
-                            Dictionary<string, int> deepest, Dictionary<string, int> firstAt)
+                            Dictionary<string, int> deepest, Dictionary<string, int> firstAt,
+                            HashSet<string> fixedGroups)
         {
+            // Nhóm có thẻ đóng đinh đứng sau mọi nhóm không có (spec fixed-tile Mục 2).
+            bool fa = fixedGroups.Contains(a), fb = fixedGroups.Contains(b);
+            if (fa != fb) return fb;
+
             if (onTop[a] != onTop[b]) return onTop[a] > onTop[b];
 
             // Hoà số thẻ ở top mới xét tới chuyện đẻ thẻ cha: clear nhóm gốc là -4 thẻ,

@@ -812,6 +812,42 @@ namespace WordStack.Board
                     if (tt != null) Ok(!g5.IsPullable(tt, closedBox), "mọi thẻ trong hộp đóng đều không nhấc được");
             }
 
+            // 8h. Thẻ đóng đinh với booster (spec 2026-09-29-fixed-tile Mục 4)
+            {
+                var fx = new Lock { Kind = LockKind.Fixed };
+                var g = load(true);
+                string m1 = g.FindMagnetTarget();
+                Ok(m1 != null, "bàn luật có mục tiêu nam châm");
+                Tile nailed = null; Box nailedBox = null;
+                foreach (var st in g.Stacks)
+                    foreach (var t in st.Boxes[0].Slots)
+                        if (nailed == null && t != null && t.GroupId == m1) { nailed = t; nailedBox = st.Boxes[0]; }
+                nailed.Lock = fx;
+                Ok(g.IsPullable(nailed, nailedBox), "thẻ đóng đinh vẫn hút được (và vẫn có vùng chạm để rung)");
+                string m2 = g.FindMagnetTarget();
+                Ok(m2 != null && m2 != m1, "nhóm có thẻ đóng đinh xếp sau nhóm không có");
+                foreach (var gid in new[] { "ga", "gb", "gc" })
+                {
+                    if (gid == m1) continue;
+                    var other = g.Stacks.SelectMany(st => st.Boxes).SelectMany(b => b.Slots)
+                                 .First(t => t != null && t.GroupId == gid);
+                    other.Lock = new Lock { Kind = LockKind.Moves, Need = 9 };   // băng → nhóm đó hết hợp lệ
+                }
+                Ok(g.FindMagnetTarget() == m1, "không còn nhóm nào khác thì vẫn hút nhóm có thẻ đóng đinh");
+                var mr = g.ApplyMagnet(m1);
+                Ok(mr.Ok && mr.Picks.Any(p => p.Uid == nailed.Uid), "Magnet hút cả thẻ đóng đinh");
+
+                // Xáo: e1 ở stack 1 là thẻ gc duy nhất trong hộp đó (thẻ trắng) — không đóng đinh thì nó vào pool.
+                var g2 = load(true);
+                Ok(Game.IsWhite(g2.TopBox(1), 3), "e1 đang trắng — tiền đề của bài kiểm");
+                var e1 = g2.TopBox(1).Slots[3];
+                e1.Lock = fx;
+                Ok(!g2.AssignableTopSlots().Any(r => r.Stack == 1 && r.Slot == 3), "Xáo: ô của thẻ đóng đinh không vào pool dù thẻ trắng");
+                Ok(!g2.PickPrimeCandidates(3).Contains("gc"), "Xáo: nhóm có thẻ đóng đinh không làm mồi");
+                g2.ApplyShuffle();
+                Ok(g2.TopBox(1).Slots[3] == e1, "Xáo: thẻ đóng đinh đứng yên đúng ô");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }
