@@ -119,7 +119,7 @@ namespace WordStack.Board
         readonly Dictionary<string, TileView> tiles = new Dictionary<string, TileView>();
 
         enum ZoneKind { Tile, Stack }
-        struct Zone { public Rect Rect; public ZoneKind Kind; public int Stack; public string Uid; }
+        struct Zone { public Rect Rect; public ZoneKind Kind; public int Stack; public string Uid; public bool Fixed; }
         readonly List<Zone> zones = new List<Zone>();
 
         GhostView ghost;
@@ -325,6 +325,9 @@ namespace WordStack.Board
 
             LevelSignals.RaiseMoveCommitted(g.Moves);
 
+            var picked = new List<string>();
+            foreach (var p in r.Picks) picked.Add(p.Uid);
+            yield return BreakFixed(picked);   // thẻ đóng đinh bị hút: tháo đinh trước khi phồng → bay
             yield return Backdrop(true);
             yield return MagnetAnimation(r, faces);
             yield return Backdrop(false);
@@ -873,7 +876,8 @@ namespace WordStack.Board
                 foreach (var z in zones)
                 {
                     if (z.Kind != ZoneKind.Tile || !z.Rect.Contains(pt)) continue;
-                    BeginDrag(z.Stack, z.Uid, pt);
+                    if (z.Fixed) ShakeTile(z.Uid);          // thẻ đóng đinh: rung, không nhấc
+                    else BeginDrag(z.Stack, z.Uid, pt);
                     break;
                 }
             }
@@ -1142,7 +1146,7 @@ namespace WordStack.Board
             foreach (var z in zones)
             {
                 if (z.Kind != ZoneKind.Tile || !z.Rect.Contains(pt)) continue;
-                tiles.TryGetValue(z.Uid, out h);
+                if (!z.Fixed) tiles.TryGetValue(z.Uid, out h);   // thẻ đóng đinh không phồng
                 break;
             }
             if (h == hoverTile) return;           // chỉ tween lúc VÀO/RA, không mỗi frame
@@ -1183,9 +1187,39 @@ namespace WordStack.Board
                                    .BindToLocalPosition(bv.transform).AddTo(bv.gameObject);
         }
 
+        // Bấm thẻ đóng đinh: rung ngang một cú, cùng công thức Shake của hộp nhưng nhỏ hơn.
+        const float TileShakeAmp = 0.06f, TileShakeDur = 0.2f;
+        MotionHandle tileShake;
+
+        void ShakeTile(string uid)
+        {
+            TileView tv;
+            if (!tiles.TryGetValue(uid, out tv) || tv == null) return;
+            tileShake.TryComplete();   // rung dồn: kết thúc cú trước đã
+            tileShake = LMotion.Punch.Create(tv.transform.localPosition, new Vector3(TileShakeAmp, 0f, 0f), TileShakeDur)
+                               .WithFrequency(6).WithDampingRatio(3.1f).WithCancelOnError()
+                               .BindToLocalPosition(tv.transform).AddTo(tv.gameObject);
+        }
+
         // ------------------------------------------------------------ cascade
         // Domain mutate từng bước; view animate trên instance đang sống rồi mới cập nhật
         // sổ sách. Khoá input tới khi bàn đứng yên (§E11).
+
+        // Thẻ đóng đinh trong các uid này tháo đinh song song, chờ xong, Stop (EndFixedBreak) rồi mới
+        // cho gộp / bay (spec fixed-tile Mục 5). Không thẻ nào đóng đinh thì trả về ngay.
+        IEnumerator BreakFixed(IEnumerable<string> uids)
+        {
+            var breaking = new List<TileView>();
+            foreach (var uid in uids)
+            {
+                TileView tv;
+                if (!tiles.TryGetValue(uid, out tv) || tv == null || !tv.IsFixed) continue;
+                tv.PlayFixedBreak();
+                breaking.Add(tv);
+            }
+            while (breaking.Exists(tv => tv != null && tv.IsBreakingFixed)) yield return null;
+            foreach (var tv in breaking) if (tv != null) tv.EndFixedBreak();
+        }
 
         IEnumerator Settle(float delay = 0f)
         {
@@ -1206,6 +1240,8 @@ namespace WordStack.Board
                 var ev = g.SettleStep(Rules.RemoveEmptyNonBottomBox);
                 if (ev.Kind == SettleKind.None) break;
                 hadCascade = true;
+                if (ev.Kind == SettleKind.Clear || ev.Kind == SettleKind.Collapse)
+                    yield return BreakFixed(ev.DoomedUids);   // tháo đinh trước khi gộp
 
                 if (ev.Kind == SettleKind.Clear)
                 {
@@ -1601,7 +1637,7 @@ namespace WordStack.Board
                     {
                         var t = box.Slots[i];
                         if (t == null) continue;
-                        // Thẻ băng và thẻ trong hộp đóng: không hover, không nhấc. Hover() và
+                        // Thẻ băng và thẻ trong hộp đóng: không hover, không nhấc (thẻ đóng đinh CÓ zone để bấm thì rung). Hover() và
                         // BeginDrag() đều duyệt cùng danh sách này nên bỏ ở đây là bỏ cả hai.
                         // Zone Stack bên dưới vẫn giữ: thả VÀO hộp đóng thì MoveTile từ chối và
                         // Drop() cho hộp rung, rõ hơn là im lặng nuốt thao tác.
@@ -1609,7 +1645,7 @@ namespace WordStack.Board
                         zones.Add(new Zone
                         {
                             Rect = SlotZone(s, i),
-                            Kind = ZoneKind.Tile, Stack = s, Uid = t.Uid
+                            Kind = ZoneKind.Tile, Stack = s, Uid = t.Uid, Fixed = Game.IsFixed(t)
                         });
                     }
                 zones.Add(new Zone
@@ -1648,6 +1684,7 @@ namespace WordStack.Board
                     bool frozen = Game.IsFrozen(t);
                     int iceLeft = frozen ? t.Lock.Need - t.Lock.Have : 0;
                     tv.SetIce(frozen, iceLeft, frozen ? t.Lock.Need : 0);
+                    tv.SetFixed(Game.IsFixed(t));
                     tv.SetBlockerDebug(iceLeft);
                 }
             }
