@@ -14,6 +14,7 @@ using LitMotion.Animation;
 using LitMotion.Animation.Components;
 using UnityEditor;
 using UnityEngine;
+using UnityEngine.Rendering;
 using static WordStack.Board.Editor.AnimationBuildKit;
 
 namespace WordStack.Board.Editor
@@ -29,7 +30,9 @@ namespace WordStack.Board.Editor
         const float LiftDur = 0.35f, Lift = 0.25f;
         const float RevealDur = 0.25f, RevealPunch = 0.1f;
 
-        // Thứ tự vẽ (spec Mục 3.4): Peek1 nền 4 / mini 8; Peek k ≥ 2 nền −(2k − 3) / mini −(2k − 4).
+        // Cả cụm TileHolders là một SortingGroup: trên nền/khay/bóng của hộp (5–7), dưới thẻ thật (10+).
+        public const int HolderGroupOrder = 8;
+        // Thứ tự trong nhóm (chỉ so giữa các Peek): Peek1 nền 4 / mini 8; Peek k ≥ 2 nền −(2k − 3) / mini −(2k − 4).
         public static int BgOrder(int k) { return k == 1 ? 4 : -(2 * k - 3); }
         public static int MiniOrder(int k) { return k == 1 ? 8 : -(2 * k - 4); }
 
@@ -164,6 +167,11 @@ namespace WordStack.Board.Editor
                 h.FindPropertyRelative("lift").objectReferenceValue = lift;
                 so.ApplyModifiedPropertiesWithoutUndo();
             }
+
+            var group = FindDeep(sv.transform, "Peek1").parent;
+            var sg = group.GetComponent<SortingGroup>();
+            if (sg == null) sg = group.gameObject.AddComponent<SortingGroup>();
+            sg.sortingOrder = HolderGroupOrder;
             return StackView.HolderCount + " holder · thẻ thật rộng " + tileWidth.ToString("0.###") + " (world).";
         }
 

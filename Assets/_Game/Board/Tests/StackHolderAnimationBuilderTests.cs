@@ -54,6 +54,8 @@ namespace WordStack.Board.Tests
                     var root = (GameObject)h.FindPropertyRelative("root").objectReferenceValue;
                     Assert.AreEqual(StackHolderAnimationBuilder.BgOrder(k + 1), root.transform.Find("Bg").GetComponent<SpriteRenderer>().sortingOrder);
                 }
+                var sg = sv.transform.Find("TileHolders").GetComponent<UnityEngine.Rendering.SortingGroup>();
+                Assert.AreEqual(StackHolderAnimationBuilder.HolderGroupOrder, sg.sortingOrder, "cụm holder trên hộp, dưới thẻ");
                 Assert.IsNull(sv.BoxAnchor.GetComponentInChildren<BoxView>(true), "hộp đo tạm đã xoá");
             }
             finally { PrefabUtility.UnloadPrefabContents(stack); }
