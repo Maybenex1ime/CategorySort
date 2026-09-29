@@ -136,6 +136,11 @@ namespace WordStack.Board
         // này TRƯỚC khi xoá GameObject bên dưới, vì target còn sống lúc Cancel mới an toàn.
         readonly List<MotionHandle> running = new List<MotionHandle>();
 
+        // Số Tile Holder đã bay đi của từng stack (spec stack-tile-holder Mục 3.2) — lịch sử của view, không
+        // suy được từ bàn chơi. Sống ở đây chứ không ở StackView vì RebuildBoardViews (Magnet/Shuffle/Undo) dựng
+        // StackView mới. Tạo mới khi nạp level; +1 khi hộp trên cùng bị xoá lộ hộp kế, −1 khi Undo trả hộp về.
+        int[] holderConsumed;
+
         // ---- LitMotion (thay tween cũ 2026-09-17) — đọc Global Constraints của plan chuyển đổi.
         // Sequence: lỗi (target bị huỷ) thì huỷ cả chuỗi thay vì ghi lỗi mỗi frame.
         static readonly Action<MotionBuilder<double, NoOptions, DoubleMotionAdapter>> SeqCfg = b => b.WithCancelOnError();
@@ -619,7 +624,9 @@ namespace WordStack.Board
                 var bv = boxViews[s];
                 bv.ResetVisual();
                 bv.SetOpen();
-                stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1, TilesInSecondBox(g.Stacks[s]));
+                // Hộp cũ quay về = holder vừa bay đi hiện lại (spec Mục 9).
+                holderConsumed[s] = Mathf.Max(0, holderConsumed[s] - (g.Stacks[s].Boxes.Count - prev.Stacks[s].Boxes.Count));
+                stackViews[s].ShowHolders(holderConsumed[s], g.Stacks[s].Boxes);
                 bv.SetAlpha(0f);
                 bv.transform.localPosition = new Vector3(a.undoBoxSlideFrom.x, a.undoBoxSlideFrom.y, 0f);
                 var slide = LSequence.Create();
@@ -811,6 +818,8 @@ namespace WordStack.Board
                 // Bật chụp ảnh cho booster Undo. CHỈ ở đây: cờ mặc định tắt để Solver
                 // (gọi MoveTile hàng vạn lần mỗi lần giải) không clone mỗi nút.
                 g.UndoEnabled = true;
+                holderConsumed = new int[g.Stacks.Count];
+                foreach (var w in StackView.LimitWarnings(g.Stacks)) Debug.LogWarning("[Level] " + w);
             }
             catch (Exception e)
             {
@@ -1420,7 +1429,8 @@ namespace WordStack.Board
         void RevealBox(int s)
         {
             boxViews[s].ResetVisual();
-            stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1, TilesInSecondBox(g.Stacks[s]));
+            holderConsumed[s]++;
+            stackViews[s].ShowHolders(holderConsumed[s], g.Stacks[s].Boxes);
             SpawnTiles(s);                                 // thẻ của hộp vừa lộ
             RefreshBlockerVisuals();                       // hộp vừa lộ có thể đang khoá
         }
@@ -1665,7 +1675,7 @@ namespace WordStack.Board
                 bv.transform.localPosition = Vector3.zero;
                 boxViews[s] = bv;
 
-                sv.ShowDepth(st.Boxes.Count - 1, TilesInSecondBox(st));
+                sv.ShowHolders(holderConsumed[s], st.Boxes);
                 SpawnTiles(s);
             }
 
@@ -1715,13 +1725,6 @@ namespace WordStack.Board
             float halfH = (maxY - minY) / 2f * PitchY + BoxSize / 2f + 1.5f;   // chừa HUD trên + gợi ý dưới
             cam.transform.position = new Vector3(cx, cy, -10f);
             cam.orthographicSize = Mathf.Max(halfH, halfW / Mathf.Max(cam.aspect, 0.01f));
-        }
-
-        // Ruột hộp nằm dưới không bao giờ đổi khi đang nằm dưới (nước đi chỉ đụng top box),
-        // nên chỉ cần tính ở đúng 2 chỗ gọi ShowDepth: dựng bàn + lộ hộp mới.
-        static int TilesInSecondBox(Stack st)
-        {
-            return st.Boxes.Count > 1 ? Rules.BoxCapacity - Game.FreeCount(st.Boxes[1]) : 0;
         }
 
         static Vector2 StackWorldPos(Stack st)

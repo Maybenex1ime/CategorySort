@@ -1,7 +1,7 @@
 // Dàn hàng ngang các con (world-space sprite) quanh tâm mình — bản mini của
 // HorizontalLayoutGroup cho object ngoài Canvas. Gắn vào TileMarkerHolder: con nào
 // active thì được xếp đều với khoảng cách spacing, cụm luôn căn giữa; SetActive
-// bật/tắt marker (StackView.ShowDepth) tự đẩy layout ở LateUpdate frame đó.
+// bật/tắt thẻ mini (StackView.ShowHolders) tự đẩy layout ở LateUpdate frame đó. StackView tắt component này trong lúc thẻ mini bay (fill).
 using UnityEngine;
 
 namespace WordStack.Board
