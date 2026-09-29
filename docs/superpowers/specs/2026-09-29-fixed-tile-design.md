@@ -49,8 +49,7 @@ Validator (`LevelData`) báo lỗi khi nạp:
 - Hệ quả thiết kế màn: hộp chứa thẻ Fixed không rỗng cho tới khi nhóm của nó được gom, nên hộp dưới chỉ lộ ra
   sau đó. `check.mjs` bắt màn không giải được.
 
-**Bản JS phải khớp:** engine trong `demo/wordstack.html` (mà `demo/check.mjs` nạp lại), `demo/tool-check.mjs`,
-`docs/wordstack-rules.md` §11. `SelfCheck` thêm assert cho từng gạch đầu dòng ở trên.
+**Bản JS không cập nhật:** `demo/wordstack.html` / `tool-check.mjs` đã lệch C# từ trước (còn `keylock`), màn có thẻ Fixed sửa tay JSON. `SelfCheck` thêm assert cho từng gạch đầu dòng ở trên.
 
 ## 5. View
 
@@ -83,7 +82,7 @@ chỉnh trong Inspector. Hoàn tác bằng git.
 
 ## 7. Kiểm thử
 
-- `SelfCheck` (luật, chạy ngoài Unity) + `demo/check.mjs` / `demo/tool-check.mjs`.
+- `SelfCheck` (luật, chạy ngoài Unity).
 - EditMode: tool dựng đủ component và nối field (chạy trên bản mở tạm của prefab, không lưu).
 - Play mode:
   1. Thẻ Fixed hiện đinh + back; bấm vào thì rung, không kéo được.

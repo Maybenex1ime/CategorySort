@@ -248,6 +248,7 @@ namespace WordStack.Board
                 return false;
             };
 
+            var fixedCards = new HashSet<string>();   // card đóng đinh — chỉ được nằm ở box 0 (kiểm ở vòng stack)
             foreach (var g in Groups)
                 foreach (var c in g.Cards)
                 {
@@ -266,6 +267,11 @@ namespace WordStack.Board
                     object v;
                     if (c.Blockers.TryGetValue(Blockers.Ice, out v) && !Blockers.IsCount(v))
                         die(at + ": ice phải là số nguyên >= 1");
+                    if (c.Blockers.TryGetValue(Blockers.Fixed, out v))
+                    {
+                        if (!(v is bool) || !(bool)v) die(at + ": fixed phải là true");
+                        fixedCards.Add(c.Id);
+                    }
                 }
 
             for (int si = 0; si < Stacks.Count; si++)
@@ -273,6 +279,10 @@ namespace WordStack.Board
                 {
                     var box = Stacks[si].Boxes[bi];
                     string at = "stack " + si + " box " + bi;
+                    if (bi > 0)
+                        foreach (var id in box.Slots)
+                            if (id != null && fixedCards.Contains(id))
+                                die(at + ": thẻ \"" + id + "\" đóng đinh chỉ được nằm ở hộp trên cùng (box 0)");
                     foreach (var key in box.Blockers.Keys)
                     {
                         if (Array.IndexOf(Blockers.CardIds, key) >= 0)

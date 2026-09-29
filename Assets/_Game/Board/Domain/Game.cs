@@ -11,7 +11,7 @@ namespace WordStack.Board
     public class Tile
     {
         public string Uid, CardId, GroupId, Text, Art;
-        public Lock Lock;       // Kind = Moves khi còn băng; default = thẻ thường
+        public Lock Lock;       // Kind = Moves khi còn băng, Fixed khi đóng đinh; default = thẻ thường
         public Tile Clone() { return (Tile)MemberwiseClone(); }   // struct + string: copy đủ
     }
 
@@ -102,6 +102,8 @@ namespace WordStack.Board
                         object cv;
                         if (c.Blockers.TryGetValue(Blockers.Ice, out cv))
                             tile.Lock = new Lock { Kind = LockKind.Moves, Need = (int)(double)cv };
+                        if (c.Blockers.ContainsKey(Blockers.Fixed))
+                            tile.Lock = new Lock { Kind = LockKind.Fixed };   // validator đã chặn đứng chung ice
                         box.Slots[i] = tile;
                     }
                     st.Boxes.Add(box);
@@ -138,7 +140,7 @@ namespace WordStack.Board
             if (!IsOpen(src.Lock) || !IsOpen(dst.Lock)) return false;
             int i = Array.FindIndex(src.Slots, t => t != null && t.Uid == uid);
             if (i < 0) return false;                       // không phải thẻ của top box
-            if (IsFrozen(src.Slots[i])) return false;      // thẻ băng đứng yên (spec 4.2)
+            if (IsFrozen(src.Slots[i]) || IsFixed(src.Slots[i])) return false;   // thẻ băng / đóng đinh đứng yên
             int j = preferSlot >= 0 && preferSlot < dst.Slots.Length && dst.Slots[preferSlot] == null
                   ? preferSlot
                   : Array.FindIndex(dst.Slots, t => t == null);

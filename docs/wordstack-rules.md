@@ -188,14 +188,16 @@ Bộ tự kiểm chạy mọi level khi khởi động, và có bản chạy ngo
 
 ## 11. Vật cản (blocker)
 
-Ba vật cản, đều là "một đối tượng bị vô hiệu, gỡ bằng một điều kiện tiến độ". Không vật cản
-nào thêm loại nước đi mới. Đặc tả đầy đủ: `docs/superpowers/specs/2026-09-10-blocker-locks-design.md`.
+Bốn vật cản. Ba cái đầu là "một đối tượng bị vô hiệu, gỡ bằng một điều kiện tiến độ"; `fixed` không
+gỡ được — thẻ chỉ rời bàn khi nhóm của nó được gom. Không vật cản nào thêm loại nước đi mới. Đặc tả
+đầy đủ: `docs/superpowers/specs/2026-09-10-blocker-locks-design.md`, `docs/superpowers/specs/2026-09-29-fixed-tile-design.md`.
 
 | id | gắn vào | tham số | ý nghĩa |
 |---|---|---|---|
 | `locked` | hộp | số nguyên ≥ 1 | hộp đóng cho tới khi số nhóm đã gom trên toàn bàn đạt số đó |
 | `grouplock` | hộp | id nhóm | hộp đóng cho tới khi nhóm đó (kể cả nhóm con) không còn thẻ nào trên bàn; hộp hiện art của nhóm |
 | `ice` | thẻ | số nguyên ≥ 1 | thẻ bất động và không tính bộ 4, tan sau đủ số nước kể từ lúc lộ ở hộp trên |
+| `fixed` | thẻ | `true` | thẻ không nhặt được nhưng vẫn tính bộ 4; chỉ nằm ở hộp trên cùng lúc đầu màn; lúc bị ăn tháo đinh rồi mới gộp |
 
 Hộp đóng: không nhặt ra, không thả vào, không tự nổ, không tính là còn chỗ khi xét kẹt, không
 bị xoá dù rỗng. Thứ tự một lượt: nước đi → giảm băng → dây chuyền.
@@ -209,16 +211,17 @@ Dữ liệu: vật cản của thẻ nằm trên entry thẻ trong `meaning`, c�
 
 ```json
 { "id": "banana", "text": "Banana", "blockers": { "ice": 5 } }
+{ "id": "kiwi",   "text": "Kiwi",   "blockers": { "fixed": true } }
 { "slots": ["apple","banana",null,null], "blockers": { "locked": 3 } }
 { "slots": ["grape","plum",null,null],   "blockers": { "grouplock": "g_fruit" } }
 ```
 
 Luật kiểm thêm: id phải có trong bảng và đúng phía · hộp tối đa một vật cản · thẻ mang nhiều
-vật cản phải theo bảng cặp được phép (hiện rỗng) · số đếm ≥ 1 · `grouplock` trỏ một id nhóm có
+vật cản phải theo bảng cặp được phép (hiện rỗng) · số đếm ≥ 1 · `fixed` phải là `true` và thẻ mang nó chỉ nằm ở hộp trên cùng · `grouplock` trỏ một id nhóm có
 thật · không thẻ nào của nhóm đó (kể cả nhóm con) nằm trong hoặc dưới hộp mà nhóm đó mở.
 
-Nam châm bỏ qua nhóm có thành viên đang băng hoặc nằm trong hộp đóng; Xáo không đụng hai thứ
-đó; Undo không cần luật riêng vì ảnh chụp là toàn bàn. Undo chỉ lùi được nước **không**
+Nam châm bỏ qua nhóm có thành viên đang băng hoặc nằm trong hộp đóng, hút được thẻ đóng đinh nhưng
+xếp nhóm có nó sau mọi nhóm khác; Xáo không đụng ba thứ đó; Undo không cần luật riêng vì ảnh chụp là toàn bàn. Undo chỉ lùi được nước **không**
 gây CLEAR/COLLAPSE — nước vừa nổ nhóm thì mất quyền lùi (không trả lại tiến độ đã đạt).
 
 **Công cụ dựng màn.** `demo/wordstack.html` là tool duy nhất: tab Xếp level gắn blocker hộp
@@ -226,4 +229,4 @@ ngay trên dòng hộp, blocker thẻ ở panel "Blocker thẻ"; Nhập và Xu�
 `blockers`; Kiểm tra, Chơi thử và Gợi ý chạy luật blocker bản JavaScript. `node demo/tool-check.mjs`
 kiểm round-trip, sáu luật dữ liệu và luật chơi bản JS bằng đúng các kịch bản của `SelfCheck`
 mục 8. Tool Unity `WordStack ▸ Level Editor` đã xoá. Cổng xuất bản vẫn là `./selfcheck.sh` —
-bộ giải của tool là greedy có ngân sách, không thay được beam search hai chế độ.
+bộ giải của tool là greedy có ngân sách, không thay được beam search hai chế độ. Tool JS chưa hỗ trợ `fixed` — màn có thẻ đóng đinh sửa tay JSON.

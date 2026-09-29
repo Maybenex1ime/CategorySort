@@ -1,4 +1,5 @@
-// Blocker: Hộp khoá, Thẻ băng, Hộp khoá theo nhóm. Spec: docs/superpowers/specs/2026-09-10-blocker-locks-design.md
+// Blocker: Hộp khoá, Thẻ băng, Hộp khoá theo nhóm, Thẻ đóng đinh. Spec: docs/superpowers/specs/2026-09-10-blocker-locks-design.md
+// + docs/superpowers/specs/2026-09-29-fixed-tile-design.md (thẻ đóng đinh).
 // (mục "ổ và chìa" của spec đã thay bằng khoá theo nhóm — luật hiện hành ở docs/wordstack-rules.md §11).
 //
 // Cả ba là "một đối tượng bị vô hiệu, gỡ bằng một điều kiện tiến độ" — không thêm loại
@@ -10,7 +11,7 @@ using System;
 
 namespace WordStack.Board
 {
-    public enum LockKind { None, Clears, Moves, Group }
+    public enum LockKind { None, Clears, Moves, Group, Fixed }
 
     public struct Lock
     {
@@ -30,11 +31,12 @@ namespace WordStack.Board
         public const string Locked = "locked";       // hộp: đóng tới khi Cleared ≥ N
         public const string GroupLock = "grouplock"; // hộp: đóng tới khi nhóm mang id này không còn thẻ nào trên bàn
         public const string Ice = "ice";             // thẻ: bất động N nước kể từ lúc lộ ở hộp trên
+        public const string Fixed = "fixed";         // thẻ: không nhặt được, vẫn tính bộ 4; chỉ ở hộp trên cùng lúc đầu màn
 
         public static readonly string[] BoxIds = { Locked, GroupLock };
-        public static readonly string[] CardIds = { Ice };
+        public static readonly string[] CardIds = { Ice, Fixed };
 
-        // ponytail: thẻ mới có một blocker (băng) nên bảng cặp rỗng; thêm cặp khi có blocker thẻ thứ hai.
+        // ponytail: bảng cặp rỗng — ice và fixed không đứng chung một thẻ. Thêm cặp khi có luật cho phép.
         static readonly string[][] CardPairs = new string[0][];
 
         public static bool CardPairAllowed(string a, string b)
@@ -74,6 +76,9 @@ namespace WordStack.Board
         /// <summary>Thẻ còn băng. Băng tan thì Lock về default nên thẻ tan = thẻ thường.</summary>
         public static bool IsFrozen(Tile t) { return t != null && t.Lock.Kind == LockKind.Moves; }
 
+        /// <summary>Thẻ đóng đinh: người chơi không nhặt được, nhưng vẫn tính bộ 4 và Magnet vẫn hút được.</summary>
+        public static bool IsFixed(Tile t) { return t != null && t.Lock.Kind == LockKind.Fixed; }
+
         /// <summary>Booster hút/xáo được thẻ này không: không băng, và hộp chứa nó đang mở.</summary>
         public bool IsPullable(Tile t, Box b) { return !IsFrozen(t) && IsOpen(b.Lock); }
 
@@ -101,7 +106,7 @@ namespace WordStack.Board
 
         /// <summary>
         /// Có ít nhất một nước đi mà MoveTile sẽ nhận không. Soi đúng các chốt của MoveTile
-        /// (hộp đóng hai đầu, thẻ băng, hộp đích đầy) mà không mutate.
+        /// (hộp đóng hai đầu, thẻ băng / đóng đinh, hộp đích đầy) mà không mutate.
         /// </summary>
         public bool HasAnyMove()
         {
@@ -110,7 +115,7 @@ namespace WordStack.Board
                 var src = TopBox(from);
                 if (src == null || !IsOpen(src.Lock)) continue;
                 bool movable = false;
-                foreach (var t in src.Slots) if (t != null && !IsFrozen(t)) { movable = true; break; }
+                foreach (var t in src.Slots) if (t != null && !IsFrozen(t) && !IsFixed(t)) { movable = true; break; }
                 if (!movable) continue;
 
                 for (int to = 0; to < Stacks.Count; to++)

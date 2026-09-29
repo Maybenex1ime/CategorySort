@@ -473,6 +473,7 @@ namespace WordStack.Board
                 Ok(g.IsOpen(groupLock), "nhóm gom sạch khỏi bàn thì hộp mở");
                 Ok(g.IsOpen(default(Lock)), "không khoá thì luôn mở");
                 Ok(!Blockers.CardPairAllowed(Blockers.Ice, Blockers.Ice), "bảng cặp rỗng: không cặp nào được phép");
+                Ok(!Blockers.CardPairAllowed(Blockers.Ice, Blockers.Fixed), "băng và đinh không đứng chung một thẻ");
                 Ok(Blockers.IsCount(3.0) && !Blockers.IsCount(0.0) && !Blockers.IsCount(1.5) && !Blockers.IsCount("3"),
                    "IsCount: số nguyên ≥ 1");
             }
@@ -700,6 +701,50 @@ namespace WordStack.Board
                 okLv.Groups[1].Cards[3].Blockers["ice"] = 1.0;
                 okLv.Validate(hasArt);
                 Ok(Game.IsFrozen(Game.Build(okLv).TopBox(2).Slots[0]), "thẻ băng thuộc nhóm bị khoá là hợp lệ");
+
+                // Thẻ đóng đinh (spec 2026-09-29-fixed-tile Mục 3). BlockerLv: c1 ở hộp trên stack 0,
+                // c3 ở hộp chôn stack 0, c2 đang băng.
+                var fxLv = freshB();
+                fxLv.Groups[0].Cards[0].Blockers["fixed"] = true;
+                fxLv.Validate(hasArt);
+                var fc1 = Game.Build(fxLv).TopBox(0).Slots[0];
+                Ok(fc1.CardId == "c1" && Game.IsFixed(fc1), "Build: fixed → Tile.Lock Fixed");
+                brokenB(l => l.Groups[0].Cards[0].Blockers["fixed"] = 1.0, "fixed không phải true");
+                brokenB(l => l.Groups[0].Cards[0].Blockers["fixed"] = false, "fixed = false");
+                brokenB(l => l.Groups[0].Cards[2].Blockers["fixed"] = true, "thẻ đóng đinh nằm ở hộp chôn");
+                brokenB(l => l.Groups[0].Cards[1].Blockers["fixed"] = true, "fixed + ice trên cùng một thẻ");
+            }
+
+            // 8g. Thẻ đóng đinh: nước đi, gom nhóm, kẹt (spec 2026-09-29-fixed-tile Mục 4)
+            {
+                var fx = new Lock { Kind = LockKind.Fixed };
+                var g = load(true);
+                var c1 = g.TopBox(0).Slots[0];
+                c1.Lock = fx;
+                Ok(Game.IsFixed(c1) && !Game.IsFrozen(c1), "Kind = Fixed là đóng đinh, không phải băng");
+                Ok(Game.IsFixed(g.Clone().TopBox(0).Slots[0]), "Clone phải chép đinh của thẻ");
+                Ok(!g.MoveTile(0, c1.Uid, 4), "thẻ đóng đinh không kéo đi được");
+                Ok(g.Moves == 0, "nước bị từ chối không tính");
+                string c2 = uidOf(g, "c2");
+                Ok(g.MoveTile(0, c2, 4), "thẻ bên cạnh vẫn kéo đi được");
+                Ok(g.MoveTile(4, c2, 0), "thả thẻ vào hộp có thẻ đóng đinh được");
+
+                // Thẻ đóng đinh tính vào bộ 4 (khác thẻ băng) và bị xoá cùng nhóm.
+                var g2 = load(true);
+                var box4 = g2.TopBox(4);
+                for (int i = 0; i < Rules.GroupSize - 1; i++) box4.Slots[i] = mkT("yy", i);
+                box4.Slots[0].Lock = fx;
+                g2.TopBox(0).Slots[2] = mkT("yy", 9);
+                Ok(g2.MoveTile(0, "yy9", 4), "thẻ thứ 4 vào hộp có thẻ đóng đinh");
+                g2.Settle(true);
+                Ok(g2.Cleared == 1 && Game.IsEmpty(g2.TopBox(4)), "thẻ đóng đinh tính vào bộ 4, bị xoá cùng nhóm");
+
+                // Kẹt: thẻ đóng đinh không phải thẻ đi được.
+                var g3 = load(true);
+                foreach (var st in g3.Stacks) foreach (var t in st.Boxes[0].Slots) if (t != null) t.Lock = fx;
+                Ok(!g3.HasAnyMove(), "lộ ra toàn thẻ đóng đinh thì không còn nước");
+                g3.TopBox(1).Slots[0].Lock = default(Lock);
+                Ok(g3.HasAnyMove(), "gỡ một đinh là có nước lại");
             }
 
             // 8f. Booster tránh blocker (spec 4.3)
