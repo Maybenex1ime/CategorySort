@@ -96,7 +96,9 @@ namespace WordStack.Board.Tests
                 if (p.Box > 0) dugFromBuried = true;
             Assert.IsTrue(dugFromBuried, "a4 nằm ở hộp bị chôn, phải moi lên");
 
-            Assert.IsNull(g.Stacks[1].Boxes[1].Slots[0], "a4 phải bị lấy khỏi hộp chôn");
+            Assert.AreEqual(1, g.Stacks[1].Boxes.Count, "a4 bị hút, hộp chôn rỗng bị xoá");
+            Assert.AreEqual("b1", g.Stacks[1].Boxes[0].Slots[0].CardId);
+            Assert.IsTrue(g.Stacks[1].Boxes[0].IsBottom, "hộp còn lại thành hộp đáy");
             Assert.AreEqual(1, g.Cleared);
         }
 

@@ -36,6 +36,9 @@ namespace WordStack.Board.Editor
         [MenuItem("Tools/WordStack/Build Stack Holder Animations")]
         static void Menu()
         {
+            var stage = UnityEditor.SceneManagement.PrefabStageUtility.GetCurrentPrefabStage();
+            if (stage != null && (stage.assetPath == StackPath || stage.assetPath == TilePath))
+            { Debug.LogError("[StackHolder] Đóng Prefab Mode của " + stage.assetPath + " trước khi chạy tool."); return; }
             var boxPrefab = AssetDatabase.LoadAssetAtPath<BoxView>(BoxPath);
             var tilePrefab = AssetDatabase.LoadAssetAtPath<TileView>(TilePath);
             if (boxPrefab == null || tilePrefab == null) { Debug.LogError("[StackHolder] Không thấy " + BoxPath + " / " + TilePath + "."); return; }

@@ -334,8 +334,8 @@ namespace WordStack.Board
         }
 
         // Nam châm: 4 thẻ phồng một nhịp → bay về điểm hội tụ (viewport, chỉnh trong
-        // SO_BoosterAnim) → khựng → nổ về 0. Thẻ đang chôn không có view (StackView chỉ vẽ
-        // lớp lấp ló) nên dựng thẻ tạm ngay giữa hộp che, nở ra rồi bay như ba thẻ kia.
+        // SO_BoosterAnim) → khựng → nổ về 0. Thẻ đang chôn chỉ có thẻ mini trên holder nên
+        // dựng thẻ tạm tại thẻ mini đó (không có holder thì giữa hộp che), nở ra rồi bay.
         // Domain đã xoá 4 thẻ trước khi vào đây; Rebuild sau animation dọn phần còn lại.
         // Nhóm có cha (COLLAPSE) thì thẻ cha nở ra tại điểm gộp rồi bay về ô của nó.
         IEnumerator MagnetAnimation(MagnetResult r, Dictionary<string, Tile> faces)

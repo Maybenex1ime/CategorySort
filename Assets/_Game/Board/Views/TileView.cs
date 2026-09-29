@@ -49,6 +49,7 @@ namespace WordStack.Board
         [Header("Debug — blocker trên thẻ (chỉ đọc)")]
         [SerializeField] string blockers;
 
+        [Header("Lộ mặt")]
         [Tooltip("Lộ mặt khi thẻ mini vừa bay vào hộp: art mờ dần hiện + nảy. Dựng bằng Tools ▸ WordStack ▸ Build Stack Holder Animations")]
         [SerializeField] LitMotionAnimation revealAnim;
 

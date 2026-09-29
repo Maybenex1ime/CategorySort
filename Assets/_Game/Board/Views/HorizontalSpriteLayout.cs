@@ -11,7 +11,10 @@ namespace WordStack.Board
     {
         [SerializeField] float spacing = 0.4f;
 
-        void LateUpdate()
+        void LateUpdate() => Apply();
+
+        /// <summary>Xếp ngay, không chờ LateUpdate (StackView gọi trước khi tắt layout để bay).</summary>
+        public void Apply()
         {
             int n = 0;
             for (int i = 0; i < transform.childCount; i++)

@@ -71,7 +71,8 @@ namespace WordStack.Board
         {
             var h = At(k);
             if (h == null || h.root == null || !h.root.activeSelf || h.fill == null) return false;
-            if (h.layout != null) h.layout.enabled = false;
+            // Căn trước: StackView vừa dựng lại (sau Magnet) thì layout chưa chạy LateUpdate nào.
+            if (h.layout != null) { h.layout.Apply(); h.layout.enabled = false; }
             foreach (var c in h.fill.Components)
                 if (c is FlyToTargetAnimation fly)
                     fly.Destination = fly.Slot >= 0 && fly.Slot < slots.Count ? slots[fly.Slot] : null;
