@@ -11,6 +11,7 @@ using LitMotion.Animation;
 using LitMotion.Animation.Components;
 using UnityEditor;
 using UnityEngine;
+using static WordStack.Board.Editor.AnimationBuildKit;
 
 namespace WordStack.Board.Editor
 {
@@ -42,7 +43,7 @@ namespace WordStack.Board.Editor
             var unlock = anims.Length > 1 ? anims[1] : Undo.AddComponent<LitMotionAnimation>(root);
 
             var scale = root.transform.localScale;
-            Write(step,
+            Write(step, "Build Count Lock Animations",
                 (new TransformRotationAnimation(), c => Spin(c, handle)),
                 (new TransformScalePunchAnimation(), c =>
                 {
@@ -70,7 +71,7 @@ namespace WordStack.Board.Editor
                 (new SpriteGroupAlphaAnimation(), c => Fade(c, "Chained Root · mờ", root.transform)),
             };
             if (text != null) parts.Add((new TMPTextColorAlphaAnimation(), c => Fade(c, "Lock Text · mờ", text)));
-            Write(unlock, parts.ToArray());
+            Write(unlock, "Build Count Lock Animations", parts.ToArray());
 
             bso.Update();
             bso.FindProperty("countStepAnim").objectReferenceValue = step;
@@ -96,51 +97,6 @@ namespace WordStack.Board.Editor
             s.FindPropertyRelative("startValue").floatValue = 1f;
             s.FindPropertyRelative("endValue").floatValue = 0f;
             Timing(s, LiftDur, SpinDur, Ease.OutCubic);
-        }
-
-        static void Common(SerializedProperty c, string name, Object target, bool relative)
-        {
-            c.FindPropertyRelative("displayName").stringValue = name;
-            c.FindPropertyRelative("target").objectReferenceValue = target;
-            c.FindPropertyRelative("relative").boolValue = relative;
-        }
-
-        static void Timing(SerializedProperty s, float duration, float delay, Ease ease)
-        {
-            s.FindPropertyRelative("duration").floatValue = duration;
-            s.FindPropertyRelative("delay").floatValue = delay;
-            s.FindPropertyRelative("ease").intValue = (int)ease;
-            s.FindPropertyRelative("loops").intValue = 1;
-        }
-
-        // Ghi đè toàn bộ component của anim: Parallel, không tự chạy (BoxView gọi Play).
-        static void Write(LitMotionAnimation anim, params (LitMotionAnimationComponent comp, System.Action<SerializedProperty> fill)[] parts)
-        {
-            Undo.RecordObject(anim, "Build Count Lock Animations");
-            var so = new SerializedObject(anim);
-            // version = 1 + playOnAwake = false: né migration trong OnAfterDeserialize ghi đè autoPlayMode.
-            so.FindProperty("version").intValue = 1;
-            so.FindProperty("playOnAwake").boolValue = false;
-            so.FindProperty("autoPlayMode").enumValueIndex = 0;    // None
-            so.FindProperty("animationMode").enumValueIndex = 0;   // Parallel
-            var arr = so.FindProperty("components");
-            arr.arraySize = parts.Length;
-            for (int i = 0; i < parts.Length; i++) arr.GetArrayElementAtIndex(i).managedReferenceValue = parts[i].comp;
-            so.ApplyModifiedProperties();   // phải có instance rồi mới có property con để ghi
-            so.Update();
-            for (int i = 0; i < parts.Length; i++) parts[i].fill(arr.GetArrayElementAtIndex(i));
-            so.ApplyModifiedProperties();
-        }
-
-        static Transform FindDeep(Transform t, string name)
-        {
-            foreach (Transform c in t)
-            {
-                if (c.name == name) return c;
-                var r = FindDeep(c, name);
-                if (r != null) return r;
-            }
-            return null;
         }
     }
 }
