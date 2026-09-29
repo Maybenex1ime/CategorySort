@@ -67,6 +67,33 @@ namespace WordStack.Board
         /// cuối mỗi frame — không Stop thì scale/alpha của thẻ bị ghim, kéo thẻ (scale 0) cũng không ẩn được.</summary>
         public void EndReveal() { if (revealAnim != null) revealAnim.Stop(); }
 
+        [Header("Đóng đinh (blocker)")]
+        [Tooltip("Cụm Fixed Tile: tấm back + 4 đinh. Bật khi thẻ bị đóng đinh")]
+        [SerializeField] GameObject fixedRoot;
+        [Tooltip("Tháo đinh lúc thẻ bị ăn: đinh vặn + nhấc, rồi mờ cùng tấm back. Dựng bằng Tools ▸ WordStack ▸ Build Fixed Tile Break Animation")]
+        [SerializeField] LitMotionAnimation fixedBreakAnim;
+
+        // Thẻ đóng đinh: không nhặt được, vẫn tính bộ 4 (luật ở Domain). Ở đây chỉ hiện đinh + tháo đinh.
+        public void SetFixed(bool on) { if (fixedRoot != null) fixedRoot.SetActive(on); }
+        public bool IsFixed => fixedRoot != null && fixedRoot.activeSelf;
+
+        public void PlayFixedBreak()
+        {
+            if (fixedBreakAnim == null) return;
+            fixedBreakAnim.Stop();
+            fixedBreakAnim.Play();
+        }
+
+        public bool IsBreakingFixed => fixedBreakAnim != null && fixedBreakAnim.IsPlaying;
+
+        /// <summary>Gọi khi tháo đinh xong: Stop (motion đã xong vẫn ghi giá trị mỗi frame, xem EndReveal),
+        /// OnStop trả đinh/alpha về như author rồi tắt cả cụm — thẻ còn lại như thẻ thường để gộp.</summary>
+        public void EndFixedBreak()
+        {
+            if (fixedBreakAnim != null) fixedBreakAnim.Stop();
+            SetFixed(false);
+        }
+
         public string Uid { get; private set; }
 
         // Card không có art (text-only trong level data) → thẻ chỉ hiện nền trống.
