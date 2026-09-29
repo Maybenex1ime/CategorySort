@@ -4,6 +4,7 @@
 // Kích thước và vị trí Bg/Art author THẲNG TRONG PREFAB, code không đụng scale — root giữ
 // scale 1 để tween (hover / nhấc lên / CLEAR) đọc thẳng 0..1.
 using LitMotion;
+using LitMotion.Animation;
 using LitMotion.Extensions;
 using TMPro;
 using UnityEngine;
@@ -47,6 +48,19 @@ namespace WordStack.Board
         // Trống là thẻ thường. Code không đọc lại field này nên sửa tay trong Inspector vô tác dụng.
         [Header("Debug — blocker trên thẻ (chỉ đọc)")]
         [SerializeField] string blockers;
+
+        [Tooltip("Lộ mặt khi thẻ mini vừa bay vào hộp: art mờ dần hiện + nảy. Dựng bằng Tools ▸ WordStack ▸ Build Stack Holder Animations")]
+        [SerializeField] LitMotionAnimation revealAnim;
+
+        /// <summary>Thẻ vừa thay chỗ thẻ mini: chạy reveal (art 0 → 1 + nảy). Không có anim thì thẻ hiện nguyên như cũ.</summary>
+        public void PlayReveal()
+        {
+            if (revealAnim == null) return;
+            revealAnim.Stop();
+            revealAnim.Play();
+        }
+
+        public bool IsRevealing => revealAnim != null && revealAnim.IsPlaying;
 
         public string Uid { get; private set; }
 
