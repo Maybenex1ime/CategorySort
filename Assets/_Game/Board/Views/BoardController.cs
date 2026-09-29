@@ -1444,6 +1444,7 @@ namespace WordStack.Board
                 sv.BeginLift(k);
                 foreach (var tv in spawned) tv.PlayReveal();
                 while (sv.IsAnimating(k) || spawned.Exists(tv => tv != null && tv.IsRevealing)) yield return null;
+                foreach (var tv in spawned) if (tv != null) tv.EndReveal();
                 sv.EndHolder(k);
             }
 

@@ -63,6 +63,10 @@ namespace WordStack.Board
 
         public bool IsRevealing => revealAnim != null && revealAnim.IsPlaying;
 
+        /// <summary>Gọi khi reveal xong: LitMotionAnimation giữ (Preserve) motion đã xong và vẫn ghi giá trị
+        /// cuối mỗi frame — không Stop thì scale/alpha của thẻ bị ghim, kéo thẻ (scale 0) cũng không ẩn được.</summary>
+        public void EndReveal() { if (revealAnim != null) revealAnim.Stop(); }
+
         public string Uid { get; private set; }
 
         // Card không có art (text-only trong level data) → thẻ chỉ hiện nền trống.
