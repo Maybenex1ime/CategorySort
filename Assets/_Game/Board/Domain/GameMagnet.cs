@@ -176,6 +176,7 @@ namespace WordStack.Board
             for (int k = 0; k < picks.Count; k++)
                 Stacks[picks[k].Stack].Boxes[picks[k].Box].Slots[picks[k].Slot] = null;
 
+            RemoveEmptiedBuriedBoxes(picks);
             Cleared++;
 
             string newUid = null;
@@ -246,6 +247,28 @@ namespace WordStack.Board
                 if (box == null || !IsOpen(box.Lock)) continue;   // không thả thẻ cha vào hộp đóng
                 int fs = FirstFreeAfterPull(s, box, picks);
                 if (fs >= 0) { stack = s; slot = fs; return; }
+            }
+        }
+
+        // Hộp chôn (chỉ số ≥ 1) vừa bị hút rỗng: xoá ngay, không để nó thành hộp rỗng chờ lộ ra (spec
+        // stack-tile-holder Mục 7) — trên màn chỉ holder cuối tắt. Hộp trên cùng rỗng để Settle xử lý như
+        // cũ. Duyệt ngược để chỉ số chưa xét không bị dời. Xoá hộp đáy thì hộp ngay trên thành đáy: không
+        // có dòng này Settle xoá nốt hộp trên (rỗng, không phải đáy) và stack mất sạch hộp.
+        // Chạy TRƯỚC khi đặt thẻ cha: PickCollapseHost chỉ dùng hộp trên cùng, không đụng chỉ số chôn.
+        void RemoveEmptiedBuriedBoxes(List<MagnetPick> picks)
+        {
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                List<Box> boxes = Stacks[s].Boxes;
+                bool removed = false;
+                for (int b = boxes.Count - 1; b >= 1; b--)
+                {
+                    int bb = b, ss = s;
+                    if (!IsEmpty(boxes[b]) || !picks.Exists(p => p.Stack == ss && p.Box == bb)) continue;
+                    boxes.RemoveAt(b);
+                    removed = true;
+                }
+                if (removed) boxes[boxes.Count - 1].IsBottom = true;
             }
         }
 

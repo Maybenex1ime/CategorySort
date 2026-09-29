@@ -721,6 +721,18 @@ namespace WordStack.Board
                 g2.Stacks[lockedStack].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
                 Ok(g2.FindMagnetTarget() != u1, "nhóm có thẻ trong hộp đóng không được nam châm hút");
 
+                // Magnet hút rỗng hộp chôn thì xoá hộp đó ngay (spec stack-tile-holder Mục 7). RulesLv
+                // stack 0: trên [c1,c2], chôn [c3,c4] — cả 4 là nhóm ga.
+                var gm = load(true);
+                var mr = gm.ApplyMagnet("ga");
+                Ok(mr.Ok, "Magnet hút được nhóm ga");
+                Ok(mr.Picks.Count(p => p.Stack == 0 && p.Box == 1) == 2, "Picks giữ chỉ số hộp TRƯỚC khi xoá");
+                Ok(gm.Stacks[0].Boxes.Count == 1, "hộp chôn bị hút rỗng bị xoá ngay");
+                Ok(Game.IsEmpty(gm.TopBox(0)), "hộp trên cùng rỗng vẫn còn, để Settle xử lý");
+                Ok(gm.TopBox(0).IsBottom, "xoá hộp đáy thì hộp ngay trên thành đáy");
+                gm.Settle(true);
+                Ok(gm.Stacks[0].Boxes.Count == 1, "hộp đáy rỗng không bị Settle xoá — stack không mất sạch hộp");
+
                 // Thẻ băng phải là thẻ TRẮNG (đứng lẻ trong hộp) thì bài kiểm mới có nghĩa —
                 // thẻ có màu vốn không vào pool. e1 ở stack 1 là thẻ gc duy nhất trong hộp đó.
                 var g3 = load(true);
