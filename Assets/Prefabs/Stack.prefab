@@ -79,7 +79,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 3
+  m_SortingOrder: -3
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 35d5387f3dff2034aacbd4d8889681de, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -102,7 +102,7 @@ GameObject:
   - component: {fileID: 3947515821451562066}
   - component: {fileID: 4735948085437355036}
   m_Layer: 0
-  m_Name: Tile_0 (1)
+  m_Name: Mini 2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -170,7 +170,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 8
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -193,7 +193,7 @@ GameObject:
   - component: {fileID: 3218566946548322485}
   - component: {fileID: 5099949790545902424}
   m_Layer: 0
-  m_Name: Tile_0 (1)
+  m_Name: Mini 2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -261,7 +261,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -2
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -382,7 +382,7 @@ GameObject:
   - component: {fileID: 3976675492496000999}
   - component: {fileID: 6863487955202192155}
   m_Layer: 0
-  m_Name: Tile_0 (1)
+  m_Name: Mini 2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -450,7 +450,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -471,6 +471,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 5438364233096192700}
+  - component: {fileID: 3406479081979029737}
+  - component: {fileID: 9055847208990462659}
   m_Layer: 0
   m_Name: Peek2
   m_TagString: Untagged
@@ -495,6 +497,367 @@ Transform:
   - {fileID: 5816368217372830045}
   m_Father: {fileID: 751639247384915251}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3406479081979029737
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1513456879336034690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280667809677569
+  - rid: 8147280667809677570
+  - rid: 8147280667809677571
+  - rid: 8147280667809677572
+  - rid: 8147280667809677573
+  - rid: 8147280667809677574
+  - rid: 8147280667809677575
+  - rid: 8147280667809677576
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280667809677569
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 0 \xB7 bay v\xE0o \xF4 0"
+        enabled: 1
+        target: {fileID: 4230466314191108258}
+        slot: 0
+        duration: 0.3
+        delay: 0
+        ease: 5
+    - rid: 8147280667809677570
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 0 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 4230466314191108258}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677571
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 1 \xB7 bay v\xE0o \xF4 1"
+        enabled: 1
+        target: {fileID: 3667191565808530404}
+        slot: 1
+        duration: 0.3
+        delay: 0.05
+        ease: 5
+    - rid: 8147280667809677572
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 1 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 3667191565808530404}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.05
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677573
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 2 \xB7 bay v\xE0o \xF4 2"
+        enabled: 1
+        target: {fileID: 3976675492496000999}
+        slot: 2
+        duration: 0.3
+        delay: 0.1
+        ease: 5
+    - rid: 8147280667809677574
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 2 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 3976675492496000999}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.1
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677575
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 3 \xB7 bay v\xE0o \xF4 3"
+        enabled: 1
+        target: {fileID: 950012327248532216}
+        slot: 3
+        duration: 0.3
+        delay: 0.15
+        ease: 5
+    - rid: 8147280667809677576
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 3 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 950012327248532216}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.15
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+--- !u!114 &9055847208990462659
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1513456879336034690}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280667809677577
+  - rid: 8147280667809677578
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280667809677577
+      type: {class: TransformPositionAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Peek2 \xB7 nh\u1EA5c l\xEAn"
+        enabled: 1
+        target: {fileID: 5438364233096192700}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0.25, z: 0}
+          duration: 0.35
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280667809677578
+      type: {class: SpriteGroupAlphaAnimation, ns: FigmaMotion, asm: FigmaMotion}
+      data:
+        displayName: "Peek2 \xB7 m\u1EDD"
+        enabled: 1
+        target: {fileID: 5438364233096192700}
+        settings:
+          startValue: 1
+          endValue: 0
+          duration: 0.35
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
 --- !u!1 &1639758842524784990
 GameObject:
   m_ObjectHideFlags: 0
@@ -504,6 +867,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 414820587141668434}
+  - component: {fileID: 9180343116209035052}
+  - component: {fileID: 3643032702235442123}
   m_Layer: 0
   m_Name: Peek5
   m_TagString: Untagged
@@ -528,6 +893,367 @@ Transform:
   - {fileID: 1703116749782636673}
   m_Father: {fileID: 751639247384915251}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &9180343116209035052
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1639758842524784990}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280667809677599
+  - rid: 8147280667809677600
+  - rid: 8147280667809677601
+  - rid: 8147280667809677602
+  - rid: 8147280667809677603
+  - rid: 8147280667809677604
+  - rid: 8147280667809677605
+  - rid: 8147280667809677606
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280667809677599
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 0 \xB7 bay v\xE0o \xF4 0"
+        enabled: 1
+        target: {fileID: 6809329902201655954}
+        slot: 0
+        duration: 0.3
+        delay: 0
+        ease: 5
+    - rid: 8147280667809677600
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 0 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 6809329902201655954}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677601
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 1 \xB7 bay v\xE0o \xF4 1"
+        enabled: 1
+        target: {fileID: 3605447183624649635}
+        slot: 1
+        duration: 0.3
+        delay: 0.05
+        ease: 5
+    - rid: 8147280667809677602
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 1 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 3605447183624649635}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.05
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677603
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 2 \xB7 bay v\xE0o \xF4 2"
+        enabled: 1
+        target: {fileID: 6797349016711729194}
+        slot: 2
+        duration: 0.3
+        delay: 0.1
+        ease: 5
+    - rid: 8147280667809677604
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 2 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 6797349016711729194}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.1
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677605
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 3 \xB7 bay v\xE0o \xF4 3"
+        enabled: 1
+        target: {fileID: 3245330517736935825}
+        slot: 3
+        duration: 0.3
+        delay: 0.15
+        ease: 5
+    - rid: 8147280667809677606
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 3 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 3245330517736935825}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.15
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+--- !u!114 &3643032702235442123
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1639758842524784990}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280667809677607
+  - rid: 8147280667809677608
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280667809677607
+      type: {class: TransformPositionAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Peek5 \xB7 nh\u1EA5c l\xEAn"
+        enabled: 1
+        target: {fileID: 414820587141668434}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0.25, z: 0}
+          duration: 0.35
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280667809677608
+      type: {class: SpriteGroupAlphaAnimation, ns: FigmaMotion, asm: FigmaMotion}
+      data:
+        displayName: "Peek5 \xB7 m\u1EDD"
+        enabled: 1
+        target: {fileID: 414820587141668434}
+        settings:
+          startValue: 1
+          endValue: 0
+          duration: 0.35
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
 --- !u!1 &1739004504566229292
 GameObject:
   m_ObjectHideFlags: 0
@@ -588,7 +1314,7 @@ GameObject:
   - component: {fileID: 4161058874428391664}
   - component: {fileID: 2402717107900878898}
   m_Layer: 0
-  m_Name: Tile_0 (2)
+  m_Name: Mini 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -656,7 +1382,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 8
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -677,6 +1403,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 751639247384915251}
+  - component: {fileID: 4537202060360168533}
   m_Layer: 0
   m_Name: TileHolders
   m_TagString: Untagged
@@ -693,7 +1420,7 @@ Transform:
   m_GameObject: {fileID: 1764887783391409053}
   serializedVersion: 2
   m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
-  m_LocalPosition: {x: 0.0024695653, y: -0.247, z: 0}
+  m_LocalPosition: {x: 0, y: -0.562, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 1
   m_Children:
@@ -704,6 +1431,19 @@ Transform:
   - {fileID: 414820587141668434}
   m_Father: {fileID: 2570731460584771184}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!210 &4537202060360168533
+SortingGroup:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1764887783391409053}
+  m_Enabled: 1
+  m_SortingLayerID: 0
+  m_SortingLayer: 0
+  m_SortingOrder: 8
+  m_SortAtRoot: 0
+  m_Sort3DAs2D: 0
 --- !u!1 &1869787434296753125
 GameObject:
   m_ObjectHideFlags: 0
@@ -715,7 +1455,7 @@ GameObject:
   - component: {fileID: 950012327248532216}
   - component: {fileID: 3357349746818471402}
   m_Layer: 0
-  m_Name: Tile_0 (3)
+  m_Name: Mini 3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -783,7 +1523,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -897,7 +1637,7 @@ GameObject:
   - component: {fileID: 6797349016711729194}
   - component: {fileID: 8959306856558029602}
   m_Layer: 0
-  m_Name: Tile_0 (1)
+  m_Name: Mini 2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -965,7 +1705,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -6
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1020,7 +1760,7 @@ GameObject:
   - component: {fileID: 6820077057847001018}
   - component: {fileID: 8656437017397499779}
   m_Layer: 0
-  m_Name: Tile_0
+  m_Name: Mini 0
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1088,7 +1828,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -4
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1111,7 +1851,7 @@ GameObject:
   - component: {fileID: 960599115577465607}
   - component: {fileID: 587515406191814225}
   m_Layer: 0
-  m_Name: Tile_0 (3)
+  m_Name: Mini 3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1179,7 +1919,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -2
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1202,7 +1942,7 @@ GameObject:
   - component: {fileID: 4230466314191108258}
   - component: {fileID: 3843875496020967636}
   m_Layer: 0
-  m_Name: Tile_0
+  m_Name: Mini 0
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1270,7 +2010,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1361,7 +2101,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 4
+  m_SortingOrder: -1
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 35d5387f3dff2034aacbd4d8889681de, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1384,7 +2124,7 @@ GameObject:
   - component: {fileID: 385926391595461934}
   - component: {fileID: 6144163478204009358}
   m_Layer: 0
-  m_Name: Tile_0 (2)
+  m_Name: Mini 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1452,7 +2192,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -2
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1475,7 +2215,7 @@ GameObject:
   - component: {fileID: 4368521446355253486}
   - component: {fileID: 3564956638087726482}
   m_Layer: 0
-  m_Name: Tile_0
+  m_Name: Mini 0
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1543,7 +2283,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 8
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1564,6 +2304,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2749491616615288177}
+  - component: {fileID: 8159871783154330623}
+  - component: {fileID: 1716436194214480315}
   m_Layer: 0
   m_Name: Peek4
   m_TagString: Untagged
@@ -1588,6 +2330,367 @@ Transform:
   - {fileID: 504237362488669439}
   m_Father: {fileID: 751639247384915251}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &8159871783154330623
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4194651350176450314}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280667809677589
+  - rid: 8147280667809677590
+  - rid: 8147280667809677591
+  - rid: 8147280667809677592
+  - rid: 8147280667809677593
+  - rid: 8147280667809677594
+  - rid: 8147280667809677595
+  - rid: 8147280667809677596
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280667809677589
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 0 \xB7 bay v\xE0o \xF4 0"
+        enabled: 1
+        target: {fileID: 6820077057847001018}
+        slot: 0
+        duration: 0.3
+        delay: 0
+        ease: 5
+    - rid: 8147280667809677590
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 0 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 6820077057847001018}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677591
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 1 \xB7 bay v\xE0o \xF4 1"
+        enabled: 1
+        target: {fileID: 3893729349301075579}
+        slot: 1
+        duration: 0.3
+        delay: 0.05
+        ease: 5
+    - rid: 8147280667809677592
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 1 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 3893729349301075579}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.05
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677593
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 2 \xB7 bay v\xE0o \xF4 2"
+        enabled: 1
+        target: {fileID: 3525041061076130311}
+        slot: 2
+        duration: 0.3
+        delay: 0.1
+        ease: 5
+    - rid: 8147280667809677594
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 2 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 3525041061076130311}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.1
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677595
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 3 \xB7 bay v\xE0o \xF4 3"
+        enabled: 1
+        target: {fileID: 2280668396900192368}
+        slot: 3
+        duration: 0.3
+        delay: 0.15
+        ease: 5
+    - rid: 8147280667809677596
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 3 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 2280668396900192368}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.15
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+--- !u!114 &1716436194214480315
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 4194651350176450314}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280667809677597
+  - rid: 8147280667809677598
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280667809677597
+      type: {class: TransformPositionAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Peek4 \xB7 nh\u1EA5c l\xEAn"
+        enabled: 1
+        target: {fileID: 2749491616615288177}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0.25, z: 0}
+          duration: 0.35
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280667809677598
+      type: {class: SpriteGroupAlphaAnimation, ns: FigmaMotion, asm: FigmaMotion}
+      data:
+        displayName: "Peek4 \xB7 m\u1EDD"
+        enabled: 1
+        target: {fileID: 2749491616615288177}
+        settings:
+          startValue: 1
+          endValue: 0
+          duration: 0.35
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
 --- !u!1 &4197148681211321574
 GameObject:
   m_ObjectHideFlags: 0
@@ -1599,7 +2702,7 @@ GameObject:
   - component: {fileID: 3525041061076130311}
   - component: {fileID: 7514088699248785566}
   m_Layer: 0
-  m_Name: Tile_0 (1)
+  m_Name: Mini 2
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1667,7 +2770,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -4
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1690,7 +2793,7 @@ GameObject:
   - component: {fileID: 2280668396900192368}
   - component: {fileID: 9189193940453423219}
   m_Layer: 0
-  m_Name: Tile_0 (3)
+  m_Name: Mini 3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1758,7 +2861,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -4
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1781,7 +2884,7 @@ GameObject:
   - component: {fileID: 6809329902201655954}
   - component: {fileID: 355686692068611194}
   m_Layer: 0
-  m_Name: Tile_0
+  m_Name: Mini 0
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1849,7 +2952,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -6
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1872,7 +2975,7 @@ GameObject:
   - component: {fileID: 3667191565808530404}
   - component: {fileID: 1851463223415801920}
   m_Layer: 0
-  m_Name: Tile_0 (2)
+  m_Name: Mini 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1940,7 +3043,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 0
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -1961,6 +3064,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8906824942640484168}
+  - component: {fileID: 2178377975283690484}
+  - component: {fileID: 21965172343587637}
   m_Layer: 0
   m_Name: Peek3
   m_TagString: Untagged
@@ -1985,6 +3090,367 @@ Transform:
   - {fileID: 1159704421612733551}
   m_Father: {fileID: 751639247384915251}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &2178377975283690484
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5663966219422633995}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280667809677579
+  - rid: 8147280667809677580
+  - rid: 8147280667809677581
+  - rid: 8147280667809677582
+  - rid: 8147280667809677583
+  - rid: 8147280667809677584
+  - rid: 8147280667809677585
+  - rid: 8147280667809677586
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280667809677579
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 0 \xB7 bay v\xE0o \xF4 0"
+        enabled: 1
+        target: {fileID: 8924787438475810314}
+        slot: 0
+        duration: 0.3
+        delay: 0
+        ease: 5
+    - rid: 8147280667809677580
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 0 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 8924787438475810314}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677581
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 1 \xB7 bay v\xE0o \xF4 1"
+        enabled: 1
+        target: {fileID: 385926391595461934}
+        slot: 1
+        duration: 0.3
+        delay: 0.05
+        ease: 5
+    - rid: 8147280667809677582
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 1 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 385926391595461934}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.05
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677583
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 2 \xB7 bay v\xE0o \xF4 2"
+        enabled: 1
+        target: {fileID: 3218566946548322485}
+        slot: 2
+        duration: 0.3
+        delay: 0.1
+        ease: 5
+    - rid: 8147280667809677584
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 2 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 3218566946548322485}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.1
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677585
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 3 \xB7 bay v\xE0o \xF4 3"
+        enabled: 1
+        target: {fileID: 960599115577465607}
+        slot: 3
+        duration: 0.3
+        delay: 0.15
+        ease: 5
+    - rid: 8147280667809677586
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 3 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 960599115577465607}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.15
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+--- !u!114 &21965172343587637
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5663966219422633995}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280667809677587
+  - rid: 8147280667809677588
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280667809677587
+      type: {class: TransformPositionAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Peek3 \xB7 nh\u1EA5c l\xEAn"
+        enabled: 1
+        target: {fileID: 8906824942640484168}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0.25, z: 0}
+          duration: 0.35
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280667809677588
+      type: {class: SpriteGroupAlphaAnimation, ns: FigmaMotion, asm: FigmaMotion}
+      data:
+        displayName: "Peek3 \xB7 m\u1EDD"
+        enabled: 1
+        target: {fileID: 8906824942640484168}
+        settings:
+          startValue: 1
+          endValue: 0
+          duration: 0.35
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
 --- !u!1 &5828540605780317204
 GameObject:
   m_ObjectHideFlags: 0
@@ -1994,6 +3460,8 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 8104180257949182543}
+  - component: {fileID: 1131904409837793966}
+  - component: {fileID: 8671887988440889143}
   m_Layer: 0
   m_Name: Peek1
   m_TagString: Untagged
@@ -2018,6 +3486,367 @@ Transform:
   - {fileID: 7038646139695396299}
   m_Father: {fileID: 751639247384915251}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &1131904409837793966
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5828540605780317204}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280667809677559
+  - rid: 8147280667809677560
+  - rid: 8147280667809677561
+  - rid: 8147280667809677562
+  - rid: 8147280667809677563
+  - rid: 8147280667809677564
+  - rid: 8147280667809677565
+  - rid: 8147280667809677566
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280667809677559
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 0 \xB7 bay v\xE0o \xF4 0"
+        enabled: 1
+        target: {fileID: 4368521446355253486}
+        slot: 0
+        duration: 0.3
+        delay: 0
+        ease: 5
+    - rid: 8147280667809677560
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 0 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 4368521446355253486}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677561
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 1 \xB7 bay v\xE0o \xF4 1"
+        enabled: 1
+        target: {fileID: 4161058874428391664}
+        slot: 1
+        duration: 0.3
+        delay: 0.05
+        ease: 5
+    - rid: 8147280667809677562
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 1 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 4161058874428391664}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.05
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677563
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 2 \xB7 bay v\xE0o \xF4 2"
+        enabled: 1
+        target: {fileID: 3947515821451562066}
+        slot: 2
+        duration: 0.3
+        delay: 0.1
+        ease: 5
+    - rid: 8147280667809677564
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 2 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 3947515821451562066}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.1
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+    - rid: 8147280667809677565
+      type: {class: FlyToTargetAnimation, ns: WordStack.Board, asm: WordStack.Board}
+      data:
+        displayName: "Mini 3 \xB7 bay v\xE0o \xF4 3"
+        enabled: 1
+        target: {fileID: 2908481691769323027}
+        slot: 3
+        duration: 0.3
+        delay: 0.15
+        ease: 5
+    - rid: 8147280667809677566
+      type: {class: TransformScaleAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Mini 3 \xB7 to l\xEAn"
+        enabled: 1
+        target: {fileID: 2908481691769323027}
+        settings:
+          startValue: {x: 0.33, y: 0.33, z: 0.33}
+          endValue: {x: 1.9891669, y: 1.9891669, z: 1.9891669}
+          duration: 0.3
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0.15
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
+--- !u!114 &8671887988440889143
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5828540605780317204}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280667809677567
+  - rid: 8147280667809677568
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280667809677567
+      type: {class: TransformPositionAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Peek1 \xB7 nh\u1EA5c l\xEAn"
+        enabled: 1
+        target: {fileID: 8104180257949182543}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0.25, z: 0}
+          duration: 0.35
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280667809677568
+      type: {class: SpriteGroupAlphaAnimation, ns: FigmaMotion, asm: FigmaMotion}
+      data:
+        displayName: "Peek1 \xB7 m\u1EDD"
+        enabled: 1
+        target: {fileID: 8104180257949182543}
+        settings:
+          startValue: 1
+          endValue: 0
+          duration: 0.35
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
 --- !u!1 &6024526772133281225
 GameObject:
   m_ObjectHideFlags: 0
@@ -2097,7 +3926,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 5
+  m_SortingOrder: 4
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 35d5387f3dff2034aacbd4d8889681de, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -2188,7 +4017,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 1
+  m_SortingOrder: -7
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 35d5387f3dff2034aacbd4d8889681de, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -2211,7 +4040,7 @@ GameObject:
   - component: {fileID: 3605447183624649635}
   - component: {fileID: 2654721617262176069}
   m_Layer: 0
-  m_Name: Tile_0 (2)
+  m_Name: Mini 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2279,7 +4108,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -6
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -2370,7 +4199,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 2
+  m_SortingOrder: -5
   m_MaskInteraction: 0
   m_Sprite: {fileID: 21300000, guid: 35d5387f3dff2034aacbd4d8889681de, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -2393,7 +4222,7 @@ GameObject:
   - component: {fileID: 8924787438475810314}
   - component: {fileID: 3239012980667925476}
   m_Layer: 0
-  m_Name: Tile_0
+  m_Name: Mini 0
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2461,7 +4290,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -2
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -2533,7 +4362,7 @@ GameObject:
   - component: {fileID: 3245330517736935825}
   - component: {fileID: 8752340905315710236}
   m_Layer: 0
-  m_Name: Tile_0 (3)
+  m_Name: Mini 3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2601,7 +4430,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -6
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -2624,7 +4453,7 @@ GameObject:
   - component: {fileID: 3893729349301075579}
   - component: {fileID: 1182946614981679731}
   m_Layer: 0
-  m_Name: Tile_0 (2)
+  m_Name: Mini 1
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2692,7 +4521,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: -4
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
@@ -2751,16 +4580,52 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::WordStack.Prototype.StackView
   boxAnchor: {fileID: 285900451296758547}
-  peekLayers:
-  - {fileID: 5828540605780317204}
-  - {fileID: 1513456879336034690}
-  - {fileID: 5663966219422633995}
-  - {fileID: 1639758842524784990}
-  nextTileMarkers:
-  - {fileID: 4027806872701978904}
-  - {fileID: 1740450942791479371}
-  - {fileID: 124220877383634941}
-  - {fileID: 9130789224181923764}
+  holders:
+  - root: {fileID: 5828540605780317204}
+    layout: {fileID: 1669164063001680703}
+    minis:
+    - {fileID: 4027806872701978904}
+    - {fileID: 1740450942791479371}
+    - {fileID: 124220877383634941}
+    - {fileID: 9130789224181923764}
+    fill: {fileID: 1131904409837793966}
+    lift: {fileID: 8671887988440889143}
+  - root: {fileID: 1513456879336034690}
+    layout: {fileID: 4103011057471519978}
+    minis:
+    - {fileID: 3489410046158020260}
+    - {fileID: 5340998614955831544}
+    - {fileID: 1389691829484892293}
+    - {fileID: 1869787434296753125}
+    fill: {fileID: 3406479081979029737}
+    lift: {fileID: 9055847208990462659}
+  - root: {fileID: 5663966219422633995}
+    layout: {fileID: 3316615133183175139}
+    minis:
+    - {fileID: 7354824654992390303}
+    - {fileID: 3844107999087418172}
+    - {fileID: 428314217095440271}
+    - {fileID: 3219926927270412642}
+    fill: {fileID: 2178377975283690484}
+    lift: {fileID: 21965172343587637}
+  - root: {fileID: 4194651350176450314}
+    layout: {fileID: 6538434163771813666}
+    minis:
+    - {fileID: 3147666539626557836}
+    - {fileID: 8282052091562876087}
+    - {fileID: 4197148681211321574}
+    - {fileID: 4229239228762712088}
+    fill: {fileID: 8159871783154330623}
+    lift: {fileID: 1716436194214480315}
+  - root: {fileID: 1639758842524784990}
+    layout: {fileID: 2009011330082031116}
+    minis:
+    - {fileID: 4577933795910992311}
+    - {fileID: 6234054658858827694}
+    - {fileID: 2629383549557729639}
+    - {fileID: 7834190546709912118}
+    fill: {fileID: 9180343116209035052}
+    lift: {fileID: 3643032702235442123}
 --- !u!1 &8928229681569554527
 GameObject:
   m_ObjectHideFlags: 0
@@ -2821,7 +4686,7 @@ GameObject:
   - component: {fileID: 2908481691769323027}
   - component: {fileID: 2265685817192265530}
   m_Layer: 0
-  m_Name: Tile_0 (3)
+  m_Name: Mini 3
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -2889,7 +4754,7 @@ SpriteRenderer:
   m_GlobalIlluminationMeshLod: 0
   m_SortingLayerID: 0
   m_SortingLayer: 0
-  m_SortingOrder: 10
+  m_SortingOrder: 8
   m_MaskInteraction: 0
   m_Sprite: {fileID: -9163426285224168042, guid: 92c957a95f784764a8e828f92f64ed77, type: 3}
   m_Color: {r: 1, g: 1, b: 1, a: 1}
