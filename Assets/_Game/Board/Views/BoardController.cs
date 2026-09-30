@@ -132,14 +132,9 @@ namespace WordStack.Board
         readonly Dictionary<int, MotionHandle> shakes = new Dictionary<int, MotionHandle>();   // stack → cú rung đang chạy
 
         // MỌI LSequence mà controller này khởi động (Magnet, Vortex, Undo, RemoveTiles,
-        // MergeTiles, SpawnCollapsedTile...) — DestroyBoard() phải huỷ hết trong
+        // MergeTiles, LiftAwayBox, SpawnCollapsedTile...) — DestroyBoard() phải huỷ hết trong
         // này TRƯỚC khi xoá GameObject bên dưới, vì target còn sống lúc Cancel mới an toàn.
         readonly List<MotionHandle> running = new List<MotionHandle>();
-
-        // Số Tile Holder đã bay đi của từng stack (spec stack-tile-holder Mục 3.2) — lịch sử của view, không
-        // suy được từ bàn chơi. Sống ở đây chứ không ở StackView vì RebuildBoardViews (Magnet/Shuffle/Undo) dựng
-        // StackView mới. Tạo mới khi nạp level; +1 khi hộp trên cùng bị xoá lộ hộp kế, −1 khi Undo trả hộp về.
-        int[] holderConsumed;
 
         // ---- LitMotion (thay tween cũ 2026-09-17) — đọc Global Constraints của plan chuyển đổi.
         // Sequence: lỗi (target bị huỷ) thì huỷ cả chuỗi thay vì ghi lỗi mỗi frame.
@@ -337,8 +332,8 @@ namespace WordStack.Board
         }
 
         // Nam châm: 4 thẻ phồng một nhịp → bay về điểm hội tụ (viewport, chỉnh trong
-        // SO_BoosterAnim) → khựng → nổ về 0. Thẻ đang chôn chỉ có thẻ mini trên holder nên
-        // dựng thẻ tạm tại thẻ mini đó (không có holder thì giữa hộp che), nở ra rồi bay.
+        // SO_BoosterAnim) → khựng → nổ về 0. Thẻ đang chôn không có view (StackView chỉ vẽ
+        // lớp lấp ló) nên dựng thẻ tạm ngay giữa hộp che, nở ra rồi bay như ba thẻ kia.
         // Domain đã xoá 4 thẻ trước khi vào đây; Rebuild sau animation dọn phần còn lại.
         // Nhóm có cha (COLLAPSE) thì thẻ cha nở ra tại điểm gộp rồi bay về ô của nó.
         IEnumerator MagnetAnimation(MagnetResult r, Dictionary<string, Tile> faces)
@@ -361,11 +356,7 @@ namespace WordStack.Board
                     Tile face;
                     if (!faces.TryGetValue(p.Uid, out face) || p.Stack < 0 || p.Stack >= boxViews.Length) continue;
                     tv = Instantiate(tilePrefab, root, false);
-                    // Hộp chôn có holder → bay ra từ đúng thẻ mini (spec Mục 7.2); Picks giữ chỉ số hộp TRƯỚC khi
-                    // Magnet xoá hộp chôn rỗng, holder còn đang vẽ trạng thái đó. Không có thì từ giữa hộp như cũ.
-                    var mini = p.Box > 0 ? stackViews[p.Stack].MiniOf(holderConsumed[p.Stack], p.Box, p.Slot) : null;
-                    tv.transform.position = mini != null ? mini.position : boxViews[p.Stack].transform.position;
-                    if (mini != null) mini.gameObject.SetActive(false);
+                    tv.transform.position = boxViews[p.Stack].transform.position;
                     tv.transform.localScale = Vector3.zero;
                     tv.Bind(face, ArtOf(face));
                 }
@@ -631,9 +622,7 @@ namespace WordStack.Board
                 var bv = boxViews[s];
                 bv.ResetVisual();
                 bv.SetOpen();
-                // Hộp cũ quay về = holder vừa bay đi hiện lại (spec Mục 9).
-                holderConsumed[s] = Mathf.Max(0, holderConsumed[s] - (g.Stacks[s].Boxes.Count - prev.Stacks[s].Boxes.Count));
-                stackViews[s].ShowHolders(holderConsumed[s], g.Stacks[s].Boxes);
+                stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1, TilesInSecondBox(g.Stacks[s]));
                 bv.SetAlpha(0f);
                 bv.transform.localPosition = new Vector3(a.undoBoxSlideFrom.x, a.undoBoxSlideFrom.y, 0f);
                 var slide = LSequence.Create();
@@ -825,8 +814,6 @@ namespace WordStack.Board
                 // Bật chụp ảnh cho booster Undo. CHỈ ở đây: cờ mặc định tắt để Solver
                 // (gọi MoveTile hàng vạn lần mỗi lần giải) không clone mỗi nút.
                 g.UndoEnabled = true;
-                holderConsumed = new int[g.Stacks.Count];
-                foreach (var w in StackView.LimitWarnings(g.Stacks)) Debug.LogWarning("[Level] " + w);
             }
             catch (Exception e)
             {
@@ -1261,7 +1248,11 @@ namespace WordStack.Board
                     if (opened.Count > 0) yield return OpenLocks(opened);
                     RefreshTileVisuals(ev.Stack);
                 }
-                if (ev.BoxRemoved) yield return RevealFromHolder(ev.Stack);
+                if (ev.BoxRemoved)
+                {
+                    yield return LiftAwayBox(ev.Stack);
+                    RevealBox(ev.Stack);
+                }
 
                 RefreshZones();
                 ReportResultIfFinished();
@@ -1449,51 +1440,31 @@ namespace WordStack.Board
             DestroyAll(doomed);
         }
 
+        // Hộp rỗng bị xoá (GDD §9.3 "Xoá box"): nhấc lên + mờ dần, y như mở khoá hộp khoá theo số —
+        // số liệu ở BoxView (Unlock Dur / Unlock Lift / Unlock Ease), chỉnh một chỗ ăn cả hai.
+        IEnumerator LiftAwayBox(int s)
+        {
+            running.RemoveAll(mh => !mh.IsActive());
+            var h = boxViews[s].LiftAway();
+            running.Add(h);
+            yield return h.ToYieldInstruction();
+        }
+
         // ------------------------------------------------- thao tác tăng dần
         // Thay cho Rebuild() của bản runtime: mỗi cái đụng đúng phần đã đổi.
 
-        // Hộp trên cùng vừa bị xoá, hộp dưới lộ lên (spec stack-tile-holder Mục 4). Hộp đứng yên:
-        // thẻ mini của holder trên cùng bay vào ô → thẻ thật hiện art ∥ holder nhấc đi → dọn.
-        // Không có holder (sâu hơn 6 lớp) hoặc holder chưa dựng animation → hiện thẻ ngay như cũ.
-        // Chạy trong Settle; Load() cắt nó bằng StopAllCoroutines, RebuildBoardViews không chen vào
-        // (Magnet/Shuffle/Undo chỉ chạy khi bàn đứng yên).
-        IEnumerator RevealFromHolder(int s)
+        void RevealBox(int s)
         {
-            var sv = stackViews[s];
-            var bv = boxViews[s];
-            bv.ResetVisual();
-
-            int k = StackView.HolderIndexOf(holderConsumed[s], 1);
-            var slots = new Transform[Rules.BoxCapacity];
-            for (int i = 0; i < slots.Length; i++) slots[i] = bv.Slot(i);
-
-            bool animated = k >= 0 && sv.BeginFill(k, slots);
-            if (animated)
-            {
-                while (sv.IsAnimating(k)) yield return null;
-                sv.HideMinis(k);
-            }
-
-            var spawned = SpawnTiles(s);
-            if (animated)
-            {
-                sv.BeginLift(k);
-                foreach (var tv in spawned) tv.PlayReveal();
-                while (sv.IsAnimating(k) || spawned.Exists(tv => tv != null && tv.IsRevealing)) yield return null;
-                foreach (var tv in spawned) if (tv != null) tv.EndReveal();
-                sv.EndHolder(k);
-            }
-
-            holderConsumed[s]++;
-            sv.ShowHolders(holderConsumed[s], g.Stacks[s].Boxes);
+            boxViews[s].ResetVisual();
+            stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1, TilesInSecondBox(g.Stacks[s]));
+            SpawnTiles(s);                                 // thẻ của hộp vừa lộ
             RefreshBlockerVisuals();                       // hộp vừa lộ có thể đang khoá
         }
 
-        List<TileView> SpawnTiles(int s)
+        void SpawnTiles(int s)
         {
-            var spawned = new List<TileView>();
             var box = g.TopBox(s);
-            if (box == null) return spawned;
+            if (box == null) return;
             pairOrdinals.Remove(s);   // hộp mới (dựng bàn / lộ hộp dưới) → sticky làm lại từ đầu
             var counts = GroupCountsIn(box);
             var ordinals = PairOrdinalsFor(s, box, counts);
@@ -1506,9 +1477,7 @@ namespace WordStack.Board
                 tv.Bind(t, ArtOf(t));
                 tv.SetMatchState(counts[t.GroupId], OrdinalOf(ordinals, t.GroupId));
                 tiles[t.Uid] = tv;
-                spawned.Add(tv);
             }
-            return spawned;
         }
 
         // Thẻ sinh ra từ collapse: dựng như SpawnTiles nhưng một thẻ, nở từ 0 ngay tại điểm 4 thẻ
@@ -1733,7 +1702,7 @@ namespace WordStack.Board
                 bv.transform.localPosition = Vector3.zero;
                 boxViews[s] = bv;
 
-                sv.ShowHolders(holderConsumed[s], st.Boxes);
+                sv.ShowDepth(st.Boxes.Count - 1, TilesInSecondBox(st));
                 SpawnTiles(s);
             }
 
@@ -1783,6 +1752,13 @@ namespace WordStack.Board
             float halfH = (maxY - minY) / 2f * PitchY + BoxSize / 2f + 1.5f;   // chừa HUD trên + gợi ý dưới
             cam.transform.position = new Vector3(cx, cy, -10f);
             cam.orthographicSize = Mathf.Max(halfH, halfW / Mathf.Max(cam.aspect, 0.01f));
+        }
+
+        // Ruột hộp nằm dưới không bao giờ đổi khi đang nằm dưới (nước đi chỉ đụng top box),
+        // nên chỉ cần tính ở đúng 2 chỗ gọi ShowDepth: dựng bàn + lộ hộp mới.
+        static int TilesInSecondBox(Stack st)
+        {
+            return st.Boxes.Count > 1 ? Rules.BoxCapacity - Game.FreeCount(st.Boxes[1]) : 0;
         }
 
         static Vector2 StackWorldPos(Stack st)

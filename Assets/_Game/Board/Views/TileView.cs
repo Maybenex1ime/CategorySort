@@ -49,24 +49,6 @@ namespace WordStack.Board
         [Header("Debug — blocker trên thẻ (chỉ đọc)")]
         [SerializeField] string blockers;
 
-        [Header("Lộ mặt")]
-        [Tooltip("Lộ mặt khi thẻ mini vừa bay vào hộp: art mờ dần hiện + nảy. Dựng bằng Tools ▸ WordStack ▸ Build Stack Holder Animations")]
-        [SerializeField] LitMotionAnimation revealAnim;
-
-        /// <summary>Thẻ vừa thay chỗ thẻ mini: chạy reveal (art 0 → 1 + nảy). Không có anim thì thẻ hiện nguyên như cũ.</summary>
-        public void PlayReveal()
-        {
-            if (revealAnim == null) return;
-            revealAnim.Stop();
-            revealAnim.Play();
-        }
-
-        public bool IsRevealing => revealAnim != null && revealAnim.IsPlaying;
-
-        /// <summary>Gọi khi reveal xong: LitMotionAnimation giữ (Preserve) motion đã xong và vẫn ghi giá trị
-        /// cuối mỗi frame — không Stop thì scale/alpha của thẻ bị ghim, kéo thẻ (scale 0) cũng không ẩn được.</summary>
-        public void EndReveal() { if (revealAnim != null) revealAnim.Stop(); }
-
         [Header("Đóng đinh (blocker)")]
         [Tooltip("Cụm Fixed Tile: tấm back + 4 đinh. Bật khi thẻ bị đóng đinh")]
         [SerializeField] GameObject fixedRoot;
@@ -86,8 +68,9 @@ namespace WordStack.Board
 
         public bool IsBreakingFixed => fixedBreakAnim != null && fixedBreakAnim.IsPlaying;
 
-        /// <summary>Gọi khi tháo đinh xong: Stop (motion đã xong vẫn ghi giá trị mỗi frame, xem EndReveal),
-        /// OnStop trả đinh/alpha về như author rồi tắt cả cụm — thẻ còn lại như thẻ thường để gộp.</summary>
+        /// <summary>Gọi khi tháo đinh xong: LitMotionAnimation giữ (Preserve) motion đã xong và vẫn ghi giá trị
+        /// cuối mỗi frame — phải Stop. OnStop trả đinh/alpha về như author rồi tắt cả cụm — thẻ còn lại như
+        /// thẻ thường để gộp.</summary>
         public void EndFixedBreak()
         {
             if (fixedBreakAnim != null) fixedBreakAnim.Stop();

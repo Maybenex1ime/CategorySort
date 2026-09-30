@@ -1,5 +1,5 @@
 // Hộp trên cùng của một stack. Một instance sống suốt level: khi hộp bị xoá, instance này
-// mờ đi rồi bind lại thành hộp vừa lộ (BoardController.RevealFromHolder) — không tạo/huỷ.
+// mờ đi rồi bind lại thành hộp vừa lộ (BoardController.RevealBox) — không tạo/huỷ.
 //
 // Kích thước hộp + vị trí 4 slot author trong prefab (Mục 2 của view-prefabs.md). Hit-test ô
 // thẻ của BoardController lấy từ bounds sprite Shadow của slot (SlotRect bên dưới), không còn
@@ -38,7 +38,7 @@ namespace WordStack.Board
         [FormerlySerializedAs("keyLockTint")] [SerializeField] SpriteRenderer groupArt;
 
         [Header("Animation khoá")]
-        [Tooltip("Mở khoá group lock đi đường dự phòng (không qua OpenGroupLock): trượt nhẹ lên + mờ dần (giây)")]
+        [Tooltip("Mở khoá group lock đi đường dự phòng (không qua OpenGroupLock) và hộp rỗng bị xoá (LiftAway): trượt nhẹ lên + mờ dần (giây)")]
         [SerializeField] float unlockDur = 0.35f;
         [Tooltip("Mở khoá: trượt lên bấy nhiêu unit (local của root) trong lúc mờ")]
         [SerializeField] float unlockLift = 0.25f;
@@ -288,6 +288,25 @@ namespace WordStack.Board
                                       for (int i = 0; i < texts.Length; i++) texts[i].alpha = ta[i] * (1f - k);
                                   })
                                   .AddTo(root);
+        }
+
+        /// <summary>
+        /// Hộp rỗng bị xoá: nhấc lên + mờ hẳn theo unlockLift / unlockDur / unlockEase. Đặt bằng số
+        /// trượt/mờ trong countUnlockAnim thì hai cú "lùi ra" trông như một. Xong thì trả vị trí về chỗ cũ nhưng
+        /// giữ alpha 0 — RevealBox bind lại hộp vừa lộ và ResetVisual mới hiện nó lên.
+        /// </summary>
+        public MotionHandle LiftAway()
+        {
+            var tr = transform;
+            var pos0 = tr.localPosition;
+            return LMotion.Create(0f, 1f, unlockDur).WithEase(unlockEase).WithCancelOnError()
+                          .WithOnComplete(() => tr.localPosition = pos0)
+                          .Bind(k =>
+                          {
+                              var p = pos0; p.y += unlockLift * k; tr.localPosition = p;
+                              SetAlpha(1f - k);
+                          })
+                          .AddTo(gameObject);
         }
 
         public void SetAlpha(float a)

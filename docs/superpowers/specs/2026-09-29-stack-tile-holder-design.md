@@ -1,6 +1,10 @@
 # Stack: một hộp + chồng Tile Holder — Thiết kế
 
-> Trạng thái 2026-09-29: **đã duyệt thiết kế** (brainstorming), bước kế là plan. Thay bản nháp cùng tên.
+> Trạng thái 2026-09-30: **đã huỷ** — visual hộp + khay chồng lên nhau không đẹp, quay về hộp chồng cũ.
+> Code đã làm nằm trên nhánh `origin/feat/stack-tile-holder`. Giữ lại từ đợt này: luật Magnet xoá hộp chôn
+> bị hút rỗng (Mục 7.1) và `AnimationBuildKit`.
+>
+> (2026-09-29: đã duyệt thiết kế, thay bản nháp cùng tên.)
 
 ## 1. Mục tiêu
 
