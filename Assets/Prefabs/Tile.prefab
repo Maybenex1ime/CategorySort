@@ -208,7 +208,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 528576170478975068}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.206, y: -0.271, z: 0}
   m_LocalScale: {x: 1.55, y: 1.55, z: 1}
   m_ConstrainProportionsScale: 0
@@ -283,6 +283,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 7986869173880814871}
+  - component: {fileID: 3736036797901291143}
   m_Layer: 0
   m_Name: Fixed Tile
   m_TagString: Untagged
@@ -310,6 +311,448 @@ Transform:
   - {fileID: 3563258407453590318}
   m_Father: {fileID: 1033456029618612665}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!114 &3736036797901291143
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1868149145596838120}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9cc6819e64e4c44beb63ea2ef45e1a6d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LitMotion.Animation::LitMotion.Animation.LitMotionAnimation
+  autoPlayMode: 0
+  animationMode: 0
+  components:
+  - rid: 8147280688968368244
+  - rid: 8147280688968368245
+  - rid: 8147280688968368246
+  - rid: 8147280688968368247
+  - rid: 8147280688968368248
+  - rid: 8147280688968368249
+  - rid: 8147280688968368250
+  - rid: 8147280688968368251
+  - rid: 8147280688968368252
+  playOnAwake: 0
+  version: 1
+  references:
+    version: 2
+    RefIds:
+    - rid: 8147280688968368244
+      type: {class: TransformRotationAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Blocker - Fixed Tile 11 \xB7 v\u1EB7n"
+        enabled: 1
+        target: {fileID: 3090728716298508866}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0, z: 360}
+          duration: 0.4
+          ease: 3
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280688968368245
+      type: {class: TransformPositionAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Blocker - Fixed Tile 11 \xB7 nh\u1EA5c"
+        enabled: 1
+        target: {fileID: 3090728716298508866}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0.012, z: 0}
+          duration: 0.4
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280688968368246
+      type: {class: TransformRotationAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Blocker - Fixed Tile 11 (1) \xB7 v\u1EB7n"
+        enabled: 1
+        target: {fileID: 209903169684043553}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0, z: 360}
+          duration: 0.4
+          ease: 3
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280688968368247
+      type: {class: TransformPositionAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Blocker - Fixed Tile 11 (1) \xB7 nh\u1EA5c"
+        enabled: 1
+        target: {fileID: 209903169684043553}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0.012, z: 0}
+          duration: 0.4
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280688968368248
+      type: {class: TransformRotationAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Blocker - Fixed Tile 11 (2) \xB7 v\u1EB7n"
+        enabled: 1
+        target: {fileID: 8239673439936758103}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0, z: 360}
+          duration: 0.4
+          ease: 3
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280688968368249
+      type: {class: TransformPositionAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Blocker - Fixed Tile 11 (2) \xB7 nh\u1EA5c"
+        enabled: 1
+        target: {fileID: 8239673439936758103}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0.012, z: 0}
+          duration: 0.4
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280688968368250
+      type: {class: TransformRotationAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Blocker - Fixed Tile 11 (3) \xB7 v\u1EB7n"
+        enabled: 1
+        target: {fileID: 3563258407453590318}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0, z: 360}
+          duration: 0.4
+          ease: 3
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280688968368251
+      type: {class: TransformPositionAnimation, ns: LitMotion.Animation.Components, asm: LitMotion.Animation}
+      data:
+        displayName: "Blocker - Fixed Tile 11 (3) \xB7 nh\u1EA5c"
+        enabled: 1
+        target: {fileID: 3563258407453590318}
+        settings:
+          startValue: {x: 0, y: 0, z: 0}
+          endValue: {x: 0, y: 0.012, z: 0}
+          duration: 0.4
+          ease: 8
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 1
+        useWorldSpace: 0
+    - rid: 8147280688968368252
+      type: {class: SpriteGroupAlphaAnimation, ns: FigmaMotion, asm: FigmaMotion}
+      data:
+        displayName: "Fixed Tile \xB7 m\u1EDD (\u0111inh + back)"
+        enabled: 1
+        target: {fileID: 7986869173880814871}
+        settings:
+          startValue: 1
+          endValue: 0
+          duration: 0.4
+          ease: 5
+          customEaseCurve:
+            serializedVersion: 2
+            m_Curve:
+            - serializedVersion: 3
+              time: 0
+              value: 0
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            - serializedVersion: 3
+              time: 1
+              value: 1
+              inSlope: 0
+              outSlope: 0
+              tangentMode: 0
+              weightedMode: 0
+              inWeight: 0
+              outWeight: 0
+            m_PreInfinity: 2
+            m_PostInfinity: 2
+            m_RotationOrder: 4
+          delay: 0
+          delayType: 0
+          loops: 1
+          loopType: 0
+          cancelOnError: 0
+          skipValuesDuringDelay: 0
+          immediateBind: 0
+          schedulerType: 0
+          additionalSettings: 0
+        relative: 0
 --- !u!1 &2135316768165882713
 GameObject:
   m_ObjectHideFlags: 0
@@ -733,7 +1176,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 6101527703826730950}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: -0.21, y: 0.293, z: 0}
   m_LocalScale: {x: 1.55, y: 1.55, z: 1}
   m_ConstrainProportionsScale: 0
@@ -915,7 +1358,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7094777962406154102}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.209, y: -0.271, z: 0}
   m_LocalScale: {x: 1.55, y: 1.55, z: 1}
   m_ConstrainProportionsScale: 0
@@ -1051,6 +1494,8 @@ MonoBehaviour:
   iceCrackDur: 0.25
   iceMeltDur: 0.35
   blockers: 
+  fixedRoot: {fileID: 1868149145596838120}
+  fixedBreakAnim: {fileID: 3736036797901291143}
 --- !u!1 &7993157403824655001
 GameObject:
   m_ObjectHideFlags: 0
@@ -1076,7 +1521,7 @@ Transform:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 7993157403824655001}
   serializedVersion: 2
-  m_LocalRotation: {x: -0, y: -0, z: -0, w: 1}
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0.209, y: 0.293, z: 0}
   m_LocalScale: {x: 1.55, y: 1.55, z: 1}
   m_ConstrainProportionsScale: 0
