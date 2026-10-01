@@ -115,3 +115,22 @@ MonoBehaviour:
       Amount: 8
     - Type: 1
       Amount: 5
+  _removeAds:
+    ProductId: remove_ads
+    PriceLabelFallback: 4.99 $
+    Icon: {fileID: -1521817284894145902, guid: ccb17d25307d34f4a991b43a6222f8ae, type: 3}
+    Title: Remove ads
+    Subtitle: "Mua m\u1ED9t l\u1EA7n, gi\u1EEF m\xE3i"
+  _rewardIcons:
+  - Type: 0
+    Icon: {fileID: 5456371542995731734, guid: 2d708b5f2e09feb42a4cd1c412027c00, type: 3}
+  - Type: 1
+    Icon: {fileID: 21300000, guid: e3a8334c12fe24f289db2765920cdcd6, type: 3}
+  - Type: 5
+    Icon: {fileID: 21300000, guid: e3a8334c12fe24f289db2765920cdcd6, type: 3}
+  - Type: 2
+    Icon: {fileID: 21300000, guid: ba398616f97daee4c82fdb60e6e1d83d, type: 3}
+  - Type: 3
+    Icon: {fileID: 21300000, guid: 58b66c9f80fa4ec48a8c5b54e5a89edb, type: 3}
+  - Type: 4
+    Icon: {fileID: -6062914999863570022, guid: a2bc5fc23da485b4da8e25aafa1ce4f5, type: 3}
