@@ -180,8 +180,15 @@ namespace WordStack.Meta.Editor
                 ShopRemoveAdsView banner = BuildRemoveAdsBanner(content, buttonTpl, textTpl);
                 Transform comboList = BuildVerticalList(content, "Combo List", 16f);
                 Transform coinGrid = BuildCoinGrid(content);
-                Button restore = CloneButton(buttonTpl, content, "Restore Button", "RESTORE", Vector2.zero, new Vector2(220f, RestoreHeight));
-                AddLayoutHeight(restore.gameObject, RestoreHeight);
+                // Hàng giữ nút: content kéo dãn con theo chiều ngang, nút đặt thẳng vào sẽ dài full bề rộng.
+                RectTransform restoreRow = NewUI("Restore Row", content);
+                var restoreLayout = restoreRow.gameObject.AddComponent<HorizontalLayoutGroup>();
+                restoreLayout.childAlignment = TextAnchor.MiddleCenter;
+                restoreLayout.childControlWidth = false;
+                restoreLayout.childControlHeight = false;
+                restoreLayout.childForceExpandWidth = false;
+                AddLayoutHeight(restoreRow.gameObject, RestoreHeight);
+                Button restore = CloneButton(buttonTpl, restoreRow, "Restore Button", "RESTORE", Vector2.zero, new Vector2(220f, RestoreHeight));
                 Object.DestroyImmediate(buttonTpl.gameObject);
 
                 var popup = root.AddComponent<ShopPopup>();

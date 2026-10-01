@@ -9,7 +9,7 @@ namespace WordStack.Meta.Tests
         [Test]
         public void Coin_DinhDangNhom()
         {
-            Assert.AreEqual(2000.ToString("N0"), ShopRewardItemView.FormatAmount(ResourceType.Coin, 2000));
+            Assert.AreEqual("2,000", ShopRewardItemView.FormatAmount(ResourceType.Coin, 2000));
         }
 
         [Test]

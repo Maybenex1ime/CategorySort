@@ -1,3 +1,4 @@
+using System.Globalization;
 using LogosGame.Features.Currency;
 using TMPro;
 using UnityEngine;
@@ -27,7 +28,7 @@ namespace LogosGame.Features.UI.Popups
             switch (type)
             {
                 case ResourceType.Coin:
-                    return amount.ToString("N0");
+                    return amount.ToString("N0", CultureInfo.InvariantCulture);
                 case ResourceType.UnlimitedHeart:
                     return amount % 60 == 0 ? (amount / 60) + "h" : amount + "m";
                 default:

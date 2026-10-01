@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using LitMotion;
 using LitMotion.Extensions;
 using LogosGame.Features.Shop;
@@ -102,7 +103,7 @@ namespace LogosGame.Features.UI.Popups
             if (_currencyService == null || _coinCounterText == null) return;
 
             _coinCounterSubscription = _currencyService.Coins
-                .Subscribe(coins => _coinCounterText.text = coins.ToString("N0"));
+                .Subscribe(coins => _coinCounterText.text = coins.ToString("N0", CultureInfo.InvariantCulture));
         }
 
         private void BindNoAds()
@@ -214,7 +215,7 @@ namespace LogosGame.Features.UI.Popups
             try
             {
                 ShopPurchaseResult result = await _shopService.PurchaseProduct(productId);
-                if (result.IsSuccess) PlayPurchasedFeedback(cell);
+                if (result.IsSuccess) PlayPurchasedFeedback(cell, result);
                 else _logger.Warn($"[ShopPopup] Mua '{productId}' không thành: {result.Code}.");
             }
             catch (Exception ex)
@@ -229,10 +230,10 @@ namespace LogosGame.Features.UI.Popups
             }
         }
 
-        // Ô coin header nảy + ô vừa mua nảy. Coin đã cộng qua subscribe; banner Remove Ads tự ẩn.
-        private void PlayPurchasedFeedback(Transform cell)
+        // Ô coin header nảy (chỉ khi có coin) + ô vừa mua nảy. Coin đã cộng qua subscribe; banner Remove Ads tự ẩn.
+        private void PlayPurchasedFeedback(Transform cell, ShopPurchaseResult result)
         {
-            if (_coinCounterText != null) _counterPunch = Punch(_coinCounterText.transform, _counterPunch);
+            if (_coinCounterText != null && result.CoinsGranted > 0) _counterPunch = Punch(_coinCounterText.transform, _counterPunch);
             if (cell != null && cell.gameObject.activeInHierarchy) _cellPunch = Punch(cell, _cellPunch);
         }
 
