@@ -1,4 +1,5 @@
 using System.Linq;
+using LogosGame.Features.Currency;
 using LogosGame.Features.Shop;
 using LogosGame.Features.UI.Popups;
 using TMPro;
@@ -11,10 +12,9 @@ using UnityEngine.UI;
 namespace WordStack.Meta.Editor
 {
     /// <summary>
-    /// Dựng trọn Shop bằng một menu: SO_ShopCatalog (chỉ điền khi còn rỗng — không đè số GD đã chỉnh),
-    /// ShopInstaller trên ProjectScope, prefab ShopPopup + ô gói (dùng chung cho gói coin và gói combo),
-    /// address Addressables "ShopPopup". Catalog đã có dữ liệu thì giữ nguyên, nhưng 2 prefab bị dựng
-    /// lại từ đầu — chạy lại là MẤT mọi chỉnh tay trên ShopPopup / ShopCoinCell.
+    /// Dựng trọn Shop một trang (spec 2026-10-01-shop-single-page) bằng một menu: SO_ShopCatalog (chỉ điền phần còn rỗng — không đè số GD đã chỉnh),
+    /// ShopInstaller trên ProjectScope, 4 prefab (ShopPopup, ShopCoinCell, ShopComboCell, ShopRewardItem), address "ShopPopup".
+    /// Prefab bị dựng lại từ đầu — chạy lại là MẤT mọi chỉnh tay.
     /// Khung popup (nền, nút X, ô coin, transition) mượn từ BoosterPurchasePopup cho cùng style.
     /// </summary>
     internal static class ShopSetup
@@ -24,11 +24,17 @@ namespace WordStack.Meta.Editor
         private const string TemplatePath = "Assets/_Shared/Prefab/Popup/BoosterPurchasePopup.prefab";
         private const string PopupPath = "Assets/_Shared/Prefab/Popup/ShopPopup.prefab";
         private const string CoinCellPath = "Assets/_Shared/Prefab/Popup/ShopCoinCell.prefab";
+        private const string ComboCellPath = "Assets/_Shared/Prefab/Popup/ShopComboCell.prefab";
+        private const string RewardItemPath = "Assets/_Shared/Prefab/Popup/ShopRewardItem.prefab";
         private const string ShopArt = "Assets/_Game/Art/UI_New/Shop/";
         private const string CellBgPath = "Assets/_Game/Art/UI_New/Pop-Up/Popup In.png";
+        private const string ComboBgPath = ShopArt + "Bundle Pack 1.png";
+        private const string BannerBgPath = ShopArt + "Bundle Pack 2.png";
+        private const string NoAdsIconPath = "Assets/_Game/Art/UI_New/UI Icon/Icon No Ads (big).png";
         private const string PopupAddress = "ShopPopup"; // UIManager load theo typeof(TPopup).Name
 
         private static readonly Vector2 CellSize = new Vector2(240f, 300f);
+        private const float BannerHeight = 170f, ComboHeight = 210f, RestoreHeight = 70f;
 
         [MenuItem("WordStack/Setup/Build Shop")]
         private static void Run()
@@ -82,6 +88,39 @@ namespace WordStack.Meta.Editor
                 Debug.Log("SHOP: điền 6 gói coin vào catalog.");
             }
 
+            SerializedProperty removeAds = so.FindProperty("_removeAds");
+            if (string.IsNullOrEmpty(removeAds.FindPropertyRelative("ProductId").stringValue))
+            {
+                removeAds.FindPropertyRelative("ProductId").stringValue = ShopProductIds.RemoveAds;
+                removeAds.FindPropertyRelative("PriceLabelFallback").stringValue = "4.99 $";
+                removeAds.FindPropertyRelative("Icon").objectReferenceValue = LoadSprite(NoAdsIconPath);
+                removeAds.FindPropertyRelative("Title").stringValue = "Remove ads";
+                removeAds.FindPropertyRelative("Subtitle").stringValue = "Mua một lần, giữ mãi";
+                Debug.Log("SHOP: điền Remove Ads vào catalog.");
+            }
+
+            (ResourceType type, string path)[] icons =
+            {
+                (ResourceType.Coin, $"{ShopArt}Icon Shop Coin 1.png"),
+                (ResourceType.Heart, "Assets/_Game/Art/UI/more lives/heart.png"),
+                (ResourceType.UnlimitedHeart, "Assets/_Game/Art/UI/more lives/heart.png"),
+                (ResourceType.BoosterShuffle, "Assets/_Game/Art/Sprites/Shuffle.png"),
+                (ResourceType.BoosterMagnet, "Assets/_Game/Art/UI/Booster/magnet.png"),
+                (ResourceType.BoosterUndo, "Assets/_Game/Art/Sprites/Undo.png"),
+            };
+            SerializedProperty rewardIcons = so.FindProperty("_rewardIcons");
+            if (rewardIcons.arraySize == 0)
+            {
+                rewardIcons.arraySize = icons.Length;
+                for (int i = 0; i < icons.Length; i++)
+                {
+                    SerializedProperty e = rewardIcons.GetArrayElementAtIndex(i);
+                    e.FindPropertyRelative("Type").enumValueIndex = (int)icons[i].type;
+                    e.FindPropertyRelative("Icon").objectReferenceValue = LoadSprite(icons[i].path);
+                }
+                Debug.Log("SHOP: điền icon quà vào catalog.");
+            }
+
             so.ApplyModifiedPropertiesWithoutUndo();
             EditorUtility.SetDirty(catalog);
             return catalog;
@@ -124,6 +163,8 @@ namespace WordStack.Meta.Editor
                 var textTpl = titleTpl.GetComponent<TextMeshProUGUI>();
 
                 ShopCoinCellView coinCell = BuildCoinCell(root.transform, buttonTpl, textTpl);
+                ShopRewardItemView rewardItem = BuildRewardItem(root.transform, textTpl);
+                ShopComboCellView comboCell = BuildComboCell(root.transform, buttonTpl, textTpl, rewardItem);
 
                 // Khung popup: bỏ nội dung booster, giữ nền / nút X / tiêu đề / ô coin.
                 Object.DestroyImmediate(root.GetComponent<BoosterPurchasePopup>());
@@ -135,24 +176,22 @@ namespace WordStack.Meta.Editor
                 root.name = "ShopPopup";
                 textTpl.text = "SHOP";
 
-                Button coinTab = CloneButton(buttonTpl, box, "Coin Tab", "COINS", new Vector2(-140f, 360f), new Vector2(250f, 90f));
-                Button itemTab = CloneButton(buttonTpl, box, "Item Tab", "PACKS", new Vector2(140f, 360f), new Vector2(250f, 90f));
-                Button restore = CloneButton(buttonTpl, box, "Restore Button", "RESTORE", new Vector2(0f, -440f), new Vector2(220f, 70f));
+                RectTransform content = BuildScrollPage(box);
+                ShopRemoveAdsView banner = BuildRemoveAdsBanner(content, buttonTpl, textTpl);
+                Transform comboList = BuildVerticalList(content, "Combo List", 16f);
+                Transform coinGrid = BuildCoinGrid(content);
+                Button restore = CloneButton(buttonTpl, content, "Restore Button", "RESTORE", Vector2.zero, new Vector2(220f, RestoreHeight));
+                AddLayoutHeight(restore.gameObject, RestoreHeight);
                 Object.DestroyImmediate(buttonTpl.gameObject);
-
-                Transform coinGrid = BuildScrollGrid(box, "Coin Tab Root", out GameObject coinTabRoot);
-                Transform itemGrid = BuildScrollGrid(box, "Item Tab Root", out GameObject itemTabRoot);
 
                 var popup = root.AddComponent<ShopPopup>();
                 SetRef(popup, "_coinCounterText", coinText.GetComponent<TextMeshProUGUI>());
                 SetRef(popup, "_closeButton", closeButton.GetComponent<Button>());
-                SetRef(popup, "_coinTabButton", coinTab);
-                SetRef(popup, "_itemTabButton", itemTab);
-                SetRef(popup, "_coinTabRoot", coinTabRoot);
-                SetRef(popup, "_itemTabRoot", itemTabRoot);
+                SetRef(popup, "_removeAdsView", banner);
+                SetRef(popup, "_comboListRoot", comboList);
+                SetRef(popup, "_comboCellPrefab", comboCell);
                 SetRef(popup, "_coinGridRoot", coinGrid);
                 SetRef(popup, "_coinCellPrefab", coinCell);
-                SetRef(popup, "_itemGridRoot", itemGrid);
                 SetRef(popup, "_restoreButton", restore);
 
                 PrefabUtility.SaveAsPrefabAsset(root, PopupPath);
@@ -172,17 +211,12 @@ namespace WordStack.Meta.Editor
             cell.gameObject.AddComponent<Image>().sprite = LoadSprite(CellBgPath);
 
             RectTransform icon = NewUI("Icon", cell);
-            Place(icon, new Vector2(0f, 60f), new Vector2(110f, 110f));
+            Place(icon, new Vector2(0f, 50f), new Vector2(120f, 120f));
             var iconImage = icon.gameObject.AddComponent<Image>();
             iconImage.preserveAspect = true;
 
-            TextMeshProUGUI coins = CloneText(textTpl, cell, "Coins", "1,000", new Vector2(0f, -45f), new Vector2(220f, 40f));
-
-            // Chỉ gói combo dùng tới: ShopCoinCellView tự ẩn khi gói không có Title/Items.
-            TextMeshProUGUI title = CloneText(textTpl, cell, "Title", "Starter Pack", new Vector2(0f, 128f), new Vector2(220f, 36f));
-            TextMeshProUGUI items = CloneText(textTpl, cell, "Items", "+5 shuffle", new Vector2(0f, -10f), new Vector2(220f, 30f));
-            items.fontSizeMax = 24f;
-            Button buy = CloneButton(buttonTpl, cell, "Buy Button", "0.99 $", new Vector2(0f, -110f), new Vector2(200f, 80f));
+            TextMeshProUGUI coins = CloneText(textTpl, cell, "Coins", "1,000", new Vector2(0f, -40f), new Vector2(220f, 40f));
+            Button buy = CloneButton(buttonTpl, cell, "Buy Button", "0.99 $", new Vector2(0f, -105f), new Vector2(200f, 80f));
 
             GameObject popular = NewBadge(cell, "Popular Badge", $"{ShopArt}Icon Shop Tag 1.png");
             GameObject bestValue = NewBadge(cell, "BestValue Badge", $"{ShopArt}Icon Shop Tag 2.png");
@@ -191,13 +225,81 @@ namespace WordStack.Meta.Editor
             SetRef(view, "_icon", iconImage);
             SetRef(view, "_coinsText", coins);
             SetRef(view, "_priceText", buy.GetComponentInChildren<TextMeshProUGUI>(true));
-            SetRef(view, "_titleText", title);
-            SetRef(view, "_itemsText", items);
             SetRef(view, "_popularBadge", popular);
             SetRef(view, "_bestValueBadge", bestValue);
             SetRef(view, "_buyButton", buy);
 
             return SaveCell<ShopCoinCellView>(cell.gameObject, CoinCellPath);
+        }
+
+        private static ShopRewardItemView BuildRewardItem(Transform scratch, TextMeshProUGUI textTpl)
+        {
+            RectTransform item = NewUI("ShopRewardItem", scratch);
+            item.sizeDelta = new Vector2(110f, 50f);
+            var row = item.gameObject.AddComponent<HorizontalLayoutGroup>();
+            row.spacing = 4f;
+            row.childAlignment = TextAnchor.MiddleLeft;
+            row.childControlWidth = false;
+            row.childControlHeight = false;
+            row.childForceExpandWidth = false;
+            row.childForceExpandHeight = false;
+
+            RectTransform icon = NewUI("Icon", item);
+            icon.sizeDelta = new Vector2(44f, 44f);
+            var iconImage = icon.gameObject.AddComponent<Image>();
+            iconImage.preserveAspect = true;
+
+            TextMeshProUGUI amount = CloneText(textTpl, item, "Amount", "x5", Vector2.zero, new Vector2(62f, 44f));
+            amount.alignment = TextAlignmentOptions.Left;
+
+            var view = item.gameObject.AddComponent<ShopRewardItemView>();
+            SetRef(view, "_icon", iconImage);
+            SetRef(view, "_amountText", amount);
+
+            return SaveCell<ShopRewardItemView>(item.gameObject, RewardItemPath);
+        }
+
+        private static ShopComboCellView BuildComboCell(Transform scratch, Transform buttonTpl, TextMeshProUGUI textTpl,
+            ShopRewardItemView rewardItem)
+        {
+            RectTransform cell = NewUI("ShopComboCell", scratch);
+            cell.sizeDelta = new Vector2(760f, ComboHeight);
+            cell.gameObject.AddComponent<Image>().sprite = LoadSprite(ComboBgPath);
+
+            RectTransform icon = NewUI("Icon", cell);
+            AnchorLeft(icon, 20f, new Vector2(160f, 160f));
+            var iconImage = icon.gameObject.AddComponent<Image>();
+            iconImage.preserveAspect = true;
+
+            TextMeshProUGUI title = CloneText(textTpl, cell, "Title", "Starter Pack", Vector2.zero, new Vector2(380f, 50f));
+            AnchorLeft(title.rectTransform, 200f, new Vector2(380f, 50f), y: 55f);
+            title.alignment = TextAlignmentOptions.Left;
+
+            RectTransform rewards = NewUI("Rewards", cell);
+            AnchorLeft(rewards, 200f, new Vector2(380f, 110f), y: -30f);
+            var grid = rewards.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = new Vector2(110f, 50f);
+            grid.spacing = new Vector2(8f, 6f);
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 3;
+            grid.childAlignment = TextAnchor.UpperLeft;
+
+            Button buy = CloneButton(buttonTpl, cell, "Buy Button", "1.99 $", Vector2.zero, new Vector2(150f, 80f));
+            var buyRt = (RectTransform)buy.transform;
+            buyRt.anchorMin = buyRt.anchorMax = buyRt.pivot = new Vector2(1f, 0.5f);
+            buyRt.anchoredPosition = new Vector2(-20f, 0f);
+
+            AddLayoutHeight(cell.gameObject, ComboHeight);
+
+            var view = cell.gameObject.AddComponent<ShopComboCellView>();
+            SetRef(view, "_icon", iconImage);
+            SetRef(view, "_titleText", title);
+            SetRef(view, "_rewardRoot", rewards);
+            SetRef(view, "_rewardItemPrefab", rewardItem);
+            SetRef(view, "_priceText", buy.GetComponentInChildren<TextMeshProUGUI>(true));
+            SetRef(view, "_buyButton", buy);
+
+            return SaveCell<ShopComboCellView>(cell.gameObject, ComboCellPath);
         }
 
         private static T SaveCell<T>(GameObject cell, string path) where T : Component
@@ -207,13 +309,13 @@ namespace WordStack.Meta.Editor
             return AssetDatabase.LoadAssetAtPath<T>(path);
         }
 
-        private static Transform BuildScrollGrid(Transform box, string name, out GameObject tabRoot)
+        // Vùng cuộn dọc duy nhất dưới header; con xếp theo thứ tự thêm vào.
+        private static RectTransform BuildScrollPage(Transform box)
         {
-            RectTransform rootRt = NewUI(name, box);
-            Stretch(rootRt, left: 40f, right: 40f, top: 220f, bottom: 130f);
-            tabRoot = rootRt.gameObject;
+            RectTransform rootRt = NewUI("Scroll", box);
+            Stretch(rootRt, left: 40f, right: 40f, top: 200f, bottom: 40f);
 
-            var scroll = tabRoot.AddComponent<ScrollRect>();
+            var scroll = rootRt.gameObject.AddComponent<ScrollRect>();
             scroll.horizontal = false;
             scroll.movementType = ScrollRect.MovementType.Clamped;
 
@@ -228,18 +330,78 @@ namespace WordStack.Meta.Editor
             content.anchoredPosition = Vector2.zero;
             content.sizeDelta = Vector2.zero;
 
-            var grid = content.gameObject.AddComponent<GridLayoutGroup>();
-            grid.cellSize = CellSize;
-            grid.spacing = new Vector2(20f, 20f);
-            grid.padding = new RectOffset(0, 0, 10, 10);
-            grid.childAlignment = TextAnchor.UpperCenter;
-            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
-            grid.constraintCount = 3;
+            var column = content.gameObject.AddComponent<VerticalLayoutGroup>();
+            column.spacing = 24f;
+            column.padding = new RectOffset(0, 0, 10, 20);
+            column.childAlignment = TextAnchor.UpperCenter;
+            column.childControlWidth = true;
+            column.childControlHeight = true;
+            column.childForceExpandWidth = true;
+            column.childForceExpandHeight = false;
             content.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 
             scroll.viewport = viewport;
             scroll.content = content;
             return content;
+        }
+
+        private static ShopRemoveAdsView BuildRemoveAdsBanner(Transform content, Transform buttonTpl, TextMeshProUGUI textTpl)
+        {
+            RectTransform banner = NewUI("Remove Ads Banner", content);
+            banner.gameObject.AddComponent<Image>().sprite = LoadSprite(BannerBgPath);
+            AddLayoutHeight(banner.gameObject, BannerHeight);
+
+            RectTransform icon = NewUI("Icon", banner);
+            AnchorLeft(icon, 20f, new Vector2(130f, 130f));
+            var iconImage = icon.gameObject.AddComponent<Image>();
+            iconImage.preserveAspect = true;
+            iconImage.sprite = LoadSprite(NoAdsIconPath);
+
+            TextMeshProUGUI title = CloneText(textTpl, banner, "Title", "Remove ads", Vector2.zero, new Vector2(380f, 56f));
+            AnchorLeft(title.rectTransform, 170f, new Vector2(380f, 56f), y: 28f);
+            title.alignment = TextAlignmentOptions.Left;
+
+            TextMeshProUGUI subtitle = CloneText(textTpl, banner, "Subtitle", "Mua một lần, giữ mãi", Vector2.zero, new Vector2(380f, 40f));
+            AnchorLeft(subtitle.rectTransform, 170f, new Vector2(380f, 40f), y: -28f);
+            subtitle.alignment = TextAlignmentOptions.Left;
+            subtitle.fontSizeMax = 28f;
+
+            Button buy = CloneButton(buttonTpl, banner, "Buy Button", "4.99 $", Vector2.zero, new Vector2(150f, 80f));
+            var buyRt = (RectTransform)buy.transform;
+            buyRt.anchorMin = buyRt.anchorMax = buyRt.pivot = new Vector2(1f, 0.5f);
+            buyRt.anchoredPosition = new Vector2(-20f, 0f);
+
+            var view = banner.gameObject.AddComponent<ShopRemoveAdsView>();
+            SetRef(view, "_icon", iconImage);
+            SetRef(view, "_titleText", title);
+            SetRef(view, "_subtitleText", subtitle);
+            SetRef(view, "_priceText", buy.GetComponentInChildren<TextMeshProUGUI>(true));
+            SetRef(view, "_buyButton", buy);
+            return view;
+        }
+
+        private static Transform BuildVerticalList(Transform content, string name, float spacing)
+        {
+            RectTransform list = NewUI(name, content);
+            var column = list.gameObject.AddComponent<VerticalLayoutGroup>();
+            column.spacing = spacing;
+            column.childControlWidth = true;
+            column.childControlHeight = true;
+            column.childForceExpandWidth = true;
+            column.childForceExpandHeight = false;
+            return list;
+        }
+
+        private static Transform BuildCoinGrid(Transform content)
+        {
+            RectTransform gridRt = NewUI("Coin Grid", content);
+            var grid = gridRt.gameObject.AddComponent<GridLayoutGroup>();
+            grid.cellSize = CellSize;
+            grid.spacing = new Vector2(20f, 20f);
+            grid.childAlignment = TextAnchor.UpperCenter;
+            grid.constraint = GridLayoutGroup.Constraint.FixedColumnCount;
+            grid.constraintCount = 3;
+            return gridRt;
         }
 
         // --- UI helpers -------------------------------------------------------
@@ -311,6 +473,23 @@ namespace WordStack.Meta.Editor
             rt.anchorMax = Vector2.one;
             rt.offsetMin = new Vector2(left, bottom);
             rt.offsetMax = new Vector2(-right, -top);
+        }
+
+        private static void AnchorLeft(RectTransform rt, float left, Vector2 size, float y = 0f)
+        {
+            rt.anchorMin = rt.anchorMax = new Vector2(0f, 0.5f);
+            rt.pivot = new Vector2(0f, 0.5f);
+            rt.anchoredPosition = new Vector2(left, y);
+            rt.sizeDelta = size;
+        }
+
+        // Trong VerticalLayoutGroup điều khiển chiều cao: LayoutElement chốt chiều cao ô.
+        private static void AddLayoutHeight(GameObject go, float height)
+        {
+            var element = go.GetComponent<LayoutElement>();
+            if (element == null) element = go.AddComponent<LayoutElement>();
+            element.preferredHeight = height;
+            element.minHeight = height;
         }
 
         // Ảnh import dạng Multiple — sprite là sub-asset.

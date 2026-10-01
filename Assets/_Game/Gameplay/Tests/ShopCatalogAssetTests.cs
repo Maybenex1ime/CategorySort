@@ -34,7 +34,8 @@ namespace WordStack.Meta.Tests
             ShopCatalog catalog = AssetDatabase.LoadAssetAtPath<ShopCatalog>(ShopCatalogPath);
             Assert.IsNotNull(catalog, "Chưa có " + ShopCatalogPath + " — chạy WordStack ▸ Setup ▸ Build Shop.");
 
-            string[] expected = ConstValues(typeof(ShopProductIds));
+            // remove_ads không phải gói coin — kiểm riêng ở RemoveAds_HopLe.
+            string[] expected = ConstValues(typeof(ShopProductIds)).Where(id => id != ShopProductIds.RemoveAds).ToArray();
             List<string> inCatalog = catalog.CoinBundles.Select(b => b.ProductId).ToList();
 
             foreach (string id in expected)
@@ -47,6 +48,35 @@ namespace WordStack.Meta.Tests
                 Assert.Greater(b.Coins, 0, $"'{b.ProductId}' có Coins <= 0 (gói combo cũng phải có coin).");
                 Assert.IsFalse(string.IsNullOrEmpty(b.PriceLabelFallback), $"'{b.ProductId}' chưa có PriceLabelFallback.");
                 Assert.IsNotNull(b.Icon, $"'{b.ProductId}' chưa gán Icon.");
+            }
+        }
+
+        [Test]
+        public void RemoveAds_HopLe()
+        {
+            ShopCatalog catalog = AssetDatabase.LoadAssetAtPath<ShopCatalog>(ShopCatalogPath);
+            Assert.IsNotNull(catalog, "Chưa có " + ShopCatalogPath);
+
+            RemoveAdsDefinition removeAds = catalog.RemoveAds;
+            Assert.AreEqual(ShopProductIds.RemoveAds, removeAds.ProductId, "Catalog chưa điền Remove Ads — chạy Build Shop.");
+            Assert.IsFalse(string.IsNullOrEmpty(removeAds.PriceLabelFallback), "Remove Ads chưa có PriceLabelFallback.");
+            Assert.IsNotNull(removeAds.Icon, "Remove Ads chưa gán Icon.");
+        }
+
+        [Test]
+        public void GoiCombo_MoiLoaiQua_CoIcon()
+        {
+            ShopCatalog catalog = AssetDatabase.LoadAssetAtPath<ShopCatalog>(ShopCatalogPath);
+            Assert.IsNotNull(catalog, "Chưa có " + ShopCatalogPath);
+
+            // Coin luôn là món đầu của hàng quà nên cũng phải có icon.
+            Assert.IsTrue(catalog.TryGetRewardIcon(ResourceType.Coin, out _), "Thiếu icon quà cho Coin.");
+            foreach (CoinBundleDefinition b in catalog.CoinBundles)
+            {
+                if (b.Items == null) continue;
+                foreach (ShopReward reward in b.Items)
+                    Assert.IsTrue(catalog.TryGetRewardIcon(reward.Type, out _),
+                        $"'{b.ProductId}' có quà {reward.Type} nhưng catalog chưa có icon cho loại này.");
             }
         }
 
