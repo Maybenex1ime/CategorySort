@@ -73,7 +73,8 @@ namespace WordStack.Meta
                         : null,
                     c.TryGetResolver<IAnalyticsService>(out _)
                         ? c.Resolve<IAnalyticsService>()
-                        : null),
+                        : null,
+                    c.Resolve<INoAdsService>()),
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
         }

@@ -170,7 +170,7 @@ namespace LogosGame.Features.UI.Popups
 
             try
             {
-                ShopPurchaseResult result = await _shopService.PurchaseCoinBundle(productId);
+                ShopPurchaseResult result = await _shopService.PurchaseProduct(productId);
                 if (!result.IsSuccess)
                     _logger.Warn($"[ShopPopup] Mua '{productId}' không thành: {result.Code}.");
             }

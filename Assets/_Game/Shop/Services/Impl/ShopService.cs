@@ -24,45 +24,73 @@ namespace LogosGame.Features.Shop.Impl
         // Tuỳ chọn — vắng thì chỉ không ghi sự kiện, đường tiền không đổi.
         private readonly IAnalyticsService _analytics;
 
+        // Nơi trao Remove Ads. Vắng thì không bán Remove Ads (không bao giờ charge mà không trao được).
+        private readonly INoAdsService _noAds;
+
         public ShopService(IShopCatalog catalog, IIAPService iap, ICurrencyService currency,
-            ITransactionItemDispatcher items, IAnalyticsService analytics = null)
+            ITransactionItemDispatcher items, IAnalyticsService analytics = null, INoAdsService noAds = null)
         {
             _catalog = catalog;
             _iap = iap;
             _currency = currency;
             _items = items;
             _analytics = analytics;
+            _noAds = noAds;
         }
 
         public IReadOnlyList<CoinBundleDefinition> CoinBundles =>
             _catalog != null ? _catalog.CoinBundles : Array.Empty<CoinBundleDefinition>();
 
-        public Awaitable<bool> InitializeStore()
+        public RemoveAdsDefinition RemoveAds => _catalog != null ? _catalog.RemoveAds : default;
+
+        public bool TryGetRewardIcon(ResourceType type, out Sprite icon)
         {
-            if (_iap == null)
-            {
-                AwaitableCompletionSource<bool> source = new AwaitableCompletionSource<bool>();
-                source.SetResult(false);
-                return source.Awaitable;
-            }
+            icon = null;
+            return _catalog != null && _catalog.TryGetRewardIcon(type, out icon);
+        }
+
+        private bool IsRemoveAds(string productId) =>
+            !string.IsNullOrEmpty(productId) && productId == RemoveAds.ProductId;
+
+        public async Awaitable<bool> InitializeStore()
+        {
+            if (_iap == null) return false;
 
             IReadOnlyList<CoinBundleDefinition> bundles = CoinBundles;
-            List<IapProduct> products = new List<IapProduct>(bundles.Count);
+            List<IapProduct> products = new List<IapProduct>(bundles.Count + 1);
             for (int i = 0; i < bundles.Count; i++)
             {
                 if (!string.IsNullOrEmpty(bundles[i].ProductId))
                     products.Add(new IapProduct(bundles[i].ProductId, IapProductKind.Consumable));
             }
 
-            return _iap.Initialize(products, this);
+            string removeAdsId = RemoveAds.ProductId;
+            if (!string.IsNullOrEmpty(removeAdsId))
+                products.Add(new IapProduct(removeAdsId, IapProductKind.NonConsumable));
+
+            bool ok = await _iap.Initialize(products, this);
+            SyncRemoveAdsOwnership();
+            return ok;
+        }
+
+        // Cài lại game: store còn biên nhận Remove Ads thì trả lại cờ (Android lúc khởi tạo,
+        // iOS sau nút Restore). Grant tự bỏ qua khi cờ đã bật.
+        private void SyncRemoveAdsOwnership()
+        {
+            string removeAdsId = RemoveAds.ProductId;
+            if (_noAds == null || _iap == null || string.IsNullOrEmpty(removeAdsId)) return;
+            if (_iap.IsOwned(removeAdsId)) _noAds.Grant();
         }
 
         public string GetPriceLabel(string productId)
         {
-            if (!TryGetBundle(productId, out CoinBundleDefinition bundle)) return null;
+            string fallback;
+            if (IsRemoveAds(productId)) fallback = RemoveAds.PriceLabelFallback;
+            else if (TryGetBundle(productId, out CoinBundleDefinition bundle)) fallback = bundle.PriceLabelFallback;
+            else return null;
 
             string storePrice = _iap != null ? _iap.GetLocalizedPrice(productId) : null;
-            return string.IsNullOrEmpty(storePrice) ? bundle.PriceLabelFallback : storePrice;
+            return string.IsNullOrEmpty(storePrice) ? fallback : storePrice;
         }
 
         /// <summary>
@@ -77,6 +105,8 @@ namespace LogosGame.Features.Shop.Impl
                 _logger.Warn($"[ShopService] Giao dịch '{productId}' không có mã — không trao, để store gửi lại.");
                 return false;
             }
+
+            if (IsRemoveAds(productId)) return FulfillRemoveAds(productId, transactionId);
 
             if (!TryGetBundle(productId, out CoinBundleDefinition bundle))
             {
@@ -137,19 +167,52 @@ namespace LogosGame.Features.Shop.Impl
             return true;
         }
 
-        public async Awaitable<ShopPurchaseResult> PurchaseCoinBundle(string productId)
+        // Mua một lần: bật cờ thay vì cộng coin. Cờ đã bật (store gửi lại đơn) vẫn trả true để
+        // store thôi gửi — Grant tự bỏ qua, không có gì bị trao hai lần.
+        private bool FulfillRemoveAds(string productId, string transactionId)
         {
-            if (!TryGetBundle(productId, out CoinBundleDefinition bundle))
+            if (_noAds == null)
+            {
+                _logger.Warn($"[ShopService] Thiếu INoAdsService — chưa trao '{productId}', để Pending.");
+                return false;
+            }
+
+            bool alreadyOwned = _noAds.IsNoAds.CurrentValue;
+            _noAds.Grant();
+            if (alreadyOwned) return true;
+
+            _logger.Info($"[ShopService] Trao '{productId}' ({transactionId}): bật No-Ads.");
+            _analytics?.LogEvent("iap_purchase", new Dictionary<string, object>
+            {
+                { "product_id", productId },
+                { "coins", 0 },
+            });
+            return true;
+        }
+
+        public async Awaitable<ShopPurchaseResult> PurchaseProduct(string productId)
+        {
+            bool removeAds = IsRemoveAds(productId);
+            CoinBundleDefinition bundle = default;
+            if (!removeAds && !TryGetBundle(productId, out bundle))
             {
                 _logger.Warn($"[ShopService] SO_ShopCatalog không có gói '{productId}'.");
                 return new ShopPurchaseResult(ShopPurchaseCode.UnknownProduct, productId, 0);
             }
 
-            // Kiểm tra ví TRƯỚC khi gọi store: thiếu ICurrencyService mà vẫn charge
-            // là user mất tiền thật rồi không nhận được coin nào.
-            if (_iap == null || _currency == null || !_iap.IsReady)
+            if (removeAds)
             {
-                _logger.Warn($"[ShopService] Store chưa sẵn sàng hoặc thiếu ví — không mua '{productId}'.");
+                SyncRemoveAdsOwnership();
+                if (_noAds != null && _noAds.IsNoAds.CurrentValue)
+                    return new ShopPurchaseResult(ShopPurchaseCode.AlreadyOwned, productId, 0);
+            }
+
+            // Kiểm nơi trao TRƯỚC khi gọi store: thiếu ví (gói coin) hay thiếu No-Ads (Remove Ads)
+            // mà vẫn charge là user mất tiền thật rồi không nhận được gì.
+            bool canGrant = removeAds ? _noAds != null : _currency != null;
+            if (_iap == null || !canGrant || !_iap.IsReady)
+            {
+                _logger.Warn($"[ShopService] Store chưa sẵn sàng hoặc thiếu nơi trao — không mua '{productId}'.");
                 return new ShopPurchaseResult(ShopPurchaseCode.StoreUnavailable, productId, 0);
             }
 
@@ -160,18 +223,16 @@ namespace LogosGame.Features.Shop.Impl
                 return new ShopPurchaseResult(ShopPurchaseCode.StoreDeclined, productId, 0);
             }
 
-            // KHÔNG cộng coin ở đây: store đã gọi Fulfill (cộng + ghi đĩa) TRƯỚC khi Purchase
-            // trả true. Cộng sau await thì app chết giữa hai dòng là user mất tiền thật.
-            return new ShopPurchaseResult(ShopPurchaseCode.Success, productId, bundle.TotalCoins);
+            // KHÔNG trao ở đây: store đã gọi Fulfill (trao + ghi đĩa) TRƯỚC khi Purchase trả true.
+            // Trao sau await thì app chết giữa hai dòng là user mất tiền thật.
+            return new ShopPurchaseResult(ShopPurchaseCode.Success, productId, removeAds ? 0 : bundle.TotalCoins);
         }
 
-        public Awaitable RestorePurchases()
+        public async Awaitable RestorePurchases()
         {
-            if (_iap != null) return _iap.RestorePurchases();
-
-            AwaitableCompletionSource source = new AwaitableCompletionSource();
-            source.SetResult();
-            return source.Awaitable;
+            if (_iap == null) return;
+            await _iap.RestorePurchases();
+            SyncRemoveAdsOwnership();
         }
 
 
