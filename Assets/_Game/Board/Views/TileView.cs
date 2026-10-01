@@ -208,6 +208,9 @@ namespace WordStack.Board
             bgOrder = bg.sortingOrder;
             artOrder = art.sortingOrder;
             if (iceRoot != null) iceScale = iceRoot.transform.localScale;
+            // Thẻ nào cũng bắt đầu không đinh, bất kể prefab lưu Fixed Tile bật hay tắt: Ghost và thẻ tạm của
+            // Magnet không qua RefreshBlockerVisuals, chỉ thẻ trên bàn mới được bật lại đinh ở đó.
+            SetFixed(false);
         }
 
         public void SetFlying(bool flying)
