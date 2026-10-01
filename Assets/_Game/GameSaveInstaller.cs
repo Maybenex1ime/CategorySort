@@ -1,3 +1,4 @@
+using LogosGame.Features.Shop;
 using LogosGame.Save.Data;
 using LogosMeta.Economy;
 using LogosMeta.Progression;
@@ -28,6 +29,7 @@ namespace WordStack.Meta
                 save.Register<CurrencyData>(json, "currency");
                 save.Register<HeartData>(json, "hearts");
                 save.Register<LevelProgressData>(json, "progress");
+                save.Register<NoAdsData>(json, "noads");
                 // PlayerPrefs như aquapark: toggle nhạc/rung là thứ nhẹ, đọc sớm.
                 save.Register<SettingsData>(prefs, "settings");
             };

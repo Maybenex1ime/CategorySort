@@ -19,6 +19,7 @@ namespace WordStack.Meta.Tests
     {
         private const string Bundle = "coins_1000";
         private const string Pack = "pack_starter";
+        private const string RemoveAdsId = "remove_ads";
 
         [Test]
         public void PurchaseCoinBundle_StoreChapNhan_CongDungSoCoin()
@@ -246,6 +247,15 @@ namespace WordStack.Meta.Tests
                     },
                 },
             };
+
+            public RemoveAdsDefinition RemoveAds { get; } =
+                new RemoveAdsDefinition { ProductId = RemoveAdsId, PriceLabelFallback = "4.99 $" };
+
+            public bool TryGetRewardIcon(ResourceType type, out Sprite icon)
+            {
+                icon = null;
+                return false;
+            }
         }
 
         private sealed class FakeIap : IIAPService

@@ -55,4 +55,26 @@ namespace LogosGame.Features.Shop
             }
         }
     }
+
+    /// Sản phẩm mua một lần — bật cờ No-Ads, không tặng coin.
+    [Serializable]
+    public struct RemoveAdsDefinition
+    {
+        public string ProductId;
+
+        // Như CoinBundleDefinition.PriceLabelFallback: chỗ đỡ lúc chưa có giá store.
+        public string PriceLabelFallback;
+
+        public Sprite Icon;
+        public string Title;
+        public string Subtitle;
+    }
+
+    /// Icon từng loại quà trong hàng quà của ô combo.
+    [Serializable]
+    public struct RewardIcon
+    {
+        public ResourceType Type;
+        public Sprite Icon;
+    }
 }

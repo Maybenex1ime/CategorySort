@@ -1,5 +1,6 @@
 using LogosGame.Features.Shop;
 using LogosGame.Features.Shop.Impl;
+using LogosSDK.Save;
 using LogosSDK.Services;
 using Reflex.Core;
 using UnityEngine;
@@ -53,6 +54,13 @@ namespace WordStack.Meta
 
             // Factory chứ không RegisterType: catalog, ví và bên trao item đều resolve mềm —
             // thiếu cái nào thì ShopService tự để giao dịch Pending, không sập cả shop.
+            // Lazy như mọi service đọc save: domain "noads" chỉ đăng ký xong ở OnContainerBuilt
+            // của GameSaveInstaller.
+            builder.RegisterFactory<INoAdsService>(
+                c => new NoAdsService(c.Resolve<ISaveManager>()),
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Lazy);
+
             builder.RegisterFactory<IShopService>(
                 c => new ShopService(
                     c.TryGetResolver<IShopCatalog>(out _) ? c.Resolve<IShopCatalog>() : null,
