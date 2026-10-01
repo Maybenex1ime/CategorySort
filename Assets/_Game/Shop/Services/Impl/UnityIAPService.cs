@@ -61,6 +61,10 @@ namespace LogosGame.Features.Shop.Impl
         // Store không trả lời fetch thì Purchase/Restore không được treo (khoá popup cả phiên).
         private static readonly TimeSpan FetchTimeout = TimeSpan.FromSeconds(15);
 
+        // Mua trùng: popup đang khoá chờ. Fetch thường về trong 1-2 s; bị focus-regain cướp callback thì
+        // cache đã có đơn từ trước đó — chờ ngắn rồi trao từ cache, không bắt user nhìn 15 s.
+        private static readonly TimeSpan DuplicateFetchTimeout = TimeSpan.FromSeconds(5);
+
         public UnityIAPService() : this(new AcceptAllReceiptValidator())
         {
             _logger.Warn("[UnityIAPService] Chưa bật xác thực hoá đơn (pha 2) — mọi receipt đều được chấp nhận.");
@@ -153,7 +157,7 @@ namespace LogosGame.Features.Shop.Impl
             // gửi lại qua OnPurchasePending — đây là lý do phải khởi tạo ngay lúc boot.
             // Init chỉ xong khi đơn cũ đã về: ShopService đọc IsOwned ngay sau init, nên Remove Ads
             // đã sở hữu phải được trao (OnPurchasesFetched) trước đó. Fetch lỗi vẫn bán được → true.
-            FetchPurchases(() => _initSource.TrySetResult(true));
+            FetchPurchases(() => _initSource.TrySetResult(true), FetchTimeout);
         }
 
         private void OnProductsFetchFailed(ProductFetchFailed failure)
@@ -165,28 +169,35 @@ namespace LogosGame.Features.Shop.Impl
         }
 
         // Gọi _store.FetchPurchases() và báo `done` khi có kết quả (thành công, lỗi, mất kết nối
-        // hoặc quá FetchTimeout). Đăng ký TRƯỚC khi fetch: store chưa kết nối / FakeStore trả lời
+        // hoặc quá `timeout`). Đăng ký TRƯỚC khi fetch: store chưa kết nối / FakeStore trả lời
         // đồng bộ ngay trong FetchPurchases().
-        private void FetchPurchases(Action done)
+        // Google: fetch lúc app lấy lại focus (sau màn billing, hộp thoại quyền) ghi đè callback của
+        // fetch này — kết quả chỉ vào cache package, KHÔNG raise OnPurchasesFetched. Vì vậy mọi lần
+        // nhả waiter (kể cả timeout) đều trao lại từ cache trước — xem GrantOwnedFromCache.
+        private void FetchPurchases(Action done, TimeSpan timeout)
         {
             _fetchWaiters.Add(done);
-            TimeoutFetchWaiter(done);
+            TimeoutFetchWaiter(done, timeout);
             _store.FetchPurchases();
         }
 
         // Task.Delay theo giờ thật (không phụ thuộc timeScale); async void bắt đầu trên main thread
         // nên chạy tiếp trên main thread qua UnitySynchronizationContext.
-        private async void TimeoutFetchWaiter(Action done)
+        private async void TimeoutFetchWaiter(Action done, TimeSpan timeout)
         {
-            await Task.Delay(FetchTimeout);
+            await Task.Delay(timeout);
             if (!_fetchWaiters.Remove(done)) return;   // đã có kết quả
 
-            _logger.Warn("[UnityIAPService] Store không trả kết quả FetchPurchases — bỏ chờ.");
+            _logger.Warn("[UnityIAPService] Không nhận được OnPurchasesFetched — dùng cache đơn của store.");
+            GrantOwnedFromCache();
             RunWaiter(done);
         }
 
+        // Nhả mọi waiter sau khi trao lại non-consumable từ cache (cache đã gồm đơn của lần fetch
+        // vừa xong, kể cả fetch bị focus-regain cướp callback).
         private void CompleteFetchWaiters()
         {
+            GrantOwnedFromCache();
             if (_fetchWaiters.Count == 0) return;
 
             Action[] waiters = _fetchWaiters.ToArray();
@@ -206,15 +217,23 @@ namespace LogosGame.Features.Shop.Impl
             }
         }
 
-        // Package đã chuyển đơn Pending của lần fetch này sang OnPurchasePending TRƯỚC event này
-        // (PurchaseService.OnFetchSuccess). Ở đây chỉ xử lý đơn ĐÃ xác nhận: non-consumable user
-        // đã sở hữu. Không Confirm gì cả — đơn đã xác nhận rồi, và consumable không đi đường này.
-        private void OnPurchasesFetched(Orders orders)
-        {
-            IReadOnlyList<ConfirmedOrder> confirmed = orders?.ConfirmedOrders;
-            for (int i = 0; confirmed != null && i < confirmed.Count; i++) GrantOwned(confirmed[i]);
+        // Package đã ghi `orders` vào cache và chuyển đơn Pending sang OnPurchasePending TRƯỚC event
+        // này (PurchaseService.OnFetchSuccess) — trao từ cache trong CompleteFetchWaiters là đủ.
+        // Thứ tự đó giả định IAP_TX_VERIFIER_ENABLED tắt (bật thì ProcessPendingOrder thành async
+        // void) — kiểm lại khi bật xác thực hoá đơn pha 2.
+        private void OnPurchasesFetched(Orders orders) => CompleteFetchWaiters();
 
-            CompleteFetchWaiters();
+        // Chỉ đơn ĐÃ xác nhận: non-consumable user đã sở hữu. Không Confirm gì cả — đơn đã xác nhận
+        // rồi, và consumable không đi đường này. Fulfill idempotent nên gọi lại mỗi lần fetch là an toàn.
+        private void GrantOwnedFromCache()
+        {
+            if (_store == null) return;
+
+            List<Order> orders = new List<Order>(_store.GetPurchases());   // bản chụp: không duyệt thẳng cache đang sống
+            for (int i = 0; i < orders.Count; i++)
+            {
+                if (orders[i] is ConfirmedOrder confirmed) GrantOwned(confirmed);
+            }
         }
 
         private void GrantOwned(ConfirmedOrder order)
@@ -336,7 +355,7 @@ namespace LogosGame.Features.Shop.Impl
                 && productId != null && _nonConsumableIds.Contains(productId))
             {
                 _logger.Info($"[UnityIAPService] '{productId}' đã sở hữu — lấy lại đơn từ store để trao.");
-                FetchPurchases(() => CompletePurchase(productId, _ownedIds.Contains(productId)));
+                FetchPurchases(() => CompletePurchase(productId, _ownedIds.Contains(productId)), DuplicateFetchTimeout);
                 return;
             }
 
@@ -345,7 +364,7 @@ namespace LogosGame.Features.Shop.Impl
             else
                 _logger.Warn($"[UnityIAPService] Mua '{productId}' thất bại: {order.FailureReason} {order.Details}");
 
-            CompletePurchase(productId, false);
+            FailInFlightPurchase(productId);
         }
 
         // Ask to Buy / thanh toán chờ duyệt: chưa có tiền nên chưa trao. Khi duyệt xong đơn tới lại
@@ -354,7 +373,19 @@ namespace LogosGame.Features.Shop.Impl
         {
             string productId = ProductIdOf(order);
             _logger.Info($"[UnityIAPService] Đơn '{productId}' đang chờ duyệt — trao khi store xác nhận.");
-            CompletePurchase(productId, false);
+            FailInFlightPurchase(productId);
+        }
+
+        // Lỗi / hoãn luôn thuộc lần mua đang chờ (một lần mua tại một thời điểm), kể cả khi package
+        // không resolve được sản phẩm ("InvalidProduct", "") — vẫn phải nhả Purchase, không thì
+        // _purchaseSource kẹt và khoá mọi lần mua sau trong phiên. An toàn về tiền: nếu đơn thật vẫn
+        // thành công sau đó, OnPurchasePending trao + Confirm như mọi đơn gửi lại.
+        private void FailInFlightPurchase(string productId)
+        {
+            if (_purchaseSource != null && _purchasingProductId != productId)
+                _logger.Warn($"[UnityIAPService] Store báo lỗi cho '{productId}' khi đang mua '{_purchasingProductId}' — coi như lần mua này thất bại.");
+
+            CompletePurchase(_purchasingProductId, false);
         }
 
         private static string ProductIdOf(Order order)
@@ -393,7 +424,7 @@ namespace LogosGame.Features.Shop.Impl
 
                 // Package tự FetchPurchases khi ok nhưng gọi callback này ngay, trước khi đơn về.
                 // Fetch lại và chờ: non-consumable khôi phục được trao trước khi Restore xong.
-                FetchPurchases(() => source.TrySetResult());
+                FetchPurchases(() => source.TrySetResult(), FetchTimeout);
             });
             return source.Awaitable;
         }
