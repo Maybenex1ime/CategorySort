@@ -63,9 +63,14 @@ Id không đổi sau lần build store đầu tiên.
 **`ShopPopup`** (`Assets/_Game/UI/Popups/ShopPopup.cs`, prefab `Assets/_Shared/Prefab/Popup/ShopPopup.prefab`,
 address `ShopPopup` giữ nguyên):
 - Bỏ `_coinTabButton`, `_itemTabButton`, `_coinTabRoot`, `_itemTabRoot`, `_itemGridRoot`, `_itemCellPrefab` cũ.
-- Header cố định: ô coin (`_coinCounterText`), tiêu đề, nút đóng.
-- `ScrollRect` dọc, `Content` có `VerticalLayoutGroup` + `ContentSizeFitter`, con theo thứ tự:
-  `RemoveAdsBanner` → `ComboList` (VerticalLayoutGroup) → `CoinGrid` (GridLayoutGroup 3 cột cố định) → `RestoreButton`.
+- **Panel toàn màn hình kiểu Beads Drop** (2026-10-01, thay khung hộp popup): vẫn là `PopupBase` mở qua
+  `ShowPopupImmediate`, nhưng root phủ kín màn hình với nền đục `BG Home.png`; mọi thứ bấm được nằm trong con
+  `Safe Area` (`SafeAreaFitter`).
+- Header cố định neo mép trên (cao 240, `Main Navigation Header.png`): ô coin (`_coinCounterText`) bên trái, ảnh tiêu
+  đề `Title Main Shop.png` ở giữa, nút đóng bên phải.
+- `ScrollRect` dọc dưới header, `Content` có `VerticalLayoutGroup` + `ContentSizeFitter`, con theo thứ tự:
+  `RemoveAdsBanner` → dải tiêu đề "PACKS" → `ComboList` (VerticalLayoutGroup) → dải tiêu đề "COINS" → `CoinGrid`
+  (GridLayoutGroup 3 cột cố định) → `Restore Row` (nút Restore giữa hàng). Dải tiêu đề tạm là chữ TMP.
 - `RemoveAdsBanner` ẩn khi `IsNoAds` (cả lúc mở popup lẫn ngay sau khi mua).
 - Khoá mua khi đang có giao dịch (giữ cơ chế `_isPurchasing` + chặn đóng popup).
 - Mua thành công: ô coin header nảy nhẹ (LitMotion punch scale), ô vừa mua sáng lên thoáng qua. Không popup thưởng.
@@ -80,8 +85,9 @@ Best value như cũ.
 **Banner Remove Ads** — `ShopRemoveAdsView` (mới) trong `ShopPopup.prefab`: icon (`Icon No Ads (big).png`), tiêu
 đề, phụ đề, nút giá.
 
-**Menu `Build Shop`** (`Assets/_Game/Editor/ShopSetup.cs`): `BuildPrefabs` dựng lại `ShopPopup`, `ShopCoinCell`,
-`ShopComboCell`, `ShopRewardItem` theo cấu trúc trên, gắn sprite có sẵn (`Assets/_Game/Art/UI_New/Shop/*`,
+**Menu `Build Shop`** (`Assets/_Game/Editor/ShopSetup.cs`): `BuildPrefabs` dựng lại `ShopPopup` theo cấu trúc trên
+(chạy lại = mất chỉnh tay trên ShopPopup). `ShopCoinCell`, `ShopComboCell`, `ShopRewardItem` chỉ được dựng khi **chưa
+có file** — có rồi thì dùng nguyên, chỉnh tay trên ô được giữ. Gắn sprite có sẵn (`Assets/_Game/Art/UI_New/*`,
 `Icon No Ads (big).png`) và nối mọi field. `EnsureCatalog` điền thêm `RemoveAds` và `RewardIcons` (sprite booster/tim
 có sẵn) khi còn trống. `WireInstaller`, `RegisterAddress` giữ nguyên.
 

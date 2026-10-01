@@ -2,6 +2,7 @@ using System.Linq;
 using LogosGame.Features.Currency;
 using LogosGame.Features.Shop;
 using LogosGame.Features.UI.Popups;
+using LogosSDK.UI.Components;
 using TMPro;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
@@ -13,9 +14,10 @@ namespace WordStack.Meta.Editor
 {
     /// <summary>
     /// Dựng trọn Shop một trang (spec 2026-10-01-shop-single-page) bằng một menu: SO_ShopCatalog (chỉ điền phần còn rỗng — không đè số GD đã chỉnh),
-    /// ShopInstaller trên ProjectScope, 4 prefab (ShopPopup, ShopCoinCell, ShopComboCell, ShopRewardItem), address "ShopPopup".
-    /// Prefab bị dựng lại từ đầu — chạy lại là MẤT mọi chỉnh tay.
-    /// Khung popup (nền, nút X, ô coin, transition) mượn từ BoosterPurchasePopup cho cùng style.
+    /// ShopInstaller trên ProjectScope, prefab ShopPopup dạng panel toàn màn hình kiểu Beads Drop, address "ShopPopup".
+    /// ShopPopup bị dựng lại từ đầu — chạy lại là MẤT mọi chỉnh tay trên nó. Ba prefab ô (ShopCoinCell, ShopComboCell,
+    /// ShopRewardItem) chỉ được tạo khi CHƯA có file — có rồi thì dùng nguyên, chỉnh tay trên chúng được giữ.
+    /// Root (transition, nút X, ô coin) mượn từ BoosterPurchasePopup cho cùng style; khung hộp popup thì bỏ.
     /// </summary>
     internal static class ShopSetup
     {
@@ -31,10 +33,14 @@ namespace WordStack.Meta.Editor
         private const string ComboBgPath = ShopArt + "Bundle Pack 1.png";
         private const string BannerBgPath = ShopArt + "Bundle Pack 2.png";
         private const string NoAdsIconPath = "Assets/_Game/Art/UI_New/UI Icon/Icon No Ads (big).png";
+        private const string PanelBgPath = "Assets/_Game/Art/UI_New/Background/BG Home.png";
+        private const string HeaderBgPath = "Assets/_Game/Art/UI_New/Main/Main Navigation Header.png";
+        private const string TitlePath = "Assets/_Game/Art/UI_New/Pop-Up/Title Main Shop.png";
         private const string PopupAddress = "ShopPopup"; // UIManager load theo typeof(TPopup).Name
 
         private static readonly Vector2 CellSize = new Vector2(240f, 300f);
         private const float BannerHeight = 170f, ComboHeight = 210f, RestoreHeight = 70f;
+        private const float HeaderHeight = 240f, SectionTitleHeight = 64f;
 
         [MenuItem("WordStack/Setup/Build Shop")]
         private static void Run()
@@ -162,23 +168,40 @@ namespace WordStack.Meta.Editor
 
                 var textTpl = titleTpl.GetComponent<TextMeshProUGUI>();
 
-                ShopCoinCellView coinCell = BuildCoinCell(root.transform, buttonTpl, textTpl);
-                ShopRewardItemView rewardItem = BuildRewardItem(root.transform, textTpl);
-                ShopComboCellView comboCell = BuildComboCell(root.transform, buttonTpl, textTpl, rewardItem);
-
-                // Khung popup: bỏ nội dung booster, giữ nền / nút X / tiêu đề / ô coin.
-                Object.DestroyImmediate(root.GetComponent<BoosterPurchasePopup>());
-                foreach (string child in new[] { "Revive Image", "Ad Button" })
+                // Prefab ô đã có thì dùng nguyên (GD chỉnh tay trên đó), chỉ dựng khi chưa có file.
+                ShopCoinCellView coinCell = AssetDatabase.LoadAssetAtPath<ShopCoinCellView>(CoinCellPath);
+                if (coinCell == null) coinCell = BuildCoinCell(root.transform, buttonTpl, textTpl);
+                ShopComboCellView comboCell = AssetDatabase.LoadAssetAtPath<ShopComboCellView>(ComboCellPath);
+                if (comboCell == null)
                 {
-                    Transform t = box.Find(child);
-                    if (t != null) Object.DestroyImmediate(t.gameObject);
+                    ShopRewardItemView rewardItem = AssetDatabase.LoadAssetAtPath<ShopRewardItemView>(RewardItemPath);
+                    if (rewardItem == null) rewardItem = BuildRewardItem(root.transform, textTpl);
+                    comboCell = BuildComboCell(root.transform, buttonTpl, textTpl, rewardItem);
                 }
-                root.name = "ShopPopup";
-                textTpl.text = "SHOP";
 
-                RectTransform content = BuildScrollPage(box);
+                // Panel toàn màn hình kiểu Beads Drop: nền đục thay lớp tối của popup, bỏ khung hộp.
+                Object.DestroyImmediate(root.GetComponent<BoosterPurchasePopup>());
+                root.name = "ShopPopup";
+                var rootImage = root.GetComponent<Image>();
+                if (rootImage != null)
+                {
+                    rootImage.sprite = LoadSprite(PanelBgPath);
+                    rootImage.color = Color.white;
+                    rootImage.type = Image.Type.Simple;
+                }
+
+                // Nền tràn màn, mọi thứ bấm được nằm trong vùng an toàn (cùng lối MainMenuScreen).
+                RectTransform safeArea = NewUI("Safe Area", root.transform);
+                Stretch(safeArea, 0f, 0f, 0f, 0f);
+                safeArea.gameObject.AddComponent<SafeAreaFitter>();
+
+                BuildHeader(safeArea, root.transform.Find("CoinArea"), closeButton);
+
+                RectTransform content = BuildScrollPage(safeArea);
                 ShopRemoveAdsView banner = BuildRemoveAdsBanner(content, buttonTpl, textTpl);
+                AddSectionTitle(content, textTpl, "Packs Title", "PACKS");
                 Transform comboList = BuildVerticalList(content, "Combo List", 16f);
+                AddSectionTitle(content, textTpl, "Coins Title", "COINS");
                 Transform coinGrid = BuildCoinGrid(content);
                 // Hàng giữ nút: content kéo dãn con theo chiều ngang, nút đặt thẳng vào sẽ dài full bề rộng.
                 RectTransform restoreRow = NewUI("Restore Row", content);
@@ -189,7 +212,9 @@ namespace WordStack.Meta.Editor
                 restoreLayout.childForceExpandWidth = false;
                 AddLayoutHeight(restoreRow.gameObject, RestoreHeight);
                 Button restore = CloneButton(buttonTpl, restoreRow, "Restore Button", "RESTORE", Vector2.zero, new Vector2(220f, RestoreHeight));
-                Object.DestroyImmediate(buttonTpl.gameObject);
+
+                // Hộp popup cũ chỉ còn làm khuôn clone (nút, chữ) — X Button đã chuyển sang header.
+                Object.DestroyImmediate(box.gameObject);
 
                 var popup = root.AddComponent<ShopPopup>();
                 SetRef(popup, "_coinCounterText", coinText.GetComponent<TextMeshProUGUI>());
@@ -316,11 +341,55 @@ namespace WordStack.Meta.Editor
             return AssetDatabase.LoadAssetAtPath<T>(path);
         }
 
-        // Vùng cuộn dọc duy nhất dưới header; con xếp theo thứ tự thêm vào.
-        private static RectTransform BuildScrollPage(Transform box)
+        // Thanh trên cùng kiểu Beads Drop: ô coin bên trái, ảnh tiêu đề giữa, nút X bên phải. Không cuộn.
+        private static void BuildHeader(Transform safeArea, Transform coinArea, Transform closeButton)
         {
-            RectTransform rootRt = NewUI("Scroll", box);
-            Stretch(rootRt, left: 40f, right: 40f, top: 200f, bottom: 40f);
+            RectTransform header = NewUI("Header", safeArea);
+            header.anchorMin = new Vector2(0f, 1f);
+            header.anchorMax = new Vector2(1f, 1f);
+            header.pivot = new Vector2(0.5f, 1f);
+            header.anchoredPosition = Vector2.zero;
+            header.sizeDelta = new Vector2(0f, HeaderHeight);
+            var headerImage = header.gameObject.AddComponent<Image>();
+            headerImage.sprite = LoadSprite(HeaderBgPath);
+
+            if (coinArea != null)
+            {
+                coinArea.SetParent(header, false);
+                Stretch((RectTransform)coinArea, 0f, 0f, 0f, 0f);
+                Transform coinBox = coinArea.Find("CoinBox");
+                if (coinBox != null)
+                {
+                    var coinBoxRt = (RectTransform)coinBox;
+                    coinBoxRt.anchorMin = coinBoxRt.anchorMax = coinBoxRt.pivot = new Vector2(0f, 0.5f);
+                    coinBoxRt.anchoredPosition = new Vector2(40f, 0f);
+                }
+            }
+
+            RectTransform title = NewUI("Title", header);
+            Place(title, Vector2.zero, new Vector2(440f, 180f));
+            var titleImage = title.gameObject.AddComponent<Image>();
+            titleImage.sprite = LoadSprite(TitlePath);
+            titleImage.preserveAspect = true;
+
+            closeButton.SetParent(header, false);
+            var closeRt = (RectTransform)closeButton;
+            closeRt.anchorMin = closeRt.anchorMax = closeRt.pivot = new Vector2(1f, 0.5f);
+            closeRt.anchoredPosition = new Vector2(-40f, 0f);
+        }
+
+        // Dải tiêu đề một phần trong trang cuộn (SectionBanner của Beads Drop) — tạm là chữ, đổi ảnh trong prefab.
+        private static void AddSectionTitle(Transform content, TextMeshProUGUI textTpl, string name, string text)
+        {
+            TextMeshProUGUI title = CloneText(textTpl, content, name, text, Vector2.zero, new Vector2(400f, SectionTitleHeight));
+            AddLayoutHeight(title.gameObject, SectionTitleHeight);
+        }
+
+        // Vùng cuộn dọc duy nhất dưới header; con xếp theo thứ tự thêm vào.
+        private static RectTransform BuildScrollPage(Transform safeArea)
+        {
+            RectTransform rootRt = NewUI("Scroll", safeArea);
+            Stretch(rootRt, left: 30f, right: 30f, top: HeaderHeight + 10f, bottom: 20f);
 
             var scroll = rootRt.gameObject.AddComponent<ScrollRect>();
             scroll.horizontal = false;
