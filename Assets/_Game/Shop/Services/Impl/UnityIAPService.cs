@@ -5,6 +5,7 @@
 #if CATEGORYSORT_UNITY_IAP
 using System;
 using System.Collections.Generic;
+using System.Threading.Tasks;
 using LogosSDK.Core.Logging;
 using LogosSDK.Services;
 using Unity.Services.Core;
@@ -32,6 +33,8 @@ namespace LogosGame.Features.Shop.Impl
     /// Nguyên tắc: chỉ ConfirmPurchase sau khi IIapFulfillment báo đã trao + đã lưu. App chết ở bất
     /// kỳ đâu trước Confirm thì đơn còn Pending — FetchPurchases() lúc khởi tạo gửi lại qua
     /// OnPurchasePending, kể cả khi không có Purchase nào đang chờ.
+    /// Non-consumable đã xác nhận từ trước (cài lại game, máy mới, Restore iOS) không quay lại
+    /// OnPurchasePending mà tới dưới dạng ConfirmedOrder trong OnPurchasesFetched — trao lại ở đó.
     /// </summary>
     public sealed class UnityIAPService : IIAPService
     {
@@ -46,6 +49,17 @@ namespace LogosGame.Features.Shop.Impl
         private AwaitableCompletionSource<bool> _initSource;
         private AwaitableCompletionSource<bool> _purchaseSource;
         private string _purchasingProductId;
+
+        private readonly HashSet<string> _nonConsumableIds = new HashSet<string>();
+
+        // Non-consumable đã trao trong phiên (Fulfill trả true) — nguồn của IsOwned.
+        private readonly HashSet<string> _ownedIds = new HashSet<string>();
+
+        // Ai đang chờ kết quả FetchPurchases (init, Restore, mua trùng). Mỗi callback gọi đúng một lần.
+        private readonly List<Action> _fetchWaiters = new List<Action>();
+
+        // Store không trả lời fetch thì Purchase/Restore không được treo (khoá popup cả phiên).
+        private static readonly TimeSpan FetchTimeout = TimeSpan.FromSeconds(15);
 
         public UnityIAPService() : this(new AcceptAllReceiptValidator())
         {
@@ -75,6 +89,11 @@ namespace LogosGame.Features.Shop.Impl
                 return _initSource.Awaitable;
             }
 
+            for (int i = 0; i < products.Count; i++)
+            {
+                if (products[i].Kind == IapProductKind.NonConsumable) _nonConsumableIds.Add(products[i].Id);
+            }
+
             InitializeInBackground(products);
             return _initSource.Awaitable;
         }
@@ -101,6 +120,7 @@ namespace LogosGame.Features.Shop.Impl
                 _store.OnPurchaseDeferred += OnPurchaseDeferred;
                 _store.OnProductsFetched += OnProductsFetched;
                 _store.OnProductsFetchFailed += OnProductsFetchFailed;
+                _store.OnPurchasesFetched += OnPurchasesFetched;
                 _store.OnPurchasesFetchFailed += OnPurchasesFetchFailed;
                 _store.OnStoreDisconnected += OnStoreDisconnected;
 
@@ -131,8 +151,9 @@ namespace LogosGame.Features.Shop.Impl
 
             // Sau khi có sản phẩm mới hỏi đơn cũ: đơn Pending (trả tiền rồi mà chưa trao) được
             // gửi lại qua OnPurchasePending — đây là lý do phải khởi tạo ngay lúc boot.
-            _store.FetchPurchases();
-            _initSource.TrySetResult(true);
+            // Init chỉ xong khi đơn cũ đã về: ShopService đọc IsOwned ngay sau init, nên Remove Ads
+            // đã sở hữu phải được trao (OnPurchasesFetched) trước đó. Fetch lỗi vẫn bán được → true.
+            FetchPurchases(() => _initSource.TrySetResult(true));
         }
 
         private void OnProductsFetchFailed(ProductFetchFailed failure)
@@ -143,13 +164,99 @@ namespace LogosGame.Features.Shop.Impl
             if (_store.GetProducts().Count == 0) _initSource.TrySetResult(false);
         }
 
-        private void OnPurchasesFetchFailed(PurchasesFetchFailureDescription failure) =>
+        // Gọi _store.FetchPurchases() và báo `done` khi có kết quả (thành công, lỗi, mất kết nối
+        // hoặc quá FetchTimeout). Đăng ký TRƯỚC khi fetch: store chưa kết nối / FakeStore trả lời
+        // đồng bộ ngay trong FetchPurchases().
+        private void FetchPurchases(Action done)
+        {
+            _fetchWaiters.Add(done);
+            TimeoutFetchWaiter(done);
+            _store.FetchPurchases();
+        }
+
+        // Task.Delay theo giờ thật (không phụ thuộc timeScale); async void bắt đầu trên main thread
+        // nên chạy tiếp trên main thread qua UnitySynchronizationContext.
+        private async void TimeoutFetchWaiter(Action done)
+        {
+            await Task.Delay(FetchTimeout);
+            if (!_fetchWaiters.Remove(done)) return;   // đã có kết quả
+
+            _logger.Warn("[UnityIAPService] Store không trả kết quả FetchPurchases — bỏ chờ.");
+            RunWaiter(done);
+        }
+
+        private void CompleteFetchWaiters()
+        {
+            if (_fetchWaiters.Count == 0) return;
+
+            Action[] waiters = _fetchWaiters.ToArray();
+            _fetchWaiters.Clear();
+            for (int i = 0; i < waiters.Length; i++) RunWaiter(waiters[i]);
+        }
+
+        private static void RunWaiter(Action done)
+        {
+            try
+            {
+                done();
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "[UnityIAPService] Lỗi khi xử lý kết quả FetchPurchases.");
+            }
+        }
+
+        // Package đã chuyển đơn Pending của lần fetch này sang OnPurchasePending TRƯỚC event này
+        // (PurchaseService.OnFetchSuccess). Ở đây chỉ xử lý đơn ĐÃ xác nhận: non-consumable user
+        // đã sở hữu. Không Confirm gì cả — đơn đã xác nhận rồi, và consumable không đi đường này.
+        private void OnPurchasesFetched(Orders orders)
+        {
+            IReadOnlyList<ConfirmedOrder> confirmed = orders?.ConfirmedOrders;
+            for (int i = 0; confirmed != null && i < confirmed.Count; i++) GrantOwned(confirmed[i]);
+
+            CompleteFetchWaiters();
+        }
+
+        private void GrantOwned(ConfirmedOrder order)
+        {
+            string productId = ProductIdOf(order);
+            if (productId == null || !_nonConsumableIds.Contains(productId)) return;
+
+            try
+            {
+                if (!_validator.IsValid(order.Info?.Receipt))
+                {
+                    _logger.Warn($"[UnityIAPService] Hoá đơn sở hữu '{productId}' không hợp lệ — không trao.");
+                    return;
+                }
+
+                // Đơn đã xác nhận có thể không mang mã (FakeStore luôn để rỗng); ShopService từ chối
+                // mã rỗng. Mã chỉ để ghi log — trao non-consumable là bật cờ, idempotent.
+                string transactionId = order.Info?.TransactionID;
+                if (string.IsNullOrEmpty(transactionId)) transactionId = "owned:" + productId;
+
+                if (_fulfillment != null && _fulfillment.Fulfill(productId, transactionId))
+                    _ownedIds.Add(productId);
+                else
+                    _logger.Warn($"[UnityIAPService] Store báo đã sở hữu '{productId}' nhưng chưa trao được.");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, $"[UnityIAPService] Lỗi khi trao lại '{productId}'.");
+            }
+        }
+
+        private void OnPurchasesFetchFailed(PurchasesFetchFailureDescription failure)
+        {
             _logger.Warn($"[UnityIAPService] Không lấy được đơn cũ: {failure.FailureReason} {failure.Message}");
+            CompleteFetchWaiters();
+        }
 
         private void OnStoreDisconnected(StoreConnectionFailureDescription failure)
         {
             _logger.Warn($"[UnityIAPService] Mất kết nối store: {failure.Message}");
             _initSource?.TrySetResult(false);
+            CompleteFetchWaiters();
         }
 
         // -------------------------------------------------------------- purchase
@@ -195,6 +302,7 @@ namespace LogosGame.Features.Shop.Impl
                 else if (_fulfillment != null && _fulfillment.Fulfill(productId, order.Info.TransactionID))
                 {
                     fulfilled = true;
+                    if (_nonConsumableIds.Contains(productId)) _ownedIds.Add(productId);
                     _store.ConfirmPurchase(order);
                 }
                 else
@@ -221,6 +329,17 @@ namespace LogosGame.Features.Shop.Impl
         private void OnPurchaseFailed(FailedOrder order)
         {
             string productId = ProductIdOf(order);
+
+            // Mua lại non-consumable đã sở hữu (Google ItemAlreadyOwned, Apple đơn đã xác nhận):
+            // hỏi lại store để OnPurchasesFetched trao nó; Purchase trả true chỉ khi đã trao thật.
+            if (order.FailureReason == PurchaseFailureReason.DuplicateTransaction
+                && productId != null && _nonConsumableIds.Contains(productId))
+            {
+                _logger.Info($"[UnityIAPService] '{productId}' đã sở hữu — lấy lại đơn từ store để trao.");
+                FetchPurchases(() => CompletePurchase(productId, _ownedIds.Contains(productId)));
+                return;
+            }
+
             if (order.FailureReason == PurchaseFailureReason.UserCancelled)
                 _logger.Info($"[UnityIAPService] User huỷ mua '{productId}'.");
             else
@@ -271,20 +390,16 @@ namespace LogosGame.Features.Shop.Impl
             _store.RestoreTransactions((ok, error) =>
             {
                 if (!ok) _logger.Warn($"[UnityIAPService] Khôi phục giao dịch thất bại: {error}");
-                source.TrySetResult();
+
+                // Package tự FetchPurchases khi ok nhưng gọi callback này ngay, trước khi đơn về.
+                // Fetch lại và chờ: non-consumable khôi phục được trao trước khi Restore xong.
+                FetchPurchases(() => source.TrySetResult());
             });
             return source.Awaitable;
         }
 
-        public bool IsOwned(string productId)
-        {
-            if (!IsReady || string.IsNullOrEmpty(productId)) return false;
-
-            Product product = _store.GetProductById(productId);
-            return product != null
-                   && product.definition.type != ProductType.Consumable
-                   && product.hasReceipt;
-        }
+        // Đã trao trong phiên này (mua mới, hoặc store báo đã sở hữu lúc init / Restore / mua trùng).
+        public bool IsOwned(string productId) => productId != null && _ownedIds.Contains(productId);
 
         public string GetLocalizedPrice(string productId)
         {

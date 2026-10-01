@@ -302,6 +302,33 @@ namespace WordStack.Meta.Tests
         }
 
         [Test]
+        public void Fulfill_RemoveAds_ThieuNoAdsService_TraFalse_DePending()
+        {
+            ShopService shop = Build(new FakeCurrency(0), new FakeIap());
+
+            Assert.IsFalse(shop.Fulfill(RemoveAdsId, "tx-1"), "không có nơi lưu cờ thì không được báo đã trao");
+        }
+
+        // Adapter trao lại Remove Ads trong OnPurchasesFetched — có thể tới SAU khi init xong
+        // (Restore iOS, mua trùng), không qua SyncRemoveAdsOwnership.
+        [Test]
+        public void Fulfill_RemoveAds_DenSauKhiKhoiTao_VanBatCo()
+        {
+            var currency = new FakeCurrency(0);
+            var analytics = new FakeAnalytics();
+            var noAds = new FakeNoAds();
+            ShopService shop = Build(currency, new FakeIap(), analytics, noAds: noAds);
+            Assert.IsFalse(noAds.IsNoAds.CurrentValue);
+
+            Assert.IsTrue(shop.Fulfill(RemoveAdsId, "tx-restore"));
+            Assert.IsTrue(shop.Fulfill(RemoveAdsId, "tx-restore"), "store báo lại lần nữa vẫn true");
+
+            Assert.IsTrue(noAds.IsNoAds.CurrentValue);
+            Assert.AreEqual(0, currency.Coins.CurrentValue, "Remove Ads không cộng coin");
+            Assert.AreEqual(1, analytics.Events.Count, "trao lại không ghi doanh thu lần hai");
+        }
+
+        [Test]
         public void GetPriceLabel_RemoveAds_DungFallback()
         {
             ShopService shop = Build(new FakeCurrency(0), new FakeIap(), noAds: new FakeNoAds());
@@ -315,7 +342,7 @@ namespace WordStack.Meta.Tests
             FakeItems items = null, FakeNoAds noAds = null)
         {
             var shop = new ShopService(new FakeCatalog(), iap, currency, items ?? new FakeItems(), analytics, noAds);
-            shop.InitializeStore();   // FakeIap hoàn tất ngay — như BootState gọi lúc khởi động
+            Await(shop.InitializeStore());   // FakeIap hoàn tất ngay — như BootState gọi lúc khởi động
             return shop;
         }
 
