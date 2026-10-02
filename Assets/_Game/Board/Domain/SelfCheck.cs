@@ -811,7 +811,7 @@ namespace WordStack.Board
                 Ok(!pool.Any(r => r.Stack == 1 && r.Slot == 3), "Xáo: ô của thẻ băng không vào pool dù thẻ trắng");
                 Ok(pool.Any(r => r.Stack == 0 && r.Slot == 2), "Xáo: ô trống ở hộp mở vẫn vào pool");
                 var cands = g3.PickPrimeCandidates(3);
-                Ok(!cands.Contains("gc"), "Xáo: nhóm có thẻ băng không làm mồi");
+                Ok(!cands.Contains("gc"), "Xáo: gc có e2 trong hộp đóng nên không làm mồi, dù chỉ một thẻ băng");
                 Ok(!cands.Contains("gb"), "Xáo: nhóm có thẻ trong hộp đóng không làm mồi");
                 Ok(cands.Contains("ga"), "Xáo: nhóm không dính blocker vẫn làm mồi được");
 
@@ -865,7 +865,7 @@ namespace WordStack.Board
                 var e1 = g2.TopBox(1).Slots[3];
                 e1.Lock = fx;
                 Ok(!g2.AssignableTopSlots().Any(r => r.Stack == 1 && r.Slot == 3), "Xáo: ô của thẻ đóng đinh không vào pool dù thẻ trắng");
-                Ok(!g2.PickPrimeCandidates(3).Contains("gc"), "Xáo: nhóm có thẻ đóng đinh không làm mồi");
+                Ok(g2.PickPrimeCandidates(9).Contains("gc"), "Xáo: nhóm có MỘT thẻ đóng đinh vẫn làm mồi — thẻ đinh là mốc hộp chủ");
                 g2.ApplyShuffle();
                 Ok(g2.TopBox(1).Slots[3] == e1, "Xáo: thẻ đóng đinh đứng yên đúng ô");
             }
@@ -912,6 +912,52 @@ namespace WordStack.Board
                 g6.TopBox(1).Slots[1] = null; g6.TopBox(1).Slots[2] = null;
                 g6.TopBox(0).Slots[0].Lock = fixedLock;
                 Ok(g6.IsDeadBoard(), "Chết: hộp duy nhất rút được lại có thẻ đóng đinh → chết");
+            }
+
+            // 8j. Xáo — chọn nhóm mồi (spec 2026-10-02-shuffle-redesign Mục 2). a1 ở stack 0 là
+            // thẻ dùng làm mốc, a2 a3 trắng, a4 chôn dưới stack 0.
+            const string AnchorLv = @"{'id':'t-anchor','title':'t','layout':{'stacks':[
+              {'pos':[0,0],'boxes':[{'slots':['a1','b1',null,null]},{'slots':['a4','c3',null,null]}]},
+              {'pos':[1,0],'boxes':[{'slots':['a2','c1',null,null]}]},
+              {'pos':[2,0],'boxes':[{'slots':['c2','a3',null,null]}]}]},";
+            Func<Lock, Game> anchored = l =>
+            {
+                var ga = BuildQ(AnchorLv + Meaning("ga:a", "gb:b", "gc:c"));
+                ga.TopBox(0).Slots[0].Lock = l;
+                return ga;
+            };
+            {
+                var ice = new Lock { Kind = LockKind.Moves, Need = 2 };
+                Ok(anchored(new Lock { Kind = LockKind.Fixed }).PickPrimeCandidates(9).Contains("ga"),
+                   "Mồi: một thẻ đóng đinh ở lớp trên → vẫn làm mồi");
+                Ok(anchored(ice).PickPrimeCandidates(9).Contains("ga"), "Mồi: một thẻ băng ở lớp trên → vẫn làm mồi");
+
+                var two = anchored(ice);
+                two.Stacks[0].Boxes[1].Slots[0].Lock = ice;   // a4 cũng băng
+                Ok(!two.PickPrimeCandidates(9).Contains("ga"), "Mồi: hai thẻ bất động → bỏ nhóm");
+
+                var buried = anchored(default(Lock));
+                buried.Stacks[0].Boxes[1].Slots[0].Lock = ice;
+                Ok(!buried.PickPrimeCandidates(9).Contains("ga"), "Mồi: thẻ băng bị chôn không làm mốc được → bỏ nhóm");
+
+                var locked = anchored(default(Lock));
+                locked.TopBox(1).Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(!locked.PickPrimeCandidates(9).Contains("ga"), "Mồi: có thẻ trong hộp khoá → bỏ nhóm");
+
+                // ga nhiều thẻ lớp trên hơn gb, nhưng a1 băng → gb lên trước.
+                const string IceOrderLv = @"{'id':'t-ice','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2','b1',null]},{'slots':['b2','b3','b4',null]}]},
+                  {'pos':[1,0],'boxes':[{'slots':['a3','a4',null,null]}]}]},";
+                var o1 = BuildQ(IceOrderLv + Meaning("ga:a", "gb:b"));
+                CardOf(o1, "a1").Lock = new Lock { Kind = LockKind.Moves, Need = 3 };
+                var p1 = o1.PickPrimeCandidates(9);
+                Ok(p1.Count == 2 && p1[0] == "gb" && p1[1] == "ga", "Mồi: nhóm có băng xếp sau nhóm không băng");
+
+                var o2 = BuildQ(IceOrderLv + Meaning("ga:a", "gb:b"));
+                CardOf(o2, "a1").Lock = new Lock { Kind = LockKind.Moves, Need = 3 };
+                CardOf(o2, "b1").Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
+                var p2 = o2.PickPrimeCandidates(9);
+                Ok(p2.Count == 2 && p2[0] == "gb", "Mồi: giữa các nhóm băng, băng còn ít nước tan hơn lên trước");
             }
 
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");

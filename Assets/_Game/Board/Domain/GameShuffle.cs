@@ -164,19 +164,24 @@ namespace WordStack.Board
         }
 
         /// <summary>
-        /// Các nhóm đáng dựng mồi, nhiều nhất <paramref name="max"/> nhóm.
+        /// Mọi nhóm đáng dựng mồi theo thứ tự thử, nhiều nhất <paramref name="max"/> nhóm.
         ///
-        /// Chỉ nhận nhóm có ĐỦ 4 thẻ đang tồn tại trên bàn: nhóm cha còn nhóm con chưa
-        /// collapse thì thành viên thiếu chưa tồn tại dưới dạng thẻ, không kéo lên được —
-        /// cùng ràng buộc với booster Magnet.
+        /// Nhận nhóm có ĐỦ 4 thẻ đang tồn tại trên bàn (nhóm cha còn nhóm con chưa collapse
+        /// thì thiếu thẻ — cùng ràng buộc với Magnet), KHÔNG thẻ nào nằm trong hộp khoá, và
+        /// tối đa MỘT thẻ bất động (băng hoặc đóng đinh). Thẻ bất động đó phải ở lớp trên:
+        /// nó không dời được nên hộp chứa nó chính là hộp chủ (spec 2026-10-02 Mục 1).
         ///
-        /// Thứ tự: nhiều thẻ sẵn ở lớp trên nhất trước (ít phải kéo donor nhất), hoà thì
-        /// theo group id. Bậc cuối chỉ để kết quả xác định, test lại được.
+        /// Thứ tự: nhóm không băng trước; giữa các nhóm băng thì băng còn ít nước tan trước
+        /// (mồi có băng chỉ nổ khi băng tan); rồi nhiều thẻ sẵn ở lớp trên trước (ít phải kéo
+        /// donor); hoà thì theo group id cho kết quả xác định, test lại được.
         /// </summary>
         public List<string> PickPrimeCandidates(int max)
         {
             var onBoard = new Dictionary<string, int>();
             var onTop = new Dictionary<string, int>();
+            var pinned = new Dictionary<string, int>();
+            var iceLeft = new Dictionary<string, int>();
+            var bad = new HashSet<string>();
             var order = new List<string>();
 
             for (int s = 0; s < Stacks.Count; s++)
@@ -187,23 +192,35 @@ namespace WordStack.Board
                     Tile[] slots = boxes[b].Slots;
                     for (int i = 0; i < slots.Length; i++)
                     {
-                        // Như Magnet, thêm: thẻ đóng đinh không kéo được nên nhóm có nó không làm mồi.
-                        if (slots[i] == null || !IsPullable(slots[i], boxes[b]) || IsFixed(slots[i])) continue;
-                        string gid = slots[i].GroupId;
-                        int n;
-                        if (!onBoard.TryGetValue(gid, out n)) { order.Add(gid); onTop[gid] = 0; }
-                        onBoard[gid] = n + 1;
-                        if (b == 0) onTop[gid] = onTop[gid] + 1;
+                        Tile t = slots[i];
+                        if (t == null) continue;
+                        string gid = t.GroupId;
+                        if (!onBoard.ContainsKey(gid))
+                        {
+                            order.Add(gid);
+                            onBoard[gid] = 0; onTop[gid] = 0; pinned[gid] = 0; iceLeft[gid] = 0;
+                        }
+                        onBoard[gid]++;
+                        if (b == 0) onTop[gid]++;
+                        if (!IsOpen(boxes[b].Lock)) bad.Add(gid);   // hộp khoá: bỏ cả nhóm
+                        if (!IsFrozen(t) && !IsFixed(t)) continue;
+                        pinned[gid]++;
+                        if (b != 0) bad.Add(gid);                   // băng bị chôn không làm mốc được
+                        if (IsFrozen(t)) iceLeft[gid] = t.Lock.Need - t.Lock.Have;
                     }
                 }
             }
 
             var eligible = new List<string>();
             for (int k = 0; k < order.Count; k++)
-                if (onBoard[order[k]] == Rules.GroupSize) eligible.Add(order[k]);
+            {
+                string gid = order[k];
+                if (onBoard[gid] == Rules.GroupSize && !bad.Contains(gid) && pinned[gid] <= 1) eligible.Add(gid);
+            }
 
             eligible.Sort(delegate (string a, string b)
             {
+                if (iceLeft[a] != iceLeft[b]) return iceLeft[a] - iceLeft[b];   // 0 = không băng → lên đầu
                 if (onTop[a] != onTop[b]) return onTop[b] - onTop[a];
                 return string.CompareOrdinal(a, b);
             });
@@ -549,7 +566,9 @@ namespace WordStack.Board
 
             // Chọn ứng viên TRƯỚC khi nhấc thẻ: PickPrimeCandidates đếm thẻ trên BÀN, mà
             // sau DrainAll thẻ trắng đã nằm trong tay nên nó sẽ đếm thiếu và trả rỗng.
-            List<string> candidates = PickPrimeCandidates(3);
+            // Lấy HẾT ứng viên: ứng viên đầu dựng hỏng thì ứng viên sau vẫn có cơ hội, vòng
+            // dựng tự dừng ở 3 mồi.
+            List<string> candidates = PickPrimeCandidates(int.MaxValue);
 
             List<SlotRef> pool = AssignableTopSlots();
             var reserved = new HashSet<int>();
