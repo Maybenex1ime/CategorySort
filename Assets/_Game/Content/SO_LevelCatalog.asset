@@ -20,8 +20,8 @@ MonoBehaviour:
     Moves: 30
     HideSettingsButton: 0
     HideCoinBox: 0
-  - LevelId: lv-002
-    AddressKey: lv-002
+  - LevelId: lv-010
+    AddressKey: lv-0
     DisplayName: The world around me
     Difficulty: 0
     Moves: 200
