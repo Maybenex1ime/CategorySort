@@ -230,3 +230,11 @@ ngay trên dòng hộp, blocker thẻ ở panel "Blocker thẻ"; Nhập và Xu�
 kiểm round-trip, sáu luật dữ liệu và luật chơi bản JS bằng đúng các kịch bản của `SelfCheck`
 mục 8. Tool Unity `WordStack ▸ Level Editor` đã xoá. Cổng xuất bản vẫn là `./selfcheck.sh` —
 bộ giải của tool là greedy có ngân sách, không thay được beam search hai chế độ. Tool JS chưa hỗ trợ `fixed` — màn có thẻ đóng đinh sửa tay JSON.
+
+**Việc chờ cho tool xếp level / solver** (ghi 2026-10-02, từ phân tích booster Shuffle). Hai kiểu
+bàn dưới đây là lỗi level, người chơi không tự tạo ra được, nên phải chặn ở tool và solver
+thay vì để Shuffle xử lý:
+- Hộp đang khoá (`locked` / `grouplock`) mà **không có thẻ nào** lúc đầu màn. Hộp khoá không
+  nhận thẻ thả vào và không bị xoá khi rỗng, nên mãi rỗng; Shuffle hiện tại thất bại mỗi lần bấm.
+- Màn mà ngay lúc mở, **mọi thẻ lớp trên đều không nhặt được** (băng, đóng đinh, hoặc nằm trong
+  hộp khoá). Bàn kẹt ngay nước đầu; solver đã bắt được nhưng nên báo lý do rõ ràng.
