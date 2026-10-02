@@ -541,12 +541,16 @@ namespace WordStack.Board
             {
                 Transform k = kids[i];
                 Vector3 slot = k.localPosition;        // ô của thẻ trong hệ pivot (đã tính rotation)
-                if (!inward) { k.localPosition = Vector3.zero; k.localScale = Vector3.one * A.shuffleGatherScale; }
+                // Cỡ thật của thẻ trong hệ pivot — ô trong hộp có scale riêng (vd 0.76), nên mọi
+                // scale ở đây phải là bội của cỡ này. Đặt tuyệt đối 1 thì về ô xong thẻ to ra 1/0.76.
+                Vector3 size = k.localScale;
+                Vector3 gathered = size * A.shuffleGatherScale;
+                if (!inward) { k.localPosition = Vector3.zero; k.localScale = gathered; }
 
                 seq.Insert(0f, LMotion.Create(k.localPosition, inward ? Vector3.zero : slot, dur)
                                       .WithEase(inward ? A.shuffleMoveInEase : A.shuffleMoveOutEase)
                                       .WithCancelOnError().BindToLocalPosition(k));
-                seq.Insert(0f, LMotion.Create(k.localScale, Vector3.one * (inward ? A.shuffleGatherScale : 1f), dur)
+                seq.Insert(0f, LMotion.Create(k.localScale, inward ? gathered : size, dur)
                                       .WithEase(inward ? A.shuffleScaleInEase : A.shuffleScaleOutEase)
                                       .WithCancelOnError().BindToLocalScale(k));
                 // Giữ thẻ thẳng: quay ngược -spin CÙNG ease với pivot, tổng góc ≡ 0.
