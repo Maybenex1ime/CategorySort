@@ -298,8 +298,6 @@ namespace WordStack.Board
                 anchorStacks.Add(s);
                 anchors += n;
             }
-            // Đủ 4 thẻ trong một hộp mà chưa nổ = còn thẻ băng, chờ tan — không có gì để dựng.
-            if (anchors >= Rules.GroupSize) return false;
             if (anchorStacks.Count == 2)
                 return TryPrimeFromTwoPairs(gid, anchorStacks[0], anchorStacks[1], pool, reserved, movers);
             if (anchorStacks.Count > 2) return false;
@@ -308,6 +306,8 @@ namespace WordStack.Board
             if (anchorStacks.Count == 1)
             {
                 host = anchorStacks[0];
+                // Đủ 4 thẻ trong một hộp mà chưa nổ = còn thẻ băng, chờ tan — không có gì để dựng.
+                if (anchors >= Rules.GroupSize) return false;
                 if (OpenCount(pool, reserved, host) < Rules.GroupSize - anchors) return false;
             }
             else
