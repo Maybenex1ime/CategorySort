@@ -1261,7 +1261,8 @@ namespace WordStack.Board
                     if (opened.Count > 0)
                         yield return ClearIntoLock(ev.Stack, ev.GroupId, ev.DoomedUids, opened);   // gộp giữa hộp → bay vào icon → lồng mở
                     else
-                        yield return RemoveTiles(ev.DoomedUids);   // 4 thẻ co về 0, lệch nhau clearStagger
+                        // 4 thẻ bay chụm về tâm hộp rồi nén mất — cùng nhịp với COLLAPSE và mở khoá nhóm.
+                        yield return GatherTiles(ev.DoomedUids, boxViews[ev.Stack].transform.position);
                     RefreshTileVisuals(ev.Stack);
                 }
                 if (ev.Kind == SettleKind.Collapse)
@@ -1428,7 +1429,8 @@ namespace WordStack.Board
 
         // Các thẻ bay chụm về destPos, co còn mergeShrink trên đường, tới nơi nén nốt về 0, rồi huỷ
         // SAU khi cả chuỗi xong (DestroyAll). Sổ tiles cập nhật ngay. Dùng chung cho COLLAPSE (đích =
-        // ô thẻ mới) và nhóm mở khoá (đích = tâm hộp). Không còn view nào để diễn thì kết thúc ngay.
+        // ô thẻ mới), CLEAR thường và nhóm mở khoá (đích = tâm hộp). Không còn view nào để diễn thì
+        // kết thúc ngay.
         IEnumerator GatherTiles(string[] uids, Vector3 destPos)
         {
             var shrink = Vector3.one * mergeShrink;
