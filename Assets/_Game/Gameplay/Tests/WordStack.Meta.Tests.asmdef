@@ -10,7 +10,10 @@
         "Core.EventBus",
         "LogosSDK.Save",
         "UnityEngine.TestRunner",
-        "UnityEditor.TestRunner"
+        "UnityEditor.TestRunner",
+        "WordStack.Meta.Editor",
+        "LitMotion",
+        "LitMotion.Animation"
     ],
     "includePlatforms": [
         "Editor"

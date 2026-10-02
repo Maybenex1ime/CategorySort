@@ -23,7 +23,8 @@
         "Unity.Services.Core",
         "LitMotion",
         "LitMotion.Extensions",
-        "LogosSDK.Tween"
+        "LogosSDK.Tween",
+        "LitMotion.Animation"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

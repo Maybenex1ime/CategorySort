@@ -13,7 +13,9 @@
         "Unity.Addressables.Editor",
         "Unity.Addressables",
         "Unity.TextMeshPro",
-        "LogosSDK.UI"
+        "LogosSDK.UI",
+        "LitMotion",
+        "LitMotion.Animation"
     ],
     "includePlatforms": [
         "Editor"

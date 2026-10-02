@@ -5,6 +5,7 @@ using LogosGame.Features.Gameplay.Boosters.ViewModels;
 using LogosGame.Features.Gameplay.Content;
 using LogosGame.Features.Gameplay.Flow;
 using LogosMeta.Economy;
+using LitMotion.Animation;
 using LogosSDK.Core.Events;
 using R3;
 using Reflex.Attributes;
@@ -36,6 +37,9 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
         private enum State { Locked, HasStock, Buyable, WatchAd }
 
         [SerializeField] private Button _button;
+        [Tooltip("Nảy khi bấm — Scale (Punch) trên chính nút. Dựng bằng Tools ▸ WordStack ▸ Build Booster Button " +
+                 "Punch; để trống thì không nảy.")]
+        [SerializeField] private LitMotionAnimation _clickPunch;
         [Tooltip("Để trống thì tự lấy/thêm trên chính GameObject này.")]
         [SerializeField] private CanvasGroup _canvasGroup;
         [Tooltip("CanvasGroup của riêng phần nút (nền + icon + số lượt), KHÔNG chứa nhãn giá / icon ad. " +
@@ -150,6 +154,13 @@ namespace LogosGame.Features.Gameplay.Boosters.Views
         private void OnButtonClicked()
         {
             if (ViewModel == null) return;
+
+            // Stop trả scale về cỡ thường rồi mới nảy lại — Play khi đang chạy chỉ là chạy tiếp.
+            if (_clickPunch != null)
+            {
+                _clickPunch.Stop();
+                _clickPunch.Play();
+            }
 
             switch (_state)
             {
