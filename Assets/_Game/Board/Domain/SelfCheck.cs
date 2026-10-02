@@ -960,6 +960,38 @@ namespace WordStack.Board
                 Ok(p2.Count == 2 && p2[0] == "gb", "Mồi: giữa các nhóm băng, băng còn ít nước tan hơn lên trước");
             }
 
+            // 8l. Xáo — lấp hộp trên rỗng (spec 2026-10-02-shuffle-redesign Mục 4). Stack 2 trên
+            // rỗng, tay cạn: phải xé cụm đôi ở hộp nhiều thẻ nhất, không đụng cụm ba.
+            {
+                const string FillLv = @"{'id':'t-fill','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2','b1','b2']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['c1','c2','c3',null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':[null,null,null,null]},{'slots':['d1',null,null,null]}]}]},";
+                var g = BuildQ(FillLv + Meaning("ga:a", "gb:b", "gc:c", "gd:d"));
+                Tile a1 = g.TopBox(0).Slots[0];
+                var movers = new HashSet<string>();
+                Ok(g.EnsureEveryTopBoxOccupied(g.AssignableTopSlots(), new HashSet<int>(), new List<Tile>(), movers),
+                   "Lấp hộp: tay cạn vẫn lấp được nhờ xé cụm");
+                Ok(g.TopBox(2).Slots.Contains(a1) && movers.Contains(a1.Uid), "Lấp hộp: xé cụm đôi ở hộp nhiều thẻ nhất, ghi vào movers");
+                Ok(InBox(g.TopBox(1), "gc") == 3, "Lấp hộp: cụm ba không bị xé khi còn cụm đôi");
+
+                var gl = BuildQ(FillLv + Meaning("ga:a", "gb:b", "gc:c", "gd:d"));
+                gl.TopBox(2).Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(gl.EnsureEveryTopBoxOccupied(gl.AssignableTopSlots(), new HashSet<int>(), new List<Tile>()),
+                   "Lấp hộp: hộp khoá rỗng được bỏ qua");
+                Ok(gl.TopBox(2).Slots.All(t => t == null), "Lấp hộp: hộp khoá vẫn rỗng");
+
+                // Hộp khoá rỗng từng làm mọi lần xáo thất bại.
+                const string LockedEmptyLv = @"{'id':'t-lockedempty','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','b1',null,null]},{'slots':['a4','c1','c2','b2']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['a2','b3',null,null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['a3',null,null,null]}]},
+                  {'pos':[3,0],'boxes':[{'slots':[null,null,null,null]}]}]},";
+                var ge = BuildQ(LockedEmptyLv + Meaning("ga:a", "gb:b", "gc:c"));
+                ge.TopBox(3).Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(ge.ApplyShuffle().Ok, "Lấp hộp: hộp khoá rỗng không làm xáo thất bại");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }

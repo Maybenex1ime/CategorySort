@@ -318,19 +318,24 @@ namespace WordStack.Board
         }
 
         /// <summary>
-        /// Mỗi top box phải giữ ≥1 thẻ. Hộp top rỗng bị SettleStep xoá, hộp dưới lộ ra,
-        /// tổng thẻ lớp trên tăng — vỡ bất biến 1.
+        /// Mỗi top box ĐANG MỞ phải giữ ≥1 thẻ. Hộp top rỗng bị SettleStep xoá, hộp dưới lộ
+        /// ra, tổng thẻ lớp trên tăng — vỡ bất biến 1. Hộp khoá rỗng thì bỏ qua: nó không
+        /// nhận thẻ và không bị xoá, đó là lỗi level chứ không phải việc của Shuffle.
+        ///
+        /// Tay cạn thì mượn: trước hết thẻ trắng chưa reserved; hết thì XÉ một cụm người chơi
+        /// đã gom (spec 2026-10-02 Mục 3) — thẻ bị xé ghi vào <paramref name="movers"/>.
         ///
         /// Chạy TRƯỚC ClusterHand chứ không phải sau: gom cụm reserve hết ô trống, chạy
         /// sau thì không còn thẻ nào mượn được và cả lượt shuffle bị rollback oan.
         /// </summary>
-        public bool EnsureEveryTopBoxOccupied(List<SlotRef> pool, HashSet<int> reserved, List<Tile> hand)
+        public bool EnsureEveryTopBoxOccupied(List<SlotRef> pool, HashSet<int> reserved, List<Tile> hand,
+                                              HashSet<string> movers = null)
         {
             for (int s = 0; s < Stacks.Count; s++)
             {
                 Box box = TopBox(s);
                 if (box == null) return false;
-                if (BoxTileCount(box) > 0) continue;
+                if (!IsOpen(box.Lock) || BoxTileCount(box) > 0) continue;
 
                 int slot = FirstOpen(pool, reserved, s);
                 if (slot < 0) return false;
@@ -343,29 +348,71 @@ namespace WordStack.Board
                     continue;
                 }
 
-                // Tay đã cạn: mượn từ ô CHƯA reserved của hộp đang có ≥2 thẻ — ô đã
-                // reserved là Nhóm mồi, đụng vào là phá thứ vừa dựng.
-                int donorStack = -1, donorSlot = -1;
-                for (int d = 0; d < Stacks.Count && donorStack < 0; d++)
+                SlotRef donor;
+                bool split = false;
+                if (!FindLooseDonor(pool, reserved, s, out donor))
                 {
-                    if (d == s) continue;
-                    Box db = TopBox(d);
-                    if (db == null || BoxTileCount(db) < 2) continue;
-                    for (int i = 0; i < db.Slots.Length; i++)
-                    {
-                        if (db.Slots[i] == null) continue;
-                        if (reserved.Contains(SlotKey(d, i))) continue;
-                        if (!InPool(pool, d, i)) continue;
-                        donorStack = d; donorSlot = i; break;
-                    }
+                    if (!FindSplitDonor(reserved, s, out donor)) return false;
+                    split = true;
                 }
-                if (donorStack < 0) return false;
 
-                box.Slots[slot] = TopBox(donorStack).Slots[donorSlot];
-                TopBox(donorStack).Slots[donorSlot] = null;
+                Box db = TopBox(donor.Stack);
+                Tile moved = db.Slots[donor.Slot];
+                box.Slots[slot] = moved;
+                db.Slots[donor.Slot] = null;
                 reserved.Add(SlotKey(s, slot));
+                if (split && movers != null) movers.Add(moved.Uid);
             }
             return true;
+        }
+
+        // Thẻ trắng CHƯA reserved ở hộp đang có ≥2 thẻ — ô đã reserved là Nhóm mồi, đụng
+        // vào là phá thứ vừa dựng.
+        bool FindLooseDonor(List<SlotRef> pool, HashSet<int> reserved, int target, out SlotRef donor)
+        {
+            donor = default(SlotRef);
+            for (int d = 0; d < Stacks.Count; d++)
+            {
+                if (d == target) continue;
+                Box db = TopBox(d);
+                if (db == null || BoxTileCount(db) < 2) continue;
+                for (int i = 0; i < db.Slots.Length; i++)
+                {
+                    if (db.Slots[i] == null || reserved.Contains(SlotKey(d, i)) || !InPool(pool, d, i)) continue;
+                    donor = new SlotRef { Stack = d, Box = 0, Slot = i };
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Thẻ trong một cụm người chơi đã gom, để xé lấp hộp rỗng. Không lấy thẻ băng, đóng
+        // đinh, hộp khoá, hay ô reserved (mồi). Ưu tiên: xé đôi trước xé ba (cụm 3 gần nổ
+        // hơn) → hộp nhiều thẻ nhất → stack nhỏ nhất → ô nhỏ nhất.
+        bool FindSplitDonor(HashSet<int> reserved, int target, out SlotRef donor)
+        {
+            donor = default(SlotRef);
+            bool found = false;
+            int bestPair = 0, bestTiles = 0;
+            for (int d = 0; d < Stacks.Count; d++)
+            {
+                Box db = TopBox(d);
+                if (d == target || db == null || !IsOpen(db.Lock)) continue;
+                int tiles = BoxTileCount(db);
+                if (tiles < 2) continue;
+                for (int i = 0; i < db.Slots.Length; i++)
+                {
+                    Tile t = db.Slots[i];
+                    if (t == null || reserved.Contains(SlotKey(d, i)) || IsFrozen(t) || IsFixed(t)) continue;
+                    int size = CountGroupInBox(db, t.GroupId);
+                    if (size < 2) continue;
+                    int pair = size == 2 ? 1 : 0;
+                    if (found && (pair < bestPair || (pair == bestPair && tiles <= bestTiles))) continue;
+                    found = true; bestPair = pair; bestTiles = tiles;
+                    donor = new SlotRef { Stack = d, Box = 0, Slot = i };
+                }
+            }
+            return found;
         }
 
         /// <summary>
@@ -573,6 +620,7 @@ namespace WordStack.Board
             List<SlotRef> pool = AssignableTopSlots();
             var reserved = new HashSet<int>();
             var hand = new List<Tile>();
+            var movers = new HashSet<string>();   // thẻ có màu được dời hợp lệ — xem ValidateShuffle
             DrainAll(pool, hand);
 
             int primed = 0;
@@ -580,11 +628,11 @@ namespace WordStack.Board
                 if (TryPrimeGroup(candidates[k], pool, reserved, hand)) primed++;
 
             // Seed TRƯỚC cluster — xem ghi chú trong EnsureEveryTopBoxOccupied.
-            bool seeded = EnsureEveryTopBoxOccupied(pool, reserved, hand);
+            bool seeded = EnsureEveryTopBoxOccupied(pool, reserved, hand, movers);
             ClusterHand(pool, reserved, hand);
 
             // hand còn thẻ = có thẻ không tìm được chỗ đặt, tức là thẻ đã rời khỏi bàn.
-            if (!seeded || hand.Count > 0 || !ValidateShuffle(topBefore, before, whiteBefore))
+            if (!seeded || hand.Count > 0 || !ValidateShuffle(topBefore, before, whiteBefore, movers))
             {
                 RestoreFrom(backup);
                 return fail;
@@ -598,8 +646,10 @@ namespace WordStack.Board
             };
         }
 
-        // Bốn bất biến của spec Mục 5.
-        bool ValidateShuffle(int topBefore, Dictionary<string, SlotRef> before, HashSet<string> whiteBefore)
+        // Bốn bất biến của spec 2026-08-26 Mục 5, nới theo spec 2026-10-02-shuffle-redesign
+        // Mục 5: thẻ có màu trong movers (cặp dời, thẻ dời giữa hai cụm đôi, thẻ xé) được đổi chỗ.
+        bool ValidateShuffle(int topBefore, Dictionary<string, SlotRef> before, HashSet<string> whiteBefore,
+                             HashSet<string> movers)
         {
             if (TopLayerTileCount() != topBefore) return false;
             if (AnyBoxHasFullGroup()) return false;
@@ -607,7 +657,7 @@ namespace WordStack.Board
             for (int s = 0; s < Stacks.Count; s++)
             {
                 Box top = TopBox(s);
-                if (top == null || BoxTileCount(top) == 0) return false;
+                if (top == null || (IsOpen(top.Lock) && BoxTileCount(top) == 0)) return false;   // hộp khoá được rỗng
             }
 
             // Thẻ vốn CÓ MÀU ở lớp trên phải còn nguyên chỗ cũ và nguyên nội dung. Xét theo
@@ -617,6 +667,7 @@ namespace WordStack.Board
             {
                 if (kv.Value.Box != 0) continue;              // vốn không ở lớp trên
                 if (whiteBefore.Contains(kv.Key)) continue;   // vốn trắng, được phép đổi chỗ
+                if (movers.Contains(kv.Key)) continue;        // dời hợp lệ (spec 2026-10-02 Mục 5)
 
                 SlotRef cur;
                 if (!now.TryGetValue(kv.Key, out cur)) return false;
