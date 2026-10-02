@@ -992,6 +992,62 @@ namespace WordStack.Board
                 Ok(ge.ApplyShuffle().Ok, "Lấp hộp: hộp khoá rỗng không làm xáo thất bại");
             }
 
+            // 8k. Xáo — hộp chủ (spec 2026-10-02-shuffle-redesign Mục 3).
+            {
+                foreach (var kind in new[] { LockKind.Fixed, LockKind.Moves })
+                {
+                    var g = anchored(new Lock { Kind = kind, Need = 2 });
+                    Tile a1 = g.TopBox(0).Slots[0];
+                    var r = g.ApplyShuffle();
+                    Ok(r.Ok, "Hộp chủ (" + kind + "): xáo thành công");
+                    Ok(g.TopBox(0).Slots[0] == a1, "Hộp chủ (" + kind + "): mốc đứng yên đúng ô");
+                    Ok(InBox(g.TopBox(0), "ga") == 3 && Game.FreeCount(g.TopBox(0)) >= 1,
+                       "Hộp chủ (" + kind + "): hộp chứa mốc thành hộp chủ, 3 thẻ ga + ô trống");
+                    Ok(g.CountPrimedGroups() >= 1, "Hộp chủ (" + kind + "): có nhóm mồi");
+                    Ok(!r.Moves.Any(m => m.Uid == a1.Uid), "Hộp chủ (" + kind + "): mốc không nằm trong Moves");
+                }
+
+                // Cụm đôi a1 a2 người chơi đã gom ở stack 0; a3 trắng; a4 chôn dưới stack 1.
+                const string PairLv = @"{'id':'t-pair','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2','b1',null]}]},
+                  {'pos':[1,0],'boxes':[{'slots':['a3','c1',null,null]},{'slots':['a4','c2',null,null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['c3',null,null,null]}]}]},";
+                var gp = BuildQ(PairLv + Meaning("ga:a", "gb:b", "gc:c"));
+                Tile p1 = gp.TopBox(0).Slots[0], p2 = gp.TopBox(0).Slots[1];
+                Ok(gp.ApplyShuffle().Ok, "Hộp chủ cụm đôi: xáo thành công");
+                Ok(gp.TopBox(0).Slots[0] == p1 && gp.TopBox(0).Slots[1] == p2, "Hộp chủ cụm đôi: cụm đôi đứng yên");
+                Ok(InBox(gp.TopBox(0), "ga") == 3 && Game.FreeCount(gp.TopBox(0)) == 1,
+                   "Hộp chủ cụm đôi: hộp của cụm đôi thành hộp chủ");
+
+                // Hai cụm đôi ga ở hai hộp.
+                const string TwoPairsLv = @"{'id':'t-two','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2',null,null]}]},
+                  {'pos':[1,0],'boxes':[{'slots':['a3','a4','b1','b2']}]}]},";
+                var gt = BuildQ(TwoPairsLv + Meaning("ga:a", "gb:b"));
+                int topT = gt.TopLayerTileCount();
+                var rt = gt.ApplyShuffle();
+                Ok(rt.Ok && rt.Moves.Length == 1, "Hai cụm đôi: đúng một thẻ đổi chỗ");
+                Ok(InBox(gt.TopBox(0), "ga") == 3 && Game.FreeCount(gt.TopBox(0)) == 1, "Hai cụm đôi: stack 0 thành cụm 3 + ô trống");
+                Ok(InBox(gt.TopBox(1), "ga") == 1 && InBox(gt.TopBox(1), "gb") == 2,
+                   "Hai cụm đôi: thẻ ga ở lại là thẻ thứ 4, cụm gb không bị đụng");
+                Ok(gt.TopLayerTileCount() == topT && !gt.AnyBoxHasFullGroup(), "Hai cụm đôi: giữ bất biến");
+
+                // Không hộp nào trống đủ 4 ô. Stack 0 chỉ vướng cụm đôi gb và ngồi trên hộp có a3 a4.
+                const string MergeLv = @"{'id':'t-merge','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['b1','b2','a2',null]},{'slots':['a3','a4','h1','h2']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['d1','d2','f1',null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['a1','e1','e2','g1']}]}]},";
+                var gm = BuildQ(MergeLv + Meaning("ga:a", "gb:b", "gd:d", "ge:e", "gf:f", "gg:g", "gh:h"));
+                Tile b1 = CardOf(gm, "b1"), b2 = CardOf(gm, "b2");
+                int topM = gm.TopLayerTileCount();
+                Ok(gm.ApplyShuffle().Ok, "Dời cụm đôi: xáo thành công");
+                Ok(InBox(gm.TopBox(0), "ga") == 3 && Game.FreeCount(gm.TopBox(0)) == 1, "Dời cụm đôi: stack 0 được giải phóng làm hộp chủ");
+                Ok(gm.TopBox(1).Slots.Contains(b1) && gm.TopBox(1).Slots.Contains(b2), "Dời cụm đôi: cặp gb dời nguyên cặp sang stack 1");
+                Ok(InBox(gm.TopBox(1), "gd") == 2, "Dời cụm đôi: cụm gd ở hộp nhận còn nguyên");
+                Ok(gm.CountPrimedGroups() >= 1, "Dời cụm đôi: có nhóm mồi");
+                Ok(gm.TopLayerTileCount() == topM && !gm.AnyBoxHasFullGroup(), "Dời cụm đôi: giữ bất biến");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }

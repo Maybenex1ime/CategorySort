@@ -267,31 +267,66 @@ namespace WordStack.Board
         }
 
         /// <summary>
-        /// Dựng Nhóm mồi 3+1: 3 thẻ vào hộp chủ (hộp đó còn ĐÚNG 1 ô trống được giữ chỗ),
-        /// thẻ thứ 4 sang top box khác. Người chơi kéo một nước là nổ.
+        /// Dựng Nhóm mồi 3+1: 3 thẻ trong hộp chủ (hộp đó còn ĐÚNG 1 ô trống được giữ chỗ),
+        /// thẻ thứ 4 ở top box khác. Người chơi kéo một nước là nổ.
+        ///
+        /// Hộp chủ chọn theo thứ tự (spec 2026-10-02 Mục 2):
+        ///   1. Có MỐC — thẻ gid Shuffle không dời được (băng, đóng đinh, cụm người chơi đã
+        ///      gom) nằm gọn trong MỘT hộp → hộp đó là hộp chủ, mốc tính vào 3 thẻ.
+        ///   2. Hai cụm đôi gid ở hai hộp → TryPrimeFromTwoPairs.
+        ///   3. Hộp có đủ 4 ô mở, ưu tiên hộp có layer 2 nhiều thẻ nhất: nổ xong hộp chủ bị
+        ///      xoá, hộp dưới lộ ra, ngồi trên hộp đầy thì lượt sau có nhiều nguyên liệu nhất.
+        ///   4. Không hộp nào đủ 4 ô → dời một cụm đôi để giải phóng hộp (PlanPairMerge).
+        /// Mốc rải theo hình khác (vd băng ở một hộp + đôi ở hộp khác) → bỏ nhóm này.
+        ///
+        /// <paramref name="movers"/> nhận uid thẻ có màu bị dời hợp lệ — ValidateShuffle
+        /// miễn kiểm "thẻ có màu đứng yên" cho đúng những thẻ đó.
         ///
         /// Trả false khi không xếp nổi — bên gọi phải coi đó là bình thường, không phải lỗi.
         /// </summary>
-        public bool TryPrimeGroup(string gid, List<SlotRef> pool, HashSet<int> reserved, List<Tile> hand)
+        public bool TryPrimeGroup(string gid, List<SlotRef> pool, HashSet<int> reserved, List<Tile> hand,
+                                  HashSet<string> movers = null)
         {
-            // Hộp chủ cần GroupSize ô mở: GroupSize-1 cho thẻ, 1 chừa trống cho người chơi.
-            // Ưu tiên hộp có layer 2 nhiều thẻ nhất: nổ xong hộp chủ bị xoá, hộp dưới lộ ra,
-            // chọn hộp ngồi trên hộp đầy thì lượt sau người chơi có nhiều nguyên liệu nhất.
-            int host = -1;
+            // Sau DrainAll thẻ trắng đã vào tay, nên thẻ gid còn ở lớp trên đều là mốc.
+            var anchorStacks = new List<int>();
+            int anchors = 0;
             for (int s = 0; s < Stacks.Count; s++)
             {
-                if (OpenCount(pool, reserved, s) < Rules.GroupSize) continue;
-                if (host < 0 || Layer2TileCount(s) > Layer2TileCount(host)) host = s;
+                Box top = TopBox(s);
+                int n = top == null ? 0 : CountGroupInBox(top, gid);
+                if (n == 0) continue;
+                anchorStacks.Add(s);
+                anchors += n;
             }
-            if (host < 0) return false;
+            if (anchorStacks.Count == 2)
+                return TryPrimeFromTwoPairs(gid, anchorStacks[0], anchorStacks[1], pool, reserved, movers);
+            if (anchorStacks.Count > 2) return false;
+
+            int host, mergeTo = -1;
+            if (anchorStacks.Count == 1)
+            {
+                host = anchorStacks[0];
+                if (OpenCount(pool, reserved, host) < Rules.GroupSize - anchors) return false;
+            }
+            else
+            {
+                host = -1;
+                for (int s = 0; s < Stacks.Count; s++)
+                {
+                    if (OpenCount(pool, reserved, s) < Rules.GroupSize) continue;
+                    if (host < 0 || Layer2TileCount(s) > Layer2TileCount(host)) host = s;
+                }
+                if (host < 0 && !PlanPairMerge(pool, reserved, out host, out mergeTo)) return false;
+            }
 
             int carrier = -1;
             for (int s = 0; s < Stacks.Count && carrier < 0; s++)
-                if (s != host && OpenCount(pool, reserved, s) > 0) carrier = s;
+                if (s != host && OpenAfterMerge(pool, reserved, s, mergeTo) > 0) carrier = s;
             if (carrier < 0) return false;
 
+            // Gom thẻ TRƯỚC khi dời cặp: gom thất bại thì lớp trên chưa bị đụng gì.
             var need = new List<Tile>();
-            for (int k = 0; k < Rules.GroupSize; k++)
+            for (int k = 0; k < Rules.GroupSize - anchors; k++)
             {
                 Tile t = TakeFromHand(hand, gid);
                 if (t == null) t = SwapDonorIntoHand(gid, hand);
@@ -299,7 +334,10 @@ namespace WordStack.Board
                 need.Add(t);
             }
 
-            for (int k = 0; k < Rules.GroupSize - 1; k++)
+            if (mergeTo >= 0) MergePair(host, mergeTo, pool, reserved, movers);
+            ReserveGroup(host, gid, reserved);   // mốc: pha sau không được xé
+
+            for (int k = 0; k < need.Count - 1; k++)
             {
                 int slot = FirstOpen(pool, reserved, host);
                 TopBox(host).Slots[slot] = need[k];
@@ -307,14 +345,132 @@ namespace WordStack.Board
             }
 
             // Ô CHỪA TRỐNG — reserve để pha sau không lấp mất chỗ thả thẻ thứ 4.
-            int keep = FirstOpen(pool, reserved, host);
-            if (keep < 0) { hand.AddRange(need); return false; }
-            reserved.Add(SlotKey(host, keep));
+            reserved.Add(SlotKey(host, FirstOpen(pool, reserved, host)));
 
             int cslot = FirstOpen(pool, reserved, carrier);
-            TopBox(carrier).Slots[cslot] = need[Rules.GroupSize - 1];
+            TopBox(carrier).Slots[cslot] = need[need.Count - 1];
             reserved.Add(SlotKey(carrier, cslot));
             return true;
+        }
+
+        // Hai cụm đôi gid ở hai hộp, không thẻ nào băng/đóng đinh: dời một thẻ sang hộp kia
+        // thành cụm 3, thẻ ở lại chính là thẻ thứ 4. Hộp nhận cần 2 ô mở (1 cho thẻ dời,
+        // 1 chừa trống); hộp nhiều ô mở hơn làm hộp chủ, hoà lấy stack nhỏ hơn.
+        bool TryPrimeFromTwoPairs(string gid, int a, int b, List<SlotRef> pool, HashSet<int> reserved,
+                                  HashSet<string> movers)
+        {
+            if (!IsMovablePair(TopBox(a), gid) || !IsMovablePair(TopBox(b), gid)) return false;
+            int host = OpenCount(pool, reserved, b) > OpenCount(pool, reserved, a) ? b : a;
+            int from = host == a ? b : a;
+            if (OpenCount(pool, reserved, host) < 2) return false;
+
+            Box src = TopBox(from);
+            int i = 0;
+            while (src.Slots[i] == null || src.Slots[i].GroupId != gid) i++;
+            Tile moved = src.Slots[i];
+            src.Slots[i] = null;   // ô này không thuộc pool nên pha sau không lấp — đúng ý
+
+            int slot = FirstOpen(pool, reserved, host);
+            TopBox(host).Slots[slot] = moved;
+            if (movers != null) movers.Add(moved.Uid);
+            ReserveGroup(host, gid, reserved);
+            ReserveGroup(from, gid, reserved);
+            reserved.Add(SlotKey(host, FirstOpen(pool, reserved, host)));   // ô chừa trống
+            return true;
+        }
+
+        static bool IsMovablePair(Box box, string gid)
+        {
+            int n = 0;
+            foreach (Tile t in box.Slots)
+            {
+                if (t == null || t.GroupId != gid) continue;
+                if (IsFrozen(t) || IsFixed(t)) return false;
+                n++;
+            }
+            return n == 2;
+        }
+
+        void ReserveGroup(int stack, string gid, HashSet<int> reserved)
+        {
+            Box top = TopBox(stack);
+            for (int i = 0; i < top.Slots.Length; i++)
+                if (top.Slots[i] != null && top.Slots[i].GroupId == gid) reserved.Add(SlotKey(stack, i));
+        }
+
+        /// <summary>
+        /// Không hộp nào đủ 4 ô mở: tìm hộp X mà thứ duy nhất chiếm chỗ là MỘT cụm đôi, và
+        /// hộp D nhận được cặp đó (≥2 ô mở, chưa có thẻ nhóm đó — 2+2 cùng nhóm là tự nổ).
+        /// Dời cặp đi thì X trống 4 ô, làm hộp chủ được. Chỉ LẬP kế hoạch, chưa dời — gom
+        /// thẻ còn có thể thất bại; MergePair chạy sau khi đã chắc chắn.
+        ///
+        /// X: layer 2 nhiều thẻ nhất (cùng lý do với hộp chủ thường), hoà lấy stack nhỏ.
+        /// D: stack nhỏ nhất thoả điều kiện VÀ sau khi nhận cặp vẫn còn hộp mang thẻ thứ 4.
+        /// </summary>
+        bool PlanPairMerge(List<SlotRef> pool, HashSet<int> reserved, out int host, out int dest)
+        {
+            host = -1; dest = -1;
+            for (int x = 0; x < Stacks.Count; x++)
+            {
+                string pair = LonePairGroup(pool, reserved, x);
+                if (pair == null) continue;
+                if (host >= 0 && Layer2TileCount(x) <= Layer2TileCount(host)) continue;
+                for (int d = 0; d < Stacks.Count; d++)
+                {
+                    if (d == x || OpenCount(pool, reserved, d) < 2) continue;
+                    if (CountGroupInBox(TopBox(d), pair) > 0) continue;
+                    bool carrier = false;
+                    for (int s = 0; s < Stacks.Count && !carrier; s++)
+                        if (s != x && OpenAfterMerge(pool, reserved, s, d) > 0) carrier = true;
+                    if (!carrier) continue;
+                    host = x; dest = d;
+                    break;
+                }
+            }
+            return host >= 0;
+        }
+
+        // Nhóm của cụm đôi nếu hộp chỉ còn đúng cụm đôi đó (2 thẻ cùng nhóm, không băng/đinh,
+        // chưa reserved) + 2 ô mở. Ngược lại null.
+        string LonePairGroup(List<SlotRef> pool, HashSet<int> reserved, int x)
+        {
+            Box top = TopBox(x);
+            if (top == null || OpenCount(pool, reserved, x) != Rules.GroupSize - 2) return null;
+            string gid = null;
+            int n = 0;
+            for (int i = 0; i < top.Slots.Length; i++)
+            {
+                Tile t = top.Slots[i];
+                if (t == null) continue;
+                if (reserved.Contains(SlotKey(x, i)) || IsFrozen(t) || IsFixed(t)) return null;
+                if (gid != null && t.GroupId != gid) return null;
+                gid = t.GroupId;
+                n++;
+            }
+            return n == 2 ? gid : null;
+        }
+
+        int OpenAfterMerge(List<SlotRef> pool, HashSet<int> reserved, int stack, int mergeTo)
+        {
+            return OpenCount(pool, reserved, stack) - (stack == mergeTo ? 2 : 0);
+        }
+
+        // Dời cụm đôi của hộp x sang hộp d, vẫn là một cặp. Ô cũ của cặp vào pool để x thành
+        // hộp chủ 4 ô mở.
+        void MergePair(int x, int d, List<SlotRef> pool, HashSet<int> reserved, HashSet<string> movers)
+        {
+            Box src = TopBox(x), dst = TopBox(d);
+            for (int i = 0; i < src.Slots.Length; i++)
+            {
+                Tile t = src.Slots[i];
+                if (t == null) continue;
+                int slot = FirstOpen(pool, reserved, d);
+                dst.Slots[slot] = t;
+                reserved.Add(SlotKey(d, slot));
+                if (movers != null) movers.Add(t.Uid);
+                src.Slots[i] = null;
+                pool.Add(new SlotRef { Stack = x, Box = 0, Slot = i });
+            }
         }
 
         /// <summary>
@@ -625,7 +781,7 @@ namespace WordStack.Board
 
             int primed = 0;
             for (int k = 0; k < candidates.Count && primed < 3; k++)
-                if (TryPrimeGroup(candidates[k], pool, reserved, hand)) primed++;
+                if (TryPrimeGroup(candidates[k], pool, reserved, hand, movers)) primed++;
 
             // Seed TRƯỚC cluster — xem ghi chú trong EnsureEveryTopBoxOccupied.
             bool seeded = EnsureEveryTopBoxOccupied(pool, reserved, hand, movers);
