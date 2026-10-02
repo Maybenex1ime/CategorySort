@@ -8,6 +8,7 @@
 //
 // KHÔNG import UnityEngine (xem Rules.cs) — selfcheck.sh compile cả thư mục Domain/.
 using System;
+using System.Collections.Generic;
 
 namespace WordStack.Board
 {
@@ -126,6 +127,69 @@ namespace WordStack.Board
                 }
             }
             return false;
+        }
+
+        /// <summary>
+        /// Bàn chết: còn nước đi nhưng không nhóm nào nổ được nữa, đi bao nhiêu cũng vậy.
+        /// Chỉ xét hộp trên đang mở — hộp khoá chỉ mở khi có nhóm được gom, mà bàn chết thì
+        /// không còn nhóm nào gom được, nên bỏ hẳn chúng ra là chính xác chứ không phải
+        /// xấp xỉ. Spec 2026-10-02-shuffle-redesign Mục 8.
+        ///
+        /// Chết khi CẢ HAI cùng đúng:
+        ///   D1 — không hộp nào làm rỗng được, nên không lộ được thẻ chôn. Nước đi chỉ dời
+        ///        ô trống chứ không đổi TỔNG ô trống, nên rút hết n thẻ khỏi hộp X cần n ô
+        ///        trống ở các hộp mở khác ngay bây giờ. Hộp đáy rỗng không bị xoá, hộp có
+        ///        thẻ đóng đinh không rỗng được — cả hai loại không tính.
+        ///   D2 — không nhóm nào gom được tại chỗ: đủ 4 thẻ trong hộp mở VÀ mọi thẻ đóng đinh
+        ///        của nó cùng một hộp. Thẻ băng không chặn vì còn nước đi là băng còn tan.
+        ///
+        /// Chỉ đếm, không tìm kiếm: bỏ sót vài bàn chết hiếm (solver lo), nhưng KHÔNG BAO GIỜ
+        /// gọi nhầm bàn sống là chết — Solver cắt nhánh theo đúng kết quả này.
+        /// </summary>
+        public bool IsDeadBoard()
+        {
+            var open = new List<Box>();
+            int free = 0;
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                var top = TopBox(s);
+                if (top == null || !IsOpen(top.Lock)) continue;
+                open.Add(top);
+                free += FreeCount(top);
+            }
+
+            foreach (var b in open)
+            {
+                if (b.IsBottom) continue;
+                int tiles = 0;
+                bool nailed = false;
+                foreach (var t in b.Slots)
+                {
+                    if (t == null) continue;
+                    tiles++;
+                    if (IsFixed(t)) nailed = true;
+                }
+                if (!nailed && tiles <= free - FreeCount(b)) return false;
+            }
+
+            var count = new Dictionary<string, int>();
+            var nailBox = new Dictionary<string, Box>();
+            var split = new HashSet<string>();
+            foreach (var b in open)
+                foreach (var t in b.Slots)
+                {
+                    if (t == null) continue;
+                    int n;
+                    count.TryGetValue(t.GroupId, out n);
+                    count[t.GroupId] = n + 1;
+                    if (!IsFixed(t)) continue;
+                    Box first;
+                    if (!nailBox.TryGetValue(t.GroupId, out first)) nailBox[t.GroupId] = b;
+                    else if (first != b) split.Add(t.GroupId);
+                }
+            foreach (var kv in count)
+                if (kv.Value >= Rules.GroupSize && !split.Contains(kv.Key)) return false;
+            return true;
         }
 
         /// <summary>Nhóm gid còn thẻ nào trên bàn không. Tính cả thẻ nhóm con: nhóm cha chỉ

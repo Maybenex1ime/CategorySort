@@ -13,6 +13,28 @@ namespace WordStack.Board
     {
         static void Ok(bool cond, string msg) { if (!cond) throw new Exception(msg); }
 
+        // Level viết gọn cho các mục 8i–8m: nháy đơn thay nháy kép, nhóm "ga:a" = nhóm ga có
+        // 4 thẻ a1..a4. Không Validate — thẻ khai báo mà không đặt lên bàn là cố ý.
+        static Game BuildQ(string json) { return Game.Build(LevelData.Parse(json.Replace('\'', '"'))); }
+
+        static string Meaning(params string[] groups)
+        {
+            var parts = groups.Select(x =>
+            {
+                string[] p = x.Split(':');
+                var cards = Enumerable.Range(1, 4).Select(i => "{'id':'" + p[1] + i + "','text':'" + p[1] + i + "'}");
+                return "{'id':'" + p[0] + "','text':'" + p[0] + "','cards':[" + string.Join(",", cards.ToArray()) + "]}";
+            });
+            return "'meaning':{'groups':[" + string.Join(",", parts.ToArray()) + "]}}";
+        }
+
+        static Tile CardOf(Game g, string cardId)
+        {
+            return g.Stacks.SelectMany(st => st.Boxes).SelectMany(b => b.Slots).First(t => t != null && t.CardId == cardId);
+        }
+
+        static int InBox(Box b, string gid) { return b.Slots.Count(t => t != null && t.GroupId == gid); }
+
         // Level mini cho COLLAPSE: leaf (4 thẻ, cha = root) đủ bộ NGAY trong hộp trên của
         // stack 0 → nổ ngay nhịp Settle đầu tiên. root (3 thẻ + 1 con) nằm ở stack 1.
         // Stack 0 có hộp đáy rỗng bên dưới để test luật xoá hộp sau collapse ở chế độ chặt.
@@ -846,6 +868,50 @@ namespace WordStack.Board
                 Ok(!g2.PickPrimeCandidates(3).Contains("gc"), "Xáo: nhóm có thẻ đóng đinh không làm mồi");
                 g2.ApplyShuffle();
                 Ok(g2.TopBox(1).Slots[3] == e1, "Xáo: thẻ đóng đinh đứng yên đúng ô");
+            }
+
+            // 8i. Bàn chết (spec 2026-10-02-shuffle-redesign Mục 8). Stack 0 có hộp dưới, stack
+            // 1 và 2 chỉ có hộp đáy. 2 ô trống, không nhóm nào đủ 4 ở lớp trên.
+            {
+                const string DeadLv = @"{'id':'t-dead','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','b1','c1',null]},{'slots':['a2','a3','a4','d4']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['d1','d2','e1',null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['f1','f2','e2','e3']}]}]},";
+                Func<Game> dead = () => BuildQ(DeadLv + Meaning("ga:a", "gb:b", "gc:c", "gd:d", "ge:e", "gf:f"));
+                var fixedLock = new Lock { Kind = LockKind.Fixed };
+
+                var g = dead();
+                Ok(g.HasAnyMove(), "Chết: tiền đề — bàn vẫn còn nước đi");
+                Ok(g.IsDeadBoard() && g.CheckStatus() == GameStatus.Stuck,
+                   "Chết: 2 ô trống, không nhóm nào đủ 4 ở lớp trên → kẹt dù còn nước");
+
+                var g1 = dead();
+                g1.TopBox(0).Slots[3] = new Tile { Uid = "e4", CardId = "e4", GroupId = "ge" };
+                Ok(!g1.IsDeadBoard() && g1.CheckStatus() == GameStatus.Playing, "Chết: ge đủ 4 ở lớp trên → còn sống");
+
+                var g2 = dead();
+                g2.TopBox(0).Slots[3] = new Tile { Uid = "e4", CardId = "e4", GroupId = "ge", Lock = fixedLock };
+                g2.TopBox(1).Slots[2].Lock = fixedLock;
+                Ok(g2.IsDeadBoard(), "Chết: thẻ đóng đinh của ge ở hai hộp → không gom được");
+
+                var g3 = dead();
+                g3.TopBox(0).Slots[3] = new Tile { Uid = "e4", CardId = "e4", GroupId = "ge", Lock = new Lock { Kind = LockKind.Moves, Need = 3 } };
+                g3.TopBox(1).Slots[2].Lock = new Lock { Kind = LockKind.Moves, Need = 3 };
+                Ok(!g3.IsDeadBoard(), "Chết: thẻ băng không chặn gom — còn nước là băng còn tan");
+
+                var g4 = dead();
+                g4.TopBox(1).Slots[1] = null; g4.TopBox(1).Slots[2] = null;
+                Ok(!g4.IsDeadBoard(), "Chết: đủ 4 ô trống → stack 0 rút rỗng được → còn sống");
+
+                var g5 = dead();
+                g5.TopBox(1).Slots[1] = null; g5.TopBox(1).Slots[2] = null;
+                g5.TopBox(1).Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(g5.HasAnyMove() && g5.CheckStatus() == GameStatus.Stuck, "Chết: ô trống trong hộp khoá không tính");
+
+                var g6 = dead();
+                g6.TopBox(1).Slots[1] = null; g6.TopBox(1).Slots[2] = null;
+                g6.TopBox(0).Slots[0].Lock = fixedLock;
+                Ok(g6.IsDeadBoard(), "Chết: hộp duy nhất rút được lại có thẻ đóng đinh → chết");
             }
 
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
