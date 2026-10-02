@@ -486,24 +486,42 @@ namespace WordStack.Board
         IEnumerator ShuffleAnimation(ShuffleResult r)
         {
             if (r.Moves.Length == 0) { RebuildBoardViews(); yield break; }
-            yield return Vortex(true, A.shuffleInDur);
+            HashSet<string> stay = PinnedTopTiles();
+            yield return Vortex(true, A.shuffleInDur, stay);
             RebuildBoardViews();
-            yield return Vortex(false, A.shuffleOutDur);
+            yield return Vortex(false, A.shuffleOutDur, stay);
+        }
+
+        // Thẻ băng / đóng đinh ở lớp trên: Shuffle không dời chúng nên chúng đứng yên, không
+        // bay vào xoáy (spec 2026-10-02-shuffle-redesign Mục 7). Đọc sau ApplyShuffle cũng
+        // đúng — chúng chưa hề đổi chỗ.
+        HashSet<string> PinnedTopTiles()
+        {
+            var stay = new HashSet<string>();
+            for (int s = 0; s < g.Stacks.Count; s++)
+            {
+                Box top = g.TopBox(s);
+                if (top == null) continue;
+                foreach (Tile t in top.Slots)
+                    if (Game.IsFrozen(t) || Game.IsFixed(t)) stay.Add(t.Uid);
+            }
+            return stay;
         }
 
         // ponytail: một pivot cho cả bàn — pivot XOAY tạo đường xoáy, mỗi thẻ tự bay về
         // tâm pivot (local zero). Không co pivot: co pivot thì thẻ chỉ gặp nhau đúng lúc
         // size về 0, mắt không bao giờ thấy chúng hội tụ.
-        IEnumerator Vortex(bool inward, float dur)
+        IEnumerator Vortex(bool inward, float dur, HashSet<string> stay)
         {
             var pivot = new GameObject("shuffleVortex").transform;
             pivot.position = BoardCenter();
 
             var kids = new List<Transform>(tiles.Count);
             var homes = new List<Transform>(tiles.Count);
-            foreach (var tv in tiles.Values)
+            foreach (var kv in tiles)
             {
-                if (tv == null) continue;
+                TileView tv = kv.Value;
+                if (tv == null || stay.Contains(kv.Key)) continue;
                 tv.SetFlying(true);                    // bay trên hộp, như MergeTiles
                 kids.Add(tv.transform); homes.Add(tv.transform.parent);
                 tv.transform.SetParent(pivot, true);   // giữ world pos → chưa nhúc nhích
