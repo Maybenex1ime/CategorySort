@@ -95,8 +95,8 @@ Mọi ô của mồi (mốc, thẻ đặt vào, ô chừa trống, thẻ thứ 4
 
 ## 7. Animation
 
-Thẻ băng và thẻ đóng đinh ở lớp trên **đứng yên, không bay vào xoáy**. Mọi thẻ khác xoáy như cũ (kể cả thẻ không đổi
-chỗ — giữ nguyên hành vi hiện tại).
+Thẻ băng, thẻ đóng đinh ở lớp trên và **mọi thẻ trong hộp đang khoá** **đứng yên, không bay vào xoáy**. Mọi thẻ khác
+xoáy như cũ (kể cả thẻ không đổi chỗ — giữ nguyên hành vi hiện tại).
 
 ## 8. Kẹt mới: thêm bàn chết
 

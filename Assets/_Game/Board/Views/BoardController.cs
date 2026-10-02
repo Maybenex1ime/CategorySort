@@ -492,9 +492,9 @@ namespace WordStack.Board
             yield return Vortex(false, A.shuffleOutDur, stay);
         }
 
-        // Thẻ băng / đóng đinh ở lớp trên: Shuffle không dời chúng nên chúng đứng yên, không
-        // bay vào xoáy (spec 2026-10-02-shuffle-redesign Mục 7). Đọc sau ApplyShuffle cũng
-        // đúng — chúng chưa hề đổi chỗ.
+        // Thẻ băng / đóng đinh ở lớp trên và mọi thẻ trong hộp đang khoá: Shuffle không dời
+        // chúng nên chúng đứng yên, không bay vào xoáy (spec 2026-10-02-shuffle-redesign
+        // Mục 7). Đọc sau ApplyShuffle cũng đúng — chúng chưa hề đổi chỗ.
         HashSet<string> PinnedTopTiles()
         {
             var stay = new HashSet<string>();
@@ -502,8 +502,9 @@ namespace WordStack.Board
             {
                 Box top = g.TopBox(s);
                 if (top == null) continue;
+                bool locked = !g.IsOpen(top.Lock);
                 foreach (Tile t in top.Slots)
-                    if (Game.IsFrozen(t) || Game.IsFixed(t)) stay.Add(t.Uid);
+                    if (t != null && (locked || Game.IsFrozen(t) || Game.IsFixed(t))) stay.Add(t.Uid);
             }
             return stay;
         }
