@@ -93,9 +93,13 @@ Dây chuyền cũng chạy **ngay khi nạp level**, phòng trường hợp dữ
 ## 6. Thắng / kẹt
 
 - **Thắng**: không còn thẻ nào trên bàn. Các hộp đáy rỗng vẫn nằm đó.
-- **Kẹt**: bàn đã đứng yên và **mọi hộp trên cùng đều đầy** (không còn slot trống nào ở bất kỳ
-  hộp trên cùng nào) → không nước đi nào hợp lệ nữa.
-- **Không có màn Thua.** Kẹt chỉ hiện một toast gợi ý bấm Restart.
+- **Kẹt**: bàn đã đứng yên và một trong hai:
+  - **Hết nước đi hợp lệ** — không thẻ nhặt được nào có hộp mở khác còn chỗ (xem Mục 11).
+  - **Bàn chết** — còn nước nhưng không nhóm nào nổ được nữa. Chỉ xét hộp trên đang mở (hộp khoá chỉ
+    mở khi có nhóm được gom): không hộp nào rút rỗng được (hộp rút rỗng được = không phải hộp đáy,
+    không có thẻ đóng đinh, và ô trống ở các hộp mở khác ≥ số thẻ của nó) **và** không nhóm nào có đủ
+    4 thẻ trong các hộp mở với mọi thẻ đóng đinh của nhóm nằm cùng một hộp.
+- Kẹt → popup thua kẹt; hồi sinh = một phát nam châm miễn phí (khi còn nhóm hút được).
 
 ## 7. Gợi ý trùng nhóm
 
@@ -188,15 +192,16 @@ Bộ tự kiểm chạy mọi level khi khởi động, và có bản chạy ngo
 
 ## 11. Vật cản (blocker)
 
-Ba vật cản, đều là "một đối tượng bị vô hiệu, gỡ bằng một điều kiện tiến độ". Không vật cản
-nào thêm loại nước đi mới. Đặc tả đầy đủ: `docs/superpowers/specs/2026-09-10-blocker-locks-design.md`.
+Bốn vật cản. Ba cái đầu là "một đối tượng bị vô hiệu, gỡ bằng một điều kiện tiến độ"; `fixed` không
+gỡ được — thẻ chỉ rời bàn khi nhóm của nó được gom. Không vật cản nào thêm loại nước đi mới. Đặc tả
+đầy đủ: `docs/superpowers/specs/2026-09-10-blocker-locks-design.md`, `docs/superpowers/specs/2026-09-29-fixed-tile-design.md`.
 
 | id | gắn vào | tham số | ý nghĩa |
 |---|---|---|---|
 | `locked` | hộp | số nguyên ≥ 1 | hộp đóng cho tới khi số nhóm đã gom trên toàn bàn đạt số đó |
-| `keylock` | hộp | id chìa | hộp đóng cho tới khi thẻ mang `key` cùng id biến mất khỏi bàn |
+| `grouplock` | hộp | id nhóm | hộp đóng cho tới khi nhóm đó (kể cả nhóm con) không còn thẻ nào trên bàn; hộp hiện art của nhóm |
 | `ice` | thẻ | số nguyên ≥ 1 | thẻ bất động và không tính bộ 4, tan sau đủ số nước kể từ lúc lộ ở hộp trên |
-| `key` | thẻ | id chìa | không khoá gì; thẻ bị gom là mở mọi `keylock` cùng id |
+| `fixed` | thẻ | `true` | thẻ không nhặt được nhưng vẫn tính bộ 4; chỉ nằm ở hộp trên cùng lúc đầu màn; lúc bị ăn tháo đinh rồi mới gộp |
 
 Hộp đóng: không nhặt ra, không thả vào, không tự nổ, không tính là còn chỗ khi xét kẹt, không
 bị xoá dù rỗng. Thứ tự một lượt: nước đi → giảm băng → dây chuyền.
@@ -209,17 +214,18 @@ Dữ liệu: vật cản của thẻ nằm trên entry thẻ trong `meaning`, c�
 `layout`, đều trong object `blockers` với key là id ở bảng trên.
 
 ```json
-{ "id": "banana", "text": "Banana", "blockers": { "ice": 5, "key": "k1" } }
+{ "id": "banana", "text": "Banana", "blockers": { "ice": 5 } }
+{ "id": "kiwi",   "text": "Kiwi",   "blockers": { "fixed": true } }
 { "slots": ["apple","banana",null,null], "blockers": { "locked": 3 } }
-{ "slots": ["grape","plum",null,null],   "blockers": { "keylock": "k1" } }
+{ "slots": ["grape","plum",null,null],   "blockers": { "grouplock": "g_fruit" } }
 ```
 
 Luật kiểm thêm: id phải có trong bảng và đúng phía · hộp tối đa một vật cản · thẻ mang nhiều
-vật cản phải theo bảng cặp được phép (hiện: `ice` + `key`) · số đếm ≥ 1 · mỗi id chìa đúng một
-thẻ mang · thẻ chìa và mọi thẻ cùng nhóm không nằm trong hoặc dưới hộp mà chìa đó mở.
+vật cản phải theo bảng cặp được phép (hiện rỗng) · số đếm ≥ 1 · `fixed` phải là `true` và thẻ mang nó chỉ nằm ở hộp trên cùng · `grouplock` trỏ một id nhóm có
+thật · không thẻ nào của nhóm đó (kể cả nhóm con) nằm trong hoặc dưới hộp mà nhóm đó mở.
 
-Nam châm bỏ qua nhóm có thành viên đang băng hoặc nằm trong hộp đóng; Xáo không đụng hai thứ
-đó; Undo không cần luật riêng vì ảnh chụp là toàn bàn. Undo chỉ lùi được nước **không**
+Nam châm bỏ qua nhóm có thành viên đang băng hoặc nằm trong hộp đóng, hút được thẻ đóng đinh nhưng
+xếp nhóm có nó sau mọi nhóm khác; Xáo không dời ba thứ đó, nhưng nhóm có **một** thẻ băng hoặc đóng đinh ở lớp trên vẫn làm mồi — thẻ đó là mốc hộp chủ, nhóm băng xếp sau (spec `2026-10-02-shuffle-redesign`); Undo không cần luật riêng vì ảnh chụp là toàn bàn. Undo chỉ lùi được nước **không**
 gây CLEAR/COLLAPSE — nước vừa nổ nhóm thì mất quyền lùi (không trả lại tiến độ đã đạt).
 
 **Công cụ dựng màn.** `demo/wordstack.html` là tool duy nhất: tab Xếp level gắn blocker hộp
@@ -227,4 +233,15 @@ ngay trên dòng hộp, blocker thẻ ở panel "Blocker thẻ"; Nhập và Xu�
 `blockers`; Kiểm tra, Chơi thử và Gợi ý chạy luật blocker bản JavaScript. `node demo/tool-check.mjs`
 kiểm round-trip, sáu luật dữ liệu và luật chơi bản JS bằng đúng các kịch bản của `SelfCheck`
 mục 8. Tool Unity `WordStack ▸ Level Editor` đã xoá. Cổng xuất bản vẫn là `./selfcheck.sh` —
-bộ giải của tool là greedy có ngân sách, không thay được beam search hai chế độ.
+bộ giải của tool là greedy có ngân sách, không thay được beam search hai chế độ. Tool JS chưa hỗ trợ `fixed` — màn có thẻ đóng đinh sửa tay JSON.
+
+**Việc chờ cho tool xếp level / solver** (ghi 2026-10-02, từ phân tích booster Shuffle). Ba kiểu
+bàn dưới đây là lỗi level, người chơi không tự tạo ra được, nên phải chặn ở tool và solver
+thay vì để Shuffle xử lý:
+- Hộp đang khoá (`locked` / `grouplock`) mà **không có thẻ nào** lúc đầu màn. Hộp khoá không
+  nhận thẻ thả vào và không bị xoá khi rỗng, nên mãi rỗng; Shuffle bỏ qua hộp đó khi xét hộp rỗng.
+- Màn mà ngay lúc mở, **mọi thẻ lớp trên đều không nhặt được** (băng, đóng đinh, hoặc nằm trong
+  hộp khoá). Bàn kẹt ngay nước đầu; solver đã bắt được nhưng nên báo lý do rõ ràng.
+- **Bàn chết mà luật kẹt đếm sót** (Mục 6 chỉ đếm, không tìm kiếm) — vd đủ 4 thẻ một nhóm ở lớp trên
+  nhưng kẹt trong các hộp đầy không xoay xở được. Người chơi vẫn đi được mà không bao giờ nổ thêm
+  nhóm nào; solver nên báo các màn có thể rơi vào thế này.

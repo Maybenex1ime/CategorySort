@@ -1,0 +1,20 @@
+{
+    "name": "FigmaMotion.Editor",
+    "rootNamespace": "FigmaMotion.Editor",
+    "references": [
+        "FigmaMotion",
+        "LitMotion",
+        "LitMotion.Animation"
+    ],
+    "includePlatforms": [
+        "Editor"
+    ],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

@@ -1,8 +1,10 @@
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
 using LogosSDK.UI.Animation;
 using Reflex.Attributes;
 using UnityEngine;
 using UnityEngine.EventSystems;
+using UnityEngine.UI;
 
 namespace LogosSDK.UI.Components
 {
@@ -15,11 +17,13 @@ namespace LogosSDK.UI.Components
 
         private UIButtonFeedbackSO _resolvedProfile;
         private RectTransform _resolvedTarget;
-        private Tween _activeTween;
+        private Selectable _selectable;
+        private MotionHandle _activeTween;
 
         private void Awake()
         {
             _resolvedTarget = _target != null ? _target : GetComponent<RectTransform>();
+            TryGetComponent(out _selectable);
         }
 
         private void Start()
@@ -35,28 +39,33 @@ namespace LogosSDK.UI.Components
         public void OnPointerDown(PointerEventData eventData)
         {
             if (_resolvedTarget == null || _resolvedProfile == null) return;
-            _activeTween?.Kill();
-            _activeTween = _resolvedTarget
-                .DOScale(_resolvedProfile.PressScale, _resolvedProfile.PressDuration)
-                .SetEase(Ease.Linear)
-                .SetLink(gameObject)
-                .SetUpdate(true);
+            // Nút đang tắt (Button.interactable = false hoặc CanvasGroup cha chặn) thì không
+            // nhún — IsInteractable() tính cả CanvasGroup. PointerUp vẫn chạy để trả scale về 1.
+            if (_selectable != null && !_selectable.IsInteractable()) return;
+            _activeTween.TryCancel();
+            _activeTween = LMotion.Create(_resolvedTarget.localScale, Vector3.one * _resolvedProfile.PressScale, _resolvedProfile.PressDuration)
+                .WithEase(Ease.Linear)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToLocalScale(_resolvedTarget)
+                .AddTo(gameObject);
         }
 
         public void OnPointerUp(PointerEventData eventData)
         {
             if (_resolvedTarget == null || _resolvedProfile == null) return;
-            _activeTween?.Kill();
-            _activeTween = _resolvedTarget
-                .DOScale(1f, _resolvedProfile.ReleaseDuration)
-                .SetEase(_resolvedProfile.ReleaseEase)
-                .SetLink(gameObject)
-                .SetUpdate(true);
+            _activeTween.TryCancel();
+            _activeTween = LMotion.Create(_resolvedTarget.localScale, Vector3.one, _resolvedProfile.ReleaseDuration)
+                .WithEase(_resolvedProfile.ReleaseEase)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToLocalScale(_resolvedTarget)
+                .AddTo(gameObject);
         }
 
         private void OnDisable()
         {
-            _activeTween?.Kill();
+            _activeTween.TryCancel();
             if (_resolvedTarget != null)
                 _resolvedTarget.localScale = Vector3.one;
         }

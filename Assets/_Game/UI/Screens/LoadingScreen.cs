@@ -1,4 +1,5 @@
-using DG.Tweening;
+using LitMotion;
+using LogosSDK.Tween;
 using LogosSDK.UI.Base;
 using UnityEngine;
 using UnityEngine.UI;
@@ -10,17 +11,18 @@ namespace LogosGame.Features.UI.Screens
         [SerializeField] private Slider _loadingSlider;
         [SerializeField] private float _fillDuration = 2f;
 
-        private Tweener _fillTween;
+        private MotionHandle _fillTween;
 
         public override async Awaitable Show(object args = null)
         {
             if (_loadingSlider != null)
             {
                 _loadingSlider.value = 0f;
-                _fillTween = DOTween
-                    .To(() => _loadingSlider.value, v => _loadingSlider.value = v, 0.9f, _fillDuration)
-                    .SetEase(Ease.OutCubic)
-                    .SetLink(gameObject);
+                _fillTween = LMotion.Create(0f, 0.9f, _fillDuration)
+                    .WithEase(Ease.OutCubic)
+                    .WithCancelOnError()
+                    .Bind(_loadingSlider, (v, slider) => slider.value = v)
+                    .AddTo(gameObject);
             }
 
             await base.Show(args);
@@ -30,14 +32,14 @@ namespace LogosGame.Features.UI.Screens
         {
             if (_loadingSlider != null)
             {
-                if (_fillTween != null && _fillTween.IsActive())
-                    _fillTween.Kill();
+                _fillTween.TryCancel();
 
-                await DOTween
-                    .To(() => _loadingSlider.value, v => _loadingSlider.value = v, 1f, 0.3f)
-                    .SetEase(Ease.OutQuad)
-                    .SetLink(gameObject)
-                    .AsyncWaitForCompletion();
+                await LMotion.Create(_loadingSlider.value, 1f, 0.3f)
+                    .WithEase(Ease.OutQuad)
+                    .WithCancelOnError()
+                    .Bind(_loadingSlider, (v, slider) => slider.value = v)
+                    .AddTo(gameObject)
+                    .WaitAsync();
             }
 
             await base.Hide();

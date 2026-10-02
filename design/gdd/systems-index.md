@@ -188,7 +188,7 @@ vòng đời đầy đủ, ít level · **Alpha** = đủ content · **Full Visi
 | 8 | `save-system` | Save System | VS | design |
 | 9 | `level-progression` | Level Progression | VS | design |
 | 10 | `level-authoring-tool` | Level Authoring Tool | VS | reverse |
-| 11 | `vfx-game-feel` | VFX & Game Feel | VS | design *(DOTween + 4 behaviour đã có — reverse một phần)* |
+| 11 | `vfx-game-feel` | VFX & Game Feel | VS | design *(LitMotion + 4 behaviour đã có — reverse một phần)* |
 | 12 | `game-ui-flow` | Game UI Flow | VS | design *(HUD đã có)* |
 | 13 | `tutorial` | Tutorial | Alpha | design |
 | 14 | `audio` | Audio (SFX) | Alpha | design |

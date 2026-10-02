@@ -1,5 +1,5 @@
 using System.Collections.Generic;
-using LogosMeta.Economy;
+using LogosGame.Features.Currency;
 using UnityEngine;
 
 namespace LogosGame.Features.Shop
@@ -10,6 +10,7 @@ namespace LogosGame.Features.Shop
         UnknownProduct = 1,
         StoreDeclined = 2,
         StoreUnavailable = 3,
+        AlreadyOwned = 4,
     }
 
     public readonly struct ShopPurchaseResult
@@ -29,16 +30,32 @@ namespace LogosGame.Features.Shop
     }
 
     /// <summary>
-    /// Hai trục tiền tách bạch: gói coin trả TIỀN THẬT (qua IIAPService), item trả
-    /// COIN (uỷ quyền thẳng cho IPurchaseService sẵn có). Đừng gộp — Price của
-    /// TransactionDefinition là int coin, không diễn tả được "1.99 $".
+    /// Mọi gói trong shop đều trả TIỀN THẬT qua IIAPService: gói coin thường, và gói combo
+    /// (coin + item). Mua item lẻ bằng coin KHÔNG đi qua shop — đó là việc của
+    /// BoosterPurchaseFlow / NoHeartsPopup với SO_TransactionCatalog.
     /// </summary>
     public interface IShopService
     {
         IReadOnlyList<CoinBundleDefinition> CoinBundles { get; }
-        IReadOnlyList<TransactionDefinition> ItemOffers { get; }
 
-        Awaitable<ShopPurchaseResult> PurchaseCoinBundle(string productId);
-        PurchaseResult PurchaseItem(string transactionId);
+        /// Sản phẩm mua một lần; ProductId rỗng = không bán.
+        RemoveAdsDefinition RemoveAds { get; }
+
+        bool TryGetRewardIcon(ResourceType type, out Sprite icon);
+
+        /// Khởi tạo store với mọi gói trong catalog + Remove Ads. Gọi một lần lúc boot (không đợi mở
+        /// Shop): giao dịch đã trả tiền mà chưa trao chỉ được store gửi lại sau bước này. Xong thì
+        /// đối chiếu quyền Remove Ads với store.
+        Awaitable<bool> InitializeStore();
+
+        /// Giá đã bản địa hoá từ store; chưa có thì giá dự phòng của catalog; id lạ → null.
+        string GetPriceLabel(string productId);
+
+        /// Mua gói coin, gói combo hoặc Remove Ads.
+        Awaitable<ShopPurchaseResult> PurchaseProduct(string productId);
+
+        /// Khôi phục giao dịch non-consumable rồi đối chiếu quyền Remove Ads. iOS bắt buộc có nút này;
+        /// Android tự khôi phục lúc khởi tạo.
+        Awaitable RestorePurchases();
     }
 }

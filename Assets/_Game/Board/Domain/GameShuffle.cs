@@ -98,8 +98,8 @@ namespace WordStack.Board
         /// Bàn có xáo được không. Cần ≥1 ô trống ở lớp trên để hộp chủ chừa được chỗ cho
         /// người chơi thả thẻ thứ 4 — không có ô trống thì Nhóm mồi 3+1 vô nghĩa.
         ///
-        /// Điều kiện này trùng với định nghĩa Playing trong CheckStatus(), nên nút Shuffle
-        /// gần như luôn sáng khi bàn còn chơi được.
+        /// Chỉ là điều kiện cần, rẻ — nút Shuffle sáng theo ShuffleWouldChange (chạy thử
+        /// trên bản sao), không theo hàm này.
         /// </summary>
         public bool CanShuffle()
         {
@@ -164,19 +164,24 @@ namespace WordStack.Board
         }
 
         /// <summary>
-        /// Các nhóm đáng dựng mồi, nhiều nhất <paramref name="max"/> nhóm.
+        /// Mọi nhóm đáng dựng mồi theo thứ tự thử, nhiều nhất <paramref name="max"/> nhóm.
         ///
-        /// Chỉ nhận nhóm có ĐỦ 4 thẻ đang tồn tại trên bàn: nhóm cha còn nhóm con chưa
-        /// collapse thì thành viên thiếu chưa tồn tại dưới dạng thẻ, không kéo lên được —
-        /// cùng ràng buộc với booster Magnet.
+        /// Nhận nhóm có ĐỦ 4 thẻ đang tồn tại trên bàn (nhóm cha còn nhóm con chưa collapse
+        /// thì thiếu thẻ — cùng ràng buộc với Magnet), KHÔNG thẻ nào nằm trong hộp khoá, và
+        /// tối đa MỘT thẻ bất động (băng hoặc đóng đinh). Thẻ bất động đó phải ở lớp trên:
+        /// nó không dời được nên hộp chứa nó chính là hộp chủ (spec 2026-10-02 Mục 1).
         ///
-        /// Thứ tự: nhiều thẻ sẵn ở lớp trên nhất trước (ít phải kéo donor nhất), hoà thì
-        /// theo group id. Bậc cuối chỉ để kết quả xác định, test lại được.
+        /// Thứ tự: nhóm không băng trước; giữa các nhóm băng thì băng còn ít nước tan trước
+        /// (mồi có băng chỉ nổ khi băng tan); rồi nhiều thẻ sẵn ở lớp trên trước (ít phải kéo
+        /// donor); hoà thì theo group id cho kết quả xác định, test lại được.
         /// </summary>
         public List<string> PickPrimeCandidates(int max)
         {
             var onBoard = new Dictionary<string, int>();
             var onTop = new Dictionary<string, int>();
+            var pinned = new Dictionary<string, int>();
+            var iceLeft = new Dictionary<string, int>();
+            var bad = new HashSet<string>();
             var order = new List<string>();
 
             for (int s = 0; s < Stacks.Count; s++)
@@ -187,22 +192,35 @@ namespace WordStack.Board
                     Tile[] slots = boxes[b].Slots;
                     for (int i = 0; i < slots.Length; i++)
                     {
-                        if (slots[i] == null || !IsPullable(slots[i], boxes[b])) continue;   // như Magnet
-                        string gid = slots[i].GroupId;
-                        int n;
-                        if (!onBoard.TryGetValue(gid, out n)) { order.Add(gid); onTop[gid] = 0; }
-                        onBoard[gid] = n + 1;
-                        if (b == 0) onTop[gid] = onTop[gid] + 1;
+                        Tile t = slots[i];
+                        if (t == null) continue;
+                        string gid = t.GroupId;
+                        if (!onBoard.ContainsKey(gid))
+                        {
+                            order.Add(gid);
+                            onBoard[gid] = 0; onTop[gid] = 0; pinned[gid] = 0; iceLeft[gid] = 0;
+                        }
+                        onBoard[gid]++;
+                        if (b == 0) onTop[gid]++;
+                        if (!IsOpen(boxes[b].Lock)) bad.Add(gid);   // hộp khoá: bỏ cả nhóm
+                        if (!IsFrozen(t) && !IsFixed(t)) continue;
+                        pinned[gid]++;
+                        if (b != 0) bad.Add(gid);                   // băng bị chôn không làm mốc được
+                        if (IsFrozen(t)) iceLeft[gid] = t.Lock.Need - t.Lock.Have;
                     }
                 }
             }
 
             var eligible = new List<string>();
             for (int k = 0; k < order.Count; k++)
-                if (onBoard[order[k]] == Rules.GroupSize) eligible.Add(order[k]);
+            {
+                string gid = order[k];
+                if (onBoard[gid] == Rules.GroupSize && !bad.Contains(gid) && pinned[gid] <= 1) eligible.Add(gid);
+            }
 
             eligible.Sort(delegate (string a, string b)
             {
+                if (iceLeft[a] != iceLeft[b]) return iceLeft[a] - iceLeft[b];   // 0 = không băng → lên đầu
                 if (onTop[a] != onTop[b]) return onTop[b] - onTop[a];
                 return string.CompareOrdinal(a, b);
             });
@@ -225,7 +243,7 @@ namespace WordStack.Board
                 Box top = TopBox(s);
                 if (top == null || !IsOpen(top.Lock)) continue;   // hộp đóng: không đụng (spec 4.3)
                 for (int i = 0; i < top.Slots.Length; i++)
-                    if (top.Slots[i] == null || (IsWhite(top, i) && !IsFrozen(top.Slots[i])))
+                    if (top.Slots[i] == null || (IsWhite(top, i) && !IsFrozen(top.Slots[i]) && !IsFixed(top.Slots[i])))
                         result.Add(new SlotRef { Stack = s, Box = 0, Slot = i });
             }
             return result;
@@ -249,31 +267,68 @@ namespace WordStack.Board
         }
 
         /// <summary>
-        /// Dựng Nhóm mồi 3+1: 3 thẻ vào hộp chủ (hộp đó còn ĐÚNG 1 ô trống được giữ chỗ),
-        /// thẻ thứ 4 sang top box khác. Người chơi kéo một nước là nổ.
+        /// Dựng Nhóm mồi 3+1: 3 thẻ trong hộp chủ (hộp đó còn ĐÚNG 1 ô trống được giữ chỗ),
+        /// thẻ thứ 4 ở top box khác. Người chơi kéo một nước là nổ.
+        ///
+        /// Hộp chủ chọn theo thứ tự (spec 2026-10-02 Mục 2):
+        ///   1. Có MỐC — thẻ gid Shuffle không dời được (băng, đóng đinh, cụm người chơi đã
+        ///      gom) nằm gọn trong MỘT hộp → hộp đó là hộp chủ, mốc tính vào 3 thẻ.
+        ///   2. Hai cụm đôi gid ở hai hộp → TryPrimeFromTwoPairs.
+        ///   3. Hộp có đủ 4 ô mở, ưu tiên hộp có layer 2 nhiều thẻ nhất: nổ xong hộp chủ bị
+        ///      xoá, hộp dưới lộ ra, ngồi trên hộp đầy thì lượt sau có nhiều nguyên liệu nhất.
+        ///   4. Không hộp nào đủ 4 ô → dời một cụm đôi để giải phóng hộp (PlanPairMerge).
+        /// Mốc rải theo hình khác (vd băng ở một hộp + đôi ở hộp khác) → bỏ nhóm này.
+        ///
+        /// <paramref name="movers"/> nhận uid thẻ có màu bị dời hợp lệ — ValidateShuffle
+        /// miễn kiểm "thẻ có màu đứng yên" cho đúng những thẻ đó.
         ///
         /// Trả false khi không xếp nổi — bên gọi phải coi đó là bình thường, không phải lỗi.
         /// </summary>
-        public bool TryPrimeGroup(string gid, List<SlotRef> pool, HashSet<int> reserved, List<Tile> hand)
+        public bool TryPrimeGroup(string gid, List<SlotRef> pool, HashSet<int> reserved, List<Tile> hand,
+                                  HashSet<string> movers = null)
         {
-            // Hộp chủ cần GroupSize ô mở: GroupSize-1 cho thẻ, 1 chừa trống cho người chơi.
-            // Ưu tiên hộp có layer 2 nhiều thẻ nhất: nổ xong hộp chủ bị xoá, hộp dưới lộ ra,
-            // chọn hộp ngồi trên hộp đầy thì lượt sau người chơi có nhiều nguyên liệu nhất.
-            int host = -1;
+            // Sau DrainAll thẻ trắng đã vào tay, nên thẻ gid còn ở lớp trên đều là mốc.
+            var anchorStacks = new List<int>();
+            int anchors = 0;
             for (int s = 0; s < Stacks.Count; s++)
             {
-                if (OpenCount(pool, reserved, s) < Rules.GroupSize) continue;
-                if (host < 0 || Layer2TileCount(s) > Layer2TileCount(host)) host = s;
+                Box top = TopBox(s);
+                int n = top == null ? 0 : CountGroupInBox(top, gid);
+                if (n == 0) continue;
+                anchorStacks.Add(s);
+                anchors += n;
             }
-            if (host < 0) return false;
+            if (anchorStacks.Count == 2)
+                return TryPrimeFromTwoPairs(gid, anchorStacks[0], anchorStacks[1], pool, reserved, movers);
+            if (anchorStacks.Count > 2) return false;
+
+            int host, mergeTo = -1;
+            if (anchorStacks.Count == 1)
+            {
+                host = anchorStacks[0];
+                // Đủ 4 thẻ trong một hộp mà chưa nổ = còn thẻ băng, chờ tan — không có gì để dựng.
+                if (anchors >= Rules.GroupSize) return false;
+                if (OpenCount(pool, reserved, host) < Rules.GroupSize - anchors) return false;
+            }
+            else
+            {
+                host = -1;
+                for (int s = 0; s < Stacks.Count; s++)
+                {
+                    if (OpenCount(pool, reserved, s) < Rules.GroupSize) continue;
+                    if (host < 0 || Layer2TileCount(s) > Layer2TileCount(host)) host = s;
+                }
+                if (host < 0 && !PlanPairMerge(pool, reserved, out host, out mergeTo)) return false;
+            }
 
             int carrier = -1;
             for (int s = 0; s < Stacks.Count && carrier < 0; s++)
-                if (s != host && OpenCount(pool, reserved, s) > 0) carrier = s;
+                if (s != host && OpenAfterMerge(pool, reserved, s, mergeTo) > 0) carrier = s;
             if (carrier < 0) return false;
 
+            // Gom thẻ TRƯỚC khi dời cặp: gom thất bại thì lớp trên chưa bị đụng gì.
             var need = new List<Tile>();
-            for (int k = 0; k < Rules.GroupSize; k++)
+            for (int k = 0; k < Rules.GroupSize - anchors; k++)
             {
                 Tile t = TakeFromHand(hand, gid);
                 if (t == null) t = SwapDonorIntoHand(gid, hand);
@@ -281,7 +336,10 @@ namespace WordStack.Board
                 need.Add(t);
             }
 
-            for (int k = 0; k < Rules.GroupSize - 1; k++)
+            if (mergeTo >= 0) MergePair(host, mergeTo, pool, reserved, movers);
+            ReserveGroup(host, gid, reserved);   // mốc: pha sau không được xé
+
+            for (int k = 0; k < need.Count - 1; k++)
             {
                 int slot = FirstOpen(pool, reserved, host);
                 TopBox(host).Slots[slot] = need[k];
@@ -289,30 +347,153 @@ namespace WordStack.Board
             }
 
             // Ô CHỪA TRỐNG — reserve để pha sau không lấp mất chỗ thả thẻ thứ 4.
-            int keep = FirstOpen(pool, reserved, host);
-            if (keep < 0) { hand.AddRange(need); return false; }
-            reserved.Add(SlotKey(host, keep));
+            reserved.Add(SlotKey(host, FirstOpen(pool, reserved, host)));
 
             int cslot = FirstOpen(pool, reserved, carrier);
-            TopBox(carrier).Slots[cslot] = need[Rules.GroupSize - 1];
+            TopBox(carrier).Slots[cslot] = need[need.Count - 1];
             reserved.Add(SlotKey(carrier, cslot));
             return true;
         }
 
+        // Hai cụm đôi gid ở hai hộp, không thẻ nào băng/đóng đinh: dời một thẻ sang hộp kia
+        // thành cụm 3, thẻ ở lại chính là thẻ thứ 4. Hộp nhận cần 2 ô mở (1 cho thẻ dời,
+        // 1 chừa trống); hộp nhiều ô mở hơn làm hộp chủ, hoà lấy stack nhỏ hơn.
+        bool TryPrimeFromTwoPairs(string gid, int a, int b, List<SlotRef> pool, HashSet<int> reserved,
+                                  HashSet<string> movers)
+        {
+            if (!IsMovablePair(TopBox(a), gid) || !IsMovablePair(TopBox(b), gid)) return false;
+            int host = OpenCount(pool, reserved, b) > OpenCount(pool, reserved, a) ? b : a;
+            int from = host == a ? b : a;
+            if (OpenCount(pool, reserved, host) < 2) return false;
+
+            Box src = TopBox(from);
+            int i = 0;
+            while (src.Slots[i] == null || src.Slots[i].GroupId != gid) i++;
+            Tile moved = src.Slots[i];
+            src.Slots[i] = null;   // ô này không thuộc pool nên pha sau không lấp — đúng ý
+
+            int slot = FirstOpen(pool, reserved, host);
+            TopBox(host).Slots[slot] = moved;
+            if (movers != null) movers.Add(moved.Uid);
+            ReserveGroup(host, gid, reserved);
+            ReserveGroup(from, gid, reserved);
+            reserved.Add(SlotKey(host, FirstOpen(pool, reserved, host)));   // ô chừa trống
+            return true;
+        }
+
+        static bool IsMovablePair(Box box, string gid)
+        {
+            int n = 0;
+            foreach (Tile t in box.Slots)
+            {
+                if (t == null || t.GroupId != gid) continue;
+                if (IsFrozen(t) || IsFixed(t)) return false;
+                n++;
+            }
+            return n == 2;
+        }
+
+        void ReserveGroup(int stack, string gid, HashSet<int> reserved)
+        {
+            Box top = TopBox(stack);
+            for (int i = 0; i < top.Slots.Length; i++)
+                if (top.Slots[i] != null && top.Slots[i].GroupId == gid) reserved.Add(SlotKey(stack, i));
+        }
+
         /// <summary>
-        /// Mỗi top box phải giữ ≥1 thẻ. Hộp top rỗng bị SettleStep xoá, hộp dưới lộ ra,
-        /// tổng thẻ lớp trên tăng — vỡ bất biến 1.
+        /// Không hộp nào đủ 4 ô mở: tìm hộp X mà thứ duy nhất chiếm chỗ là MỘT cụm đôi, và
+        /// hộp D nhận được cặp đó (≥2 ô mở, chưa có thẻ nhóm đó — 2+2 cùng nhóm là tự nổ).
+        /// Dời cặp đi thì X trống 4 ô, làm hộp chủ được. Chỉ LẬP kế hoạch, chưa dời — gom
+        /// thẻ còn có thể thất bại; MergePair chạy sau khi đã chắc chắn.
+        ///
+        /// X: layer 2 nhiều thẻ nhất (cùng lý do với hộp chủ thường), hoà lấy stack nhỏ.
+        /// D: stack nhỏ nhất thoả điều kiện VÀ sau khi nhận cặp vẫn còn hộp mang thẻ thứ 4.
+        /// </summary>
+        bool PlanPairMerge(List<SlotRef> pool, HashSet<int> reserved, out int host, out int dest)
+        {
+            host = -1; dest = -1;
+            for (int x = 0; x < Stacks.Count; x++)
+            {
+                string pair = LonePairGroup(pool, reserved, x);
+                if (pair == null) continue;
+                if (host >= 0 && Layer2TileCount(x) <= Layer2TileCount(host)) continue;
+                for (int d = 0; d < Stacks.Count; d++)
+                {
+                    if (d == x || OpenCount(pool, reserved, d) < 2) continue;
+                    if (CountGroupInBox(TopBox(d), pair) > 0) continue;
+                    bool carrier = false;
+                    for (int s = 0; s < Stacks.Count && !carrier; s++)
+                        if (s != x && OpenAfterMerge(pool, reserved, s, d) > 0) carrier = true;
+                    if (!carrier) continue;
+                    host = x; dest = d;
+                    break;
+                }
+            }
+            return host >= 0;
+        }
+
+        // Nhóm của cụm đôi nếu hộp chỉ còn đúng cụm đôi đó (2 thẻ cùng nhóm, không băng/đinh,
+        // chưa reserved) + 2 ô mở. Ngược lại null.
+        string LonePairGroup(List<SlotRef> pool, HashSet<int> reserved, int x)
+        {
+            Box top = TopBox(x);
+            if (top == null || OpenCount(pool, reserved, x) != Rules.GroupSize - 2) return null;
+            string gid = null;
+            int n = 0;
+            for (int i = 0; i < top.Slots.Length; i++)
+            {
+                Tile t = top.Slots[i];
+                if (t == null) continue;
+                if (reserved.Contains(SlotKey(x, i)) || IsFrozen(t) || IsFixed(t)) return null;
+                if (gid != null && t.GroupId != gid) return null;
+                gid = t.GroupId;
+                n++;
+            }
+            return n == 2 ? gid : null;
+        }
+
+        int OpenAfterMerge(List<SlotRef> pool, HashSet<int> reserved, int stack, int mergeTo)
+        {
+            return OpenCount(pool, reserved, stack) - (stack == mergeTo ? 2 : 0);
+        }
+
+        // Dời cụm đôi của hộp x sang hộp d, vẫn là một cặp. Ô cũ của cặp vào pool để x thành
+        // hộp chủ 4 ô mở.
+        void MergePair(int x, int d, List<SlotRef> pool, HashSet<int> reserved, HashSet<string> movers)
+        {
+            Box src = TopBox(x), dst = TopBox(d);
+            for (int i = 0; i < src.Slots.Length; i++)
+            {
+                Tile t = src.Slots[i];
+                if (t == null) continue;
+                int slot = FirstOpen(pool, reserved, d);
+                dst.Slots[slot] = t;
+                reserved.Add(SlotKey(d, slot));
+                if (movers != null) movers.Add(t.Uid);
+                src.Slots[i] = null;
+                pool.Add(new SlotRef { Stack = x, Box = 0, Slot = i });
+            }
+        }
+
+        /// <summary>
+        /// Mỗi top box ĐANG MỞ phải giữ ≥1 thẻ. Hộp top rỗng bị SettleStep xoá, hộp dưới lộ
+        /// ra, tổng thẻ lớp trên tăng — vỡ bất biến 1. Hộp khoá rỗng thì bỏ qua: nó không
+        /// nhận thẻ và không bị xoá, đó là lỗi level chứ không phải việc của Shuffle.
+        ///
+        /// Tay cạn thì mượn: trước hết thẻ trắng chưa reserved; hết thì XÉ một cụm người chơi
+        /// đã gom (spec 2026-10-02 Mục 3) — thẻ bị xé ghi vào <paramref name="movers"/>.
         ///
         /// Chạy TRƯỚC ClusterHand chứ không phải sau: gom cụm reserve hết ô trống, chạy
         /// sau thì không còn thẻ nào mượn được và cả lượt shuffle bị rollback oan.
         /// </summary>
-        public bool EnsureEveryTopBoxOccupied(List<SlotRef> pool, HashSet<int> reserved, List<Tile> hand)
+        public bool EnsureEveryTopBoxOccupied(List<SlotRef> pool, HashSet<int> reserved, List<Tile> hand,
+                                              HashSet<string> movers = null)
         {
             for (int s = 0; s < Stacks.Count; s++)
             {
                 Box box = TopBox(s);
                 if (box == null) return false;
-                if (BoxTileCount(box) > 0) continue;
+                if (!IsOpen(box.Lock) || BoxTileCount(box) > 0) continue;
 
                 int slot = FirstOpen(pool, reserved, s);
                 if (slot < 0) return false;
@@ -325,29 +506,71 @@ namespace WordStack.Board
                     continue;
                 }
 
-                // Tay đã cạn: mượn từ ô CHƯA reserved của hộp đang có ≥2 thẻ — ô đã
-                // reserved là Nhóm mồi, đụng vào là phá thứ vừa dựng.
-                int donorStack = -1, donorSlot = -1;
-                for (int d = 0; d < Stacks.Count && donorStack < 0; d++)
+                SlotRef donor;
+                bool split = false;
+                if (!FindLooseDonor(pool, reserved, s, out donor))
                 {
-                    if (d == s) continue;
-                    Box db = TopBox(d);
-                    if (db == null || BoxTileCount(db) < 2) continue;
-                    for (int i = 0; i < db.Slots.Length; i++)
-                    {
-                        if (db.Slots[i] == null) continue;
-                        if (reserved.Contains(SlotKey(d, i))) continue;
-                        if (!InPool(pool, d, i)) continue;
-                        donorStack = d; donorSlot = i; break;
-                    }
+                    if (!FindSplitDonor(reserved, s, out donor)) return false;
+                    split = true;
                 }
-                if (donorStack < 0) return false;
 
-                box.Slots[slot] = TopBox(donorStack).Slots[donorSlot];
-                TopBox(donorStack).Slots[donorSlot] = null;
+                Box db = TopBox(donor.Stack);
+                Tile moved = db.Slots[donor.Slot];
+                box.Slots[slot] = moved;
+                db.Slots[donor.Slot] = null;
                 reserved.Add(SlotKey(s, slot));
+                if (split && movers != null) movers.Add(moved.Uid);
             }
             return true;
+        }
+
+        // Thẻ trắng CHƯA reserved ở hộp đang có ≥2 thẻ — ô đã reserved là Nhóm mồi, đụng
+        // vào là phá thứ vừa dựng.
+        bool FindLooseDonor(List<SlotRef> pool, HashSet<int> reserved, int target, out SlotRef donor)
+        {
+            donor = default(SlotRef);
+            for (int d = 0; d < Stacks.Count; d++)
+            {
+                if (d == target) continue;
+                Box db = TopBox(d);
+                if (db == null || BoxTileCount(db) < 2) continue;
+                for (int i = 0; i < db.Slots.Length; i++)
+                {
+                    if (db.Slots[i] == null || reserved.Contains(SlotKey(d, i)) || !InPool(pool, d, i)) continue;
+                    donor = new SlotRef { Stack = d, Box = 0, Slot = i };
+                    return true;
+                }
+            }
+            return false;
+        }
+
+        // Thẻ trong một cụm người chơi đã gom, để xé lấp hộp rỗng. Không lấy thẻ băng, đóng
+        // đinh, hộp khoá, hay ô reserved (mồi). Ưu tiên: xé đôi trước xé ba (cụm 3 gần nổ
+        // hơn) → hộp nhiều thẻ nhất → stack nhỏ nhất → ô nhỏ nhất.
+        bool FindSplitDonor(HashSet<int> reserved, int target, out SlotRef donor)
+        {
+            donor = default(SlotRef);
+            bool found = false;
+            int bestPair = 0, bestTiles = 0;
+            for (int d = 0; d < Stacks.Count; d++)
+            {
+                Box db = TopBox(d);
+                if (d == target || db == null || !IsOpen(db.Lock)) continue;
+                int tiles = BoxTileCount(db);
+                if (tiles < 2) continue;
+                for (int i = 0; i < db.Slots.Length; i++)
+                {
+                    Tile t = db.Slots[i];
+                    if (t == null || reserved.Contains(SlotKey(d, i)) || IsFrozen(t) || IsFixed(t)) continue;
+                    int size = CountGroupInBox(db, t.GroupId);
+                    if (size < 2) continue;
+                    int pair = size == 2 ? 1 : 0;
+                    if (found && (pair < bestPair || (pair == bestPair && tiles <= bestTiles))) continue;
+                    found = true; bestPair = pair; bestTiles = tiles;
+                    donor = new SlotRef { Stack = d, Box = 0, Slot = i };
+                }
+            }
+            return found;
         }
 
         /// <summary>
@@ -533,8 +756,10 @@ namespace WordStack.Board
         /// KHÔNG đụng danh sách Boxes và KHÔNG đổi Status — gọi Settle() ngay sau như một
         /// nước đi thường. KHÔNG tăng Moves: booster không tính là nước đi.
         ///
-        /// Vi phạm bất kỳ bất biến nào thì khôi phục nguyên trạng và trả Ok = false; bên
-        /// gọi PHẢI không trừ lượt trong trường hợp đó.
+        /// Vi phạm bất kỳ bất biến nào thì khôi phục nguyên trạng và trả Ok = false; không
+        /// thẻ nào đổi chỗ cũng trả Ok = false (bàn chưa đổi nên không cần khôi phục). Bên
+        /// gọi PHẢI không trừ lượt trong cả hai trường hợp — nút sáng theo ShuffleWouldChange
+        /// nên thực tế không xảy ra.
         /// </summary>
         public ShuffleResult ApplyShuffle()
         {
@@ -548,38 +773,59 @@ namespace WordStack.Board
 
             // Chọn ứng viên TRƯỚC khi nhấc thẻ: PickPrimeCandidates đếm thẻ trên BÀN, mà
             // sau DrainAll thẻ trắng đã nằm trong tay nên nó sẽ đếm thiếu và trả rỗng.
-            List<string> candidates = PickPrimeCandidates(3);
+            // Lấy HẾT ứng viên: ứng viên đầu dựng hỏng thì ứng viên sau vẫn có cơ hội, vòng
+            // dựng tự dừng ở 3 mồi.
+            List<string> candidates = PickPrimeCandidates(int.MaxValue);
 
             List<SlotRef> pool = AssignableTopSlots();
             var reserved = new HashSet<int>();
             var hand = new List<Tile>();
+            var movers = new HashSet<string>();   // thẻ có màu được dời hợp lệ — xem ValidateShuffle
             DrainAll(pool, hand);
 
             int primed = 0;
             for (int k = 0; k < candidates.Count && primed < 3; k++)
-                if (TryPrimeGroup(candidates[k], pool, reserved, hand)) primed++;
+                if (TryPrimeGroup(candidates[k], pool, reserved, hand, movers)) primed++;
 
             // Seed TRƯỚC cluster — xem ghi chú trong EnsureEveryTopBoxOccupied.
-            bool seeded = EnsureEveryTopBoxOccupied(pool, reserved, hand);
+            bool seeded = EnsureEveryTopBoxOccupied(pool, reserved, hand, movers);
             ClusterHand(pool, reserved, hand);
 
             // hand còn thẻ = có thẻ không tìm được chỗ đặt, tức là thẻ đã rời khỏi bàn.
-            if (!seeded || hand.Count > 0 || !ValidateShuffle(topBefore, before, whiteBefore))
+            if (!seeded || hand.Count > 0 || !ValidateShuffle(topBefore, before, whiteBefore, movers))
             {
                 RestoreFrom(backup);
                 return fail;
             }
 
+            // Không thẻ nào đổi chỗ = bấm mà bàn y nguyên. Coi là thất bại để nút xám thay vì
+            // ăn lượt người chơi mua bằng coin (spec 2026-10-02-shuffle-redesign Mục 6). Bàn
+            // chưa đổi gì nên không cần khôi phục.
+            ShuffleMove[] moves = DiffPositions(before);
+            if (moves.Length == 0) return fail;
+
             return new ShuffleResult
             {
                 Ok = true,
-                Moves = DiffPositions(before),
+                Moves = moves,
                 PrimedGroups = CountPrimedGroups(),
             };
         }
 
-        // Bốn bất biến của spec Mục 5.
-        bool ValidateShuffle(int topBefore, Dictionary<string, SlotRef> before, HashSet<string> whiteBefore)
+        /// <summary>
+        /// Bấm Shuffle lúc này có làm bàn đổi không — chạy thử trên bản sao. ApplyShuffle xác
+        /// định (cùng bàn → cùng kết quả), nên nút sáng theo hàm này thì bấm thật luôn thành
+        /// công: không bao giờ ăn lượt mà bàn đứng yên (spec 2026-10-02 Mục 6).
+        /// </summary>
+        public bool ShuffleWouldChange()
+        {
+            return CanShuffle() && Clone().ApplyShuffle().Ok;
+        }
+
+        // Bốn bất biến của spec 2026-08-26 Mục 5, nới theo spec 2026-10-02-shuffle-redesign
+        // Mục 5: thẻ có màu trong movers (cặp dời, thẻ dời giữa hai cụm đôi, thẻ xé) được đổi chỗ.
+        bool ValidateShuffle(int topBefore, Dictionary<string, SlotRef> before, HashSet<string> whiteBefore,
+                             HashSet<string> movers)
         {
             if (TopLayerTileCount() != topBefore) return false;
             if (AnyBoxHasFullGroup()) return false;
@@ -587,7 +833,7 @@ namespace WordStack.Board
             for (int s = 0; s < Stacks.Count; s++)
             {
                 Box top = TopBox(s);
-                if (top == null || BoxTileCount(top) == 0) return false;
+                if (top == null || (IsOpen(top.Lock) && BoxTileCount(top) == 0)) return false;   // hộp khoá được rỗng
             }
 
             // Thẻ vốn CÓ MÀU ở lớp trên phải còn nguyên chỗ cũ và nguyên nội dung. Xét theo
@@ -597,6 +843,7 @@ namespace WordStack.Board
             {
                 if (kv.Value.Box != 0) continue;              // vốn không ở lớp trên
                 if (whiteBefore.Contains(kv.Key)) continue;   // vốn trắng, được phép đổi chỗ
+                if (movers.Contains(kv.Key)) continue;        // dời hợp lệ (spec 2026-10-02 Mục 5)
 
                 SlotRef cur;
                 if (!now.TryGetValue(kv.Key, out cur)) return false;

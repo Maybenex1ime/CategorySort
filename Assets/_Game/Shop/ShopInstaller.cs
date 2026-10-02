@@ -1,5 +1,6 @@
 using LogosGame.Features.Shop;
 using LogosGame.Features.Shop.Impl;
+using LogosSDK.Save;
 using LogosSDK.Services;
 using Reflex.Core;
 using UnityEngine;
@@ -16,6 +17,25 @@ namespace WordStack.Meta
     {
         [SerializeField] private ShopCatalog _shopCatalog;
 
+        [Tooltip("BẬT cho mọi build phát hành. Tắt = StubIAPService: luôn 'mua thành công', phát coin miễn phí.")]
+        [SerializeField] private bool _useRealStore;
+
+        /// Test cấu hình đọc cờ này để chặn build phát hành lỡ dùng stub.
+        public bool UseRealStore => _useRealStore;
+
+        // Một chỗ duy nhất quyết store thật hay giả. UnityIAPService chỉ tồn tại khi package
+        // com.unity.purchasing đã cài (define CATEGORYSORT_UNITY_IAP do asmdef versionDefines bật).
+        private System.Type ResolveIapServiceType()
+        {
+#if CATEGORYSORT_UNITY_IAP
+            if (_useRealStore) return typeof(UnityIAPService);
+#else
+            if (_useRealStore)
+                Debug.LogError("[ShopInstaller] _useRealStore bật nhưng com.unity.purchasing chưa cài — rơi về StubIAPService.");
+#endif
+            return typeof(StubIAPService);
+        }
+
         public void InstallBindings(ContainerBuilder builder)
         {
             // Catalog có thể vắng (chưa tạo asset) nhưng IShopService thì LUÔN phải
@@ -27,15 +47,20 @@ namespace WordStack.Meta
                 builder.RegisterValue(_shopCatalog, new[] { typeof(IShopCatalog) });
             }
 
-            // ĐỔI Ở ĐÂY khi lên store thật: StubIAPService → impl Unity IAP.
-            builder.RegisterType(typeof(StubIAPService),
+            builder.RegisterType(ResolveIapServiceType(),
                 new[] { typeof(IIAPService) },
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
 
-            // Factory chứ không RegisterType: catalog và IPurchaseService đều tuỳ chọn
-            // (IPurchaseService vắng khi CurrencyInstaller chưa có SO_TransactionCatalog)
-            // nên phải resolve mềm, không thì cả ShopService sập theo.
+            // Lazy như mọi service đọc save: domain "noads" chỉ đăng ký xong ở OnContainerBuilt
+            // của GameSaveInstaller.
+            builder.RegisterFactory<INoAdsService>(
+                c => new NoAdsService(c.Resolve<ISaveManager>()),
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Lazy);
+
+            // Factory chứ không RegisterType: catalog, ví và bên trao item đều resolve mềm —
+            // thiếu cái nào thì ShopService tự để giao dịch Pending, không sập cả shop.
             builder.RegisterFactory<IShopService>(
                 c => new ShopService(
                     c.TryGetResolver<IShopCatalog>(out _) ? c.Resolve<IShopCatalog>() : null,
@@ -43,9 +68,13 @@ namespace WordStack.Meta
                     c.TryGetResolver<LogosMeta.Economy.ICurrencyService>(out _)
                         ? c.Resolve<LogosMeta.Economy.ICurrencyService>()
                         : null,
-                    c.TryGetResolver<LogosMeta.Economy.IPurchaseService>(out _)
-                        ? c.Resolve<LogosMeta.Economy.IPurchaseService>()
-                        : null),
+                    c.TryGetResolver<LogosMeta.Economy.ITransactionItemDispatcher>(out _)
+                        ? c.Resolve<LogosMeta.Economy.ITransactionItemDispatcher>()
+                        : null,
+                    c.TryGetResolver<IAnalyticsService>(out _)
+                        ? c.Resolve<IAnalyticsService>()
+                        : null,
+                    c.Resolve<INoAdsService>()),
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
         }

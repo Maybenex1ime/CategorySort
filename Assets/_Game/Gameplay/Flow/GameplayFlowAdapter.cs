@@ -29,6 +29,7 @@ namespace LogosGame.Features.Gameplay.Flow
         // kênh meta thay — cùng khuôn ForceOutcomeAsync của AppFlowContext.
         private int _levelIndex;
         private bool _outOfMovesReported;
+        private int _lastMovesUsed;
 
         public GameplayFlowAdapter(IGameplayFlowController flow)
         {
@@ -55,6 +56,7 @@ namespace LogosGame.Features.Gameplay.Flow
             _startingMoves = _flow.RemainingMoves.CurrentValue;
             _levelIndex = evt.LevelIndex;
             _outOfMovesReported = false;
+            _lastMovesUsed = 0;
 
             // Mẫu số progress bar — chỉ board biết (parse JSON), nên đi đường này.
             Fire(() => _flow.NotifyLevelContentReadyAsync(evt.TotalGroups));
@@ -70,8 +72,22 @@ namespace LogosGame.Features.Gameplay.Flow
             }));
         }
 
+        /// <summary>
+        /// Hồi sinh sau khi thua vì hết nước: cộng thêm nước (dời mốc _startingMoves) và
+        /// mở lại cờ để lần hết nước sau còn báo thua. Bàn không đổi gì.
+        /// </summary>
+        public void GrantExtraMoves(int extraMoves)
+        {
+            if (extraMoves <= 0) return;
+            _startingMoves += extraMoves;
+            _outOfMovesReported = false;
+            Fire(() => _flow.ResetOutcomeStateForReviveAsync(Remaining(_lastMovesUsed)));
+        }
+
         private void OnEvaluationCompleted(LevelEvaluationEvent evt)
         {
+            _lastMovesUsed = evt.MovesUsed;
+
             // Hết nước mà bàn chưa ngã ngũ → thua. Guard _startingMoves > 0 để màn
             // chưa cấu hình moves (mốc 0) không thành thua-ngay-nước-đầu.
             bool loseByMoves = !evt.IsWin && !evt.IsLose && !_outOfMovesReported
@@ -88,6 +104,7 @@ namespace LogosGame.Features.Gameplay.Flow
             {
                 IsWin = evt.IsWin,
                 IsLose = evt.IsLose || loseByMoves,
+                LoseReason = evt.IsLose ? LoseReason.Stuck : loseByMoves ? LoseReason.OutOfMoves : LoseReason.None,
                 HasPendingAnimation = evt.HasPendingAnimation,
                 RemainingMoves = Remaining(evt.MovesUsed),
                 GroupsCleared = evt.GroupsCleared,

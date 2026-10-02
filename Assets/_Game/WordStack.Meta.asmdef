@@ -19,7 +19,11 @@
         "Unity.InputSystem",
         "Unity.Addressables",
         "Unity.ResourceManager",
-        "DOTween.Modules"
+        "Unity.Purchasing",
+        "Unity.Services.Core",
+        "LitMotion",
+        "LitMotion.Extensions",
+        "LogosSDK.Tween"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
@@ -28,6 +32,12 @@
     "precompiledReferences": [],
     "autoReferenced": true,
     "defineConstraints": [],
-    "versionDefines": [],
+    "versionDefines": [
+        {
+            "name": "com.unity.purchasing",
+            "expression": "",
+            "define": "CATEGORYSORT_UNITY_IAP"
+        }
+    ],
     "noEngineReferences": false
 }

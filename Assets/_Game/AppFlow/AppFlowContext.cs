@@ -35,6 +35,11 @@ namespace WordStack.Meta.AppFlow
         private readonly IAudioService _audioService;
         private readonly IHapticService _hapticService;
         private readonly LogosMeta.Economy.IHeartService _heartService;
+        private readonly LogosMeta.Economy.ICurrencyService _currencyService;
+        private readonly int _revivePrice;
+        private readonly GameplayFlowAdapter _flowAdapter;
+        private readonly int _reviveExtraMoves;
+        private readonly LogosGame.Features.Shop.IShopService _shopService;
         private readonly float _minLoadingSeconds;
 
         private GameplayResultViewData _lastResult;
@@ -55,7 +60,12 @@ namespace WordStack.Meta.AppFlow
             LevelCatalog levelCatalog = null,
             IAudioService audioService = null,
             IHapticService hapticService = null,
-            LogosMeta.Economy.IHeartService heartService = null)
+            LogosMeta.Economy.IHeartService heartService = null,
+            LogosMeta.Economy.ICurrencyService currencyService = null,
+            int revivePrice = 0,
+            GameplayFlowAdapter flowAdapter = null,
+            int reviveExtraMoves = 0,
+            LogosGame.Features.Shop.IShopService shopService = null)
         {
             _manager = manager ?? throw new ArgumentNullException(nameof(manager));
             _uiManager = uiManager ?? throw new ArgumentNullException(nameof(uiManager));
@@ -68,6 +78,35 @@ namespace WordStack.Meta.AppFlow
             _audioService = audioService;
             _hapticService = hapticService;
             _heartService = heartService;
+            _currencyService = currencyService;
+            _revivePrice = revivePrice;
+            _flowAdapter = flowAdapter;
+            _reviveExtraMoves = reviveExtraMoves;
+            _shopService = shopService;
+        }
+
+        /// <summary>
+        /// Khởi tạo store ngay lúc boot, KHÔNG chặn boot. Phải làm ở đây chứ không đợi mở
+        /// Shop: giao dịch đã trả tiền mà chưa trao (app chết giữa chừng hôm trước) chỉ
+        /// được store gửi lại sau bước này.
+        /// </summary>
+        public void InitializeStoreInBackground()
+        {
+            if (_shopService == null) return;
+            InitializeStoreAsync();
+        }
+
+        private async void InitializeStoreAsync()
+        {
+            try
+            {
+                bool ready = await _shopService.InitializeStore();
+                if (!ready) _logger.Warn("[AppFlow] Store chưa sẵn sàng — shop hiện giá dự phòng, nút mua báo StoreUnavailable.");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "[AppFlow] Lỗi khi khởi tạo store.");
+            }
         }
 
         public float MinLoadingSeconds => _minLoadingSeconds;
@@ -140,7 +179,7 @@ namespace WordStack.Meta.AppFlow
         /// Evaluation) nên popup + phase chuẩn; đồng thời bắn LevelSignals.Finished
         /// để meta (coin, CurrentLevel++) chạy như kết quả thật.
         /// </summary>
-        public async Awaitable ForceOutcomeAsync(bool isWin)
+        public async Awaitable ForceOutcomeAsync(bool isWin, LoseReason loseReason = LoseReason.None)
         {
             if (_flow == null)
             {
@@ -167,6 +206,9 @@ namespace WordStack.Meta.AppFlow
 
             // Kênh meta trước (như board thật: Finished bắn trong lúc settle) —
             // coin cộng xong TRƯỚC khi CompletedPopup đọc LastAwardedAmount.
+            // Cheat "Lose (kẹt) → Revive": bật cờ board thường chốt lúc kẹt thật, TRƯỚC khi
+            // ViewModel công bố kết quả — manager đọc nó để mở RevivePopup.
+            if (!isWin && loseReason == LoseReason.Stuck) LevelSignals.SetReviveAvailable(true);
             LevelSignals.RaiseFinished(isWin, _playingLevelIndex, 0);
 
             int remaining = _flow.RemainingMoves.CurrentValue;
@@ -178,6 +220,7 @@ namespace WordStack.Meta.AppFlow
             {
                 IsWin = isWin,
                 IsLose = !isWin,
+                LoseReason = isWin ? LoseReason.None : loseReason,
                 RemainingMoves = remaining,
                 // Cheat không có số thật: ép thắng cho bar đầy, ép thua giữ nguyên.
                 GroupsCleared = isWin ? _flow.TotalGroups.CurrentValue : _flow.GroupsCleared.CurrentValue,
@@ -273,6 +316,9 @@ namespace WordStack.Meta.AppFlow
 
         private Awaitable ShowFailedPopupAsync()
         {
+            // Thua hẳn (không hồi sinh / không hồi sinh được) mới mất tim — xem MetaSession.
+            ConsumeHeart($"Thua màn {_playingLevelIndex + 1}");
+
             FailedPopupArgs args = new FailedPopupArgs
             {
                 LevelTitle = $"Level {_playingLevelIndex + 1}",
@@ -374,7 +420,10 @@ namespace WordStack.Meta.AppFlow
         // --- Hearts gate --------------------------------------------------------
 
         // Không có HeartService (chưa gắn installer) thì không chặn — giữ hành vi cũ.
-        private bool HasHearts => _heartService == null || _heartService.Current.CurrentValue > 0;
+        // Đang tim vô hạn thì chơi được dù 0 tim.
+        private bool HasHearts => _heartService == null
+                                  || _heartService.IsUnlimited.CurrentValue
+                                  || _heartService.Current.CurrentValue > 0;
 
         /// <summary>Đủ tim thì chạy tiếp, hết tim thì thay bằng NoHeartsPopup.</summary>
         private void RunGatedByHearts(Action proceed, bool returnToMenuOnClose)
@@ -385,14 +434,14 @@ namespace WordStack.Meta.AppFlow
                 return;
             }
 
-            ShowNoHeartsPopupInBackground(returnToMenuOnClose);
+            ShowNoHeartsPopupInBackground(returnToMenuOnClose, proceed);
         }
 
-        private async void ShowNoHeartsPopupInBackground(bool returnToMenuOnClose)
+        private async void ShowNoHeartsPopupInBackground(bool returnToMenuOnClose, Action onHeartGranted)
         {
             try
             {
-                await ShowNoHeartsPopupAsync(returnToMenuOnClose);
+                await ShowNoHeartsPopupAsync(returnToMenuOnClose, onHeartGranted);
             }
             catch (Exception ex)
             {
@@ -404,9 +453,9 @@ namespace WordStack.Meta.AppFlow
         // kết thúc, sau popup là khoảng trống nên phải về menu chờ tim (có countdown).
         // Gate ở menu và ở pause-restart để false: menu thì đứng yên tại chỗ, còn
         // pause-restart thì bàn phía sau vẫn sống — đóng popup là chơi tiếp lượt dở.
-        // Lưu ý: popup gọi OnClose cho MỌI nút (Ok/X lẫn Ad), nên true ở ngữ cảnh
-        // giữa màn sẽ khiến nhận tim từ ad xong vẫn bị đá về menu + dính phí quit.
-        public async Awaitable ShowNoHeartsPopupAsync(bool returnToMenuOnClose)
+        // Nhận được tim (mua coin / xem ad) thì popup gọi OnHeartGranted thay cho OnClose
+        // → chạy tiếp hành động đang bị chặn (vào màn / màn kế / chơi lại), không về menu.
+        public async Awaitable ShowNoHeartsPopupAsync(bool returnToMenuOnClose, Action onHeartGranted = null)
         {
             LevelCommands.SetInputBlocked(true);   // popup đè lên board/menu — board đọc raw Pointer
 
@@ -421,13 +470,18 @@ namespace WordStack.Meta.AppFlow
                         TriggerDeferred(new ReturnToMainMenuTrigger());
                     }
                 },
+                OnHeartGranted = onHeartGranted == null ? null : () =>
+                {
+                    LevelCommands.SetInputBlocked(false);
+                    onHeartGranted();
+                },
             };
 
             await _uiManager.ShowPopupImmediate<NoHeartsPopup, NoHeartsPopupArgs>(args);
         }
 
         // Restart/Quit GIỮA màn mất 1 tim (như aquapark). Try Again sau thua thì
-        // KHÔNG — cú thua đã trừ ở MetaSession rồi, trừ nữa là tính hai lần.
+        // KHÔNG — cú thua đã trừ lúc mở FailedPopup rồi, trừ nữa là tính hai lần.
         // ConsumeOne tự guard <= 0 nên gọi lúc hết tim là no-op, không âm.
         internal void ConsumeHeart(string reason)
         {
@@ -440,6 +494,117 @@ namespace WordStack.Meta.AppFlow
         // returnToMenuOnClose: FALSE — bàn phía sau vẫn sống, đóng popup (kể cả sau
         // khi xem ad nhận tim) là quay lại chơi tiếp lượt dở. true ở đây từng gây bug:
         // Ad +1 tim → OnClose → về menu → dính phí quit giữa màn → tim vừa nhận bay mất.
+        // --- Revive -------------------------------------------------------------
+
+        /// <summary>
+        /// Thua kiểu này có hồi sinh được không:
+        ///   OutOfMoves — luôn được (bàn vẫn đi được, chỉ thiếu nước).
+        ///   Stuck      — chỉ khi còn nhóm cho nam châm hút (board chốt LevelSignals.ReviveAvailable).
+        /// </summary>
+        public bool CanRevive(LoseReason reason)
+        {
+            switch (reason)
+            {
+                case LoseReason.OutOfMoves: return _flowAdapter != null && _reviveExtraMoves > 0;
+                case LoseReason.Stuck: return LevelSignals.ReviveAvailable;
+                default: return false;
+            }
+        }
+
+        /// <summary>
+        /// Thua nhưng còn hồi sinh được: mở RevivePopup, VẪN ở GameplayState (bàn còn sống
+        /// phía sau). Hồi sinh → hết nước thì +nước, kẹt thì nam châm miễn phí; rồi chơi
+        /// tiếp. Bỏ cuộc → đi tiếp đường thua bình thường (ResultState → FailedPopup, trừ
+        /// tim ở đó).
+        /// </summary>
+        public void ShowRevivePopupInBackground(GameplayResultViewData result)
+            => ShowRevivePopupAsync(result);
+
+        private async void ShowRevivePopupAsync(GameplayResultViewData result)
+        {
+            // Board đọc raw Pointer — gate trong lúc popup mở, mở lại khi hồi sinh.
+            LevelCommands.SetInputBlocked(true);
+
+            LoseReason reason = result.LoseReason;
+            RevivePopupArgs args = new RevivePopupArgs
+            {
+                Reason = reason,
+                ExtraMoves = _reviveExtraMoves,
+                Price = _revivePrice,
+                Coins = _currencyService?.Coins,
+                OnReviveWithCoins = () =>
+                {
+                    if (_currencyService == null || !_currencyService.TrySpend(_revivePrice))
+                    {
+                        _logger.Warn("[AppFlow] Hồi sinh bằng coin thất bại — không đủ coin.");
+                        return false;
+                    }
+                    ReviveInBackground(reason);
+                    return true;
+                },
+                OnReviveWithAd = () =>
+                {
+                    // TODO: xem rewarded ad → thành công thì ReviveInBackground(reason) và trả true.
+                    _logger.Info("[AppFlow] Xin rewarded ad để hồi sinh — chưa tích hợp ads.");
+                    return false;
+                },
+                OnGiveUp = () =>
+                {
+                    SetLastResult(result);
+                    TriggerDeferred(new LevelFinishedTrigger());
+                },
+            };
+
+            try
+            {
+                await _uiManager.ShowPopupImmediate<RevivePopup, RevivePopupArgs>(args);
+            }
+            catch (Exception ex)
+            {
+                // Không mở được popup thì đừng kẹt người chơi trên bàn chết — thua luôn.
+                _logger.Error(ex, "[AppFlow] Mở RevivePopup thất bại — vào thẳng Result.");
+                SetLastResult(result);
+                TriggerDeferred(new LevelFinishedTrigger());
+            }
+        }
+
+        private async void ReviveInBackground(LoseReason reason)
+        {
+            try
+            {
+                if (reason == LoseReason.OutOfMoves)
+                {
+                    // Bàn còn nguyên, chỉ thiếu nước: adapter dời mốc nước + mở lại cờ
+                    // kết quả trên ViewModel. Hết nước lần nữa thì lại hỏi hồi sinh.
+                    _flowAdapter.GrantExtraMoves(_reviveExtraMoves);
+                    LevelCommands.SetInputBlocked(false);
+                    _logger.Info($"[AppFlow] Hồi sinh (hết nước) → +{_reviveExtraMoves} nước.");
+                    return;
+                }
+
+                // Kẹt. Mở lại cờ kết quả + đưa phase về Playing TRƯỚC khi bàn hút:
+                // MagnetSequence bắn MoveCommitted, mà ViewModel chỉ nhận nó khi đang
+                // Playing; và nếu hút xong vẫn kẹt thì ViewModel phải công bố được kết quả
+                // thua lần nữa. Số nước giữ nguyên (nam châm không tốn nước).
+                if (_flow != null) await _flow.ResetOutcomeStateForReviveAsync(_flow.RemainingMoves.CurrentValue);
+                LevelCommands.SetInputBlocked(false);
+                LevelCommands.RequestRevive();
+                _logger.Info("[AppFlow] Hồi sinh (kẹt) → nam châm miễn phí.");
+            }
+            catch (Exception ex)
+            {
+                _logger.Error(ex, "[AppFlow] Hồi sinh thất bại.");
+            }
+        }
+
+        /// <summary>Nút booster hết lượt + thiếu coin xin xem rewarded ad để nhận booster.</summary>
+        public void RequestRewardedBooster(BoosterModule.BoosterId boosterId)
+        {
+            // TODO: gate input, xem rewarded ad → thành công thì
+            // Bus.Global.Fire(new BoosterModule.BoosterAddedEvent(boosterId, 1)); nút tự sang HasStock.
+            _logger.Info($"[AppFlow] Xin rewarded ad cho booster {boosterId} — chưa tích hợp ads.");
+        }
+
         public void RequestRetryGated()
             => RunGatedByHearts(() =>
             {

@@ -11,8 +11,7 @@ namespace WordStack.Board
     public class Tile
     {
         public string Uid, CardId, GroupId, Text, Art;
-        public Lock Lock;       // Kind = Moves khi còn băng; default = thẻ thường
-        public string KeyId;    // thẻ mang chìa; null = không mang
+        public Lock Lock;       // Kind = Moves khi còn băng, Fixed khi đóng đinh; default = thẻ thường
         public Tile Clone() { return (Tile)MemberwiseClone(); }   // struct + string: copy đủ
     }
 
@@ -20,7 +19,7 @@ namespace WordStack.Board
     {
         public bool IsBottom;
         public bool HadCollapse;   // đã từng xảy ra collapse — chế độ chặt dùng để xoá hộp rỗng
-        public Lock Lock;          // Clears hoặc Key; default = hộp thường
+        public Lock Lock;          // Clears hoặc Group; default = hộp thường
         public Tile[] Slots = new Tile[Rules.BoxCapacity];
         public Box Clone()
         {
@@ -87,8 +86,8 @@ namespace WordStack.Board
                     object bv;
                     if (bd.Blockers.TryGetValue(Blockers.Locked, out bv))
                         box.Lock = new Lock { Kind = LockKind.Clears, Need = (int)(double)bv };
-                    if (bd.Blockers.TryGetValue(Blockers.KeyLock, out bv))
-                        box.Lock = new Lock { Kind = LockKind.Key, KeyId = (string)bv };
+                    if (bd.Blockers.TryGetValue(Blockers.GroupLock, out bv))
+                        box.Lock = new Lock { Kind = LockKind.Group, GroupId = (string)bv };
 
                     for (int i = 0; i < bd.Slots.Length; i++)
                     {
@@ -103,8 +102,8 @@ namespace WordStack.Board
                         object cv;
                         if (c.Blockers.TryGetValue(Blockers.Ice, out cv))
                             tile.Lock = new Lock { Kind = LockKind.Moves, Need = (int)(double)cv };
-                        if (c.Blockers.TryGetValue(Blockers.Key, out cv))
-                            tile.KeyId = (string)cv;
+                        if (c.Blockers.ContainsKey(Blockers.Fixed))
+                            tile.Lock = new Lock { Kind = LockKind.Fixed };   // validator đã chặn đứng chung ice
                         box.Slots[i] = tile;
                     }
                     st.Boxes.Add(box);
@@ -141,7 +140,7 @@ namespace WordStack.Board
             if (!IsOpen(src.Lock) || !IsOpen(dst.Lock)) return false;
             int i = Array.FindIndex(src.Slots, t => t != null && t.Uid == uid);
             if (i < 0) return false;                       // không phải thẻ của top box
-            if (IsFrozen(src.Slots[i])) return false;      // thẻ băng đứng yên (spec 4.2)
+            if (IsFrozen(src.Slots[i]) || IsFixed(src.Slots[i])) return false;   // thẻ băng / đóng đinh đứng yên
             int j = preferSlot >= 0 && preferSlot < dst.Slots.Length && dst.Slots[preferSlot] == null
                   ? preferSlot
                   : Array.FindIndex(dst.Slots, t => t == null);
@@ -253,11 +252,12 @@ namespace WordStack.Board
         // Kẹt = không còn nước đi hợp lệ nào. Trước đây là "mọi hộp trên cùng đều đầy" —
         // hai định nghĩa trùng nhau khi không có blocker, nhưng với hộp đóng và thẻ băng
         // thì "còn ô trống" không còn nghĩa là "còn đi được", và báo Playing lúc đó là
-        // thua ngầm (spec 2.1).
+        // thua ngầm (spec 2.1). Còn nước mà bàn đã chết (IsDeadBoard) cũng là kẹt — đi mãi
+        // không nổ được nhóm nào nữa (spec 2026-10-02-shuffle-redesign Mục 8).
         public GameStatus CheckStatus()
         {
             if (TotalTiles() == 0) return GameStatus.Won;
-            return HasAnyMove() ? GameStatus.Playing : GameStatus.Stuck;
+            return HasAnyMove() && !IsDeadBoard() ? GameStatus.Playing : GameStatus.Stuck;
         }
 
         // Cấp màu CỤC BỘ theo từng box, theo thứ tự thẻ xuất hiện. Group có ≥2 thẻ mới

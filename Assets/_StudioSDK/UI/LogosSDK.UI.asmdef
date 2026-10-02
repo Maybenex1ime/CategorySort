@@ -7,8 +7,9 @@
         "Unity.Addressables",
         "Unity.ResourceManager",
         "Unity.InputSystem",
-        "DOTween.Modules",
-        "DOTweenPro.Scripts"
+        "LitMotion",
+        "LitMotion.Extensions",
+        "LogosSDK.Tween"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

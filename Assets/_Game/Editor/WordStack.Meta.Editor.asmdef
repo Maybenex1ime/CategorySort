@@ -11,7 +11,9 @@
         "WordStack.Contracts",
         "Reflex",
         "Unity.Addressables.Editor",
-        "Unity.Addressables"
+        "Unity.Addressables",
+        "Unity.TextMeshPro",
+        "LogosSDK.UI"
     ],
     "includePlatforms": [
         "Editor"

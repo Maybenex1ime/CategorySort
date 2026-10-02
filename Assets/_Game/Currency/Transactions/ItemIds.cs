@@ -9,5 +9,7 @@ namespace LogosGame.Features.Currency.Transactions
         public const string BoosterMagnet = "booster.magnet";
         public const string BoosterUndo = "booster.undo";
         public const string Heart = "heart";
+        // Amount = số PHÚT tim vô hạn (60 = 1 giờ).
+        public const string UnlimitedHeart = "heart.unlimited";
     }
 }

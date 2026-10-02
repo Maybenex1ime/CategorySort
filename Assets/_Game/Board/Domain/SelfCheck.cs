@@ -13,6 +13,28 @@ namespace WordStack.Board
     {
         static void Ok(bool cond, string msg) { if (!cond) throw new Exception(msg); }
 
+        // Level viết gọn cho các mục 8i–8m: nháy đơn thay nháy kép, nhóm "ga:a" = nhóm ga có
+        // 4 thẻ a1..a4. Không Validate — thẻ khai báo mà không đặt lên bàn là cố ý.
+        static Game BuildQ(string json) { return Game.Build(LevelData.Parse(json.Replace('\'', '"'))); }
+
+        static string Meaning(params string[] groups)
+        {
+            var parts = groups.Select(x =>
+            {
+                string[] p = x.Split(':');
+                var cards = Enumerable.Range(1, 4).Select(i => "{'id':'" + p[1] + i + "','text':'" + p[1] + i + "'}");
+                return "{'id':'" + p[0] + "','text':'" + p[0] + "','cards':[" + string.Join(",", cards.ToArray()) + "]}";
+            });
+            return "'meaning':{'groups':[" + string.Join(",", parts.ToArray()) + "]}}";
+        }
+
+        static Tile CardOf(Game g, string cardId)
+        {
+            return g.Stacks.SelectMany(st => st.Boxes).SelectMany(b => b.Slots).First(t => t != null && t.CardId == cardId);
+        }
+
+        static int InBox(Box b, string gid) { return b.Slots.Count(t => t != null && t.GroupId == gid); }
+
         // Level mini cho COLLAPSE: leaf (4 thẻ, cha = root) đủ bộ NGAY trong hộp trên của
         // stack 0 → nổ ngay nhịp Settle đầu tiên. root (3 thẻ + 1 con) nằm ở stack 1.
         // Stack 0 có hộp đáy rỗng bên dưới để test luật xoá hộp sau collapse ở chế độ chặt.
@@ -65,8 +87,8 @@ namespace WordStack.Board
           ]}
         }";
 
-        // RulesLv cộng blocker: c2 băng 2 nước, d4 mang chìa k1, hộp stack 3 có ổ k1,
-        // hộp stack 2 khoá 1 nhóm. Chìa d4 (nhóm gb) không nằm trong/dưới stack 3 — hợp luật 6.
+        // RulesLv cộng blocker: c2 băng 2 nước, hộp stack 3 khoá theo nhóm gb,
+        // hộp stack 2 khoá 1 nhóm. Không thẻ gb nào nằm trong/dưới stack 3 — hợp luật 6.
         const string BlockerLv = @"{
           ""id"":""t-blocker"", ""title"":""t"", ""note"":"""",
           ""layout"": { ""stacks"": [
@@ -74,7 +96,7 @@ namespace WordStack.Board
                                           { ""slots"":[""c3"",""c4"",null,null] } ] },
             { ""pos"":[1,0], ""boxes"":[ { ""slots"":[""d1"",""d2"",""d3"",""e1""] } ] },
             { ""pos"":[0,1], ""boxes"":[ { ""slots"":[""d4"",""e2"",null,null], ""blockers"": { ""locked"": 1 } } ] },
-            { ""pos"":[1,1], ""boxes"":[ { ""slots"":[""e3"",""e4"",null,null], ""blockers"": { ""keylock"": ""k1"" } } ] },
+            { ""pos"":[1,1], ""boxes"":[ { ""slots"":[""e3"",""e4"",null,null], ""blockers"": { ""grouplock"": ""gb"" } } ] },
             { ""pos"":[0,2], ""boxes"":[ { ""slots"":[null,null,null,null] } ] }
           ]},
           ""meaning"": { ""groups"": [
@@ -83,7 +105,7 @@ namespace WordStack.Board
               { ""id"":""c3"",""text"":""C3"" },{ ""id"":""c4"",""text"":""C4"" } ]},
             { ""id"":""gb"", ""text"":""B"", ""cards"":[
               { ""id"":""d1"",""text"":""D1"" },{ ""id"":""d2"",""text"":""D2"" },
-              { ""id"":""d3"",""text"":""D3"" },{ ""id"":""d4"",""text"":""D4"", ""blockers"": { ""key"": ""k1"" } } ]},
+              { ""id"":""d3"",""text"":""D3"" },{ ""id"":""d4"",""text"":""D4"" } ]},
             { ""id"":""gc"", ""text"":""C"", ""cards"":[
               { ""id"":""e1"",""text"":""E1"" },{ ""id"":""e2"",""text"":""E2"" },
               { ""id"":""e3"",""text"":""E3"" },{ ""id"":""e4"",""text"":""E4"" } ]}
@@ -458,20 +480,22 @@ namespace WordStack.Board
 
                 var t = g.TopBox(0).Slots[0];
                 t.Lock = new Lock { Kind = LockKind.Moves, Need = 2 };
-                t.KeyId = "k1";
                 Ok(Game.IsFrozen(t), "thẻ có Kind = Moves là còn băng");
                 Ok(!Game.IsFrozen(g.TopBox(0).Slots[1]), "thẻ thường không băng");
                 var ct = g.Clone().TopBox(0).Slots[0];
-                Ok(Game.IsFrozen(ct) && ct.Lock.Need == 2 && ct.KeyId == "k1", "Clone phải chép băng và chìa của thẻ");
+                Ok(Game.IsFrozen(ct) && ct.Lock.Need == 2, "Clone phải chép băng của thẻ");
 
-                var keyLock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
-                Ok(!g.IsOpen(keyLock), "thẻ chìa còn trên bàn thì ổ đóng");
+                var groupLock = new Lock { Kind = LockKind.Group, GroupId = t.GroupId };
+                Ok(!g.IsOpen(groupLock), "nhóm còn thẻ trên bàn thì hộp khoá theo nhóm đóng");
                 g.TopBox(0).Slots[0] = null;
-                Ok(g.IsOpen(keyLock), "thẻ chìa biến mất thì ổ mở");
+                Ok(!g.IsOpen(groupLock), "mất một thẻ chưa đủ — nhóm còn thẻ khác thì vẫn đóng");
+                foreach (var st in g.Stacks) foreach (var b in st.Boxes)
+                    for (int i = 0; i < b.Slots.Length; i++)
+                        if (b.Slots[i] != null && b.Slots[i].GroupId == t.GroupId) b.Slots[i] = null;
+                Ok(g.IsOpen(groupLock), "nhóm gom sạch khỏi bàn thì hộp mở");
                 Ok(g.IsOpen(default(Lock)), "không khoá thì luôn mở");
-
-                Ok(Blockers.CardPairAllowed(Blockers.Ice, Blockers.Key) && Blockers.CardPairAllowed(Blockers.Key, Blockers.Ice),
-                   "băng + chìa là cặp được phép trên một thẻ");
+                Ok(!Blockers.CardPairAllowed(Blockers.Ice, Blockers.Ice), "bảng cặp rỗng: không cặp nào được phép");
+                Ok(!Blockers.CardPairAllowed(Blockers.Ice, Blockers.Fixed), "băng và đinh không đứng chung một thẻ");
                 Ok(Blockers.IsCount(3.0) && !Blockers.IsCount(0.0) && !Blockers.IsCount(1.5) && !Blockers.IsCount("3"),
                    "IsCount: số nguyên ≥ 1");
             }
@@ -506,13 +530,16 @@ namespace WordStack.Board
                 Ok(!g4.MoveTile(0, uidOf(g4, "c2"), 0), "thả về chính stack bị từ chối");
                 Ok(Game.IsFrozen(ice4) && ice4.Lock.Have == 0, "nước bị từ chối không giảm băng");
 
-                // Băng trong hộp khoá đang ở trên cùng vẫn đếm — thẻ đang lộ (spec 4.4).
+                // Băng trong hộp khoá ở trên cùng KHÔNG đếm — hộp mở rồi mới đếm (spec 4.4).
                 var g5 = load(true);
                 g5.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
                 var iceInLocked = g5.TopBox(2).Slots[0];
                 iceInLocked.Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
                 Ok(g5.MoveTile(0, uidOf(g5, "c1"), 4), "nước hợp lệ");
-                Ok(!Game.IsFrozen(iceInLocked), "băng trong hộp khoá ở trên cùng vẫn tan theo nước đi");
+                Ok(Game.IsFrozen(iceInLocked) && iceInLocked.Lock.Have == 0, "băng trong hộp khoá ở trên cùng không đếm");
+                g5.Stacks[2].Boxes[0].Lock = default(Lock);   // hộp mở
+                Ok(g5.MoveTile(0, uidOf(g5, "c2"), 3), "nước hợp lệ sau khi hộp mở");
+                Ok(!Game.IsFrozen(iceInLocked), "hộp mở rồi thì băng đếm tiếp và tan");
 
                 // Kẹt phải là "hết nước đi hợp lệ", không phải "hết ô trống" — nếu không mọi
                 // thẻ lộ đều băng là thua ngầm (spec 2.1).
@@ -571,46 +598,42 @@ namespace WordStack.Board
                 g3.Settle(true);
                 Ok(g3.Cleared == 1, "băng tan sau nước đó → nhóm nổ ngay trong cùng nhịp");
 
-                // Ổ và chìa: thẻ chìa bị gom là ổ mở (spec 4.1, 2.4).
+                // Hộp khoá theo nhóm: nhóm đó gom sạch là hộp mở (spec 4.1, 2.4).
                 var g4 = load(true);
-                g4.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
+                g4.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Group, GroupId = "zz" };
                 var b4 = g4.TopBox(4);
                 for (int i = 0; i < Rules.GroupSize - 1; i++) b4.Slots[i] = mkT("zz", i);
-                var keyTile = mkT("zz", 9);
-                keyTile.KeyId = "k1";
-                g4.TopBox(0).Slots[2] = keyTile;
-                Ok(!g4.MoveTile(0, uidOf(g4, "c1"), 2), "ổ đóng: không thả vào");
-                Ok(g4.MoveTile(0, "zz9", 4), "thẻ chìa kéo được như thẻ thường");
+                g4.TopBox(0).Slots[2] = mkT("zz", 9);
+                Ok(!g4.MoveTile(0, uidOf(g4, "c1"), 2), "hộp khoá theo nhóm đóng: không thả vào");
+                Ok(g4.MoveTile(0, "zz9", 4), "thẻ của nhóm bị khoá kéo được như thẻ thường");
                 g4.Settle(true);
-                Ok(g4.Cleared == 1 && g4.IsOpen(g4.Stacks[2].Boxes[0].Lock), "thẻ chìa bị gom thì ổ mở");
-                Ok(g4.MoveTile(0, uidOf(g4, "c1"), 2), "ổ mở rồi thả vào được");
+                Ok(g4.Cleared == 1 && g4.IsOpen(g4.Stacks[2].Boxes[0].Lock), "nhóm gom sạch thì hộp mở");
+                Ok(g4.MoveTile(0, uidOf(g4, "c1"), 2), "hộp mở rồi thả vào được");
 
-                // Nhóm khác nổ thì ổ không mở.
+                // Nhóm khác nổ thì hộp không mở.
                 var g5 = load(true);
-                g5.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
-                g5.TopBox(3).Slots[0].KeyId = "k1";                 // e3 mang chìa, không bị gom
+                g5.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Group, GroupId = "gc" };
                 var b5 = g5.TopBox(4);
                 for (int i = 0; i < Rules.GroupSize - 1; i++) b5.Slots[i] = mkT("zz", i);
                 g5.TopBox(0).Slots[2] = mkT("zz", 9);
                 Ok(g5.MoveTile(0, "zz9", 4), "nước gom nhóm zz");
                 g5.Settle(true);
-                Ok(g5.Cleared == 1 && !g5.IsOpen(g5.Stacks[2].Boxes[0].Lock), "nhóm không có chìa nổ thì ổ vẫn đóng");
+                Ok(g5.Cleared == 1 && !g5.IsOpen(g5.Stacks[2].Boxes[0].Lock), "nhóm khác nổ thì hộp vẫn đóng");
 
-                // Thẻ vừa băng vừa chìa: tan → gom → mở (spec 4.4).
+                // Thẻ băng thuộc nhóm bị khoá: tan → gom → mở (spec 4.4).
                 var g6 = load(true);
-                g6.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
+                g6.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Group, GroupId = "zz" };
                 var b6 = g6.TopBox(4);
                 for (int i = 0; i < Rules.GroupSize - 1; i++) b6.Slots[i] = mkT("zz", i);
-                var iceKey = mkT("zz", 9);
-                iceKey.KeyId = "k1";
-                iceKey.Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
-                g6.TopBox(0).Slots[2] = iceKey;
-                Ok(!g6.MoveTile(0, "zz9", 4), "còn băng thì chìa chưa kéo được");
-                // e3 sang stack 0 (còn 1 ô), KHÔNG sang stack 4 — hộp đó phải giữ đúng 1 ô trống cho chìa.
+                var iceTile = mkT("zz", 9);
+                iceTile.Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
+                g6.TopBox(0).Slots[2] = iceTile;
+                Ok(!g6.MoveTile(0, "zz9", 4), "còn băng thì chưa kéo được");
+                // e3 sang stack 0 (còn 1 ô), KHÔNG sang stack 4 — hộp đó phải giữ đúng 1 ô trống cho zz9.
                 Ok(g6.MoveTile(3, uidOf(g6, "e3"), 0), "nước khác làm tan băng");
-                Ok(g6.MoveTile(0, "zz9", 4), "tan rồi kéo chìa sang");
+                Ok(g6.MoveTile(0, "zz9", 4), "tan rồi kéo sang");
                 g6.Settle(true);
-                Ok(g6.IsOpen(g6.Stacks[2].Boxes[0].Lock), "băng tan → chìa bị gom → ổ mở");
+                Ok(g6.IsOpen(g6.Stacks[2].Boxes[0].Lock), "băng tan → nhóm gom sạch → hộp mở");
             }
 
             // 8d. Solver
@@ -631,23 +654,21 @@ namespace WordStack.Board
 
                 // Bàn có cả ba blocker vẫn giải được (drain = true, xem ghi chú đầu mục 8).
                 // Đường giải: c1 c2 → 4, hộp trên stack 0 rỗng bị xoá, c3 c4 → 4, ga nổ → stack 2
-                // mở; e1 → 4, d4 → 1, gb nổ → chìa d4 mất → stack 3 mở; e1 e2 → 3, gc nổ. Băng
-                // trên e3 tan sau 2 nước đầu. Chìa KHÔNG được là thẻ gc: gc cần e1 đang nằm trong
-                // hộp mà chìa đó mở → vòng khoá, chính là thứ luật kiểm 6 cấm.
+                // mở; e1 → 4, d4 → 1, gb nổ → stack 3 mở; e1 e2 → 3, gc nổ. Băng trên e3 tan
+                // sau 2 nước đầu. Nhóm khoá KHÔNG được là gc: e1 của gc đang nằm trong hộp mà
+                // nhóm đó mở → vòng khoá, chính là thứ luật kiểm 6 cấm.
                 var s = load(true);
                 s.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 1 };
-                s.TopBox(3).Slots[0].Lock = new Lock { Kind = LockKind.Moves, Need = 2 };   // e3 băng
-                s.TopBox(2).Slots[0].KeyId = "k1";                                           // d4 (gb) mang chìa
-                s.Stacks[3].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };  // stack 3 có ổ
+                s.TopBox(3).Slots[0].Lock = new Lock { Kind = LockKind.Moves, Need = 2 };       // e3 băng
+                s.Stacks[3].Boxes[0].Lock = new Lock { Kind = LockKind.Group, GroupId = "gb" }; // stack 3 khoá theo gb
                 var r = Solver.Solve(s, true);
                 Ok(r.Ok, "bàn luật có đủ ba blocker phải giải được ở chế độ rộng: " + (r.Why ?? ""));
 
-                // Bàn thực sự vô nghiệm vì blocker phải bị bắt: ổ mà chìa nằm ngay trong hộp.
+                // Bàn thực sự vô nghiệm vì blocker phải bị bắt: thẻ của nhóm nằm ngay trong hộp nó mở.
                 var dead = load(true);
-                dead.TopBox(2).Slots[0].KeyId = "k1";                                        // d4 mang chìa
-                dead.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Key, KeyId = "k1" };
+                dead.Stacks[2].Boxes[0].Lock = new Lock { Kind = LockKind.Group, GroupId = "gb" };   // d4 (gb) ở trong
                 var rd = Solver.Solve(dead, true);
-                Ok(!rd.Ok, "chìa nằm trong chính hộp nó mở → Solver phải báo không giải được");
+                Ok(!rd.Ok, "thẻ nhóm nằm trong chính hộp nhóm đó mở → Solver phải báo không giải được");
             }
 
             // 8e. Đọc màn, kiểm dữ liệu, dựng vào bàn
@@ -657,11 +678,10 @@ namespace WordStack.Board
                 lv.Validate(hasArt);
                 var g = Game.Build(lv);
                 Ok(g.Stacks[2].Boxes[0].Lock.Kind == LockKind.Clears && g.Stacks[2].Boxes[0].Lock.Need == 1, "Build: locked → Box.Lock Clears");
-                Ok(g.Stacks[3].Boxes[0].Lock.Kind == LockKind.Key && g.Stacks[3].Boxes[0].Lock.KeyId == "k1", "Build: keylock → Box.Lock Key");
+                Ok(g.Stacks[3].Boxes[0].Lock.Kind == LockKind.Group && g.Stacks[3].Boxes[0].Lock.GroupId == "gb", "Build: grouplock → Box.Lock Group");
                 var c2 = g.TopBox(0).Slots[1];
                 Ok(c2.CardId == "c2" && Game.IsFrozen(c2) && c2.Lock.Need == 2 && c2.Lock.Have == 0, "Build: ice → Tile.Lock Moves");
-                Ok(g.TopBox(2).Slots[0].CardId == "d4" && g.TopBox(2).Slots[0].KeyId == "k1", "Build: key → Tile.KeyId");
-                Ok(g.TopBox(0).Slots[0].Lock.Kind == LockKind.None && g.TopBox(0).Slots[0].KeyId == null, "thẻ không khai blockers thì trống");
+                Ok(g.TopBox(0).Slots[0].Lock.Kind == LockKind.None, "thẻ không khai blockers thì trống");
 
                 Action<Action<LevelData>, string> brokenB = (mutate, label) =>
                 {
@@ -677,30 +697,76 @@ namespace WordStack.Board
                 brokenB(l => l.Stacks[4].Boxes[0].Blockers["ice"] = 1.0, "id của thẻ đặt trên hộp");
                 brokenB(l => l.Stacks[4].Boxes[0].Blockers["chain"] = 1.0, "id lạ trên hộp");
                 // Luật 2
-                brokenB(l => l.Stacks[2].Boxes[0].Blockers["keylock"] = "k1", "hộp mang hai blocker");
-                // Luật 3: bản này chỉ có một cặp và nó được phép — không có case từ chối
-                // để kiểm; CardPairAllowed đã kiểm ở 8a.
+                brokenB(l => l.Stacks[2].Boxes[0].Blockers["grouplock"] = "gb", "hộp mang hai blocker");
+                // Luật 3: thẻ chỉ có một blocker nên chưa có cặp nào để kiểm; CardPairAllowed đã kiểm ở 8a.
                 // Luật 4
                 brokenB(l => l.Groups[0].Cards[1].Blockers["ice"] = 0.0, "ice = 0");
                 brokenB(l => l.Groups[0].Cards[1].Blockers["ice"] = 1.5, "ice không nguyên");
                 brokenB(l => l.Stacks[2].Boxes[0].Blockers["locked"] = "3", "locked là chuỗi");
                 // Luật 5
-                brokenB(l => l.Stacks[3].Boxes[0].Blockers["keylock"] = "k9", "keylock trỏ chìa không ai mang");
-                brokenB(l => l.Groups[2].Cards[0].Blockers["key"] = "k1", "hai thẻ cùng mang một chìa");
+                brokenB(l => l.Stacks[3].Boxes[0].Blockers["grouplock"] = "k9", "grouplock trỏ nhóm không tồn tại");
+                brokenB(l => l.Stacks[3].Boxes[0].Blockers["grouplock"] = 3.0, "grouplock không phải chuỗi");
                 // Luật 6
                 brokenB(l => { l.Stacks[3].Boxes[0].Slots[2] = "d4"; l.Stacks[2].Boxes[0].Slots[0] = null; },
-                        "thẻ chìa nằm trong hộp nó mở");
-                brokenB(l => { l.Stacks[3].Boxes[0].Slots[2] = "d1"; l.Stacks[1].Boxes[0].Slots[0] = null; },
-                        "thẻ cùng nhóm với chìa nằm trong hộp chìa mở");
+                        "thẻ của nhóm nằm trong hộp nhóm đó mở");
                 brokenB(l => { l.Stacks[3].Boxes.Add(new BoxDef { Slots = new[] { "d1", null, null, null } });
                                l.Stacks[1].Boxes[0].Slots[0] = null; },
-                        "thẻ cùng nhóm với chìa nằm DƯỚI hộp chìa mở");
+                        "thẻ của nhóm nằm DƯỚI hộp nhóm đó mở");
+                // Nhóm con: khoá theo nhóm cha thì thẻ nhóm con cũng không được nằm trong/dưới hộp.
+                brokenB(l => { l.Groups[1].ParentId = "gp";
+                               l.Groups.Add(new GroupDef { Id = "gp", Text = "P" });
+                               l.Stacks[3].Boxes[0].Blockers["grouplock"] = "gp"; },
+                        "khoá theo nhóm cha mà thẻ nhóm con nằm trong hộp");
 
-                // Hợp lệ: cùng thẻ vừa băng vừa chìa.
+                // Hợp lệ: thẻ băng thuộc nhóm bị khoá.
                 var okLv = freshB();
                 okLv.Groups[1].Cards[3].Blockers["ice"] = 1.0;
                 okLv.Validate(hasArt);
-                Ok(Game.IsFrozen(Game.Build(okLv).TopBox(2).Slots[0]), "thẻ vừa băng vừa chìa là hợp lệ");
+                Ok(Game.IsFrozen(Game.Build(okLv).TopBox(2).Slots[0]), "thẻ băng thuộc nhóm bị khoá là hợp lệ");
+
+                // Thẻ đóng đinh (spec 2026-09-29-fixed-tile Mục 3). BlockerLv: c1 ở hộp trên stack 0,
+                // c3 ở hộp chôn stack 0, c2 đang băng.
+                var fxLv = freshB();
+                fxLv.Groups[0].Cards[0].Blockers["fixed"] = true;
+                fxLv.Validate(hasArt);
+                var fc1 = Game.Build(fxLv).TopBox(0).Slots[0];
+                Ok(fc1.CardId == "c1" && Game.IsFixed(fc1), "Build: fixed → Tile.Lock Fixed");
+                brokenB(l => l.Groups[0].Cards[0].Blockers["fixed"] = 1.0, "fixed không phải true");
+                brokenB(l => l.Groups[0].Cards[0].Blockers["fixed"] = false, "fixed = false");
+                brokenB(l => l.Groups[0].Cards[2].Blockers["fixed"] = true, "thẻ đóng đinh nằm ở hộp chôn");
+                brokenB(l => l.Groups[0].Cards[1].Blockers["fixed"] = true, "fixed + ice trên cùng một thẻ");
+            }
+
+            // 8g. Thẻ đóng đinh: nước đi, gom nhóm, kẹt (spec 2026-09-29-fixed-tile Mục 4)
+            {
+                var fx = new Lock { Kind = LockKind.Fixed };
+                var g = load(true);
+                var c1 = g.TopBox(0).Slots[0];
+                c1.Lock = fx;
+                Ok(Game.IsFixed(c1) && !Game.IsFrozen(c1), "Kind = Fixed là đóng đinh, không phải băng");
+                Ok(Game.IsFixed(g.Clone().TopBox(0).Slots[0]), "Clone phải chép đinh của thẻ");
+                Ok(!g.MoveTile(0, c1.Uid, 4), "thẻ đóng đinh không kéo đi được");
+                Ok(g.Moves == 0, "nước bị từ chối không tính");
+                string c2 = uidOf(g, "c2");
+                Ok(g.MoveTile(0, c2, 4), "thẻ bên cạnh vẫn kéo đi được");
+                Ok(g.MoveTile(4, c2, 0), "thả thẻ vào hộp có thẻ đóng đinh được");
+
+                // Thẻ đóng đinh tính vào bộ 4 (khác thẻ băng) và bị xoá cùng nhóm.
+                var g2 = load(true);
+                var box4 = g2.TopBox(4);
+                for (int i = 0; i < Rules.GroupSize - 1; i++) box4.Slots[i] = mkT("yy", i);
+                box4.Slots[0].Lock = fx;
+                g2.TopBox(0).Slots[2] = mkT("yy", 9);
+                Ok(g2.MoveTile(0, "yy9", 4), "thẻ thứ 4 vào hộp có thẻ đóng đinh");
+                g2.Settle(true);
+                Ok(g2.Cleared == 1 && Game.IsEmpty(g2.TopBox(4)), "thẻ đóng đinh tính vào bộ 4, bị xoá cùng nhóm");
+
+                // Kẹt: thẻ đóng đinh không phải thẻ đi được.
+                var g3 = load(true);
+                foreach (var st in g3.Stacks) foreach (var t in st.Boxes[0].Slots) if (t != null) t.Lock = fx;
+                Ok(!g3.HasAnyMove(), "lộ ra toàn thẻ đóng đinh thì không còn nước");
+                g3.TopBox(1).Slots[0].Lock = default(Lock);
+                Ok(g3.HasAnyMove(), "gỡ một đinh là có nước lại");
             }
 
             // 8f. Booster tránh blocker (spec 4.3)
@@ -722,6 +788,18 @@ namespace WordStack.Board
                 g2.Stacks[lockedStack].Boxes[0].Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
                 Ok(g2.FindMagnetTarget() != u1, "nhóm có thẻ trong hộp đóng không được nam châm hút");
 
+                // Magnet hút rỗng hộp chôn thì xoá hộp đó ngay (spec stack-tile-holder Mục 7). RulesLv
+                // stack 0: trên [c1,c2], chôn [c3,c4] — cả 4 là nhóm ga.
+                var gm = load(true);
+                var mr = gm.ApplyMagnet("ga");
+                Ok(mr.Ok, "Magnet hút được nhóm ga");
+                Ok(mr.Picks.Count(p => p.Stack == 0 && p.Box == 1) == 2, "Picks giữ chỉ số hộp TRƯỚC khi xoá");
+                Ok(gm.Stacks[0].Boxes.Count == 1, "hộp chôn bị hút rỗng bị xoá ngay");
+                Ok(Game.IsEmpty(gm.TopBox(0)), "hộp trên cùng rỗng vẫn còn, để Settle xử lý");
+                Ok(gm.TopBox(0).IsBottom, "xoá hộp đáy thì hộp ngay trên thành đáy");
+                gm.Settle(true);
+                Ok(gm.Stacks[0].Boxes.Count == 1, "hộp đáy rỗng không bị Settle xoá — stack không mất sạch hộp");
+
                 // Thẻ băng phải là thẻ TRẮNG (đứng lẻ trong hộp) thì bài kiểm mới có nghĩa —
                 // thẻ có màu vốn không vào pool. e1 ở stack 1 là thẻ gc duy nhất trong hộp đó.
                 var g3 = load(true);
@@ -733,7 +811,7 @@ namespace WordStack.Board
                 Ok(!pool.Any(r => r.Stack == 1 && r.Slot == 3), "Xáo: ô của thẻ băng không vào pool dù thẻ trắng");
                 Ok(pool.Any(r => r.Stack == 0 && r.Slot == 2), "Xáo: ô trống ở hộp mở vẫn vào pool");
                 var cands = g3.PickPrimeCandidates(3);
-                Ok(!cands.Contains("gc"), "Xáo: nhóm có thẻ băng không làm mồi");
+                Ok(!cands.Contains("gc"), "Xáo: gc có e2 trong hộp đóng nên không làm mồi, dù chỉ một thẻ băng");
                 Ok(!cands.Contains("gb"), "Xáo: nhóm có thẻ trong hộp đóng không làm mồi");
                 Ok(cands.Contains("ga"), "Xáo: nhóm không dính blocker vẫn làm mồi được");
 
@@ -754,6 +832,252 @@ namespace WordStack.Board
                 var closedBox = g5.TopBox(1);
                 foreach (var tt in closedBox.Slots)
                     if (tt != null) Ok(!g5.IsPullable(tt, closedBox), "mọi thẻ trong hộp đóng đều không nhấc được");
+            }
+
+            // 8h. Thẻ đóng đinh với booster (spec 2026-09-29-fixed-tile Mục 4)
+            {
+                var fx = new Lock { Kind = LockKind.Fixed };
+                var g = load(true);
+                string m1 = g.FindMagnetTarget();
+                Ok(m1 != null, "bàn luật có mục tiêu nam châm");
+                Tile nailed = null; Box nailedBox = null;
+                foreach (var st in g.Stacks)
+                    foreach (var t in st.Boxes[0].Slots)
+                        if (nailed == null && t != null && t.GroupId == m1) { nailed = t; nailedBox = st.Boxes[0]; }
+                nailed.Lock = fx;
+                Ok(g.IsPullable(nailed, nailedBox), "thẻ đóng đinh vẫn hút được (và vẫn có vùng chạm để rung)");
+                string m2 = g.FindMagnetTarget();
+                Ok(m2 != null && m2 != m1, "nhóm có thẻ đóng đinh xếp sau nhóm không có");
+                foreach (var gid in new[] { "ga", "gb", "gc" })
+                {
+                    if (gid == m1) continue;
+                    var other = g.Stacks.SelectMany(st => st.Boxes).SelectMany(b => b.Slots)
+                                 .First(t => t != null && t.GroupId == gid);
+                    other.Lock = new Lock { Kind = LockKind.Moves, Need = 9 };   // băng → nhóm đó hết hợp lệ
+                }
+                Ok(g.FindMagnetTarget() == m1, "không còn nhóm nào khác thì vẫn hút nhóm có thẻ đóng đinh");
+                var mr = g.ApplyMagnet(m1);
+                Ok(mr.Ok && mr.Picks.Any(p => p.Uid == nailed.Uid), "Magnet hút cả thẻ đóng đinh");
+
+                // Xáo: e1 ở stack 1 là thẻ gc duy nhất trong hộp đó (thẻ trắng) — không đóng đinh thì nó vào pool.
+                var g2 = load(true);
+                Ok(Game.IsWhite(g2.TopBox(1), 3), "e1 đang trắng — tiền đề của bài kiểm");
+                var e1 = g2.TopBox(1).Slots[3];
+                e1.Lock = fx;
+                Ok(!g2.AssignableTopSlots().Any(r => r.Stack == 1 && r.Slot == 3), "Xáo: ô của thẻ đóng đinh không vào pool dù thẻ trắng");
+                Ok(g2.PickPrimeCandidates(9).Contains("gc"), "Xáo: nhóm có MỘT thẻ đóng đinh vẫn làm mồi — thẻ đinh là mốc hộp chủ");
+                g2.ApplyShuffle();
+                Ok(g2.TopBox(1).Slots[3] == e1, "Xáo: thẻ đóng đinh đứng yên đúng ô");
+            }
+
+            // 8i. Bàn chết (spec 2026-10-02-shuffle-redesign Mục 8). Stack 0 có hộp dưới, stack
+            // 1 và 2 chỉ có hộp đáy. 2 ô trống, không nhóm nào đủ 4 ở lớp trên.
+            {
+                const string DeadLv = @"{'id':'t-dead','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','b1','c1',null]},{'slots':['a2','a3','a4','d4']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['d1','d2','e1',null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['f1','f2','e2','e3']}]}]},";
+                Func<Game> dead = () => BuildQ(DeadLv + Meaning("ga:a", "gb:b", "gc:c", "gd:d", "ge:e", "gf:f"));
+                var fixedLock = new Lock { Kind = LockKind.Fixed };
+
+                var g = dead();
+                Ok(g.HasAnyMove(), "Chết: tiền đề — bàn vẫn còn nước đi");
+                Ok(g.IsDeadBoard() && g.CheckStatus() == GameStatus.Stuck,
+                   "Chết: 2 ô trống, không nhóm nào đủ 4 ở lớp trên → kẹt dù còn nước");
+
+                var g1 = dead();
+                g1.TopBox(0).Slots[3] = new Tile { Uid = "e4", CardId = "e4", GroupId = "ge" };
+                Ok(!g1.IsDeadBoard() && g1.CheckStatus() == GameStatus.Playing, "Chết: ge đủ 4 ở lớp trên → còn sống");
+
+                var g2 = dead();
+                g2.TopBox(0).Slots[3] = new Tile { Uid = "e4", CardId = "e4", GroupId = "ge", Lock = fixedLock };
+                g2.TopBox(1).Slots[2].Lock = fixedLock;
+                Ok(g2.IsDeadBoard(), "Chết: thẻ đóng đinh của ge ở hai hộp → không gom được");
+
+                var g3 = dead();
+                g3.TopBox(0).Slots[3] = new Tile { Uid = "e4", CardId = "e4", GroupId = "ge", Lock = new Lock { Kind = LockKind.Moves, Need = 3 } };
+                g3.TopBox(1).Slots[2].Lock = new Lock { Kind = LockKind.Moves, Need = 3 };
+                Ok(!g3.IsDeadBoard(), "Chết: thẻ băng không chặn gom — còn nước là băng còn tan");
+
+                var g4 = dead();
+                g4.TopBox(1).Slots[1] = null; g4.TopBox(1).Slots[2] = null;
+                Ok(!g4.IsDeadBoard(), "Chết: đủ 4 ô trống → stack 0 rút rỗng được → còn sống");
+
+                var g5 = dead();
+                g5.TopBox(1).Slots[1] = null; g5.TopBox(1).Slots[2] = null;
+                g5.TopBox(1).Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(g5.HasAnyMove() && g5.CheckStatus() == GameStatus.Stuck, "Chết: ô trống trong hộp khoá không tính");
+
+                var g6 = dead();
+                g6.TopBox(1).Slots[1] = null; g6.TopBox(1).Slots[2] = null;
+                g6.TopBox(0).Slots[0].Lock = fixedLock;
+                Ok(g6.IsDeadBoard(), "Chết: hộp duy nhất rút được lại có thẻ đóng đinh → chết");
+            }
+
+            // 8j. Xáo — chọn nhóm mồi (spec 2026-10-02-shuffle-redesign Mục 2). a1 ở stack 0 là
+            // thẻ dùng làm mốc, a2 a3 trắng, a4 chôn dưới stack 0.
+            const string AnchorLv = @"{'id':'t-anchor','title':'t','layout':{'stacks':[
+              {'pos':[0,0],'boxes':[{'slots':['a1','b1',null,null]},{'slots':['a4','c3',null,null]}]},
+              {'pos':[1,0],'boxes':[{'slots':['a2','c1',null,null]}]},
+              {'pos':[2,0],'boxes':[{'slots':['c2','a3',null,null]}]}]},";
+            Func<Lock, Game> anchored = l =>
+            {
+                var ga = BuildQ(AnchorLv + Meaning("ga:a", "gb:b", "gc:c"));
+                ga.TopBox(0).Slots[0].Lock = l;
+                return ga;
+            };
+            {
+                var ice = new Lock { Kind = LockKind.Moves, Need = 2 };
+                Ok(anchored(new Lock { Kind = LockKind.Fixed }).PickPrimeCandidates(9).Contains("ga"),
+                   "Mồi: một thẻ đóng đinh ở lớp trên → vẫn làm mồi");
+                Ok(anchored(ice).PickPrimeCandidates(9).Contains("ga"), "Mồi: một thẻ băng ở lớp trên → vẫn làm mồi");
+
+                var two = anchored(ice);
+                CardOf(two, "a2").Lock = ice;   // a2 ở lớp trên cũng băng → hai thẻ bất động
+                Ok(!two.PickPrimeCandidates(9).Contains("ga"), "Mồi: hai thẻ bất động → bỏ nhóm");
+
+                var buried = anchored(default(Lock));
+                buried.Stacks[0].Boxes[1].Slots[0].Lock = ice;
+                Ok(!buried.PickPrimeCandidates(9).Contains("ga"), "Mồi: thẻ băng bị chôn không làm mốc được → bỏ nhóm");
+
+                var locked = anchored(default(Lock));
+                locked.TopBox(1).Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(!locked.PickPrimeCandidates(9).Contains("ga"), "Mồi: có thẻ trong hộp khoá → bỏ nhóm");
+
+                // ga nhiều thẻ lớp trên hơn gb, nhưng a1 băng → gb lên trước.
+                const string IceOrderLv = @"{'id':'t-ice','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2','b1',null]},{'slots':['b2','b3','b4',null]}]},
+                  {'pos':[1,0],'boxes':[{'slots':['a3','a4',null,null]}]}]},";
+                var o1 = BuildQ(IceOrderLv + Meaning("ga:a", "gb:b"));
+                CardOf(o1, "a1").Lock = new Lock { Kind = LockKind.Moves, Need = 3 };
+                var p1 = o1.PickPrimeCandidates(9);
+                Ok(p1.Count == 2 && p1[0] == "gb" && p1[1] == "ga", "Mồi: nhóm có băng xếp sau nhóm không băng");
+
+                var o2 = BuildQ(IceOrderLv + Meaning("ga:a", "gb:b"));
+                CardOf(o2, "a1").Lock = new Lock { Kind = LockKind.Moves, Need = 3 };
+                CardOf(o2, "b1").Lock = new Lock { Kind = LockKind.Moves, Need = 1 };
+                var p2 = o2.PickPrimeCandidates(9);
+                Ok(p2.Count == 2 && p2[0] == "gb", "Mồi: giữa các nhóm băng, băng còn ít nước tan hơn lên trước");
+            }
+
+            // 8l. Xáo — lấp hộp trên rỗng (spec 2026-10-02-shuffle-redesign Mục 4). Stack 2 trên
+            // rỗng, tay cạn: phải xé cụm đôi ở hộp nhiều thẻ nhất, không đụng cụm ba.
+            {
+                const string FillLv = @"{'id':'t-fill','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2','b1','b2']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['c1','c2','c3',null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':[null,null,null,null]},{'slots':['d1',null,null,null]}]}]},";
+                var g = BuildQ(FillLv + Meaning("ga:a", "gb:b", "gc:c", "gd:d"));
+                Tile a1 = g.TopBox(0).Slots[0];
+                var movers = new HashSet<string>();
+                Ok(g.EnsureEveryTopBoxOccupied(g.AssignableTopSlots(), new HashSet<int>(), new List<Tile>(), movers),
+                   "Lấp hộp: tay cạn vẫn lấp được nhờ xé cụm");
+                Ok(g.TopBox(2).Slots.Contains(a1) && movers.Contains(a1.Uid), "Lấp hộp: xé cụm đôi ở hộp nhiều thẻ nhất, ghi vào movers");
+                Ok(InBox(g.TopBox(1), "gc") == 3, "Lấp hộp: cụm ba không bị xé khi còn cụm đôi");
+
+                var gl = BuildQ(FillLv + Meaning("ga:a", "gb:b", "gc:c", "gd:d"));
+                gl.TopBox(2).Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(gl.EnsureEveryTopBoxOccupied(gl.AssignableTopSlots(), new HashSet<int>(), new List<Tile>()),
+                   "Lấp hộp: hộp khoá rỗng được bỏ qua");
+                Ok(gl.TopBox(2).Slots.All(t => t == null), "Lấp hộp: hộp khoá vẫn rỗng");
+
+                // Hộp khoá rỗng từng làm mọi lần xáo thất bại.
+                const string LockedEmptyLv = @"{'id':'t-lockedempty','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','b1',null,null]},{'slots':['a4','c1','c2','b2']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['a2','b3',null,null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['a3',null,null,null]}]},
+                  {'pos':[3,0],'boxes':[{'slots':[null,null,null,null]}]}]},";
+                var ge = BuildQ(LockedEmptyLv + Meaning("ga:a", "gb:b", "gc:c"));
+                ge.TopBox(3).Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                Ok(ge.ApplyShuffle().Ok, "Lấp hộp: hộp khoá rỗng không làm xáo thất bại");
+            }
+
+            // 8k. Xáo — hộp chủ (spec 2026-10-02-shuffle-redesign Mục 3).
+            {
+                foreach (var kind in new[] { LockKind.Fixed, LockKind.Moves })
+                {
+                    var g = anchored(new Lock { Kind = kind, Need = 2 });
+                    Tile a1 = g.TopBox(0).Slots[0];
+                    var r = g.ApplyShuffle();
+                    Ok(r.Ok, "Hộp chủ (" + kind + "): xáo thành công");
+                    Ok(g.TopBox(0).Slots[0] == a1, "Hộp chủ (" + kind + "): mốc đứng yên đúng ô");
+                    Ok(InBox(g.TopBox(0), "ga") == 3 && Game.FreeCount(g.TopBox(0)) >= 1,
+                       "Hộp chủ (" + kind + "): hộp chứa mốc thành hộp chủ, 3 thẻ ga + ô trống");
+                    Ok(g.CountPrimedGroups() >= 1, "Hộp chủ (" + kind + "): có nhóm mồi");
+                    Ok(!r.Moves.Any(m => m.Uid == a1.Uid), "Hộp chủ (" + kind + "): mốc không nằm trong Moves");
+                }
+
+                // Cụm đôi a1 a2 người chơi đã gom ở stack 0; a3 trắng; a4 chôn dưới stack 1.
+                const string PairLv = @"{'id':'t-pair','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2','b1',null]}]},
+                  {'pos':[1,0],'boxes':[{'slots':['a3','c1',null,null]},{'slots':['a4','c2',null,null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['c3',null,null,null]}]}]},";
+                var gp = BuildQ(PairLv + Meaning("ga:a", "gb:b", "gc:c"));
+                Tile p1 = gp.TopBox(0).Slots[0], p2 = gp.TopBox(0).Slots[1];
+                Ok(gp.ApplyShuffle().Ok, "Hộp chủ cụm đôi: xáo thành công");
+                Ok(gp.TopBox(0).Slots[0] == p1 && gp.TopBox(0).Slots[1] == p2, "Hộp chủ cụm đôi: cụm đôi đứng yên");
+                Ok(InBox(gp.TopBox(0), "ga") == 3 && Game.FreeCount(gp.TopBox(0)) == 1,
+                   "Hộp chủ cụm đôi: hộp của cụm đôi thành hộp chủ");
+
+                // Hai cụm đôi ga ở hai hộp.
+                const string TwoPairsLv = @"{'id':'t-two','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2',null,null]}]},
+                  {'pos':[1,0],'boxes':[{'slots':['a3','a4','b1','b2']}]}]},";
+                var gt = BuildQ(TwoPairsLv + Meaning("ga:a", "gb:b"));
+                int topT = gt.TopLayerTileCount();
+                var rt = gt.ApplyShuffle();
+                Ok(rt.Ok && rt.Moves.Length == 1, "Hai cụm đôi: đúng một thẻ đổi chỗ");
+                Ok(InBox(gt.TopBox(0), "ga") == 3 && Game.FreeCount(gt.TopBox(0)) == 1, "Hai cụm đôi: stack 0 thành cụm 3 + ô trống");
+                Ok(InBox(gt.TopBox(1), "ga") == 1 && InBox(gt.TopBox(1), "gb") == 2,
+                   "Hai cụm đôi: thẻ ga ở lại là thẻ thứ 4, cụm gb không bị đụng");
+                Ok(gt.TopLayerTileCount() == topT && !gt.AnyBoxHasFullGroup(), "Hai cụm đôi: giữ bất biến");
+
+                // Không hộp nào trống đủ 4 ô. Stack 0 chỉ vướng cụm đôi gb và ngồi trên hộp có a3 a4.
+                const string MergeLv = @"{'id':'t-merge','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['b1','b2','a2',null]},{'slots':['a3','a4','h1','h2']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['d1','d2','f1',null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['a1','e1','e2','g1']}]}]},";
+                var gm = BuildQ(MergeLv + Meaning("ga:a", "gb:b", "gd:d", "ge:e", "gf:f", "gg:g", "gh:h"));
+                Tile b1 = CardOf(gm, "b1"), b2 = CardOf(gm, "b2");
+                int topM = gm.TopLayerTileCount();
+                Ok(gm.ApplyShuffle().Ok, "Dời cụm đôi: xáo thành công");
+                Ok(InBox(gm.TopBox(0), "ga") == 3 && Game.FreeCount(gm.TopBox(0)) == 1, "Dời cụm đôi: stack 0 được giải phóng làm hộp chủ");
+                Ok(gm.TopBox(1).Slots.Contains(b1) && gm.TopBox(1).Slots.Contains(b2), "Dời cụm đôi: cặp gb dời nguyên cặp sang stack 1");
+                Ok(InBox(gm.TopBox(1), "gd") == 2, "Dời cụm đôi: cụm gd ở hộp nhận còn nguyên");
+                Ok(gm.CountPrimedGroups() >= 1, "Dời cụm đôi: có nhóm mồi");
+                Ok(gm.TopLayerTileCount() == topM && !gm.AnyBoxHasFullGroup(), "Dời cụm đôi: giữ bất biến");
+            }
+
+            // 8m. Xáo — không đổi được gì thì nút xám (spec 2026-10-02-shuffle-redesign Mục 6).
+            // Không thẻ trắng, không nhóm nào đủ 4 trên bàn.
+            {
+                const string NoopLv = @"{'id':'t-noop','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2','b1','b2']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['c1','c2',null,null]}]}]},";
+                var g = BuildQ(NoopLv + Meaning("ga:a", "gb:b", "gc:c"));
+                string enc = Solver.Encode(g);
+                Ok(g.CanShuffle(), "Xáo rỗng: tiền đề — còn ô trống");
+                Ok(!g.ShuffleWouldChange(), "Xáo rỗng: chạy thử không đổi được gì → nút xám");
+                Ok(Solver.Encode(g) == enc, "Xáo rỗng: chạy thử không đụng bàn thật");
+                var r = g.ApplyShuffle();
+                Ok(!r.Ok && r.Moves.Length == 0 && Solver.Encode(g) == enc, "Xáo rỗng: ApplyShuffle báo thất bại, bàn y nguyên");
+                Ok(anchored(new Lock { Kind = LockKind.Fixed }).ShuffleWouldChange(), "Xáo rỗng: bàn có mồi dựng được thì nút sáng");
+            }
+
+            // 8n. Xáo — nhóm đã đủ 4 thẻ trong một hộp nhưng còn thẻ băng (chưa nổ, chờ băng
+            // tan): không được dựng mồi cho nó, và chạy thử không được ném lỗi — lỗi ở đây
+            // văng khỏi coroutine Settle (RefreshBoosterAvailability) và treo bàn.
+            {
+                const string FullIceLv = @"{'id':'t-fullice','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2','a3','a4']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['b1','c1',null,null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['c2',null,null,null]}]}]},";
+                var g = BuildQ(FullIceLv + Meaning("ga:a", "gb:b", "gc:c"));
+                g.TopBox(0).Slots[0].Lock = new Lock { Kind = LockKind.Moves, Need = 5, Have = 3 };
+                g.ShuffleWouldChange();
+                g.ApplyShuffle();
+                Ok(InBox(g.TopBox(0), "ga") == 4 && g.TopBox(0).Slots[0].CardId == "a1",
+                   "Băng đủ 4: hộp ga nguyên vẹn, không dựng mồi cho nhóm đã đủ trong một hộp");
             }
 
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");

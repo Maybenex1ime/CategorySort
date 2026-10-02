@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using LogosGame.Features.Shop;
 using TMPro;
 using UnityEngine;
@@ -6,7 +7,9 @@ using UnityEngine.UI;
 
 namespace LogosGame.Features.UI.Popups
 {
-    /// <summary>Ô gói coin (tab Coin) — trả tiền thật nên luôn bấm được, không gate theo ví.</summary>
+    /// <summary>
+    /// Ô gói coin (gói không có Items) trong lưới 3 cột. Trả tiền thật nên luôn bấm được, không gate theo ví.
+    /// </summary>
     public sealed class ShopCoinCellView : MonoBehaviour
     {
         [SerializeField] private Image _icon;
@@ -31,24 +34,27 @@ namespace LogosGame.Features.UI.Popups
             if (_buyButton != null) _buyButton.onClick.RemoveListener(HandleClick);
         }
 
-        public void Bind(CoinBundleDefinition bundle, Action onClick)
+        public void Bind(CoinBundleDefinition bundle, string priceLabel, Action onClick)
         {
             _onClick = onClick;
 
             if (_icon != null && bundle.Icon != null) _icon.sprite = bundle.Icon;
-            if (_coinsText != null) _coinsText.text = bundle.Coins.ToString("N0");
+            if (_coinsText != null) _coinsText.text = bundle.TotalCoins.ToString("N0", CultureInfo.InvariantCulture);
 
-            if (_priceText != null)
-            {
-                // Chưa điền fallback thì hiện gạch ngang — số 0 hay chuỗi rỗng dễ
-                // bị đọc nhầm thành miễn phí.
-                _priceText.text = string.IsNullOrEmpty(bundle.PriceLabelFallback)
-                    ? "—"
-                    : bundle.PriceLabelFallback;
-            }
+            SetPrice(priceLabel);
 
             if (_popularBadge != null) _popularBadge.SetActive(bundle.Tag == ShopTag.Popular);
             if (_bestValueBadge != null) _bestValueBadge.SetActive(bundle.Tag == ShopTag.BestValue);
+        }
+
+        /// Giá từ store (đã bản địa hoá) hoặc nhãn dự phòng của catalog — IShopService quyết.
+        public void SetPrice(string priceLabel)
+        {
+            if (_priceText == null) return;
+
+            // Chưa có giá nào thì hiện gạch ngang — số 0 hay chuỗi rỗng dễ bị đọc nhầm
+            // thành miễn phí.
+            _priceText.text = string.IsNullOrEmpty(priceLabel) ? "—" : priceLabel;
         }
 
         /// Khoá khi đang có giao dịch chạy — chặn bấm chồng thành 2 đơn.

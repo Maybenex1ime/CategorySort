@@ -5,7 +5,8 @@
         "LogosSDK.Core",
         "R3",
         "Reflex",
-        "DOTween.Modules",
+        "LitMotion",
+        "LitMotion.Extensions",
         "Unity.TextMeshPro",
         "Unity.ugui"
     ],

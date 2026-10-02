@@ -423,12 +423,12 @@ function isBoxOpen(state, box){
   return true;
 }
 const canPick = (state, box, t) => !!t && !isFrozen(t) && isBoxOpen(state, box);
-// Sau mỗi nước thành công: thẻ băng ở hộp trên cùng tiến một bước — kể cả trong hộp đang
-// khoá, vì nó đang lộ. Thẻ chìm không đếm.
+// Sau mỗi nước thành công: thẻ băng ở hộp trên cùng VÀ hộp đó đang mở tiến một bước.
+// Thẻ chìm không đếm, thẻ trong hộp đang khoá không đếm — hộp mở rồi băng mới đếm.
 function tickIce(state){
   for (const st of state.stacks){
     const top = st.boxes[0];
-    if (!top) continue;
+    if (!top || !isBoxOpen(state, top)) continue;
     for (let i = 0; i < top.tiles.length; i++){
       const t = top.tiles[i];
       if (!isFrozen(t)) continue;

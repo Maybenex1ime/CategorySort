@@ -98,7 +98,7 @@ namespace WordStack.Board
                         if (!cur.IsOpen(cur.Stacks[from].Boxes[0].Lock)) continue;
                         foreach (var t in cur.Stacks[from].Boxes[0].Slots)
                         {
-                            if (t == null || Game.IsFrozen(t)) continue;
+                            if (t == null || Game.IsFrozen(t) || Game.IsFixed(t)) continue;
                             for (int to = 0; to < cur.Stacks.Count; to++)
                             {
                                 if (to == from) continue;

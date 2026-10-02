@@ -1,22 +1,25 @@
-// Blocker: Hộp khoá, Thẻ băng, Ổ và chìa. Spec: docs/superpowers/specs/2026-09-10-blocker-locks-design.md
+// Blocker: Hộp khoá, Thẻ băng, Hộp khoá theo nhóm, Thẻ đóng đinh. Spec: docs/superpowers/specs/2026-09-10-blocker-locks-design.md
+// + docs/superpowers/specs/2026-09-29-fixed-tile-design.md (thẻ đóng đinh).
+// (mục "ổ và chìa" của spec đã thay bằng khoá theo nhóm — luật hiện hành ở docs/wordstack-rules.md §11).
 //
 // Cả ba là "một đối tượng bị vô hiệu, gỡ bằng một điều kiện tiến độ" — không thêm loại
-// nước đi nào. Một struct Lock gắn lên Box (Clears/Key) và Tile (Moves). Thẻ chìa không
-// bị khoá gì nên chìa là field riêng Tile.KeyId, không nằm trong Lock.
+// nước đi nào. Một struct Lock gắn lên Box (Clears/Group) và Tile (Moves). Hộp khoá theo
+// nhóm mở khi nhóm đó bị gom sạch khỏi bàn — không có thẻ chìa, thẻ không mang gì thêm.
 //
 // KHÔNG import UnityEngine (xem Rules.cs) — selfcheck.sh compile cả thư mục Domain/.
 using System;
+using System.Collections.Generic;
 
 namespace WordStack.Board
 {
-    public enum LockKind { None, Clears, Moves, Key }
+    public enum LockKind { None, Clears, Moves, Group, Fixed }
 
     public struct Lock
     {
         public LockKind Kind;
         public int Need;
-        public int Have;       // chỉ có nghĩa với Moves — hai loại kia tính động từ bàn
-        public string KeyId;   // chỉ có nghĩa với Key
+        public int Have;        // chỉ có nghĩa với Moves — hai loại kia tính động từ bàn
+        public string GroupId;  // chỉ có nghĩa với Group — id nhóm phải gom sạch thì hộp mới mở
     }
 
     /// <summary>
@@ -26,15 +29,16 @@ namespace WordStack.Board
     /// </summary>
     public static class Blockers
     {
-        public const string Locked = "locked";   // hộp: đóng tới khi Cleared ≥ N
-        public const string KeyLock = "keylock"; // hộp: đóng tới khi thẻ mang key cùng id biến mất
-        public const string Ice = "ice";         // thẻ: bất động N nước kể từ lúc lộ ở hộp trên
-        public const string Key = "key";         // thẻ: không khoá gì; bị gom là mở keylock cùng id
+        public const string Locked = "locked";       // hộp: đóng tới khi Cleared ≥ N
+        public const string GroupLock = "grouplock"; // hộp: đóng tới khi nhóm mang id này không còn thẻ nào trên bàn
+        public const string Ice = "ice";             // thẻ: bất động N nước kể từ lúc lộ ở hộp trên
+        public const string Fixed = "fixed";         // thẻ: không nhặt được, vẫn tính bộ 4; chỉ ở hộp trên cùng lúc đầu màn
 
-        public static readonly string[] BoxIds = { Locked, KeyLock };
-        public static readonly string[] CardIds = { Ice, Key };
+        public static readonly string[] BoxIds = { Locked, GroupLock };
+        public static readonly string[] CardIds = { Ice, Fixed };
 
-        static readonly string[][] CardPairs = { new[] { Ice, Key } };
+        // ponytail: bảng cặp rỗng — ice và fixed không đứng chung một thẻ. Thêm cặp khi có luật cho phép.
+        static readonly string[][] CardPairs = new string[0][];
 
         public static bool CardPairAllowed(string a, string b)
         {
@@ -55,9 +59,9 @@ namespace WordStack.Board
     public partial class Game
     {
         /// <summary>
-        /// Hộp/khoá này đang mở không. Clears và Key KHÔNG lưu trạng thái riêng — chúng suy
-        /// ra từ bàn (Cleared chỉ tăng; thẻ chìa mất là mất hẳn), nên Solver.Encode không
-        /// phải mã hoá gì cho hai loại đó. Chỉ Moves mang Have.
+        /// Hộp/khoá này đang mở không. Clears và Group KHÔNG lưu trạng thái riêng — chúng suy
+        /// ra từ bàn (Cleared chỉ tăng; nhóm đã gom sạch không quay lại), nên Solver.Encode
+        /// không phải mã hoá gì cho hai loại đó. Chỉ Moves mang Have.
         /// </summary>
         public bool IsOpen(Lock l)
         {
@@ -65,7 +69,7 @@ namespace WordStack.Board
             {
                 case LockKind.Clears: return Cleared >= l.Need;
                 case LockKind.Moves:  return l.Have >= l.Need;
-                case LockKind.Key:    return !KeyOnBoard(l.KeyId);
+                case LockKind.Group:  return !GroupOnBoard(l.GroupId);
                 default:              return true;
             }
         }
@@ -73,19 +77,23 @@ namespace WordStack.Board
         /// <summary>Thẻ còn băng. Băng tan thì Lock về default nên thẻ tan = thẻ thường.</summary>
         public static bool IsFrozen(Tile t) { return t != null && t.Lock.Kind == LockKind.Moves; }
 
+        /// <summary>Thẻ đóng đinh: người chơi không nhặt được, nhưng vẫn tính bộ 4 và Magnet vẫn hút được.</summary>
+        public static bool IsFixed(Tile t) { return t != null && t.Lock.Kind == LockKind.Fixed; }
+
         /// <summary>Booster hút/xáo được thẻ này không: không băng, và hộp chứa nó đang mở.</summary>
         public bool IsPullable(Tile t, Box b) { return !IsFrozen(t) && IsOpen(b.Lock); }
 
         /// <summary>
-        /// Sau mỗi nước đi thành công: mọi thẻ băng đang ở hộp trên cùng tiến một bước.
-        /// Đếm cả thẻ trong hộp đang khoá ở trên cùng (nó đang lộ), không đếm thẻ chìm.
+        /// Sau mỗi nước đi thành công: mọi thẻ băng đang ở hộp trên cùng VÀ hộp đó đang mở tiến
+        /// một bước. Không đếm thẻ chìm, không đếm thẻ trong hộp đang khoá (theo số hay theo nhóm)
+        /// — hộp mở rồi băng mới bắt đầu đếm.
         /// Tan thì Lock về default — thẻ tan không khác gì thẻ thường, kể cả với Encode.
         /// </summary>
         void TickIce()
         {
             foreach (var st in Stacks)
             {
-                if (st.Boxes.Count == 0) continue;
+                if (st.Boxes.Count == 0 || !IsOpen(st.Boxes[0].Lock)) continue;
                 var top = st.Boxes[0];
                 for (int i = 0; i < top.Slots.Length; i++)
                 {
@@ -99,7 +107,7 @@ namespace WordStack.Board
 
         /// <summary>
         /// Có ít nhất một nước đi mà MoveTile sẽ nhận không. Soi đúng các chốt của MoveTile
-        /// (hộp đóng hai đầu, thẻ băng, hộp đích đầy) mà không mutate.
+        /// (hộp đóng hai đầu, thẻ băng / đóng đinh, hộp đích đầy) mà không mutate.
         /// </summary>
         public bool HasAnyMove()
         {
@@ -108,7 +116,7 @@ namespace WordStack.Board
                 var src = TopBox(from);
                 if (src == null || !IsOpen(src.Lock)) continue;
                 bool movable = false;
-                foreach (var t in src.Slots) if (t != null && !IsFrozen(t)) { movable = true; break; }
+                foreach (var t in src.Slots) if (t != null && !IsFrozen(t) && !IsFixed(t)) { movable = true; break; }
                 if (!movable) continue;
 
                 for (int to = 0; to < Stacks.Count; to++)
@@ -121,12 +129,89 @@ namespace WordStack.Board
             return false;
         }
 
-        bool KeyOnBoard(string keyId)
+        /// <summary>
+        /// Bàn chết: còn nước đi nhưng không nhóm nào nổ được nữa, đi bao nhiêu cũng vậy.
+        /// Chỉ xét hộp trên đang mở — hộp khoá chỉ mở khi có nhóm được gom, mà bàn chết thì
+        /// không còn nhóm nào gom được, nên bỏ hẳn chúng ra là chính xác chứ không phải
+        /// xấp xỉ. Spec 2026-10-02-shuffle-redesign Mục 8.
+        ///
+        /// Chết khi CẢ HAI cùng đúng:
+        ///   D1 — không hộp nào làm rỗng được, nên không lộ được thẻ chôn. Nước đi chỉ dời
+        ///        ô trống chứ không đổi TỔNG ô trống, nên rút hết n thẻ khỏi hộp X cần n ô
+        ///        trống ở các hộp mở khác ngay bây giờ. Hộp đáy rỗng không bị xoá, hộp có
+        ///        thẻ đóng đinh không rỗng được — cả hai loại không tính.
+        ///   D2 — không nhóm nào gom được tại chỗ: đủ 4 thẻ trong hộp mở VÀ mọi thẻ đóng đinh
+        ///        của nó cùng một hộp. Thẻ băng không chặn vì còn nước đi là băng còn tan.
+        ///
+        /// Chỉ đếm, không tìm kiếm: bỏ sót vài bàn chết hiếm (solver lo), nhưng KHÔNG BAO GIỜ
+        /// gọi nhầm bàn sống là chết — Solver cắt nhánh theo đúng kết quả này.
+        /// </summary>
+        public bool IsDeadBoard()
+        {
+            var open = new List<Box>();
+            int free = 0;
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                var top = TopBox(s);
+                if (top == null || !IsOpen(top.Lock)) continue;
+                open.Add(top);
+                free += FreeCount(top);
+            }
+
+            foreach (var b in open)
+            {
+                if (b.IsBottom) continue;
+                int tiles = 0;
+                bool nailed = false;
+                foreach (var t in b.Slots)
+                {
+                    if (t == null) continue;
+                    tiles++;
+                    if (IsFixed(t)) nailed = true;
+                }
+                if (!nailed && tiles <= free - FreeCount(b)) return false;
+            }
+
+            var count = new Dictionary<string, int>();
+            var nailBox = new Dictionary<string, Box>();
+            var split = new HashSet<string>();
+            foreach (var b in open)
+                foreach (var t in b.Slots)
+                {
+                    if (t == null) continue;
+                    int n;
+                    count.TryGetValue(t.GroupId, out n);
+                    count[t.GroupId] = n + 1;
+                    if (!IsFixed(t)) continue;
+                    Box first;
+                    if (!nailBox.TryGetValue(t.GroupId, out first)) nailBox[t.GroupId] = b;
+                    else if (first != b) split.Add(t.GroupId);
+                }
+            foreach (var kv in count)
+                if (kv.Value >= Rules.GroupSize && !split.Contains(kv.Key)) return false;
+            return true;
+        }
+
+        /// <summary>Nhóm gid còn thẻ nào trên bàn không. Tính cả thẻ nhóm con: nhóm cha chỉ
+        /// có thẻ sau khi nhóm con gộp lại, nên "gid không còn thẻ" phải xét cả dòng dõi.</summary>
+        bool GroupOnBoard(string gid)
         {
             foreach (var st in Stacks)
                 foreach (var b in st.Boxes)
                     foreach (var t in b.Slots)
-                        if (t != null && t.KeyId == keyId) return true;
+                        if (t != null && InGroup(t.GroupId, gid)) return true;
+            return false;
+        }
+
+        /// <summary>gid là chính nhóm tileGroup hoặc một tổ tiên của nó (theo ParentId).</summary>
+        public bool InGroup(string tileGroup, string gid)
+        {
+            for (string x = tileGroup; x != null;)
+            {
+                if (x == gid) return true;
+                GroupDef d;
+                x = GroupDefs != null && GroupDefs.TryGetValue(x, out d) ? d.ParentId : null;
+            }
             return false;
         }
     }

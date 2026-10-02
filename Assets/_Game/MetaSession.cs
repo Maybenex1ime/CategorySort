@@ -24,7 +24,6 @@ namespace WordStack.Meta
     {
         private static readonly ILogger _logger = LogManager.GetLogger<MetaSession>();
 
-        [Inject] private readonly IHeartService _hearts;
         [Inject] private readonly IProgressionService _progression;
         [Inject] private readonly ICoinRewardService _coinReward;
 
@@ -42,13 +41,12 @@ namespace WordStack.Meta
 
         private void OnLevelResult(LevelResultEvent evt)
         {
-            // Thua mất 1 tim. Finished bắn đúng một lần mỗi màn (cờ resultReported
-            // phía board) nên không trừ lặp; ép-thua từ cheat cũng đi qua đây.
-            if (!evt.IsWin && _hearts != null)
-            {
-                _hearts.ConsumeOne();
-                _logger.Info($"[MetaSession] Thua màn {evt.LevelIndex} → -1 tim (còn {_hearts.Current.CurrentValue}).");
-            }
+            // Thua KHÔNG trừ tim ở đây nữa: còn đường hồi sinh, người chơi hồi sinh thì
+            // không mất tim. AppFlow trừ đúng lúc mở FailedPopup (ShowFailedPopupAsync).
+            // Hồi sinh xong mà kẹt lại thì Finished(thua) bắn lần nữa — trừ ở đây là
+            // trừ lặp.
+            if (!evt.IsWin)
+                _logger.Info($"[MetaSession] Thua màn {evt.LevelIndex} — chờ AppFlow (hồi sinh / thua hẳn).");
 
             // Chuyển tiếp lên bus TRƯỚC progression: CoinRewardService nghe ở đó,
             // giữ nguyên hình dạng aquapark (service nghe bus, không ai gọi thẳng nó).

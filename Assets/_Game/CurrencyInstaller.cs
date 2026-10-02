@@ -29,17 +29,19 @@ namespace WordStack.Meta
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
 
-            // Hệ mua chỉ sống khi catalog được gán (menu WordStack ▸ Setup ▸ Wire
-            // meta components). Thiếu asset → IPurchaseService vắng mặt và
-            // BoosterPurchaseFlow tự rơi về stub log, không sập.
+            // Bên trao item (booster, tim) luôn có: Shop dùng nó cho gói combo tiền thật,
+            // không phụ thuộc SO_TransactionCatalog.
+            builder.RegisterType(typeof(TransactionItemDispatcher),
+                new[] { typeof(ITransactionItemDispatcher) },
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Lazy);
+
+            // Mua item lẻ bằng coin trong game (BoosterPurchaseFlow, NoHeartsPopup) chỉ sống
+            // khi catalog được gán (menu WordStack ▸ Setup ▸ Wire meta components). Thiếu asset
+            // → IPurchaseService vắng mặt, các luồng đó tự rơi về stub log, không sập.
             if (_catalog != null)
             {
                 builder.RegisterValue(_catalog, new[] { typeof(ITransactionCatalog) });
-
-                builder.RegisterType(typeof(TransactionItemDispatcher),
-                    new[] { typeof(ITransactionItemDispatcher) },
-                    Reflex.Enums.Lifetime.Singleton,
-                    Reflex.Enums.Resolution.Lazy);
 
                 builder.RegisterType(typeof(PurchaseService),
                     new[] { typeof(IPurchaseService) },

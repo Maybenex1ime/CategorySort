@@ -1,5 +1,9 @@
 # Blocker — Hộp khoá, Thẻ băng, Chìa khoá
 
+> **2026-09-23:** cặp ổ/chìa (`keylock` + `key`) đã thay bằng `grouplock`: hộp gắn art của một
+> nhóm và mở khi nhóm đó gom sạch khỏi bàn. Thẻ không mang chìa nữa. Luật hiện hành:
+> `docs/wordstack-rules.md` §11. Phần chìa dưới đây giữ lại làm lịch sử.
+
 Ngày chốt: 2026-09-10 · Trạng thái: đã duyệt thiết kế
 
 ## 1. Mục tiêu
@@ -149,7 +153,7 @@ ngoài luật kiểm ở Mục 5, nhưng thứ tự gỡ phải rõ để bộ g
 | Tình huống | Xử lý |
 |---|---|
 | Thẻ vừa băng vừa mang chìa | Cặp được phép trong bảng tương thích. Băng tan trước vì nước đi luôn tăng, rồi thẻ gom được cùng nhóm, rồi hộp mở. Chuỗi điều kiện, không phải vòng: bộ đếm băng không phụ thuộc hộp có ổ |
-| Thẻ băng nằm trong hộp khoá đang ở trên cùng | Băng vẫn đếm vì thẻ đang lộ. Khoá chặn truy cập, băng chặn di chuyển, hai bộ đếm chạy độc lập. Lúc hộp mở có thể băng đã tan |
+| Thẻ băng nằm trong hộp khoá đang ở trên cùng | Băng **không** đếm cho tới khi hộp mở (sửa 2026-09-28). Băng chỉ giảm khi hộp chứa nó vừa ở trên cùng vừa không bị khoá (theo số hay theo nhóm). Hộp mở rồi băng mới bắt đầu đếm |
 | Thẻ băng nằm dưới hộp khoá | Không đếm cho tới khi hộp trên mở rồi bị xoá — đúng luật "chỉ đếm khi lộ" |
 | Thẻ chìa, hoặc thẻ cùng nhóm với nó, nằm trong hoặc dưới hộp mà chìa đó mở | Cấm ở luật kiểm 6, khoá vĩnh viễn |
 | Hộp `locked` cần nhiều nhóm hơn số nhóm còn gom được | Không bắt được bằng kiểm dữ liệu, để cổng xuất bản bắt |

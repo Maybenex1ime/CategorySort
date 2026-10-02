@@ -1,4 +1,6 @@
-using DG.Tweening;
+using LitMotion;
+using LitMotion.Extensions;
+using LogosSDK.Tween;
 using UnityEngine;
 
 namespace LogosSDK.UI.Transitions
@@ -14,22 +16,24 @@ namespace LogosSDK.UI.Transitions
         public async Awaitable PlayEnter(RectTransform target)
         {
             _canvasGroup.alpha = 0f;
-            await _canvasGroup
-                .DOFade(1f, _enterDuration)
-                .SetEase(_enterEase)
-                .SetUpdate(true)
-                .SetLink(gameObject)
-                .AsyncWaitForCompletion();
+            await LMotion.Create(0f, 1f, _enterDuration)
+                .WithEase(_enterEase)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToAlpha(_canvasGroup)
+                .AddTo(gameObject)
+                .WaitAsync();
         }
 
         public async Awaitable PlayExit(RectTransform target)
         {
-            await _canvasGroup
-                .DOFade(0f, _exitDuration)
-                .SetEase(_exitEase)
-                .SetUpdate(true)
-                .SetLink(gameObject)
-                .AsyncWaitForCompletion();
+            await LMotion.Create(_canvasGroup.alpha, 0f, _exitDuration)
+                .WithEase(_exitEase)
+                .WithScheduler(MotionScheduler.UpdateIgnoreTimeScale)
+                .WithCancelOnError()
+                .BindToAlpha(_canvasGroup)
+                .AddTo(gameObject)
+                .WaitAsync();
         }
     }
 }

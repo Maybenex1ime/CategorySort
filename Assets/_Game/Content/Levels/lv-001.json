@@ -1,6 +1,7 @@
 {
   "id": "lv-001",
   "title": "Hobbies",
+  "note": "Man test FixedTile: corgi (nhom dog -> collapse vao pet) va red (nhom goc) dong dinh o hop tren cung. Khong blocker nao khac.",
   "moves": 30,
 
   "layout": {
@@ -38,7 +39,7 @@
     "groups": [
       { "id":"g_dog", "text":"dog", "art":"dog", "group":"g_pet", "cards": [
           { "id":"poodle", "art":"poodle" },
-          { "id":"corgi", "art":"corgi" },
+          { "id":"corgi", "art":"corgi", "blockers": { "fixed": true } },
           { "id":"husky", "art":"husky" },
           { "id":"chihuahua", "art":"chihuahua" }
       ]},
@@ -63,7 +64,7 @@
           { "id":"travel", "art":"travel" }
       ]},
       { "id":"g_color", "text":"color", "art":"color", "cards": [
-          { "id":"red", "art":"red" },
+          { "id":"red", "art":"red", "blockers": { "fixed": true } },
           { "id":"blue", "art":"blue" },
           { "id":"green", "art":"green" },
           { "id":"yellow", "art":"yellow" }

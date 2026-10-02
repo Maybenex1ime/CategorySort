@@ -18,6 +18,10 @@ namespace WordStack.Meta.AppFlow.Installers
     public sealed class AppFlowInstaller : MonoBehaviour, IInstaller
     {
         [SerializeField, Min(0f)] private float _minLoadingSeconds = 2f;
+        [Tooltip("Giá hồi sinh bằng coin (RevivePopup).")]
+        [SerializeField, Min(0)] private int _revivePrice = 900;
+        [Tooltip("Số nước cộng thêm khi hồi sinh vì hết nước.")]
+        [SerializeField, Min(0)] private int _reviveExtraMoves = 5;
 
         public void InstallBindings(ContainerBuilder builder)
         {
@@ -51,6 +55,21 @@ namespace WordStack.Meta.AppFlow.Installers
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Eager);
 
+            // Đọc số lượng mọi tài nguyên theo ResourceType cho UI (MainMenu, HUD). Đăng ký ở
+            // scene vì cần BoosterManager (scene) cùng ví/tim (ProjectScope); ví/tim vắng thì
+            // loại đó hiện 0 thay vì sập.
+            builder.RegisterFactory<LogosGame.Features.Currency.Services.IResourceService>(
+                c => new LogosGame.Features.Currency.Services.Impl.ResourceService(
+                    c.TryGetResolver<LogosMeta.Economy.ICurrencyService>(out _)
+                        ? c.Resolve<LogosMeta.Economy.ICurrencyService>()
+                        : null,
+                    c.TryGetResolver<LogosMeta.Economy.IHeartService>(out _)
+                        ? c.Resolve<LogosMeta.Economy.IHeartService>()
+                        : null,
+                    c.Resolve<BoosterModule.BoosterManager>()),
+                Reflex.Enums.Lifetime.Singleton,
+                Reflex.Enums.Resolution.Lazy);
+
             // Booster: mỗi ViewModel bọc một slot của BoosterModule, view inject theo kiểu cụ thể.
             // Lazy được — các *BoosterButtonView inject nên chúng tự bị dựng khi
             // prefab HUD xuất hiện.
@@ -70,22 +89,16 @@ namespace WordStack.Meta.AppFlow.Installers
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);
 
-            // Nghe PurchaseRequestedEvent (nút booster bắn khi count = 0) → mở popup
-            // mua. Eager như GameplayFlowAdapter: không ai inject nó, toàn bộ việc
+            // Nghe PurchaseRequestedEvent (nút booster bắn khi count = 0) → mua thẳng
+            // bằng coin, thiếu coin thì mở NotEnoughGoldPopup. Eager như GameplayFlowAdapter: không ai inject nó, toàn bộ việc
             // nằm ở constructor (đăng ký bus) — Lazy là luồng mua im lặng biến mất.
             builder.RegisterFactory<LogosGame.Features.Currency.UI.Impl.BoosterPurchaseFlow>(
                 c => new LogosGame.Features.Currency.UI.Impl.BoosterPurchaseFlow(
                     c.TryGetResolver<UIManager>(out _) ? c.Resolve<UIManager>() : null,
                     // Vắng khi CurrencyInstaller chưa được gán SO_TransactionCatalog
-                    // — flow rơi về stub log, popup vẫn mở với giá "—".
+                    // — flow rơi về stub log.
                     c.TryGetResolver<LogosMeta.Economy.IPurchaseService>(out _)
                         ? c.Resolve<LogosMeta.Economy.IPurchaseService>()
-                        : null,
-                    c.TryGetResolver<LogosMeta.Economy.ICurrencyService>(out _)
-                        ? c.Resolve<LogosMeta.Economy.ICurrencyService>()
-                        : null,
-                    c.TryGetResolver<LogosGame.Features.Gameplay.Content.IUnlockSchedule>(out _)
-                        ? c.Resolve<LogosGame.Features.Gameplay.Content.IUnlockSchedule>()
                         : null),
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Eager);
@@ -145,7 +158,15 @@ namespace WordStack.Meta.AppFlow.Installers
                         catalog,
                         audio,
                         haptic,
-                        c.Resolve<LogosMeta.Economy.IHeartService>());
+                        c.Resolve<LogosMeta.Economy.IHeartService>(),
+                        c.Resolve<LogosMeta.Economy.ICurrencyService>(),
+                        _revivePrice,
+                        c.Resolve<GameplayFlowAdapter>(),
+                        _reviveExtraMoves,
+                        // Vắng khi ProjectScope chưa gắn ShopInstaller — boot vẫn chạy, chỉ không có store.
+                        c.TryGetResolver<LogosGame.Features.Shop.IShopService>(out _)
+                            ? c.Resolve<LogosGame.Features.Shop.IShopService>()
+                            : null);
                 },
                 Reflex.Enums.Lifetime.Singleton,
                 Reflex.Enums.Resolution.Lazy);

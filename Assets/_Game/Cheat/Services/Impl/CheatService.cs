@@ -2,6 +2,7 @@ using System;
 using BoosterModule;
 using LogosGame.Features.Cheat.Services;
 using LogosGame.Features.Gameplay.Content;
+using LogosGame.Features.Gameplay.Flow;
 using LogosMeta.CheatPanel;
 using LogosMeta.Economy;
 using LogosSDK.Core.Events;
@@ -126,6 +127,18 @@ namespace LogosGame.Features.Cheat.Services.Impl
         {
             Bus.Global.Fire(new ForceOutcomeRequestedEvent(false));
             Emit(true, "OUTCOME: ép THUA");
+        }
+
+        public void ForceLoseStuckRevive()
+        {
+            Bus.Global.Fire(new ForceOutcomeRequestedEvent(false, LoseReason.Stuck));
+            Emit(true, "OUTCOME: ép THUA (kẹt) → Revive");
+        }
+
+        public void ForceLoseOutOfMovesRevive()
+        {
+            Bus.Global.Fire(new ForceOutcomeRequestedEvent(false, LoseReason.OutOfMoves));
+            Emit(true, "OUTCOME: ép THUA (hết nước) → Revive");
         }
 
         // --- Private ------------------------------------------------------------

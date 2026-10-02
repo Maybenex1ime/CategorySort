@@ -431,8 +431,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: 37.85701, y: -38.0414}
-  m_SizeDelta: {x: 74.926, y: 63.8291}
+  m_AnchoredPosition: {x: 42.1, y: -38.0414}
+  m_SizeDelta: {x: 96.8733, y: 63.8291}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &2663544219346947461
 CanvasRenderer:
@@ -1006,6 +1006,7 @@ MonoBehaviour:
   _levelTitleText: {fileID: 4699799950573595490}
   _rewardAmountText: {fileID: 480504388384269245}
   _claimButton: {fileID: 6481627269435592659}
+  _doubleRewardButton: {fileID: 6654431882476894853}
 --- !u!114 &6945191432799302697
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1049,7 +1050,7 @@ GameObject:
   - component: {fileID: 1631499012211706232}
   - component: {fileID: 6654431882476894853}
   m_Layer: 5
-  m_Name: Restart Button
+  m_Name: x2 reward
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1458,10 +1459,10 @@ RectTransform:
   - {fileID: 6712437852742793021}
   m_Father: {fileID: 1573598291715599502}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 12, y: 184}
-  m_SizeDelta: {x: 421.43, y: 312}
+  m_SizeDelta: {x: -430.57, y: -788}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3023398725025487441
 CanvasRenderer:

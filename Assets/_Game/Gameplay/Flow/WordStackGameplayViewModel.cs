@@ -170,15 +170,11 @@ namespace LogosGame.Features.Gameplay.Flow
             return Completed();
         }
 
-        public Awaitable ResetOutcomeStateForReviveAsync()
+        public Awaitable ResetOutcomeStateForReviveAsync(int remainingMoves)
         {
-            // Phần làm được: mở lại cờ để lần thua sau còn công bố kết quả.
             _hasPublishedOutcome = false;
+            _remainingMoves.Value = remainingMoves;
             ApplyPhase(GameplayPhase.Playing);
-
-            // ĐỂ TRỐNG: khôi phục trạng thái bàn chơi sau khi hồi sinh (thêm nước đi,
-            // dọn ô chết...) là luật của WordStack, chưa thiết kế. Bên aquapark việc đó
-            // do IReviveBoosterService lo, không nằm trong ViewModel.
             return Completed();
         }
 
@@ -200,6 +196,7 @@ namespace LogosGame.Features.Gameplay.Flow
             GameplayResultViewData outcome = new GameplayResultViewData
             {
                 IsWin = isWin,
+                LoseReason = isWin ? LoseReason.None : result.LoseReason,
                 Title = title,
                 Subtitle = subtitle,
                 Stars = result.Stars,

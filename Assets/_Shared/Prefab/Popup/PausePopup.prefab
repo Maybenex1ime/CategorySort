@@ -119,6 +119,7 @@ GameObject:
   - component: {fileID: 8714348540058412570}
   - component: {fileID: 5056369860753320410}
   - component: {fileID: 4572317328774972256}
+  - component: {fileID: 1187765667673918012}
   m_Layer: 5
   m_Name: X Button
   m_TagString: Untagged
@@ -227,6 +228,20 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1187765667673918012
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 647612424302538820}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 658e94a18d78047e09f07fd2dca49053, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIButtonFeedbackDriver
+  _profile: {fileID: 11400000, guid: ca1b011c0dd994144b737800217c6f37, type: 2}
+  _target: {fileID: 6350285281978841941}
 --- !u!1 &938293233122957452
 GameObject:
   m_ObjectHideFlags: 0
@@ -1897,6 +1912,7 @@ GameObject:
   - component: {fileID: 3599664950245589977}
   - component: {fileID: 4900727745529562690}
   - component: {fileID: 5255864433559963863}
+  - component: {fileID: 1240685524017453655}
   m_Layer: 5
   m_Name: Quit Button
   m_TagString: Untagged
@@ -2006,6 +2022,20 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1240685524017453655
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5379035612903907613}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 658e94a18d78047e09f07fd2dca49053, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIButtonFeedbackDriver
+  _profile: {fileID: 11400000, guid: ca1b011c0dd994144b737800217c6f37, type: 2}
+  _target: {fileID: 9105980170900761645}
 --- !u!1 &5653770473821732353
 GameObject:
   m_ObjectHideFlags: 0
@@ -2168,9 +2198,6 @@ GameObject:
   - component: {fileID: 7536665058738622077}
   - component: {fileID: 4076374421916218349}
   - component: {fileID: 11112700169685233}
-  - component: {fileID: 5010397267590885319}
-  - component: {fileID: 5988329989975215265}
-  - component: {fileID: 5439241580110154346}
   - component: {fileID: 1657595848837255173}
   m_Layer: 5
   m_Name: Pause UI
@@ -2242,48 +2269,6 @@ MonoBehaviour:
   m_FillOrigin: 0
   m_UseSpriteMesh: 0
   m_PixelsPerUnitMultiplier: 1
---- !u!114 &5010397267590885319
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7317669342238209610}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 658e94a18d78047e09f07fd2dca49053, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIButtonFeedbackDriver
-  _profile: {fileID: 11400000, guid: ca1b011c0dd994144b737800217c6f37, type: 2}
-  _target: {fileID: 9105980170900761645}
---- !u!114 &5988329989975215265
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7317669342238209610}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 658e94a18d78047e09f07fd2dca49053, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIButtonFeedbackDriver
-  _profile: {fileID: 11400000, guid: ca1b011c0dd994144b737800217c6f37, type: 2}
-  _target: {fileID: 8431469238454237383}
---- !u!114 &5439241580110154346
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 7317669342238209610}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 658e94a18d78047e09f07fd2dca49053, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIButtonFeedbackDriver
-  _profile: {fileID: 11400000, guid: ca1b011c0dd994144b737800217c6f37, type: 2}
-  _target: {fileID: 6350285281978841941}
 --- !u!114 &1657595848837255173
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -2590,6 +2575,7 @@ GameObject:
   - component: {fileID: 1783097639551610497}
   - component: {fileID: 8964480899411726379}
   - component: {fileID: 4308774255888190725}
+  - component: {fileID: 1322779891383314902}
   m_Layer: 5
   m_Name: Restart Button
   m_TagString: Untagged
@@ -2699,6 +2685,20 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1322779891383314902
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8375026628661773505}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 658e94a18d78047e09f07fd2dca49053, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIButtonFeedbackDriver
+  _profile: {fileID: 11400000, guid: ca1b011c0dd994144b737800217c6f37, type: 2}
+  _target: {fileID: 8431469238454237383}
 --- !u!1 &8541202723209554980
 GameObject:
   m_ObjectHideFlags: 0

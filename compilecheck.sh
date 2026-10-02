@@ -4,10 +4,10 @@
 #
 #   ./compilecheck.sh
 #
-# Tách làm 3 assembly đúng như Unity: WordStack.Board (domain + view, cần DOTween),
+# Tách làm 3 assembly đúng như Unity: WordStack.Board (domain + view, cần LitMotion),
 # WordStack.Board.Editor (tool level, cần UnityEditor) và WordStack.Meta (thế giới
-# netstandard2.1: R3/Reflex/EventBus). Không tách thì xung khắc reference: DOTween.dll
-# build theo mscorlib, còn UnityEditor.dll/R3.dll theo netstandard.
+# netstandard2.1: R3/Reflex/EventBus). Ranh giới mscorlib/netstandard có từ thời thư viện tween cũ
+# (build theo mscorlib); thư viện tween cũ đã gỡ, cách tách giữ nguyên vì vẫn chạy đúng.
 # Tên target giữ nguyên game/editor/meta cho quen tay.
 set -euo pipefail
 cd "$(dirname "$0")"
@@ -29,10 +29,25 @@ mkdir -p "$OUT"
 INPUTSYS="$PWD/Library/ScriptAssemblies/Unity.InputSystem.dll"
 [ -f "$INPUTSYS" ] || INPUTSYS="$(git rev-parse --git-common-dir)/../Library/ScriptAssemblies/Unity.InputSystem.dll"
 [ -f "$INPUTSYS" ] || { echo "Không thấy Unity.InputSystem.dll — mở project bằng Unity một lần cho nó import package."; exit 1; }
+# TMP đi cùng com.unity.ugui, cũng chỉ có sau import. BoxView dùng TextMeshPro 3D cho số nhóm còn cần.
+TMPDLL="$(dirname "$INPUTSYS")/Unity.TextMeshPro.dll"
+[ -f "$TMPDLL" ] || { echo "Không thấy Unity.TextMeshPro.dll cạnh Unity.InputSystem.dll."; exit 1; }
+UGUIDLL="$(dirname "$INPUTSYS")/UnityEngine.UI.dll"   # TMP_Text kế thừa MaskableGraphic của uGUI
 
 w() { cygpath -w "$1"; }
 
-# ---- WordStack.Board: domain + view (+ DOTween) ----
+# LitMotion + Burst/Collections/Mathematics là package → chỉ có dạng .dll sau khi Editor
+# import. Mượn Library/ScriptAssemblies; worktree thì mượn của repo chính (cùng cách nhánh
+# feat/litmotion-migration làm).
+SA="$PWD/Library/ScriptAssemblies"
+[ -d "$SA" ] || SA="$(git rev-parse --git-common-dir)/../Library/ScriptAssemblies"
+LITMOTION_REFS=()
+for d in LitMotion LitMotion.Extensions LitMotion.Animation Unity.Burst Unity.Collections Unity.Mathematics; do
+  [ -f "$SA/$d.dll" ] || { echo "Không thấy $d.dll — mở Unity một lần cho nó import LitMotion."; exit 1; }
+  LITMOTION_REFS+=("$SA/$d.dll")
+done
+
+# ---- WordStack.Board: domain + view ----
 {
   echo "-nologo"; echo "-target:library"; echo "-langversion:latest"; echo "-nostdlib"
   echo "-define:UNITY_EDITOR;UNITY_5_3_OR_NEWER"
@@ -41,13 +56,15 @@ w() { cygpath -w "$1"; }
   echo "-r:\"$(w "$API/Facades/netstandard.dll")\""      # cầu nối giữa hai thế giới ref
   for f in "$MAN"/UnityEngine*.dll; do echo "-r:\"$(w "$f")\""; done
   echo "-r:\"$(w "$INPUTSYS")\""
-  echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
+  echo "-r:\"$(w "$TMPDLL")\""
+  echo "-r:\"$(w "$UGUIDLL")\""
+  for f in "${LITMOTION_REFS[@]}"; do echo "-r:\"$(w "$f")\""; done
   # mọi .cs dưới Assets/_Game/Board trừ Editor/ và Tests/ — đúng cách Unity gom asmdef
   # WordStack.Board. Kèm Contracts vì BoardController báo kết quả màn qua LevelSignals.
   # Contracts cố ý KHÔNG phụ thuộc gì nên nhập thẳng vào thế giới mscorlib này được; kéo
   # EventBus hay WordStack.Meta vào đây thì hỏng (EventBus cần ValueTask — không có trong
-  # 4.7.1-api; R3/Reflex là netstandard2.1, xung khắc DOTween). Đó là lý do có target meta riêng.
-  find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" -name '*.cs' \
+  # 4.7.1-api; R3/Reflex là netstandard2.1, xung khắc ref set mscorlib 4.7.1). Đó là lý do có target meta riêng.
+  find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" "$PWD/Assets/_Modules/FigmaMotion" -name '*.cs' \
        -not -path '*/Editor/*' -not -path '*/Tests/*' | while read -r f; do
     echo "\"$(w "$f")\""
   done
@@ -66,8 +83,10 @@ w() { cygpath -w "$1"; }
   echo "-r:\"$(w "$API/Facades/netstandard.dll")\""
   for f in "$MAN"/UnityEngine*.dll "$MAN"/UnityEditor*.dll; do echo "-r:\"$(w "$f")\""; done
   echo "-r:\"$(w "$INPUTSYS")\""
-  echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
-  find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" -name '*.cs' \
+  echo "-r:\"$(w "$TMPDLL")\""
+  echo "-r:\"$(w "$UGUIDLL")\""
+  for f in "${LITMOTION_REFS[@]}"; do echo "-r:\"$(w "$f")\""; done
+  find "$PWD/Assets/_Game/Board" "$PWD/Assets/_Game/Contracts" "$PWD/Assets/_Modules/FigmaMotion" -name '*.cs' \
        -not -path '*/Tests/*' | while read -r f; do
     echo "\"$(w "$f")\""
   done
@@ -94,9 +113,7 @@ done
 if [ "$meta_ready" = 1 ]; then
   {
     echo "-nologo"; echo "-target:library"; echo "-langversion:latest"; echo "-nostdlib"
-    # Bộ define khớp Unity thật (đọc từ .rsp Unity sinh ra). NET_STANDARD_2_0 và
-    # UNITY_2018_1_OR_NEWER là bắt buộc: DOTweenModuleUnityVersion giấu
-    # AsyncWaitForCompletion sau đúng hai cờ đó, mà LogosSDK.UI await nó.
+    # Bộ define khớp Unity thật (đọc từ .rsp Unity sinh ra).
     echo "-define:UNITY_EDITOR;UNITY_5_3_OR_NEWER;UNITY_2018_1_OR_NEWER;NET_STANDARD;NET_STANDARD_2_0;NET_STANDARD_2_1;NETSTANDARD;NETSTANDARD2_1"
     echo "-nowarn:CS0649"                                   # [SerializeField] private — Unity gán, csc không biết
     echo "-out:\"$(w "$OUT/meta.dll")\""
@@ -105,7 +122,7 @@ if [ "$meta_ready" = 1 ]; then
       echo "-r:\"$(w "$f")\""
     done
     for f in "$MAN"/UnityEngine*.dll "$MAN"/UnityEditor*.dll; do echo "-r:\"$(w "$f")\""; done
-    echo "-r:\"$(w "$PWD/Assets/Plugins/Demigiant/DOTween/DOTween.dll")\""
+    for f in "${LITMOTION_REFS[@]}"; do echo "-r:\"$(w "$f")\""; done
     echo "-r:\"$(w "$PKG/R3.1.3.0/lib/netstandard2.1/R3.dll")\""
     echo "-r:\"$(w "$PKG/Microsoft.Bcl.TimeProvider.8.0.0/lib/netstandard2.0/Microsoft.Bcl.TimeProvider.dll")\""
     echo "-r:\"$(w "$PKG/Microsoft.Bcl.AsyncInterfaces.6.0.0/lib/netstandard2.1/Microsoft.Bcl.AsyncInterfaces.dll")\""
@@ -118,13 +135,21 @@ if [ "$meta_ready" = 1 ]; then
     # Newtonsoft là DLL tiền biên dịch của package, không đi qua ScriptAssemblies.
     NJ="$(ls "$SA/../PackageCache"/com.unity.nuget.newtonsoft-json*/Runtime/Newtonsoft.Json.dll 2>/dev/null | head -1)"
     [ -n "$NJ" ] && echo "-r:\"$(w "$NJ")\""
-    # DOTween/Modules đi kèm vì CheatToastView dùng DOFade/DOAnchorPosY trên UI
+    # Unity IAP là package → DLL chỉ có sau khi Editor import. Có thì bật define y như
+    # versionDefines của WordStack.Meta.asmdef để UnityIAPService.cs được compile; chưa có thì
+    # file đó rỗng (#if) và phần còn lại vẫn kiểm được.
+    if [ -f "$SA/Unity.Purchasing.dll" ]; then
+      echo "-define:CATEGORYSORT_UNITY_IAP"
+      for d in Unity.Purchasing Unity.Services.Core; do
+        [ -f "$SA/$d.dll" ] && echo "-r:\"$(w "$SA/$d.dll")\""
+      done
+    fi
     # Bỏ Tests/: chúng cần NUnit + TestRunner, chỉ Unity mới dựng nổi ref đó.
     # Bỏ _Game/Board: đó là assembly WordStack.Board (target `game` ở trên) — nó sống ở
     # thế giới mscorlib, trộn vào đây là xoá mất chính ranh giới compilecheck đang canh.
-    find "$PWD/Assets/_StudioSDK" "$PWD/Assets/_Modules" "$PWD/Assets/_Game" "$PWD/Assets/BoosterModule" \
-         "$PWD/Assets/Plugins/Demigiant/DOTween/Modules" -name '*.cs' \
-         -not -path '*/Tests/*' -not -path '*/_Game/Board/*' | while read -r f; do
+    # _Modules/FigmaMotion cũng vậy (cần LitMotion.Animation) — đã gom vào game/editor ở trên.
+    find "$PWD/Assets/_StudioSDK" "$PWD/Assets/_Modules" "$PWD/Assets/_Game" "$PWD/Assets/BoosterModule" -name '*.cs' \
+         -not -path '*/Tests/*' -not -path '*/_Game/Board/*' -not -path '*/_Modules/FigmaMotion/*' | while read -r f; do
       echo "\"$(w "$f")\""
     done
   } > "$OUT/meta.rsp"

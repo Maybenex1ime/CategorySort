@@ -1,0 +1,17 @@
+{
+    "name": "FigmaMotion",
+    "rootNamespace": "FigmaMotion",
+    "references": [
+        "LitMotion",
+        "LitMotion.Animation"
+    ],
+    "includePlatforms": [],
+    "excludePlatforms": [],
+    "allowUnsafeCode": false,
+    "overrideReferences": false,
+    "precompiledReferences": [],
+    "autoReferenced": true,
+    "defineConstraints": [],
+    "versionDefines": [],
+    "noEngineReferences": false
+}

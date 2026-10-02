@@ -2,7 +2,12 @@
     "name": "WordStack.Board.Editor",
     "rootNamespace": "WordStack.Board.Editor",
     "references": [
-        "WordStack.Board"
+        "WordStack.Board",
+        "FigmaMotion",
+        "FigmaMotion.Editor",
+        "LitMotion",
+        "LitMotion.Animation",
+        "Unity.TextMeshPro"
     ],
     "includePlatforms": [
         "Editor"

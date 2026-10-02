@@ -2,8 +2,8 @@
     "name": "LogosSDK.Editor.SceneSnapshot.Tests.Runtime",
     "rootNamespace": "LogosGameLab.Editor.SceneSnapshot.Tests",
     "references": [
-        "DOTween.Modules",
-        "DOTweenPro.Scripts"
+        "LitMotion",
+        "LitMotion.Extensions"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],

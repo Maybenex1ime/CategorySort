@@ -163,8 +163,9 @@ GameObject:
   - component: {fileID: 7959489925194671410}
   - component: {fileID: 6235349556006593584}
   - component: {fileID: 5211533685911082123}
+  - component: {fileID: 5750585053103880750}
   m_Layer: 5
-  m_Name: Restart Button
+  m_Name: Reward Button
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -273,6 +274,20 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &5750585053103880750
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1138729191223756235}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 658e94a18d78047e09f07fd2dca49053, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIButtonFeedbackDriver
+  _profile: {fileID: 11400000, guid: ca1b011c0dd994144b737800217c6f37, type: 2}
+  _target: {fileID: 1240446940403626155}
 --- !u!1 &1437688652210024965
 GameObject:
   m_ObjectHideFlags: 0
@@ -600,10 +615,10 @@ RectTransform:
   - {fileID: 951291838089587321}
   m_Father: {fileID: 5272300197746583573}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
-  m_AnchorMin: {x: 0.5, y: 0.5}
-  m_AnchorMax: {x: 0.5, y: 0.5}
+  m_AnchorMin: {x: 0, y: 0}
+  m_AnchorMax: {x: 1, y: 1}
   m_AnchoredPosition: {x: 12, y: 170.97}
-  m_SizeDelta: {x: 421.43, y: 365.45}
+  m_SizeDelta: {x: -430.57, y: -734.55}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6115226080475412640
 CanvasRenderer:
@@ -1151,8 +1166,9 @@ GameObject:
   - component: {fileID: 926452606260839693}
   - component: {fileID: 3155077342353248090}
   - component: {fileID: 3605218186492175479}
+  - component: {fileID: 1947351324679615457}
   m_Layer: 5
-  m_Name: Quit Button
+  m_Name: Gold Button
   m_TagString: Untagged
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
@@ -1261,6 +1277,20 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &1947351324679615457
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6137537118569574474}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 658e94a18d78047e09f07fd2dca49053, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIButtonFeedbackDriver
+  _profile: {fileID: 11400000, guid: ca1b011c0dd994144b737800217c6f37, type: 2}
+  _target: {fileID: 3749182562670348801}
 --- !u!1 &6439856445144620162
 GameObject:
   m_ObjectHideFlags: 0
@@ -1348,6 +1378,7 @@ GameObject:
   - component: {fileID: 7627408123700171466}
   - component: {fileID: 2022444516501157323}
   - component: {fileID: 2411969784493640410}
+  - component: {fileID: 3913665580918191935}
   m_Layer: 5
   m_Name: X Button
   m_TagString: Untagged
@@ -1456,6 +1487,20 @@ MonoBehaviour:
   m_OnClick:
     m_PersistentCalls:
       m_Calls: []
+--- !u!114 &3913665580918191935
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 6513389127863773678}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 658e94a18d78047e09f07fd2dca49053, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIButtonFeedbackDriver
+  _profile: {fileID: 11400000, guid: ca1b011c0dd994144b737800217c6f37, type: 2}
+  _target: {fileID: 880822875603415777}
 --- !u!1 &6915626116315482767
 GameObject:
   m_ObjectHideFlags: 0
@@ -1582,7 +1627,7 @@ MonoBehaviour:
   _adButton: {fileID: 5211533685911082123}
   _closeButton: {fileID: 2411969784493640410}
   _countdownText: {fileID: 728617884405216588}
-  _buyPriceText: {fileID: 0}
+  _buyPriceText: {fileID: 6892909726747191607}
 --- !u!1 &8136026801875585086
 GameObject:
   m_ObjectHideFlags: 0

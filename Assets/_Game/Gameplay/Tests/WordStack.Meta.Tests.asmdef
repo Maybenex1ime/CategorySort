@@ -6,6 +6,9 @@
         "WordStack.Contracts",
         "LogosMeta.Economy",
         "LogosSDK.Services",
+        "BoosterModule",
+        "Core.EventBus",
+        "LogosSDK.Save",
         "UnityEngine.TestRunner",
         "UnityEditor.TestRunner"
     ],
