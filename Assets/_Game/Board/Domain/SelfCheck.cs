@@ -1064,6 +1064,22 @@ namespace WordStack.Board
                 Ok(anchored(new Lock { Kind = LockKind.Fixed }).ShuffleWouldChange(), "Xáo rỗng: bàn có mồi dựng được thì nút sáng");
             }
 
+            // 8n. Xáo — nhóm đã đủ 4 thẻ trong một hộp nhưng còn thẻ băng (chưa nổ, chờ băng
+            // tan): không được dựng mồi cho nó, và chạy thử không được ném lỗi — lỗi ở đây
+            // văng khỏi coroutine Settle (RefreshBoosterAvailability) và treo bàn.
+            {
+                const string FullIceLv = @"{'id':'t-fullice','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2','a3','a4']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['b1','c1',null,null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['c2',null,null,null]}]}]},";
+                var g = BuildQ(FullIceLv + Meaning("ga:a", "gb:b", "gc:c"));
+                g.TopBox(0).Slots[0].Lock = new Lock { Kind = LockKind.Moves, Need = 5, Have = 3 };
+                g.ShuffleWouldChange();
+                g.ApplyShuffle();
+                Ok(InBox(g.TopBox(0), "ga") == 4 && g.TopBox(0).Slots[0].CardId == "a1",
+                   "Băng đủ 4: hộp ga nguyên vẹn, không dựng mồi cho nhóm đã đủ trong một hộp");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }

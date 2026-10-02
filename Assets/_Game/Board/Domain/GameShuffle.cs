@@ -98,8 +98,8 @@ namespace WordStack.Board
         /// Bàn có xáo được không. Cần ≥1 ô trống ở lớp trên để hộp chủ chừa được chỗ cho
         /// người chơi thả thẻ thứ 4 — không có ô trống thì Nhóm mồi 3+1 vô nghĩa.
         ///
-        /// Điều kiện này trùng với định nghĩa Playing trong CheckStatus(), nên nút Shuffle
-        /// gần như luôn sáng khi bàn còn chơi được.
+        /// Chỉ là điều kiện cần, rẻ — nút Shuffle sáng theo ShuffleWouldChange (chạy thử
+        /// trên bản sao), không theo hàm này.
         /// </summary>
         public bool CanShuffle()
         {
@@ -298,6 +298,8 @@ namespace WordStack.Board
                 anchorStacks.Add(s);
                 anchors += n;
             }
+            // Đủ 4 thẻ trong một hộp mà chưa nổ = còn thẻ băng, chờ tan — không có gì để dựng.
+            if (anchors >= Rules.GroupSize) return false;
             if (anchorStacks.Count == 2)
                 return TryPrimeFromTwoPairs(gid, anchorStacks[0], anchorStacks[1], pool, reserved, movers);
             if (anchorStacks.Count > 2) return false;
@@ -754,8 +756,10 @@ namespace WordStack.Board
         /// KHÔNG đụng danh sách Boxes và KHÔNG đổi Status — gọi Settle() ngay sau như một
         /// nước đi thường. KHÔNG tăng Moves: booster không tính là nước đi.
         ///
-        /// Vi phạm bất kỳ bất biến nào thì khôi phục nguyên trạng và trả Ok = false; bên
-        /// gọi PHẢI không trừ lượt trong trường hợp đó.
+        /// Vi phạm bất kỳ bất biến nào thì khôi phục nguyên trạng và trả Ok = false; không
+        /// thẻ nào đổi chỗ cũng trả Ok = false (bàn chưa đổi nên không cần khôi phục). Bên
+        /// gọi PHẢI không trừ lượt trong cả hai trường hợp — nút sáng theo ShuffleWouldChange
+        /// nên thực tế không xảy ra.
         /// </summary>
         public ShuffleResult ApplyShuffle()
         {

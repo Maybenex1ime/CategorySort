@@ -20,8 +20,9 @@ Phân tích ngày 2026-10-02 tìm ra các trường hợp Shuffle không dựng 
 | 7 | Xáo xong không thẻ nào đổi chỗ | Vẫn ăn lượt | Coi là thất bại, nút xám từ trước (Mục 6) |
 | 8 | Thất bại sau khi đã trừ lượt | Mất lượt mua bằng coin | Không xảy ra được nữa (Mục 6) |
 
-Bàn mà không còn nhóm nào nổ được nữa thì Shuffle cũng không phải lối thoát — đó là **bàn chết**, báo kẹt để hồi sinh
-bằng nam châm (Mục 8). Shuffle **không** thêm vào hồi sinh.
+Bàn mà không còn nhóm nào nổ được nữa là **bàn chết**, báo kẹt để hồi sinh bằng nam châm (Mục 8). Shuffle đôi khi cứu
+được bàn chết (kéo thẻ chôn lên làm mồi), nhưng đã chốt **không** thêm Shuffle vào hồi sinh — kẹt thì Shuffle và Undo
+đều tắt như mọi trường hợp kẹt khác.
 
 ## 2. Chọn nhóm mồi
 

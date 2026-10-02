@@ -258,7 +258,7 @@ namespace WordStack.Board
             ShuffleResult r = g.ApplyShuffle();
             if (!r.Ok)
             {
-                Debug.Log("[Shuffle] không xếp nổi — lớp trên hết ô trống hoặc vi phạm bất biến, bàn giữ nguyên.");
+                Debug.Log("[Shuffle] không xếp nổi — hết ô trống, vi phạm bất biến hoặc không đổi được gì, bàn giữ nguyên.");
                 return;
             }
             Debug.Log("[Shuffle] " + r.PrimedGroups + " nhóm mồi · " + r.Moves.Length
