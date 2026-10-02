@@ -20,6 +20,7 @@ using UnityEngine;
 using UnityEngine.InputSystem;
 using LitMotion;
 using LitMotion.Adapters;
+using LitMotion.Animation;
 using LitMotion.Extensions;
 using WordStack.Contracts;
 
@@ -57,11 +58,15 @@ namespace WordStack.Board
         // mặc định khai trong class, bàn không sập.
         [SerializeField] BoosterAnimSettings animSettings;
         // Tấm nền xám bật suốt lúc booster diễn: chặn click uGUI và làm nền cho thẻ bay.
-        // User tự dựng Panel; code chỉ bật/tắt (có CanvasGroup thì mờ dần theo SO). Muốn thẻ
+        // User tự dựng Panel; code chỉ bật/tắt (mờ vào/ra bằng hai LitMotionAnimation bên dưới). Muốn thẻ
         // bay NỔI TRÊN tấm nền thì Panel phải nằm dưới sorting 90 của thẻ bay — tức Canvas
         // riêng Screen Space-Camera (order 20..89) hoặc SpriteRenderer world-space; Canvas
         // Screen Space-Overlay luôn vẽ đè lên mọi sprite.
         [SerializeField] GameObject boosterBackdrop;
+        // CanvasGroup alpha 0→1 / 1→0 trên boosterBackdrop — dựng bằng Tools ▸ WordStack ▸ Build Booster
+        // Backdrop Animation, chỉnh và xem trước ngay trên component. Để trống thì nền bật/tắt khan.
+        [SerializeField] LitMotionAnimation backdropFadeIn;
+        [SerializeField] LitMotionAnimation backdropFadeOut;
 
         // DEBUG: tự gắn bộ blocker mẫu (y như phím B) lên MỌI màn ngay lúc nạp. Level JSON
         // chưa author blocker nên đây là cách duy nhất thấy chúng trong luồng chơi thật.
@@ -726,26 +731,43 @@ namespace WordStack.Board
             return d;
         }
 
-        // Bật/tắt tấm nền booster. Có CanvasGroup → mờ dần theo backdropFadeIn/Out; không có →
-        // SetActive khan. Chưa gán → không làm gì (bàn vẫn chạy). Tắt xong mới Rebuild để nền
-        // không che cascade sau đó.
+        // Bật/tắt tấm nền booster bằng hai LitMotionAnimation (spec 2026-10-02-booster-anim-preview Mục 3).
+        // Thiếu component → SetActive khan. Chưa gán nền → không làm gì (bàn vẫn chạy). Tắt xong mới
+        // Rebuild để nền không che cascade sau đó.
+        //
+        // LitMotionAnimation.Stop() trả giá trị về lúc trước Play: KHÔNG Stop fade-in khi xong (alpha sẽ
+        // về 0); trước fade-out mới Stop nó và đặt lại alpha = 1 ngay cùng frame.
         IEnumerator Backdrop(bool on)
         {
             if (boosterBackdrop == null) yield break;
-            var a = A;
             var cg = boosterBackdrop.GetComponent<CanvasGroup>();
-            float dur = on ? a.backdropFadeIn : a.backdropFadeOut;
-            if (cg == null || dur <= 0f)
+            var anim = on ? backdropFadeIn : backdropFadeOut;
+            if (cg == null || anim == null)
             {
-                boosterBackdrop.SetActive(on);
+                if (on) boosterBackdrop.SetActive(true);
                 if (cg != null) cg.alpha = on ? 1f : 0f;
+                if (!on) boosterBackdrop.SetActive(false);
                 yield break;
             }
-            if (on) { cg.alpha = 0f; boosterBackdrop.SetActive(true); }
-            yield return LMotion.Create(cg.alpha, on ? 1f : 0f, dur)
-                                .WithEase(Ease.OutQuad).WithCancelOnError()
-                                .BindToAlpha(cg).AddTo(boosterBackdrop).ToYieldInstruction();
-            if (!on) boosterBackdrop.SetActive(false);
+
+            if (on)
+            {
+                cg.alpha = 0f;
+                boosterBackdrop.SetActive(true);
+            }
+            else
+            {
+                if (backdropFadeIn != null) backdropFadeIn.Stop();
+                cg.alpha = 1f;
+            }
+            anim.Stop();
+            anim.Play();
+            while (anim != null && anim.IsPlaying) yield return null;
+            if (!on)
+            {
+                anim.Stop();
+                boosterBackdrop.SetActive(false);
+            }
         }
 
         // Chốt chung cho mọi booster. Log từng lý do từ chối — không có nó thì bấm xong

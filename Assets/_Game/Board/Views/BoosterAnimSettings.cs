@@ -9,11 +9,6 @@ namespace WordStack.Board
     [CreateAssetMenu(menuName = "WordStack/Booster Anim Settings", fileName = "SO_BoosterAnim")]
     public class BoosterAnimSettings : ScriptableObject
     {
-        [Header("Tấm nền xám suốt lúc booster diễn (BoardController.boosterBackdrop)")]
-        [Tooltip("Mờ dần vào (giây) — chỉ khi Panel có CanvasGroup; 0 = bật khan")]
-        public float backdropFadeIn = 0.15f;
-        public float backdropFadeOut = 0.15f;
-
         [Header("Nam châm — 4 thẻ bay về một điểm rồi nổ")]
         [Tooltip("Điểm hội tụ theo toạ độ viewport của camera: (0.5, 0.5) = giữa màn hình")]
         public Vector2 magnetGatherViewport = new Vector2(0.5f, 0.5f);
