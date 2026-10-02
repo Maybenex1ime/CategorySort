@@ -933,7 +933,7 @@ namespace WordStack.Board
                 Ok(anchored(ice).PickPrimeCandidates(9).Contains("ga"), "Mồi: một thẻ băng ở lớp trên → vẫn làm mồi");
 
                 var two = anchored(ice);
-                two.Stacks[0].Boxes[1].Slots[0].Lock = ice;   // a4 cũng băng
+                CardOf(two, "a2").Lock = ice;   // a2 ở lớp trên cũng băng → hai thẻ bất động
                 Ok(!two.PickPrimeCandidates(9).Contains("ga"), "Mồi: hai thẻ bất động → bỏ nhóm");
 
                 var buried = anchored(default(Lock));
