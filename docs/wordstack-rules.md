@@ -93,9 +93,13 @@ Dây chuyền cũng chạy **ngay khi nạp level**, phòng trường hợp dữ
 ## 6. Thắng / kẹt
 
 - **Thắng**: không còn thẻ nào trên bàn. Các hộp đáy rỗng vẫn nằm đó.
-- **Kẹt**: bàn đã đứng yên và **mọi hộp trên cùng đều đầy** (không còn slot trống nào ở bất kỳ
-  hộp trên cùng nào) → không nước đi nào hợp lệ nữa.
-- **Không có màn Thua.** Kẹt chỉ hiện một toast gợi ý bấm Restart.
+- **Kẹt**: bàn đã đứng yên và một trong hai:
+  - **Hết nước đi hợp lệ** — không thẻ nhặt được nào có hộp mở khác còn chỗ (xem Mục 11).
+  - **Bàn chết** — còn nước nhưng không nhóm nào nổ được nữa. Chỉ xét hộp trên đang mở (hộp khoá chỉ
+    mở khi có nhóm được gom): không hộp nào rút rỗng được (hộp rút rỗng được = không phải hộp đáy,
+    không có thẻ đóng đinh, và ô trống ở các hộp mở khác ≥ số thẻ của nó) **và** không nhóm nào có đủ
+    4 thẻ trong các hộp mở với mọi thẻ đóng đinh của nhóm nằm cùng một hộp.
+- Kẹt → popup thua kẹt; hồi sinh = một phát nam châm miễn phí (khi còn nhóm hút được).
 
 ## 7. Gợi ý trùng nhóm
 
@@ -221,7 +225,7 @@ vật cản phải theo bảng cặp được phép (hiện rỗng) · số đ�
 thật · không thẻ nào của nhóm đó (kể cả nhóm con) nằm trong hoặc dưới hộp mà nhóm đó mở.
 
 Nam châm bỏ qua nhóm có thành viên đang băng hoặc nằm trong hộp đóng, hút được thẻ đóng đinh nhưng
-xếp nhóm có nó sau mọi nhóm khác; Xáo không đụng ba thứ đó; Undo không cần luật riêng vì ảnh chụp là toàn bàn. Undo chỉ lùi được nước **không**
+xếp nhóm có nó sau mọi nhóm khác; Xáo không dời ba thứ đó, nhưng nhóm có **một** thẻ băng hoặc đóng đinh ở lớp trên vẫn làm mồi — thẻ đó là mốc hộp chủ, nhóm băng xếp sau (spec `2026-10-02-shuffle-redesign`); Undo không cần luật riêng vì ảnh chụp là toàn bàn. Undo chỉ lùi được nước **không**
 gây CLEAR/COLLAPSE — nước vừa nổ nhóm thì mất quyền lùi (không trả lại tiến độ đã đạt).
 
 **Công cụ dựng màn.** `demo/wordstack.html` là tool duy nhất: tab Xếp level gắn blocker hộp
@@ -231,10 +235,13 @@ kiểm round-trip, sáu luật dữ liệu và luật chơi bản JS bằng đú
 mục 8. Tool Unity `WordStack ▸ Level Editor` đã xoá. Cổng xuất bản vẫn là `./selfcheck.sh` —
 bộ giải của tool là greedy có ngân sách, không thay được beam search hai chế độ. Tool JS chưa hỗ trợ `fixed` — màn có thẻ đóng đinh sửa tay JSON.
 
-**Việc chờ cho tool xếp level / solver** (ghi 2026-10-02, từ phân tích booster Shuffle). Hai kiểu
+**Việc chờ cho tool xếp level / solver** (ghi 2026-10-02, từ phân tích booster Shuffle). Ba kiểu
 bàn dưới đây là lỗi level, người chơi không tự tạo ra được, nên phải chặn ở tool và solver
 thay vì để Shuffle xử lý:
 - Hộp đang khoá (`locked` / `grouplock`) mà **không có thẻ nào** lúc đầu màn. Hộp khoá không
-  nhận thẻ thả vào và không bị xoá khi rỗng, nên mãi rỗng; Shuffle hiện tại thất bại mỗi lần bấm.
+  nhận thẻ thả vào và không bị xoá khi rỗng, nên mãi rỗng; Shuffle bỏ qua hộp đó khi xét hộp rỗng.
 - Màn mà ngay lúc mở, **mọi thẻ lớp trên đều không nhặt được** (băng, đóng đinh, hoặc nằm trong
   hộp khoá). Bàn kẹt ngay nước đầu; solver đã bắt được nhưng nên báo lý do rõ ràng.
+- **Bàn chết mà luật kẹt đếm sót** (Mục 6 chỉ đếm, không tìm kiếm) — vd đủ 4 thẻ một nhóm ở lớp trên
+  nhưng kẹt trong các hộp đầy không xoay xở được. Người chơi vẫn đi được mà không bao giờ nổ thêm
+  nhóm nào; solver nên báo các màn có thể rơi vào thế này.
