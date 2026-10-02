@@ -13,7 +13,7 @@ Hướng đã chọn (B — lai):
 | Hiệu ứng | Cách làm | Xem trước bằng |
 |---|---|---|
 | Nền xám mờ vào / ra | Chuyển sang component `LitMotionAnimation` trên Panel nền | Nút Play của component |
-| Nút booster nảy khi bấm | Chuyển sang component `LitMotionAnimation` trên `BoosterSlot.prefab` | Nút Play của component |
+| Nút booster HUD nảy khi bấm (**mới** — trước đây không nảy) | Component `LitMotionAnimation` trên nút trong `GamePlayUIRoot .prefab` | Nút Play của component |
 | Thẻ phồng / nổ / nở, thẻ hiện ra | Giữ trong code (nằm trong chuỗi bay, tách ra là lệch nhịp) | Nút Preview mới trong Inspector của `SO_BoosterAnim` |
 
 Ngoài phạm vi: xem trước cả booster (đường bay Nam châm/Undo, xoáy Xáo) — cần refactor chuỗi trong
@@ -43,16 +43,23 @@ Ngoài phạm vi: xem trước cả booster (đường bay Nam châm/Undo, xoáy
   hai component vào `boosterBackdrop` (thêm `CanvasGroup` nếu thiếu), nối hai field, đánh dấu scene bẩn. Người dùng
   lưu scene. Không sửa `Main.unity` trên đĩa.
 
-## 4. Nút booster (`BoosterModule/BoosterSlotView`)
+## 4. Nút booster HUD (`BoosterButtonView`)
 
-- `BoosterSlot.prefab`: một `LitMotionAnimation` (Auto Play = None) với `Transform/Scale (Punch)` lên chính nút:
-  biên độ 0.2 (= `_punchScale − 1`), 0.2 s, Frequency 10, DampingRatio 1.9 (giá trị đang chạy).
-- `BoosterSlotView`: bỏ `_animationDuration`, `_punchScale`, `_punch` và đoạn `LMotion.Punch`; thêm
-  `[SerializeField] LitMotionAnimation _clickPunch`. Bấm nút: `_clickPunch.Stop(); _clickPunch.Play();` — `Stop` trả
-  scale về cỡ thường trước khi nảy lại, đúng như `TryComplete` hiện tại. Field null → không nảy.
-- `BoosterModule.asmdef` thêm tham chiếu `LitMotion.Animation`.
-- Menu Editor `Tools/WordStack/Build Booster Slot Punch`: dựng component vào `BoosterSlot.prefab` và nối field
-  (cùng mẫu với `FixedTileAnimationBuilder`, dùng `AnimationBuildKit`).
+Nút booster thật trong game là ba `BoosterButtonView` (Magnet / Shuffle / Undo) trong
+`Assets/_Shared/Prefab/GamePlayUIRoot .prefab` — chưa có hiệu ứng nảy. (`BoosterModule/BoosterSlotView` có `LMotion.Punch`
+nhưng chỉ dùng ở scene demo `Booster.unity`; không đụng.)
+
+- Trên GameObject của `_button` mỗi nút: một `LitMotionAnimation` (Auto Play = None, Parallel) với
+  `Transform/Scale (Punch)` trỏ vào chính transform đó, `relative = true`, start (0,0,0), end (0.2,0.2,0.2), 0.2 s,
+  Frequency 10, DampingRatio 1.9 (cùng số với nút demo).
+- `BoosterButtonView` thêm `[SerializeField] LitMotionAnimation _clickPunch`. Mỗi lần bấm (trước khi xử lý theo
+  trạng thái): `_clickPunch.Stop(); _clickPunch.Play();` — `Stop` trả scale về cỡ thường rồi mới nảy lại. Field null →
+  không nảy.
+- `WordStack.Meta.asmdef` thêm `LitMotion.Animation`.
+- Menu Editor `Tools/WordStack/Build Booster Button Punch` (`Assets/_Game/Editor`, assembly `WordStack.Meta.Editor`):
+  mở `GamePlayUIRoot .prefab` (LoadPrefabContents), dựng component cho mọi `BoosterButtonView`, nối `_clickPunch`, lưu.
+  Không dùng được `AnimationBuildKit` (nằm ở `WordStack.Board.Editor`, thế giới compile khác) → tự ghi bằng
+  `SerializedObject` theo cùng cách.
 
 ## 5. Preview thẻ trong Inspector của `SO_BoosterAnim`
 
@@ -68,7 +75,8 @@ Ngoài phạm vi: xem trước cả booster (đường bay Nam châm/Undo, xoáy
 
 - Diễn trên **đối tượng đang chọn** (`Selection.activeTransform`): thẻ trong scene hoặc `Tile.prefab` đang mở
   Prefab Mode. Scale 1 ở bảng trên nghĩa là **cỡ hiện tại của đối tượng** (nhân lên, không đặt tuyệt đối).
-- Chạy bằng `EditorMotionScheduler.Update`. Xong hoặc bấm **Stop** → trả scale và góc về như trước khi bấm; không
+- Không tạo motion: scheduler mặc định của LitMotion không chạy ngoài Play mode. Một hàm thuần tính scale/góc theo
+  thời gian bằng `EaseUtility.Evaluate`, Editor gọi mỗi `EditorApplication.update`. Xong hoặc bấm **Stop** → trả scale và góc về như trước khi bấm; không
   ghi gì vào prefab/scene (không `SetDirty`, không Undo record).
 - Đang Play mode, hoặc chưa chọn đối tượng → thay nút bằng dòng hướng dẫn.
 - Các ease cố định trong `BoardController` (OutQuad, OutBack) lặp lại trong preview — chú thích chéo ở cả hai phía
@@ -77,8 +85,9 @@ Ngoài phạm vi: xem trước cả booster (đường bay Nam châm/Undo, xoáy
 ## 6. Kiểm thử
 
 - `./compilecheck.sh` (game / editor / meta) và `bash .git/sdd/testcheck.sh`.
-- EditMode `WordStack.Board.Tests`: menu dựng nút nảy trên **bản sao tạm** của `BoosterSlot.prefab` → có đúng một
-  `LitMotionAnimation` với component `Transform/Scale (Punch)` trỏ vào root, đúng biên độ / thời lượng / frequency /
-  damping, field `_clickPunch` đã nối. Mẫu `FixedTileAnimationBuilderTests`.
+- EditMode `WordStack.Board.Tests`: hàm tính preview cho đúng scale ở đầu / giữa / cuối từng chuỗi; menu nền dựng
+  đúng hai fade trên object tạm.
+- EditMode `WordStack.Meta.Tests`: menu nút trên bản mở tạm (không lưu) của `GamePlayUIRoot .prefab` → mỗi nút có
+  punch đúng số, `_clickPunch` đã nối.
 - Người dùng trong Unity: chạy hai menu, lưu scene; bấm Play của component nền và nút để xem; bấm 4 nút Preview trên
   một thẻ; Play mode — booster vẫn có nền mờ vào/ra, nút vẫn nảy.
