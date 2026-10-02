@@ -249,6 +249,9 @@ namespace WordStack.Board
             return this;
         }
 
+        // Kẹt = không còn nước đi hợp lệ nào. Trước đây là "mọi hộp trên cùng đều đầy" —
+        // hai định nghĩa trùng nhau khi không có blocker, nhưng với hộp đóng và thẻ băng
+        // thì "còn ô trống" không còn nghĩa là "còn đi được", và báo Playing lúc đó là
         // thua ngầm (spec 2.1). Còn nước mà bàn đã chết (IsDeadBoard) cũng là kẹt — đi mãi
         // không nổ được nhóm nào nữa (spec 2026-10-02-shuffle-redesign Mục 8).
         public GameStatus CheckStatus()
