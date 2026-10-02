@@ -1048,6 +1048,22 @@ namespace WordStack.Board
                 Ok(gm.TopLayerTileCount() == topM && !gm.AnyBoxHasFullGroup(), "Dời cụm đôi: giữ bất biến");
             }
 
+            // 8m. Xáo — không đổi được gì thì nút xám (spec 2026-10-02-shuffle-redesign Mục 6).
+            // Không thẻ trắng, không nhóm nào đủ 4 trên bàn.
+            {
+                const string NoopLv = @"{'id':'t-noop','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['a1','a2','b1','b2']}]},
+                  {'pos':[1,0],'boxes':[{'slots':['c1','c2',null,null]}]}]},";
+                var g = BuildQ(NoopLv + Meaning("ga:a", "gb:b", "gc:c"));
+                string enc = Solver.Encode(g);
+                Ok(g.CanShuffle(), "Xáo rỗng: tiền đề — còn ô trống");
+                Ok(!g.ShuffleWouldChange(), "Xáo rỗng: chạy thử không đổi được gì → nút xám");
+                Ok(Solver.Encode(g) == enc, "Xáo rỗng: chạy thử không đụng bàn thật");
+                var r = g.ApplyShuffle();
+                Ok(!r.Ok && r.Moves.Length == 0 && Solver.Encode(g) == enc, "Xáo rỗng: ApplyShuffle báo thất bại, bàn y nguyên");
+                Ok(anchored(new Lock { Kind = LockKind.Fixed }).ShuffleWouldChange(), "Xáo rỗng: bàn có mồi dựng được thì nút sáng");
+            }
+
             log("SelfCheck OK — " + levelJsons.Count + " level, luật khớp demo/check.mjs");
         }
     }

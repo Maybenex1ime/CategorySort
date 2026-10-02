@@ -23,7 +23,7 @@ namespace LogosGame.Features.Gameplay.Boosters.ViewModels
         }
 
         /// <summary>
-        /// Lớp trên còn ô trống không. Hết ô trống thì không dựng nổi Nhóm mồi, mà lượt
+        /// Bàn chạy thử Shuffle trên bản sao thấy đổi được (Game.ShuffleWouldChange). Lượt
         /// này người chơi mua bằng coin — để bấm hụt rồi mất lượt là mất tiền thật.
         /// </summary>
         public override ReadOnlyReactiveProperty<bool> IsUsable => _isUsable;

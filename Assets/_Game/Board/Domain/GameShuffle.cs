@@ -794,12 +794,28 @@ namespace WordStack.Board
                 return fail;
             }
 
+            // Không thẻ nào đổi chỗ = bấm mà bàn y nguyên. Coi là thất bại để nút xám thay vì
+            // ăn lượt người chơi mua bằng coin (spec 2026-10-02-shuffle-redesign Mục 6). Bàn
+            // chưa đổi gì nên không cần khôi phục.
+            ShuffleMove[] moves = DiffPositions(before);
+            if (moves.Length == 0) return fail;
+
             return new ShuffleResult
             {
                 Ok = true,
-                Moves = DiffPositions(before),
+                Moves = moves,
                 PrimedGroups = CountPrimedGroups(),
             };
+        }
+
+        /// <summary>
+        /// Bấm Shuffle lúc này có làm bàn đổi không — chạy thử trên bản sao. ApplyShuffle xác
+        /// định (cùng bàn → cùng kết quả), nên nút sáng theo hàm này thì bấm thật luôn thành
+        /// công: không bao giờ ăn lượt mà bàn đứng yên (spec 2026-10-02 Mục 6).
+        /// </summary>
+        public bool ShuffleWouldChange()
+        {
+            return CanShuffle() && Clone().ApplyShuffle().Ok;
         }
 
         // Bốn bất biến của spec 2026-08-26 Mục 5, nới theo spec 2026-10-02-shuffle-redesign

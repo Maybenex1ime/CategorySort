@@ -754,7 +754,9 @@ namespace WordStack.Board
         {
             bool playing = g != null && g.Status == GameStatus.Playing;
             LevelSignals.SetMagnetAvailable(playing && g.FindMagnetTarget() != null);
-            LevelSignals.SetShuffleAvailable(playing && g.CanShuffle());
+            // Chạy thử trên bản sao: nút chỉ sáng khi bấm thật chắc chắn đổi được bàn — không
+            // bao giờ ăn lượt mà bàn đứng yên (spec 2026-10-02-shuffle-redesign Mục 6).
+            LevelSignals.SetShuffleAvailable(playing && g.ShuffleWouldChange());
             LevelSignals.SetUndoAvailable(playing && g.CanUndo);
         }
 
