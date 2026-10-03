@@ -43,7 +43,9 @@ Validator (`LevelData`) báo lỗi khi nạp:
 - `HasAnyMove`: thẻ Fixed không phải thẻ đi được.
 - Magnet: `IsPullable` trả true cho thẻ Fixed. `IsBetterTarget` thêm tiêu chí **đứng đầu**: nhóm không có thẻ
   Fixed thắng nhóm có. Các tiêu chí cũ giữ nguyên thứ tự phía sau.
-- Shuffle: thẻ Fixed không vào tập thẻ được xáo, ô của nó không phải ô đích.
+- Shuffle: thẻ Fixed không vào tập thẻ được xáo, ô của nó không phải ô đích. Khi đổi thẻ với hộp chôn
+  (`SwapDonorIntoHand`), không đẩy thẻ thuộc nhóm của thẻ Fixed (kể cả nhóm con) xuống dưới hộp chứa nó — hộp đó chỉ
+  rỗng khi nhóm gom xong, mà gom cần đúng thẻ bị chôn → kẹt vĩnh viễn.
 - Không đổi: Undo (thẻ Fixed không bao giờ đi), `Solver.Encode` (mã hoá theo `CardId`, card quyết định Fixed),
   `TickIce`.
 - Hệ quả thiết kế màn: hộp chứa thẻ Fixed không rỗng cho tới khi nhóm của nó được gom, nên hộp dưới chỉ lộ ra

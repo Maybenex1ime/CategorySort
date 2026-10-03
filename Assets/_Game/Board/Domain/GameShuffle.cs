@@ -321,7 +321,12 @@ namespace WordStack.Board
                 if (host < 0 && !PlanPairMerge(pool, reserved, out host, out mergeTo)) return false;
             }
 
+            // Hộp mang thẻ thứ 4: ưu tiên hộp mở ĐANG RỖNG — thẻ thứ 4 lấp luôn hộp đó. Lấy "stack
+            // đầu tiên còn ô mở" thì ba thẻ thứ 4 của ba nhóm mồi dồn chung một hộp, pha lấp hộp
+            // (Mục 4) hết thẻ mượn và cả lượt xáo rollback: bàn 14 thẻ / 8 hộp từng xám nút vì vậy.
             int carrier = -1;
+            for (int s = 0; s < Stacks.Count && carrier < 0; s++)
+                if (s != host && BoxTileCount(TopBox(s)) == 0 && OpenAfterMerge(pool, reserved, s, mergeTo) > 0) carrier = s;
             for (int s = 0; s < Stacks.Count && carrier < 0; s++)
                 if (s != host && OpenAfterMerge(pool, reserved, s, mergeTo) > 0) carrier = s;
             if (carrier < 0) return false;
@@ -739,6 +744,11 @@ namespace WordStack.Board
                                       - (t.GroupId == hand[h].GroupId ? 1 : 0);
                             if (after + 1 >= Rules.GroupSize) continue;
 
+                            // Không đẩy thẻ xuống dưới thẻ đóng đinh cùng nhóm (kể cả nhóm cha của nó):
+                            // hộp chứa thẻ đinh chỉ rỗng khi nhóm đó gom xong, mà gom cần đúng thẻ
+                            // đang bị chôn → kẹt vĩnh viễn (spec 2026-09-29-fixed-tile Mục 4).
+                            if (PinnedAbove(boxes, b, hand[h].GroupId)) continue;
+
                             Tile down = hand[h];
                             hand.RemoveAt(h);
                             boxes[b].Slots[i] = down;
@@ -747,6 +757,15 @@ namespace WordStack.Board
                     }
             }
             return null;
+        }
+
+        // Có thẻ đóng đinh ở hộp nào phía trên box b mà nhóm gid thuộc nhóm của nó không.
+        bool PinnedAbove(List<Box> boxes, int b, string gid)
+        {
+            for (int a = 0; a < b; a++)
+                foreach (Tile u in boxes[a].Slots)
+                    if (IsFixed(u) && InGroup(gid, u.GroupId)) return true;
+            return false;
         }
 
         /// <summary>
@@ -798,11 +817,15 @@ namespace WordStack.Board
                 return fail;
             }
 
-            // Không thẻ nào đổi chỗ = bấm mà bàn y nguyên. Coi là thất bại để nút xám thay vì
-            // ăn lượt người chơi mua bằng coin (spec 2026-10-02-shuffle-redesign Mục 6). Bàn
-            // chưa đổi gì nên không cần khôi phục.
+            // Không thẻ nào đổi chỗ = bàn đã là kết quả xáo (vd bấm hai lần liên tiếp). Người chơi
+            // vẫn chọn tiêu lượt, nên đổi chỗ các nhóm thẻ giữa các hộp trên (spec Mục 6). Không đổi
+            // được thì mới thất bại; RotateTopBoxTiles không đụng bàn khi trả false nên không cần khôi phục.
             ShuffleMove[] moves = DiffPositions(before);
-            if (moves.Length == 0) return fail;
+            if (moves.Length == 0)
+            {
+                if (!RotateTopBoxTiles()) return fail;
+                moves = DiffPositions(before);
+            }
 
             return new ShuffleResult
             {
@@ -810,6 +833,39 @@ namespace WordStack.Board
                 Moves = moves,
                 PrimedGroups = CountPrimedGroups(),
             };
+        }
+
+        /// <summary>
+        /// Xoay vòng NHÓM THẺ (nguyên bộ ô, giữ vị trí ô) giữa các hộp trên đang mở và không chứa thẻ
+        /// băng / đóng đinh (hai loại đó không bao giờ dời). Hộp, khoá hộp và hộp chôn bên dưới đứng
+        /// yên — chỉ thẻ đổi hộp, view vẫn animate thẻ bay như mọi lần xáo. Cụm đi nguyên bộ nên bất
+        /// biến 1–3 giữ; bất biến 4 nới cho riêng bước này. Dưới 2 hộp đổi được thì trả false, bàn y nguyên.
+        /// </summary>
+        bool RotateTopBoxTiles()
+        {
+            var idx = new List<int>();
+            for (int s = 0; s < Stacks.Count; s++)
+            {
+                Box top = TopBox(s);
+                if (top == null || !IsOpen(top.Lock)) continue;
+                bool pinned = false;
+                for (int i = 0; i < top.Slots.Length; i++)
+                    if (IsFrozen(top.Slots[i]) || IsFixed(top.Slots[i])) pinned = true;
+                if (!pinned) idx.Add(s);
+            }
+            if (idx.Count < 2) return false;
+
+            Tile[] lastSlots = TopBox(idx[idx.Count - 1]).Slots;
+            var last = new Tile[lastSlots.Length];
+            for (int i = 0; i < last.Length; i++) last[i] = lastSlots[i];
+            for (int k = idx.Count - 1; k > 0; k--)
+            {
+                Tile[] from = TopBox(idx[k - 1]).Slots, to = TopBox(idx[k]).Slots;
+                for (int i = 0; i < to.Length; i++) to[i] = from[i];
+            }
+            Tile[] first = TopBox(idx[0]).Slots;
+            for (int i = 0; i < first.Length; i++) first[i] = last[i];
+            return true;
         }
 
         /// <summary>

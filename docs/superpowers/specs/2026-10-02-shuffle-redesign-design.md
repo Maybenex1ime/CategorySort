@@ -61,7 +61,9 @@ băng, thẻ đóng đinh, cụm người chơi đã gom. Chọn hộp chủ the
 Mốc phân bố theo hình khác (vd băng ở một hộp + đôi ở hộp khác, ≥ 3 hộp) → bỏ nhóm, thử nhóm sau.
 Thẻ băng / đóng đinh **không bao giờ** là thẻ thứ 4 — người chơi không kéo được nó.
 
-Hộp mang thẻ thứ 4: stack khác hộp chủ còn ≥ 1 ô mở. Không có thì nhóm đó thất bại (không xé cụm để tạo chỗ).
+Hộp mang thẻ thứ 4: stack khác hộp chủ còn ≥ 1 ô mở, **ưu tiên hộp mở đang rỗng** (thẻ thứ 4 lấp luôn hộp đó;
+dồn các thẻ thứ 4 vào chung một hộp là Mục 4 hết thẻ mượn trên bàn thưa). Không có thì nhóm đó thất bại (không xé cụm
+để tạo chỗ).
 
 Mọi ô của mồi (mốc, thẻ đặt vào, ô chừa trống, thẻ thứ 4) được giữ chỗ — pha sau không lấp, không xé.
 
@@ -87,7 +89,11 @@ Mọi ô của mồi (mốc, thẻ đặt vào, ô chừa trống, thẻ thứ 4
 
 ## 6. Thất bại và nút xám
 
-- `Ok = false` (vỡ bất biến) **hoặc** không thẻ nào đổi chỗ (`Moves` rỗng) → thất bại, bàn y nguyên.
+- `Ok = false` (vỡ bất biến) → thất bại, bàn y nguyên.
+- Không thẻ nào đổi chỗ (`Moves` rỗng — bàn đã là kết quả xáo, vd bấm hai lần liên tiếp): người chơi vẫn chọn tiêu
+  lượt, nên **đổi chỗ nhóm thẻ giữa các hộp trên**: xoay vòng nguyên bộ thẻ (giữ vị trí ô) giữa các hộp trên đang mở
+  và không chứa thẻ băng / đóng đinh. Hộp, khoá hộp, hộp chôn đứng yên; animation vẫn là thẻ bay như mọi lần xáo. Cụm
+  đi nguyên bộ nên bất biến 1–3 giữ; bất biến 4 nới cho riêng bước này. Dưới 2 hộp đổi được mới thất bại, bàn y nguyên.
 - Nút sáng theo **chạy thử trên bản sao**: `Clone().ApplyShuffle().Ok`, chạy sau mỗi Settle cùng lúc với các nút khác.
   ApplyShuffle xác định (cùng bàn → cùng kết quả), nên nút sáng thì bấm thật luôn thành công. Không cần đường hoàn
   lượt — tầng bàn chơi không với tới `BoosterManager`, và với chạy thử thì nhánh thất bại sau khi trừ lượt không còn

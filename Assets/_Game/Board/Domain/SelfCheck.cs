@@ -992,6 +992,55 @@ namespace WordStack.Board
                 Ok(ge.ApplyShuffle().Ok, "Lấp hộp: hộp khoá rỗng không làm xáo thất bại");
             }
 
+            // 8l'. Xáo — thẻ thứ 4 ưu tiên hộp mở đang rỗng (spec Mục 3). Bàn 14 thẻ / 8 hộp sau khi
+            // người chơi vừa nổ một nhóm: 3 nhóm có cụm 3 + thẻ lẻ, một thẻ đinh, một thẻ lẻ khác, 4 hộp
+            // rỗng sau khi nhấc thẻ. Thẻ thứ 4 dồn hết vào S0 thì tay chỉ còn d1 cho 4 hộp rỗng → rollback.
+            {
+                const string SparseLv = @"{'id':'t-sparse','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['x1',null,null,null]}]},
+                  {'pos':[1,0],'boxes':[{'slots':['b1','b2','b3',null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['t1','t2','t3',null]}]},
+                  {'pos':[0,1],'boxes':[{'slots':['b4','d1',null,null]}]},
+                  {'pos':[1,1],'boxes':[{'slots':['c1','c2','c3',null]}]},
+                  {'pos':[2,1],'boxes':[{'slots':[null,null,null,null]}]},
+                  {'pos':[0,2],'boxes':[{'slots':['c4',null,null,null]}]},
+                  {'pos':[1,2],'boxes':[{'slots':['t4',null,null,null]}]}]},";
+                var g = BuildQ(SparseLv + Meaning("gb:b", "gt:t", "gc:c", "gd:d", "gx:x"));
+                g.TopBox(0).Slots[0].Lock = new Lock { Kind = LockKind.Fixed };
+                Ok(g.ShuffleWouldChange(), "Thẻ thứ 4: bàn thưa 14 thẻ / 8 hộp vẫn xáo được");
+                ShuffleResult r = g.ApplyShuffle();
+                Ok(r.Ok && r.PrimedGroups == 3, "Thẻ thứ 4: vẫn dựng đủ 3 nhóm mồi");
+                Ok(Enumerable.Range(0, g.Stacks.Count).All(s => g.TopBox(s).Slots.Any(t => t != null)),
+                   "Thẻ thứ 4: mọi hộp mở đều có thẻ sau xáo");
+                Ok(InBox(g.TopBox(0), "gb") + InBox(g.TopBox(0), "gt") + InBox(g.TopBox(0), "gc") <= 1,
+                   "Thẻ thứ 4: không dồn ba thẻ thứ 4 vào chung hộp thẻ đinh");
+            }
+
+            // 8l''. Xáo — không chôn thẻ cùng nhóm dưới thẻ đóng đinh (spec 2026-09-29-fixed-tile Mục 4).
+            // z1 đóng đinh ở hộp trên stack 0, c3 c4 chôn dưới nó. Dựng mồi gc cần c3 c4 → đổi với thẻ
+            // trong tay; thẻ đầu tay là z2 cùng nhóm z1 — đẩy z2 xuống là nhóm gz không bao giờ gom được.
+            {
+                const string PinLv = @"{'id':'t-pin','title':'t','layout':{'stacks':[
+                  {'pos':[0,0],'boxes':[{'slots':['z1',null,null,null]},{'slots':['c3','c4',null,null]}]},
+                  {'pos':[1,0],'boxes':[{'slots':['z2','w1','v1',null]}]},
+                  {'pos':[2,0],'boxes':[{'slots':['c1','c2',null,null]}]}]},";
+                var g = BuildQ(PinLv + Meaning("gc:c", "gv:v", "gw:w", "gz:z"));
+                g.TopBox(0).Slots[0].Lock = new Lock { Kind = LockKind.Fixed };
+                ShuffleResult r = g.ApplyShuffle();
+                Ok(r.Ok && InBox(g.TopBox(2), "gc") == 3, "Chôn dưới đinh: vẫn dựng được mồi gc bằng thẻ khác trong tay");
+                Ok(InBox(g.Stacks[0].Boxes[1], "gz") == 0, "Chôn dưới đinh: không đẩy z2 xuống dưới z1 đóng đinh");
+                Ok(Enumerable.Range(0, g.Stacks.Count).Any(s => InBox(g.TopBox(s), "gz") == 2 || (s != 0 && InBox(g.TopBox(s), "gz") == 1)),
+                   "Chôn dưới đinh: z2 vẫn ở lớp trên");
+
+                // Nhóm con: thẻ nhóm con cũng không được chôn dưới thẻ đinh của nhóm cha.
+                var gp = BuildQ(PinLv + Meaning("gc:c", "gv:v", "gw:w", "gz:z"));
+                gp.GroupDefs["gw"].ParentId = "gz";
+                gp.TopBox(0).Slots[0].Lock = new Lock { Kind = LockKind.Fixed };
+                Ok(gp.ApplyShuffle().Ok, "Chôn dưới đinh (nhóm con): vẫn xáo được");
+                Ok(InBox(gp.Stacks[0].Boxes[1], "gz") == 0 && InBox(gp.Stacks[0].Boxes[1], "gw") == 0,
+                   "Chôn dưới đinh (nhóm con): không đẩy z2 lẫn w1 xuống dưới z1");
+            }
+
             // 8k. Xáo — hộp chủ (spec 2026-10-02-shuffle-redesign Mục 3).
             {
                 foreach (var kind in new[] { LockKind.Fixed, LockKind.Moves })
@@ -1048,19 +1097,42 @@ namespace WordStack.Board
                 Ok(gm.TopLayerTileCount() == topM && !gm.AnyBoxHasFullGroup(), "Dời cụm đôi: giữ bất biến");
             }
 
-            // 8m. Xáo — không đổi được gì thì nút xám (spec 2026-10-02-shuffle-redesign Mục 6).
-            // Không thẻ trắng, không nhóm nào đủ 4 trên bàn.
+            // 8m. Xáo — dựng mồi không đổi được gì thì đổi chỗ nhóm thẻ giữa các hộp trên; chỉ xám khi
+            // cả cách đó cũng bất khả (spec 2026-10-02-shuffle-redesign Mục 6). Không thẻ trắng, không
+            // nhóm nào đủ 4. Stack 1 ngồi trên hộp chôn d1 để kiểm hộp chôn không đi theo.
             {
                 const string NoopLv = @"{'id':'t-noop','title':'t','layout':{'stacks':[
                   {'pos':[0,0],'boxes':[{'slots':['a1','a2','b1','b2']}]},
-                  {'pos':[1,0],'boxes':[{'slots':['c1','c2',null,null]}]}]},";
-                var g = BuildQ(NoopLv + Meaning("ga:a", "gb:b", "gc:c"));
+                  {'pos':[1,0],'boxes':[{'slots':['c1','c2',null,null]},{'slots':['d1',null,null,null]}]}]},";
+                var g = BuildQ(NoopLv + Meaning("ga:a", "gb:b", "gc:c", "gd:d"));
                 string enc = Solver.Encode(g);
                 Ok(g.CanShuffle(), "Xáo rỗng: tiền đề — còn ô trống");
-                Ok(!g.ShuffleWouldChange(), "Xáo rỗng: chạy thử không đổi được gì → nút xám");
+                Ok(g.ShuffleWouldChange(), "Xáo rỗng: dựng mồi không đổi gì → vẫn sáng nhờ đổi chỗ nhóm thẻ");
                 Ok(Solver.Encode(g) == enc, "Xáo rỗng: chạy thử không đụng bàn thật");
                 var r = g.ApplyShuffle();
-                Ok(!r.Ok && r.Moves.Length == 0 && Solver.Encode(g) == enc, "Xáo rỗng: ApplyShuffle báo thất bại, bàn y nguyên");
+                Ok(r.Ok && r.Moves.Length == 6, "Xáo rỗng: đổi chỗ nhóm thẻ hai hộp → cả 6 thẻ lớp trên đổi hộp");
+                Ok(InBox(g.TopBox(0), "gc") == 2 && InBox(g.TopBox(1), "ga") == 2 && InBox(g.TopBox(1), "gb") == 2,
+                   "Xáo rỗng: nhóm thẻ đi nguyên bộ sang hộp khác");
+                Ok(g.TopBox(1).Slots[0].CardId == "a1" && g.TopBox(0).Slots[0].CardId == "c1" && g.TopBox(0).Slots[2] == null,
+                   "Xáo rỗng: giữ nguyên vị trí ô trong bộ");
+                Ok(g.Stacks[1].Boxes.Count == 2 && g.Stacks[1].Boxes[1].Slots[0].CardId == "d1" && g.Stacks[0].Boxes.Count == 1,
+                   "Xáo rỗng: hộp và hộp chôn đứng yên, chỉ thẻ đổi hộp");
+                Ok(g.TopLayerTileCount() == 6 && !g.AnyBoxHasFullGroup(), "Xáo rỗng: giữ bất biến 1 và 3");
+
+                // Stack 1 khoá → chỉ một stack đổi được → không có gì để đổi → xám, bàn y nguyên.
+                var gl = BuildQ(NoopLv + Meaning("ga:a", "gb:b", "gc:c", "gd:d"));
+                gl.TopBox(1).Lock = new Lock { Kind = LockKind.Clears, Need = 9 };
+                string encL = Solver.Encode(gl);
+                Ok(!gl.ShuffleWouldChange(), "Xáo rỗng: hộp khoá không đổi chỗ, còn một stack → nút xám");
+                var rl = gl.ApplyShuffle();
+                Ok(!rl.Ok && rl.Moves.Length == 0 && Solver.Encode(gl) == encL, "Xáo rỗng: ApplyShuffle báo thất bại, bàn y nguyên");
+
+                // Thẻ đóng đinh / băng giữ cả stack đứng yên → cũng chỉ còn một stack.
+                var gf = BuildQ(NoopLv + Meaning("ga:a", "gb:b", "gc:c", "gd:d"));
+                gf.TopBox(0).Slots[0].Lock = new Lock { Kind = LockKind.Fixed };
+                Ok(!gf.ShuffleWouldChange(), "Xáo rỗng: hộp có thẻ đóng đinh không đổi chỗ → nút xám");
+                Ok(gf.TopBox(0).Slots[0].CardId == "a1", "Xáo rỗng: chạy thử không dời thẻ đóng đinh");
+
                 Ok(anchored(new Lock { Kind = LockKind.Fixed }).ShuffleWouldChange(), "Xáo rỗng: bàn có mồi dựng được thì nút sáng");
             }
 
