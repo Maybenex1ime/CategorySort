@@ -8,8 +8,11 @@ namespace LogosGame.Features.Shop
     [CreateAssetMenu(fileName = "SO_ShopCatalog", menuName = "WordStack/Config/Shop Catalog")]
     public sealed class ShopCatalog : ScriptableObject, IShopCatalog
     {
-        [Header("Gói bán bằng tiền thật — để trống Items là gói coin, có Items là gói combo")]
+        [Header("Gói bán bằng tiền thật — để trống Items là gói coin, có Items là gói combo (kèm No-Ads)")]
         [SerializeField] private CoinBundleDefinition[] _coinBundles = Array.Empty<CoinBundleDefinition>();
+
+        [Header("Special Offer — gói combo hiện ở mục Special Offer (cũng kèm No-Ads)")]
+        [SerializeField] private CoinBundleDefinition[] _specialBundles = Array.Empty<CoinBundleDefinition>();
 
         [Header("Mua một lần — bật cờ No-Ads")]
         [SerializeField] private RemoveAdsDefinition _removeAds;
@@ -19,6 +22,9 @@ namespace LogosGame.Features.Shop
 
         public IReadOnlyList<CoinBundleDefinition> CoinBundles =>
             _coinBundles ?? (IReadOnlyList<CoinBundleDefinition>)Array.Empty<CoinBundleDefinition>();
+
+        public IReadOnlyList<CoinBundleDefinition> SpecialBundles =>
+            _specialBundles ?? (IReadOnlyList<CoinBundleDefinition>)Array.Empty<CoinBundleDefinition>();
 
         public RemoveAdsDefinition RemoveAds => _removeAds;
 

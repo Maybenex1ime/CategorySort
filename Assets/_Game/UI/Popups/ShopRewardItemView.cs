@@ -1,4 +1,3 @@
-using System.Globalization;
 using LogosGame.Features.Currency;
 using TMPro;
 using UnityEngine;
@@ -22,15 +21,15 @@ namespace LogosGame.Features.UI.Popups
             if (_amountText != null) _amountText.text = amount ?? string.Empty;
         }
 
-        /// Coin: "2,000". Tim vô hạn (Amount = phút): "1h" nếu chia hết 60, ngược lại "30m". Còn lại: "x5".
+        /// Coin: "2000" (không nhóm hàng nghìn, cùng kiểu với ô coin ngoài Main Menu). Tim vô hạn (Amount = giờ): "1h". Còn lại: "x5".
         public static string FormatAmount(ResourceType type, int amount)
         {
             switch (type)
             {
                 case ResourceType.Coin:
-                    return amount.ToString("N0", CultureInfo.InvariantCulture);
+                    return amount.ToString();
                 case ResourceType.UnlimitedHeart:
-                    return amount % 60 == 0 ? (amount / 60) + "h" : amount + "m";
+                    return amount + "h";
                 default:
                     return "x" + amount;
             }

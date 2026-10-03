@@ -16,8 +16,10 @@ namespace LogosGame.Features.Shop
         public const string Coins50000 = "coins_50000";
         public const string Coins100000 = "coins_100000";
 
-        // Gói combo (coin + item) — đã có trong SO_ShopCatalog.asset.
+        // Gói combo mục Special Offer — sống ở ShopCatalog.SpecialBundles.
         public const string SpecialOffer = "special_offer";
+
+        // Gói combo (coin + item, kèm No-Ads) — mục No Ads Offer, trong CoinBundles.
         public const string Beginner = "beginner";
         public const string Medium = "medium";
         public const string High = "high";

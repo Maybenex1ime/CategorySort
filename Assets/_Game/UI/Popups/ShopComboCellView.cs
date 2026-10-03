@@ -9,17 +9,22 @@ using UnityEngine.UI;
 namespace LogosGame.Features.UI.Popups
 {
     /// <summary>
-    /// Ô gói combo (gói có Items): icon gói, tên, hàng quà (coin đứng đầu), nút giá. Trả tiền thật
-    /// nên luôn bấm được, không gate theo ví.
+    /// Ô gói combo (gói có Items): icon gói + số coin cạnh icon, tên, hàng quà (chỉ item, không coin),
+    /// badge theo Tag, nút giá. Trả tiền thật nên luôn bấm được, không gate theo ví.
     /// </summary>
     public sealed class ShopComboCellView : MonoBehaviour
     {
         [SerializeField] private Image _icon;
+        [SerializeField] private TextMeshProUGUI _coinText;   // coin của gói, cạnh icon
         [SerializeField] private TextMeshProUGUI _titleText;
         [SerializeField] private Transform _rewardRoot;
         [SerializeField] private ShopRewardItemView _rewardItemPrefab;
         [SerializeField] private TextMeshProUGUI _priceText;
         [SerializeField] private Button _buyButton;
+
+        [Header("Badge (tuỳ chọn) — bật theo Tag của gói")]
+        [SerializeField] private GameObject _popularBadge;
+        [SerializeField] private GameObject _bestValueBadge;
 
         private readonly List<ShopRewardItemView> _rewards = new List<ShopRewardItemView>();
         private Action _onClick;
@@ -40,11 +45,13 @@ namespace LogosGame.Features.UI.Popups
 
             if (_icon != null && bundle.Icon != null) _icon.sprite = bundle.Icon;
             if (_titleText != null) _titleText.text = bundle.Title ?? string.Empty;
+            // Coin của gói (cộng cả reward loại Coin) hiện cạnh icon, không vào hàng quà.
+            if (_coinText != null) _coinText.text = ShopRewardItemView.FormatAmount(ResourceType.Coin, bundle.TotalCoins);
+            if (_popularBadge != null) _popularBadge.SetActive(bundle.Tag == ShopTag.Popular);
+            if (_bestValueBadge != null) _bestValueBadge.SetActive(bundle.Tag == ShopTag.BestValue);
             SetPrice(priceLabel);
 
             ClearRewards();
-            // Coin của gói (cộng cả reward loại Coin) gộp thành món đầu tiên.
-            AddReward(shop, ResourceType.Coin, bundle.TotalCoins);
             if (bundle.Items != null)
             {
                 for (int i = 0; i < bundle.Items.Length; i++)

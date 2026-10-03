@@ -45,8 +45,10 @@ namespace LogosGame.Features.UI.Screens
         [SerializeField] private GameObject _shopSelectedBg;
         [SerializeField] private GameObject _settingsSelectedBg;
 
-        [Header("Settings Panel")]
+        // Bottom bar panels: only the panel of the last clicked button is active (Home = none).
+        [Header("Panels")]
         [SerializeField] private GameObject _settingsPanel;
+        [SerializeField] private GameObject _shopPanel;
 
         [Inject] private IHeartService _heartService;
         [Inject] private IResourceService _resources;
@@ -82,7 +84,7 @@ namespace LogosGame.Features.UI.Screens
             }
 
             ShowSelectedBg(_homeSelectedBg);
-            SetSettingsPanelVisible(false);
+            ShowPanel(null);
         }
 
         private void OnDestroy()
@@ -135,25 +137,25 @@ namespace LogosGame.Features.UI.Screens
         private void OnSettingsClicked()
         {
             ShowSelectedBg(_settingsSelectedBg);
-            SetSettingsPanelVisible(true);
+            ShowPanel(_settingsPanel);
         }
 
         private void OnShopClicked()
         {
             ShowSelectedBg(_shopSelectedBg);
-            SetSettingsPanelVisible(false);
-            RequestOpenShop();
+            ShowPanel(_shopPanel);
         }
 
         private void OnHomeClicked()
         {
             ShowSelectedBg(_homeSelectedBg);
-            SetSettingsPanelVisible(false);
+            ShowPanel(null);
         }
 
-        private void SetSettingsPanelVisible(bool visible)
+        private void ShowPanel(GameObject panel)
         {
-            if (_settingsPanel != null) _settingsPanel.SetActive(visible);
+            if (_settingsPanel != null) _settingsPanel.SetActive(_settingsPanel == panel);
+            if (_shopPanel != null)     _shopPanel.SetActive(_shopPanel == panel);
         }
 
         private void ShowSelectedBg(GameObject selected)
@@ -199,14 +201,6 @@ namespace LogosGame.Features.UI.Screens
             if (_args != null && _args.OnStartLevel != null)
             {
                 _args.OnStartLevel();
-            }
-        }
-
-        private void RequestOpenShop()
-        {
-            if (_args != null && _args.OnOpenShop != null)
-            {
-                _args.OnOpenShop();
             }
         }
 

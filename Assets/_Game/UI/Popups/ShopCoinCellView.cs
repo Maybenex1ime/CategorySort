@@ -1,5 +1,4 @@
 using System;
-using System.Globalization;
 using LogosGame.Features.Shop;
 using TMPro;
 using UnityEngine;
@@ -39,7 +38,7 @@ namespace LogosGame.Features.UI.Popups
             _onClick = onClick;
 
             if (_icon != null && bundle.Icon != null) _icon.sprite = bundle.Icon;
-            if (_coinsText != null) _coinsText.text = bundle.TotalCoins.ToString("N0", CultureInfo.InvariantCulture);
+            if (_coinsText != null) _coinsText.text = bundle.TotalCoins.ToString();
 
             SetPrice(priceLabel);
 

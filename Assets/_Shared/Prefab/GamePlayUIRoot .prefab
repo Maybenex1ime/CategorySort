@@ -567,7 +567,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_Sprite: {fileID: -5985413242751727998, guid: d6d811b71b5a8e14f8ba6d107f5d7324, type: 3}
+  m_Sprite: {fileID: 21300000, guid: d6d811b71b5a8e14f8ba6d107f5d7324, type: 3}
   m_Type: 0
   m_PreserveAspect: 1
   m_FillCenter: 1
@@ -1898,6 +1898,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Gameplay.Boosters.Views.UndoBoosterButtonView
   _button: {fileID: 8586885950898449831}
+  _clickPunch: {fileID: 0}
   _canvasGroup: {fileID: 0}
   _buttonFadeGroup: {fileID: 0}
   _backgroundImage: {fileID: 6700054170265702064}
@@ -4389,6 +4390,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Gameplay.Boosters.Views.ShuffleBoosterButtonView
   _button: {fileID: 1580586095094840397}
+  _clickPunch: {fileID: 0}
   _canvasGroup: {fileID: 0}
   _buttonFadeGroup: {fileID: 0}
   _backgroundImage: {fileID: 8272943094273524212}
@@ -4677,6 +4679,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Gameplay.Boosters.Views.MagnetBoosterButtonView
   _button: {fileID: 8910988866050757249}
+  _clickPunch: {fileID: 0}
   _canvasGroup: {fileID: 0}
   _buttonFadeGroup: {fileID: 0}
   _backgroundImage: {fileID: 7167422312520063102}

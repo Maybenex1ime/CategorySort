@@ -9,7 +9,7 @@ namespace WordStack.Meta.Tests
         [Test]
         public void Coin_DinhDangNhom()
         {
-            Assert.AreEqual("2,000", ShopRewardItemView.FormatAmount(ResourceType.Coin, 2000));
+            Assert.AreEqual("2000", ShopRewardItemView.FormatAmount(ResourceType.Coin, 2000));
         }
 
         [Test]
@@ -20,12 +20,10 @@ namespace WordStack.Meta.Tests
         }
 
         [Test]
-        public void TimVoHan_TheoGioHoacPhut()
+        public void TimVoHan_TheoGio()
         {
-            Assert.AreEqual("1h", ShopRewardItemView.FormatAmount(ResourceType.UnlimitedHeart, 60));
-            Assert.AreEqual("2h", ShopRewardItemView.FormatAmount(ResourceType.UnlimitedHeart, 120));
-            Assert.AreEqual("30m", ShopRewardItemView.FormatAmount(ResourceType.UnlimitedHeart, 30));
-            Assert.AreEqual("90m", ShopRewardItemView.FormatAmount(ResourceType.UnlimitedHeart, 90));
+            Assert.AreEqual("1h", ShopRewardItemView.FormatAmount(ResourceType.UnlimitedHeart, 1));
+            Assert.AreEqual("24h", ShopRewardItemView.FormatAmount(ResourceType.UnlimitedHeart, 24));
         }
     }
 }

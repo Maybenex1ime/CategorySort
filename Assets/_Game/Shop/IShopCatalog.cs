@@ -13,6 +13,9 @@ namespace LogosGame.Features.Shop
         /// Gói coin thường + gói combo (có Items), đều bán bằng tiền thật.
         IReadOnlyList<CoinBundleDefinition> CoinBundles { get; }
 
+        /// Gói combo của mục Special Offer — cùng kiểu dữ liệu và cùng cách trao như combo thường.
+        IReadOnlyList<CoinBundleDefinition> SpecialBundles { get; }
+
         /// Sản phẩm mua một lần. ProductId rỗng = shop không bán Remove Ads.
         RemoveAdsDefinition RemoveAds { get; }
 

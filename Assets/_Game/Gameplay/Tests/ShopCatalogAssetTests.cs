@@ -21,6 +21,10 @@ namespace WordStack.Meta.Tests
         private const string ShopCatalogPath = "Assets/_Game/Content/SO_ShopCatalog.asset";
         private const string ProjectScopePath = "Assets/Prefabs/ProjectScope.prefab";
 
+        // Mọi gói bán bằng tiền thật, cả hai danh sách — luật canh dữ liệu như nhau.
+        private static IEnumerable<CoinBundleDefinition> AllBundles(ShopCatalog catalog) =>
+            catalog.CoinBundles.Concat(catalog.SpecialBundles);
+
         // Đọc thẳng các hằng số: thêm gói mới vào ShopProductIds là test tự đòi có trong catalog.
         private static string[] ConstValues(System.Type type) =>
             type.GetFields(BindingFlags.Public | BindingFlags.Static)
@@ -36,14 +40,14 @@ namespace WordStack.Meta.Tests
 
             // remove_ads không phải gói coin — kiểm riêng ở RemoveAds_HopLe.
             string[] expected = ConstValues(typeof(ShopProductIds)).Where(id => id != ShopProductIds.RemoveAds).ToArray();
-            List<string> inCatalog = catalog.CoinBundles.Select(b => b.ProductId).ToList();
+            List<string> inCatalog = AllBundles(catalog).Select(b => b.ProductId).ToList();
 
             foreach (string id in expected)
                 Assert.Contains(id, inCatalog, $"Catalog thiếu gói '{id}'.");
             foreach (string id in inCatalog)
                 Assert.Contains(id, expected, $"Gói '{id}' chưa có trong ShopProductIds — thêm hằng số, và tạo sản phẩm trên console.");
 
-            foreach (CoinBundleDefinition b in catalog.CoinBundles)
+            foreach (CoinBundleDefinition b in AllBundles(catalog))
             {
                 Assert.Greater(b.Coins, 0, $"'{b.ProductId}' có Coins <= 0 (gói combo cũng phải có coin).");
                 Assert.IsFalse(string.IsNullOrEmpty(b.PriceLabelFallback), $"'{b.ProductId}' chưa có PriceLabelFallback.");
@@ -71,7 +75,7 @@ namespace WordStack.Meta.Tests
 
             // Coin luôn là món đầu của hàng quà nên cũng phải có icon.
             Assert.IsTrue(catalog.TryGetRewardIcon(ResourceType.Coin, out _), "Thiếu icon quà cho Coin.");
-            foreach (CoinBundleDefinition b in catalog.CoinBundles)
+            foreach (CoinBundleDefinition b in AllBundles(catalog))
             {
                 if (b.Items == null) continue;
                 foreach (ShopReward reward in b.Items)
@@ -86,7 +90,7 @@ namespace WordStack.Meta.Tests
             ShopCatalog catalog = AssetDatabase.LoadAssetAtPath<ShopCatalog>(ShopCatalogPath);
             Assert.IsNotNull(catalog, "Chưa có " + ShopCatalogPath);
 
-            foreach (CoinBundleDefinition b in catalog.CoinBundles)
+            foreach (CoinBundleDefinition b in AllBundles(catalog))
             {
                 if (b.Items == null) continue;
                 foreach (ShopReward reward in b.Items)

@@ -24,7 +24,8 @@ namespace LogosGame.Features.Shop.Impl
         // Tuỳ chọn — vắng thì chỉ không ghi sự kiện, đường tiền không đổi.
         private readonly IAnalyticsService _analytics;
 
-        // Nơi trao Remove Ads. Vắng thì không bán Remove Ads (không bao giờ charge mà không trao được).
+        // Nơi trao No-Ads: sản phẩm Remove Ads và MỌI gói combo (gói có Items) đều bật cờ này.
+        // Vắng thì không bán cả hai (không bao giờ charge mà không trao được).
         private readonly INoAdsService _noAds;
 
         public ShopService(IShopCatalog catalog, IIAPService iap, ICurrencyService currency,
@@ -41,6 +42,9 @@ namespace LogosGame.Features.Shop.Impl
         public IReadOnlyList<CoinBundleDefinition> CoinBundles =>
             _catalog != null ? _catalog.CoinBundles : Array.Empty<CoinBundleDefinition>();
 
+        public IReadOnlyList<CoinBundleDefinition> SpecialBundles =>
+            _catalog != null ? _catalog.SpecialBundles : Array.Empty<CoinBundleDefinition>();
+
         public RemoveAdsDefinition RemoveAds => _catalog != null ? _catalog.RemoveAds : default;
 
         public bool TryGetRewardIcon(ResourceType type, out Sprite icon)
@@ -56,13 +60,9 @@ namespace LogosGame.Features.Shop.Impl
         {
             if (_iap == null) return false;
 
-            IReadOnlyList<CoinBundleDefinition> bundles = CoinBundles;
-            List<IapProduct> products = new List<IapProduct>(bundles.Count + 1);
-            for (int i = 0; i < bundles.Count; i++)
-            {
-                if (!string.IsNullOrEmpty(bundles[i].ProductId))
-                    products.Add(new IapProduct(bundles[i].ProductId, IapProductKind.Consumable));
-            }
+            List<IapProduct> products = new List<IapProduct>(CoinBundles.Count + SpecialBundles.Count + 1);
+            AddConsumables(products, CoinBundles);
+            AddConsumables(products, SpecialBundles);
 
             string removeAdsId = RemoveAds.ProductId;
             if (!string.IsNullOrEmpty(removeAdsId))
@@ -71,6 +71,15 @@ namespace LogosGame.Features.Shop.Impl
             bool ok = await _iap.Initialize(products, this);
             SyncRemoveAdsOwnership();
             return ok;
+        }
+
+        private static void AddConsumables(List<IapProduct> products, IReadOnlyList<CoinBundleDefinition> bundles)
+        {
+            for (int i = 0; i < bundles.Count; i++)
+            {
+                if (!string.IsNullOrEmpty(bundles[i].ProductId))
+                    products.Add(new IapProduct(bundles[i].ProductId, IapProductKind.Consumable));
+            }
         }
 
         // Cài lại game: store còn biên nhận Remove Ads thì trả lại cờ (Android lúc khởi tạo,
@@ -133,9 +142,9 @@ namespace LogosGame.Features.Shop.Impl
 
             if (bundle.HasItems)
             {
-                if (_items == null)
+                if (_items == null || _noAds == null)
                 {
-                    _logger.Warn($"[ShopService] Thiếu ITransactionItemDispatcher — chưa trao gói combo '{productId}', để Pending.");
+                    _logger.Warn($"[ShopService] Thiếu ITransactionItemDispatcher/INoAdsService — chưa trao gói combo '{productId}', để Pending.");
                     return false;
                 }
 
@@ -149,6 +158,12 @@ namespace LogosGame.Features.Shop.Impl
                     if (itemId != null && bundle.Items[i].Amount > 0)
                         _items.Grant(itemId, bundle.Items[i].Amount);
                 }
+
+                // Mọi gói combo kèm No-Ads. Grant tự bỏ qua khi cờ đã bật.
+                // ponytail: combo là Consumable nên store không giữ biên nhận — cài lại game là mất
+                // No-Ads mua qua combo (cờ chỉ nằm trong save). Cần khôi phục được thì phải cloud save
+                // hoặc đổi combo sang NonConsumable.
+                _noAds.Grant();
             }
 
             if (!_currency.AddOnce(bundle.TotalCoins, transactionId))
@@ -207,9 +222,9 @@ namespace LogosGame.Features.Shop.Impl
                     return new ShopPurchaseResult(ShopPurchaseCode.AlreadyOwned, productId, 0);
             }
 
-            // Kiểm nơi trao TRƯỚC khi gọi store: thiếu ví (gói coin) hay thiếu No-Ads (Remove Ads)
+            // Kiểm nơi trao TRƯỚC khi gọi store: thiếu ví (gói coin) hay thiếu No-Ads (Remove Ads, combo)
             // mà vẫn charge là user mất tiền thật rồi không nhận được gì.
-            bool canGrant = removeAds ? _noAds != null : _currency != null;
+            bool canGrant = removeAds ? _noAds != null : _currency != null && (!bundle.HasItems || _noAds != null);
             if (_iap == null || !canGrant || !_iap.IsReady)
             {
                 _logger.Warn($"[ShopService] Store chưa sẵn sàng hoặc thiếu nơi trao — không mua '{productId}'.");
@@ -240,8 +255,12 @@ namespace LogosGame.Features.Shop.Impl
         {
             bundle = default;
             if (string.IsNullOrEmpty(productId) || _catalog == null) return false;
+            return Find(_catalog.CoinBundles, productId, out bundle) || Find(_catalog.SpecialBundles, productId, out bundle);
+        }
 
-            IReadOnlyList<CoinBundleDefinition> bundles = _catalog.CoinBundles;
+        private static bool Find(IReadOnlyList<CoinBundleDefinition> bundles, string productId, out CoinBundleDefinition bundle)
+        {
+            bundle = default;
             if (bundles == null) return false;
 
             for (int i = 0; i < bundles.Count; i++)

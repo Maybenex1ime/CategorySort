@@ -38,6 +38,9 @@ namespace LogosGame.Features.Shop
     {
         IReadOnlyList<CoinBundleDefinition> CoinBundles { get; }
 
+        /// Gói combo của mục Special Offer.
+        IReadOnlyList<CoinBundleDefinition> SpecialBundles { get; }
+
         /// Sản phẩm mua một lần; ProductId rỗng = không bán.
         RemoveAdsDefinition RemoveAds { get; }
 

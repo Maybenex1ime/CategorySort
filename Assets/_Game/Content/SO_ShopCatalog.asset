@@ -31,7 +31,7 @@ MonoBehaviour:
     Coins: 10000
     PriceLabelFallback: 6.99 $
     Icon: {fileID: -8409941237662888558, guid: ab61f2c14e2f8ab4bb18d39358ee281a, type: 3}
-    Tag: 1
+    Tag: 0
     Title: 
     Items: []
   - ProductId: coins_25000
@@ -52,9 +52,55 @@ MonoBehaviour:
     Coins: 100000
     PriceLabelFallback: 39.99 $
     Icon: {fileID: 3797206802959891332, guid: 925584c0e63c74f44a119d74af22921d, type: 3}
-    Tag: 2
+    Tag: 0
     Title: 
     Items: []
+  - ProductId: beginner
+    Coins: 2000
+    PriceLabelFallback: 1.99 $
+    Icon: {fileID: 4241048222472841911, guid: f2bcb887110ba354f9eebfd1743a3293, type: 3}
+    Tag: 0
+    Title: Beginner Pack
+    Items:
+    - Type: 2
+      Amount: 6
+    - Type: 3
+      Amount: 6
+    - Type: 4
+      Amount: 6
+    - Type: 5
+      Amount: 60
+  - ProductId: medium
+    Coins: 2000
+    PriceLabelFallback: 1.99 $
+    Icon: {fileID: 6888186149970136022, guid: cd03b81bde7923142a07e16f7000c66a, type: 3}
+    Tag: 1
+    Title: Medium Pack
+    Items:
+    - Type: 2
+      Amount: 5
+    - Type: 3
+      Amount: 5
+    - Type: 4
+      Amount: 5
+    - Type: 5
+      Amount: 120
+  - ProductId: high
+    Coins: 2000
+    PriceLabelFallback: 1.99 $
+    Icon: {fileID: -2810948513096768784, guid: ebcfd36387de75941935aa47f911a7c8, type: 3}
+    Tag: 0
+    Title: High Pack
+    Items:
+    - Type: 2
+      Amount: 8
+    - Type: 3
+      Amount: 8
+    - Type: 4
+      Amount: 8
+    - Type: 5
+      Amount: 240
+  _specialBundles:
   - ProductId: special_offer
     Coins: 2000
     PriceLabelFallback: 1.99 $
@@ -68,53 +114,8 @@ MonoBehaviour:
       Amount: 5
     - Type: 4
       Amount: 5
-    - Type: 1
-      Amount: 5
-  - ProductId: beginner
-    Coins: 2000
-    PriceLabelFallback: 1.99 $
-    Icon: {fileID: 4241048222472841911, guid: f2bcb887110ba354f9eebfd1743a3293, type: 3}
-    Tag: 2
-    Title: Beginner Pack
-    Items:
-    - Type: 2
-      Amount: 6
-    - Type: 3
-      Amount: 6
-    - Type: 4
-      Amount: 6
-    - Type: 1
-      Amount: 5
-  - ProductId: medium
-    Coins: 2000
-    PriceLabelFallback: 1.99 $
-    Icon: {fileID: 6888186149970136022, guid: cd03b81bde7923142a07e16f7000c66a, type: 3}
-    Tag: 2
-    Title: Medium Pack
-    Items:
-    - Type: 2
-      Amount: 5
-    - Type: 3
-      Amount: 5
-    - Type: 4
-      Amount: 5
-    - Type: 1
-      Amount: 5
-  - ProductId: high
-    Coins: 2000
-    PriceLabelFallback: 1.99 $
-    Icon: {fileID: -2810948513096768784, guid: ebcfd36387de75941935aa47f911a7c8, type: 3}
-    Tag: 2
-    Title: High Pack
-    Items:
-    - Type: 2
-      Amount: 8
-    - Type: 3
-      Amount: 8
-    - Type: 4
-      Amount: 8
-    - Type: 1
-      Amount: 5
+    - Type: 5
+      Amount: 60
   _removeAds:
     ProductId: remove_ads
     PriceLabelFallback: 4.99 $
@@ -125,12 +126,12 @@ MonoBehaviour:
   - Type: 0
     Icon: {fileID: 5456371542995731734, guid: 2d708b5f2e09feb42a4cd1c412027c00, type: 3}
   - Type: 1
-    Icon: {fileID: 21300000, guid: e3a8334c12fe24f289db2765920cdcd6, type: 3}
+    Icon: {fileID: 3600128748247854784, guid: d102ec5704a67394fac4fef08bd13b89, type: 3}
   - Type: 5
-    Icon: {fileID: 21300000, guid: e3a8334c12fe24f289db2765920cdcd6, type: 3}
+    Icon: {fileID: 21300000, guid: e7a2f566fc00a1d4dbe5b270e6b2a5a5, type: 3}
   - Type: 2
-    Icon: {fileID: 21300000, guid: ba398616f97daee4c82fdb60e6e1d83d, type: 3}
+    Icon: {fileID: -3877502197771855039, guid: ab6bd1e80c036ef4bb0d7342d16c0e6d, type: 3}
   - Type: 3
-    Icon: {fileID: 21300000, guid: 58b66c9f80fa4ec48a8c5b54e5a89edb, type: 3}
+    Icon: {fileID: 21300000, guid: d6d811b71b5a8e14f8ba6d107f5d7324, type: 3}
   - Type: 4
-    Icon: {fileID: -6062914999863570022, guid: a2bc5fc23da485b4da8e25aafa1ce4f5, type: 3}
+    Icon: {fileID: 5742106891793053347, guid: f2a656d2606d02b40a6fccb68d10aaab, type: 3}

@@ -1,29 +1,25 @@
 using System;
 using System.Collections.Generic;
-using System.Globalization;
 using LitMotion;
 using LitMotion.Extensions;
 using LogosGame.Features.Shop;
-using LogosGame.Features.UI.Popups.Args;
 using LogosMeta.Economy;
 using LogosSDK.Core.Logging;
-using LogosSDK.UI.Base;
 using R3;
 using Reflex.Attributes;
 using TMPro;
 using UnityEngine;
-using UnityEngine.UI;
 using ILogger = LogosSDK.Core.Logging.ILogger;
 
 namespace LogosGame.Features.UI.Popups
 {
     /// <summary>
-    /// Shop một trang cuộn (spec 2026-10-01-shop-single-page): banner Remove Ads → ô combo → lưới
-    /// 3 cột gói coin → nút Restore (chỉ iOS). Header (ô coin, tiêu đề, nút X) nằm ngoài vùng cuộn.
-    /// Mọi sản phẩm trả TIỀN THẬT qua IShopService. Lấy service qua [Inject] như MainMenuScreen —
-    /// UIManager đã InjectRecursive trước khi gọi SetArgs nên Initialize dùng được ngay.
+    /// Shop một trang cuộn, 3 mục: Special Offer (gói special_offer) → No Ads Offer (Remove Ads lẻ + các
+    /// combo còn lại — mọi combo đều kèm No-Ads) → Coin Packs (lưới 3 cột). Nhúng trong Shop Panel của MainMenuScreen, tự dựng ở OnEnable — không còn là popup
+    /// của UIManager (tên lớp giữ lại để không đứt tham chiếu script trong prefab).
+    /// Mọi sản phẩm trả TIỀN THẬT qua IShopService, lấy qua [Inject] như MainMenuScreen.
     /// </summary>
-    public sealed class ShopPopup : PopupBase<ShopPopupArgs>
+    public sealed class ShopPopup : MonoBehaviour
     {
         private static readonly ILogger _logger = LogManager.GetLogger<ShopPopup>();
 
@@ -31,17 +27,18 @@ namespace LogosGame.Features.UI.Popups
 
         [Header("Header (không cuộn)")]
         [SerializeField] private TextMeshProUGUI _coinCounterText;
-        [SerializeField] private Button _closeButton;
 
-        [Header("Trang cuộn — theo thứ tự từ trên xuống")]
+        [Header("Special Offer — gói special_offer")]
+        [SerializeField] private Transform _specialOfferRoot;
+
+        [Header("No Ads Offer — ô Remove Ads lẻ (ẩn khi đã sở hữu) + các combo còn lại")]
         [SerializeField] private ShopRemoveAdsView _removeAdsView;
         [SerializeField] private Transform _comboListRoot;
         [SerializeField] private ShopComboCellView _comboCellPrefab;
+
+        [Header("Coin Packs — gói coin thường")]
         [SerializeField] private Transform _coinGridRoot;
         [SerializeField] private ShopCoinCellView _coinCellPrefab;
-
-        [Header("Restore (chỉ hiện trên iOS — Apple bắt buộc; Android tự khôi phục)")]
-        [SerializeField] private Button _restoreButton;
 
         [Inject] private IShopService _shopService;
         [Inject] private ICurrencyService _currencyService;
@@ -65,16 +62,16 @@ namespace LogosGame.Features.UI.Popups
         private bool _built;
         private bool _isPurchasing;
 
-        protected override void Awake()
+        // Chạy lại mỗi lần panel bật — dựng ô một lần, subscribe một lần, còn giá thì hỏi lại mỗi lần
+        // (giá store có thể về sau lần mở đầu). OnEnable đầu tiên chạy ngay trong Instantiate, trước
+        // khi UIManager inject — bỏ qua lần đó.
+        private void OnEnable()
         {
-            base.Awake();
-            if (_closeButton != null) _closeButton.onClick.AddListener(OnCloseClicked);
-
-            if (_restoreButton != null)
-            {
-                _restoreButton.gameObject.SetActive(Application.platform == RuntimePlatform.IPhonePlayer);
-                _restoreButton.onClick.AddListener(OnRestoreClicked);
-            }
+            if (_shopService == null) return;
+            BindCoinCounter();
+            BindNoAds();
+            BuildOnce();
+            RefreshPrices();
         }
 
         private void OnDestroy()
@@ -83,18 +80,6 @@ namespace LogosGame.Features.UI.Popups
             _noAdsSubscription?.Dispose();
             _counterPunch.TryCancel();
             _cellPunch.TryCancel();
-            if (_closeButton != null) _closeButton.onClick.RemoveListener(OnCloseClicked);
-            if (_restoreButton != null) _restoreButton.onClick.RemoveListener(OnRestoreClicked);
-        }
-
-        // Chạy lại mỗi lần mở (UIManager cache instance và gọi SetArgs lại) — dựng ô một lần,
-        // subscribe một lần, còn giá thì hỏi lại mỗi lần (giá store có thể về sau lần mở đầu).
-        protected override void Initialize(ShopPopupArgs args)
-        {
-            BindCoinCounter();
-            BindNoAds();
-            BuildOnce();
-            RefreshPrices();
         }
 
         private void BindCoinCounter()
@@ -103,12 +88,14 @@ namespace LogosGame.Features.UI.Popups
             if (_currencyService == null || _coinCounterText == null) return;
 
             _coinCounterSubscription = _currencyService.Coins
-                .Subscribe(coins => _coinCounterText.text = coins.ToString("N0", CultureInfo.InvariantCulture));
+                .Subscribe(coins => _coinCounterText.text = coins.ToString());
         }
 
         private void BindNoAds()
         {
-            if (_noAdsSubscription != null || _removeAdsView == null) return;
+            if (_noAdsSubscription != null) return;
+
+            if (_removeAdsView == null) return;
 
             if (_noAdsService == null)
             {
@@ -116,7 +103,8 @@ namespace LogosGame.Features.UI.Popups
                 return;
             }
 
-            // Đã sở hữu thì ẩn banner — kể cả ngay sau khi mua xong hay sau Restore.
+            // Đã sở hữu thì ẩn ô Remove Ads lẻ — kể cả ngay sau khi mua xong (Remove Ads hay combo).
+            // Các combo vẫn hiện: còn coin và item để bán.
             _noAdsSubscription = _noAdsService.IsNoAds
                 .Subscribe(owned => _removeAdsView.gameObject.SetActive(!owned));
         }
@@ -125,12 +113,6 @@ namespace LogosGame.Features.UI.Popups
         {
             if (_built) return;
             _built = true;
-
-            if (_shopService == null)
-            {
-                _logger.Warn("[ShopPopup] IShopService chưa bind — shop mở rỗng.");
-                return;
-            }
 
             BuildRemoveAds();
             BuildBundles();
@@ -159,43 +141,50 @@ namespace LogosGame.Features.UI.Popups
 
         private void BuildBundles()
         {
+            IReadOnlyList<CoinBundleDefinition> specials = _shopService.SpecialBundles;
             IReadOnlyList<CoinBundleDefinition> bundles = _shopService.CoinBundles;
-            if (bundles.Count == 0)
+            if (specials.Count == 0 && bundles.Count == 0)
                 _logger.Warn("[ShopPopup] SO_ShopCatalog chưa có gói nào — shop trống.");
+
+            for (int i = 0; i < specials.Count; i++)
+                SpawnCombo(specials[i], _specialOfferRoot);
 
             for (int i = 0; i < bundles.Count; i++)
             {
                 CoinBundleDefinition bundle = bundles[i];
-                string price = _shopService.GetPriceLabel(bundle.ProductId);
-
                 if (bundle.HasItems)
                 {
-                    if (_comboCellPrefab == null || _comboListRoot == null) continue;
-                    ShopComboCellView cell = Instantiate(_comboCellPrefab, _comboListRoot);
-                    cell.Bind(bundle, price, _shopService, () => Buy(bundle.ProductId, cell.transform));
-                    _entries.Add(new Entry
-                    {
-                        ProductId = bundle.ProductId, Root = cell.transform,
-                        SetPrice = cell.SetPrice, SetInteractable = cell.SetInteractable,
-                    });
+                    SpawnCombo(bundle, _comboListRoot);
+                    continue;
                 }
-                else
+
+                if (_coinCellPrefab == null || _coinGridRoot == null) continue;
+                ShopCoinCellView cell = Instantiate(_coinCellPrefab, _coinGridRoot);
+                cell.Bind(bundle, _shopService.GetPriceLabel(bundle.ProductId), () => Buy(bundle.ProductId, cell.transform));
+                _entries.Add(new Entry
                 {
-                    if (_coinCellPrefab == null || _coinGridRoot == null) continue;
-                    ShopCoinCellView cell = Instantiate(_coinCellPrefab, _coinGridRoot);
-                    cell.Bind(bundle, price, () => Buy(bundle.ProductId, cell.transform));
-                    _entries.Add(new Entry
-                    {
-                        ProductId = bundle.ProductId, Root = cell.transform,
-                        SetPrice = cell.SetPrice, SetInteractable = cell.SetInteractable,
-                    });
-                }
+                    ProductId = bundle.ProductId, Root = cell.transform,
+                    SetPrice = cell.SetPrice, SetInteractable = cell.SetInteractable,
+                });
             }
+        }
+
+        // Ô combo dùng chung cho Special Offer lẫn No Ads Offer — chỉ khác chỗ đặt.
+        private void SpawnCombo(CoinBundleDefinition bundle, Transform root)
+        {
+            if (_comboCellPrefab == null || root == null) return;
+            ShopComboCellView cell = Instantiate(_comboCellPrefab, root);
+            cell.Bind(bundle, _shopService.GetPriceLabel(bundle.ProductId), _shopService,
+                () => Buy(bundle.ProductId, cell.transform));
+            _entries.Add(new Entry
+            {
+                ProductId = bundle.ProductId, Root = cell.transform,
+                SetPrice = cell.SetPrice, SetInteractable = cell.SetInteractable,
+            });
         }
 
         private void RefreshPrices()
         {
-            if (_shopService == null) return;
             for (int i = 0; i < _entries.Count; i++)
                 _entries[i].SetPrice(_shopService.GetPriceLabel(_entries[i].ProductId));
         }
@@ -249,34 +238,6 @@ namespace LogosGame.Features.UI.Popups
         private void SetInteractable(bool interactable)
         {
             for (int i = 0; i < _entries.Count; i++) _entries[i].SetInteractable(interactable);
-        }
-
-        private async void OnRestoreClicked()
-        {
-            if (_shopService == null || _isPurchasing) return;
-
-            _isPurchasing = true;
-            SetInteractable(false);
-            try
-            {
-                await _shopService.RestorePurchases();
-            }
-            catch (Exception ex)
-            {
-                _logger.Error(ex, "[ShopPopup] Lỗi khi khôi phục giao dịch.");
-            }
-            finally
-            {
-                _isPurchasing = false;
-                SetInteractable(true);
-            }
-        }
-
-        private void OnCloseClicked()
-        {
-            // Đang chờ store trả lời mà đóng là mất kết quả giao dịch — chặn.
-            if (_isPurchasing) return;
-            Dismiss();
         }
     }
 }

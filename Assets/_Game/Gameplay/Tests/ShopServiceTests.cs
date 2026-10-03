@@ -1,4 +1,5 @@
 using System.Collections.Generic;
+using System.Linq;
 using LogosGame.Features.Currency;
 using LogosGame.Features.Shop;
 using LogosGame.Features.Shop.Impl;
@@ -198,10 +199,13 @@ namespace WordStack.Meta.Tests
         {
             var currency = new FakeCurrency(0);
             var items = new FakeItems();
-            ShopService shop = Build(currency, new FakeIap(), items: items);
+            var noAds = new FakeNoAds();
+            ShopService shop = Build(currency, new FakeIap(), items: items, noAds: noAds);
 
             Assert.IsTrue(shop.Fulfill(Pack, "gpa-pack"));
             Assert.IsTrue(shop.Fulfill(Pack, "gpa-pack"), "store gửi lại đơn đã trao: vẫn báo true để nó thôi gửi");
+
+            Assert.IsTrue(noAds.IsNoAds.CurrentValue, "mọi gói combo kèm No-Ads");
 
             Assert.AreEqual(2500, currency.Coins.CurrentValue, "reward Coin cộng dồn vào Coins của gói, cùng một lần AddOnce");
             CollectionAssert.AreEqual(new[] { "booster.shuffle x5", "heart x2" }, items.Granted,
@@ -217,6 +221,59 @@ namespace WordStack.Meta.Tests
             Assert.IsFalse(shop.Fulfill(Pack, "gpa-pack"), "không trao được item thì để Pending, đừng nuốt tiền");
             Assert.AreEqual(0, currency.Coins.CurrentValue);
             Assert.IsTrue(shop.Fulfill(Bundle, "gpa-coin"), "gói chỉ có coin không cần bên trao item");
+        }
+
+        [Test]
+        public void GoiCombo_ThieuNoAdsService_KhongCharge_KhongTraoGi()
+        {
+            var currency = new FakeCurrency(0);
+            var items = new FakeItems();
+            var iap = new FakeIap { Accept = true };
+            ShopService shop = Build(currency, iap, items: items);
+
+            Assert.AreEqual(ShopPurchaseCode.StoreUnavailable, Await(shop.PurchaseProduct(Pack)).Code);
+            Assert.IsNull(iap.LastProductId, "không bật được No-Ads thì không charge gói combo");
+            Assert.IsFalse(shop.Fulfill(Pack, "gpa-pack"), "store gửi lại đơn: để Pending, không trao nửa gói");
+            Assert.AreEqual(0, currency.Coins.CurrentValue);
+            Assert.AreEqual(0, items.Granted.Count);
+        }
+
+        [Test]
+        public void Fulfill_GoiCoinThuong_KhongBatNoAds()
+        {
+            var noAds = new FakeNoAds();
+            ShopService shop = Build(new FakeCurrency(0), new FakeIap(), noAds: noAds);
+
+            Assert.IsTrue(shop.Fulfill(Bundle, "gpa-coin"));
+            Assert.IsFalse(noAds.IsNoAds.CurrentValue, "chỉ gói combo mới kèm No-Ads");
+        }
+
+        [Test]
+        public void GoiSpecial_DangKyStore_MuaVaTraoNhuCombo()
+        {
+            var catalog = new FakeCatalog
+            {
+                SpecialBundles = new[]
+                {
+                    new CoinBundleDefinition
+                    {
+                        ProductId = "special", Coins = 100, PriceLabelFallback = "0.99 $",
+                        Items = new[] { new ShopReward { Type = ResourceType.Heart, Amount = 1 } },
+                    },
+                },
+            };
+            var currency = new FakeCurrency(0);
+            var iap = new FakeIap { Accept = true };
+            var items = new FakeItems();
+            var noAds = new FakeNoAds();
+            var shop = new ShopService(catalog, iap, currency, items, null, noAds);
+            Await(shop.InitializeStore());
+
+            Assert.IsTrue(iap.Products.Any(p => p.Id == "special"), "gói Special phải đăng ký với store như combo thường");
+            Assert.IsTrue(Await(shop.PurchaseProduct("special")).IsSuccess);
+            Assert.AreEqual(100, currency.Coins.CurrentValue);
+            CollectionAssert.AreEqual(new[] { "heart x1" }, items.Granted);
+            Assert.IsTrue(noAds.IsNoAds.CurrentValue, "gói Special cũng là combo nên kèm No-Ads");
         }
 
         [Test]
@@ -366,6 +423,8 @@ namespace WordStack.Meta.Tests
                     },
                 },
             };
+
+            public IReadOnlyList<CoinBundleDefinition> SpecialBundles { get; set; } = new CoinBundleDefinition[0];
 
             public RemoveAdsDefinition RemoveAds { get; } =
                 new RemoveAdsDefinition { ProductId = RemoveAdsId, PriceLabelFallback = "4.99 $" };
