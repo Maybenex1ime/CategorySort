@@ -99,16 +99,16 @@ namespace WordStack.Meta.Tests
         }
 
         [Test]
-        public void GoiShop_UnlimitedHeart60_QuaDispatcher_Thanh1GioVoHan()
+        public void GoiShop_UnlimitedHeart2_QuaDispatcher_Thanh2GioVoHan()
         {
-            // Đúng đường gói combo đi: ShopReward(UnlimitedHeart, 60) → ToItemId → dispatcher.
+            // Đúng đường gói combo đi: ShopReward(UnlimitedHeart, 2) → ToItemId → dispatcher. Amount là GIỜ.
             var (hearts, _, _) = Build(heartsStart: 0);
             var dispatcher = new TransactionItemDispatcher(hearts);
 
-            dispatcher.Grant(ResourceType.UnlimitedHeart.ToItemId(), 60);
+            dispatcher.Grant(ResourceType.UnlimitedHeart.ToItemId(), 2);
 
             Assert.IsTrue(hearts.IsUnlimited.CurrentValue);
-            Assert.AreEqual(TimeSpan.FromHours(1), hearts.UnlimitedTimeLeft.CurrentValue);
+            Assert.AreEqual(TimeSpan.FromHours(2), hearts.UnlimitedTimeLeft.CurrentValue);
             Assert.AreEqual(0, hearts.Current.CurrentValue, "vô hạn không cộng tim — chỉ không trừ");
         }
 

@@ -15,7 +15,7 @@ namespace LogosGame.Features.Currency
         BoosterMagnet = 3,
         BoosterUndo = 4,
 
-        // Tim vô hạn theo thời gian — Amount tính bằng PHÚT (60 = 1 giờ), không phải số lượng.
+        // Tim vô hạn theo thời gian — Amount tính bằng GIỜ, không phải số lượng.
         UnlimitedHeart = 5,
     }
 
