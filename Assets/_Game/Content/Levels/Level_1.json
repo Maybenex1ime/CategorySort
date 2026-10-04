@@ -1,0 +1,44 @@
+{
+  "id": "Level_1",
+  "title": "Level 1",
+  "note": "Chuyen tu dinh dang traits/tiles bang tools/convert-trait-levels.py.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["t6_01","t6_02",null,null] },
+          { "slots": ["t7_01","t1_01",null,null] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["t6_03","t1_04","t7_04",null] },
+          { "slots": ["t1_02","t7_03",null,null] }
+      ]},
+      { "pos": [2,0], "boxes": [
+          { "slots": ["t1_03","t6_04","t7_02",null] }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"g1", "text":"Kitchen Tools", "cards": [
+          { "id":"t1_01", "art":"1_0_0" },
+          { "id":"t1_02", "art":"1_0_1" },
+          { "id":"t1_03", "art":"1_0_2" },
+          { "id":"t1_04", "art":"1_0_3" }
+      ]},
+      { "id":"g6", "text":"Flowers", "cards": [
+          { "id":"t6_01", "art":"1_5_0" },
+          { "id":"t6_02", "art":"1_5_1" },
+          { "id":"t6_03", "art":"1_5_2" },
+          { "id":"t6_04", "art":"1_5_3" }
+      ]},
+      { "id":"g7", "text":"Fruits", "cards": [
+          { "id":"t7_01", "art":"1_6_0" },
+          { "id":"t7_02", "art":"1_6_1" },
+          { "id":"t7_03", "art":"1_6_2" },
+          { "id":"t7_04", "art":"1_6_3" }
+      ]}
+    ]
+  }
+}

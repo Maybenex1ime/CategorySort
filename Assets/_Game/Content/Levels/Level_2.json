@@ -1,0 +1,78 @@
+{
+  "id": "Level_2",
+  "title": "Level 2",
+  "note": "Chuyen tu dinh dang traits/tiles bang tools/convert-trait-levels.py.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["t2_03","t1_01","t7_03","t4_02"] },
+          { "slots": ["t4_03","t5_02","t7_01",null] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["t3_02","t1_04","t5_04",null] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["t3_03","t5_01","t1_03","t4_01"] },
+          { "slots": ["t6_01","t7_02",null,null] }
+      ]},
+      { "pos": [1,1], "boxes": [
+          { "slots": [null,"t2_01","t5_03","t4_04"] }
+      ]},
+      { "pos": [2,0], "boxes": [
+          { "slots": ["t6_02","t2_04",null,"t3_04"] },
+          { "slots": [null,"t6_03","t3_01","t7_04"] }
+      ]},
+      { "pos": [2,1], "boxes": [
+          { "slots": ["t2_02","t1_02","t6_04",null] }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"g1", "text":"Shirts", "cards": [
+          { "id":"t1_01", "art":"2_0_0" },
+          { "id":"t1_02", "art":"2_0_1" },
+          { "id":"t1_03", "art":"2_0_2" },
+          { "id":"t1_04", "art":"2_0_3" }
+      ]},
+      { "id":"g2", "text":"Princesses", "cards": [
+          { "id":"t2_01", "art":"2_1_0" },
+          { "id":"t2_02", "art":"2_1_1" },
+          { "id":"t2_03", "art":"2_1_2" },
+          { "id":"t2_04", "art":"2_1_3" }
+      ]},
+      { "id":"g3", "text":"Wild Animals", "cards": [
+          { "id":"t3_01", "art":"2_2_0" },
+          { "id":"t3_02", "art":"2_2_1" },
+          { "id":"t3_03", "art":"2_2_2" },
+          { "id":"t3_04", "art":"2_2_3" }
+      ]},
+      { "id":"g4", "text":"Buildings", "cards": [
+          { "id":"t4_01", "art":"2_3_0" },
+          { "id":"t4_02", "art":"2_3_1" },
+          { "id":"t4_03", "art":"2_3_2" },
+          { "id":"t4_04", "art":"2_3_3" }
+      ]},
+      { "id":"g5", "text":"Cakes", "cards": [
+          { "id":"t5_01", "art":"2_4_0" },
+          { "id":"t5_02", "art":"2_4_1" },
+          { "id":"t5_03", "art":"2_4_2" },
+          { "id":"t5_04", "art":"2_4_3" }
+      ]},
+      { "id":"g6", "text":"Time Holders", "cards": [
+          { "id":"t6_01", "art":"2_5_0" },
+          { "id":"t6_02", "art":"2_5_1" },
+          { "id":"t6_03", "art":"2_5_2" },
+          { "id":"t6_04", "art":"2_5_3" }
+      ]},
+      { "id":"g7", "text":"Necklaces", "cards": [
+          { "id":"t7_01", "art":"2_6_0" },
+          { "id":"t7_02", "art":"2_6_1" },
+          { "id":"t7_03", "art":"2_6_2" },
+          { "id":"t7_04", "art":"2_6_3" }
+      ]}
+    ]
+  }
+}

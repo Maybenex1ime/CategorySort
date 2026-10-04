@@ -13,6 +13,55 @@ MonoBehaviour:
   m_Name: SO_LevelCatalog
   m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.Gameplay.Content.LevelCatalog
   _entries:
+  - LevelId: Level_1
+    AddressKey: Level_1
+    DisplayName: Level 1
+    Difficulty: 0
+    Moves: 0
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_10
+    AddressKey: Level_10
+    DisplayName: Level 10
+    Difficulty: 0
+    Moves: 200
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_2
+    AddressKey: Level_2
+    DisplayName: Level 2
+    Difficulty: 0
+    Moves: 0
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_3
+    AddressKey: Level_3
+    DisplayName: Level 3
+    Difficulty: 0
+    Moves: 0
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_4
+    AddressKey: Level_4
+    DisplayName: Level 4
+    Difficulty: 0
+    Moves: 0
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_5
+    AddressKey: Level_5
+    DisplayName: Level 5
+    Difficulty: 0
+    Moves: 0
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_6
+    AddressKey: Level_6
+    DisplayName: Level 6
+    Difficulty: 0
+    Moves: 0
+    HideSettingsButton: 0
+    HideCoinBox: 0
   - LevelId: lv-001
     AddressKey: lv-001
     DisplayName: Hobbies
@@ -20,8 +69,8 @@ MonoBehaviour:
     Moves: 30
     HideSettingsButton: 0
     HideCoinBox: 0
-  - LevelId: lv-010
-    AddressKey: lv-0
+  - LevelId: lv-002
+    AddressKey: lv-002
     DisplayName: The world around me
     Difficulty: 0
     Moves: 200
@@ -31,20 +80,20 @@ MonoBehaviour:
     AddressKey: lv-008
     DisplayName: The gioi quanh ta
     Difficulty: 2
-    Moves: 200
+    Moves: 0
     HideSettingsButton: 0
     HideCoinBox: 0
   - LevelId: lv-009
     AddressKey: lv-009
-    DisplayName: The gioi quanh ta
-    Difficulty: 2
-    Moves: 200
+    DisplayName: Blocker test
+    Difficulty: 0
+    Moves: 30
     HideSettingsButton: 0
     HideCoinBox: 0
   - LevelId: lv-010
     AddressKey: lv-010
-    DisplayName: The gioi quanh ta
-    Difficulty: 2
-    Moves: 200
+    DisplayName: Blocker Box test
+    Difficulty: 0
+    Moves: 30
     HideSettingsButton: 0
     HideCoinBox: 0

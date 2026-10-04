@@ -1,0 +1,80 @@
+{
+  "id": "Level_3",
+  "title": "Level 3",
+  "note": "Chuyen tu dinh dang traits/tiles bang tools/convert-trait-levels.py.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": [null,null,"t7_03","t3_01"] },
+          { "slots": ["t4_04","t7_02","t3_04","t8_01"] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": [null,"t2_02","t4_01",null] },
+          { "slots": [null,"t7_04","t4_02","t5_02"] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": [null,null,"t5_04","t3_03"] },
+          { "slots": ["t5_03",null,"t8_02","t7_01"] }
+      ]},
+      { "pos": [1,1], "boxes": [
+          { "slots": [null,null,"t2_04","t1_02"] }
+      ]},
+      { "pos": [2,0], "boxes": [
+          { "slots": ["t1_03","t5_01",null,null] },
+          { "slots": ["t1_01","t8_04","t3_02",null] }
+      ]},
+      { "pos": [2,1], "boxes": [
+          { "slots": [null,null,"t8_03","t2_01"] },
+          { "slots": ["t4_03","t2_03",null,"t1_04"] }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"g1", "text":"Shoes", "cards": [
+          { "id":"t1_01", "art":"3_0_0" },
+          { "id":"t1_02", "art":"3_0_1" },
+          { "id":"t1_03", "art":"3_0_2" },
+          { "id":"t1_04", "art":"3_0_3" }
+      ]},
+      { "id":"g2", "text":"Kitchen Tools", "cards": [
+          { "id":"t2_01", "art":"3_1_0" },
+          { "id":"t2_02", "art":"3_1_1" },
+          { "id":"t2_03", "art":"3_1_2" },
+          { "id":"t2_04", "art":"3_1_3" }
+      ]},
+      { "id":"g3", "text":"Vegetables", "cards": [
+          { "id":"t3_01", "art":"3_2_0" },
+          { "id":"t3_02", "art":"3_2_1" },
+          { "id":"t3_03", "art":"3_2_2" },
+          { "id":"t3_04", "art":"3_2_3" }
+      ]},
+      { "id":"g4", "text":"Cars", "cards": [
+          { "id":"t4_01", "art":"3_3_0" },
+          { "id":"t4_02", "art":"3_3_1" },
+          { "id":"t4_03", "art":"3_3_2" },
+          { "id":"t4_04", "art":"3_3_3" }
+      ]},
+      { "id":"g5", "text":"Pets", "cards": [
+          { "id":"t5_01", "art":"3_4_0" },
+          { "id":"t5_02", "art":"3_4_1" },
+          { "id":"t5_03", "art":"3_4_2" },
+          { "id":"t5_04", "art":"3_4_3" }
+      ]},
+      { "id":"g7", "text":"Birds of Prey", "cards": [
+          { "id":"t7_01", "art":"3_6_0" },
+          { "id":"t7_02", "art":"3_6_1" },
+          { "id":"t7_03", "art":"3_6_2" },
+          { "id":"t7_04", "art":"3_6_3" }
+      ]},
+      { "id":"g8", "text":"Pollinators", "cards": [
+          { "id":"t8_01", "art":"3_7_0" },
+          { "id":"t8_02", "art":"3_7_1" },
+          { "id":"t8_03", "art":"3_7_2" },
+          { "id":"t8_04", "art":"3_7_3" }
+      ]}
+    ]
+  }
+}

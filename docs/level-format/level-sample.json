@@ -1,0 +1,64 @@
+{
+  "id": "level-sample",
+  "title": "Level mẫu",
+  "note": "Level minh hoạ đủ mọi field và mọi blocker. Qua được validator nhưng KHÔNG nhằm để chơi. Giải thích: docs/level-format/README.md",
+  "difficulty": "Hard",
+  "moves": 40,
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["poodle","corgi",null,"red"] },
+          { "slots": ["ball","kite",null,null] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": ["doll","blue",null,null], "blockers": { "locked": 2 } }
+      ]},
+      { "pos": [2,0], "boxes": [
+          { "slots": ["robot","tabby",null,null], "blockers": { "grouplock": "g_color" } }
+      ]},
+      { "pos": [0.5,1], "boxes": [
+          { "slots": ["persian","siamese","bengal","green"] }
+      ]},
+      { "pos": [1.5,1], "boxes": [
+          { "slots": ["husky","chihuahua","fish","yellow"] }
+      ]},
+      { "pos": [1,2], "boxes": [
+          { "slots": ["parrot",null,null,null] }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"g_dog", "text":"dog", "art":"dog", "group":"g_pet", "cards": [
+          { "id":"poodle", "text":"Poodle", "art":"poodle" },
+          { "id":"corgi", "art":"corgi", "blockers": { "fixed": true } },
+          { "id":"husky", "art":"husky" },
+          { "id":"chihuahua", "art":"chihuahua" }
+      ]},
+      { "id":"g_cat", "text":"cat", "art":"cat", "group":"g_pet", "cards": [
+          { "id":"tabby", "art":"tabby" },
+          { "id":"persian", "art":"persian", "blockers": { "ice": 2 } },
+          { "id":"siamese", "art":"siamese" },
+          { "id":"bengal", "art":"bengal" }
+      ]},
+      { "id":"g_pet", "text":"pet", "art":"pet", "cards": [
+          { "id":"fish", "art":"fish" },
+          { "id":"parrot", "art":"parrot" }
+      ]},
+      { "id":"g_color", "text":"color", "art":"color", "cards": [
+          { "id":"red", "art":"red" },
+          { "id":"blue", "art":"blue" },
+          { "id":"green", "art":"green" },
+          { "id":"yellow", "art":"yellow" }
+      ]},
+      { "id":"g_toy", "text":"toy", "cards": [
+          { "id":"ball", "art":"ball" },
+          { "id":"kite", "art":"kite" },
+          { "id":"doll", "art":"doll" },
+          { "id":"robot", "text":"Robot" }
+      ]}
+    ]
+  }
+}

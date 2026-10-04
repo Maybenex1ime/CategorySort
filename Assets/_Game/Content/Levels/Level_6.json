@@ -1,0 +1,78 @@
+{
+  "id": "Level_6",
+  "title": "Level 6",
+  "note": "Chuyen tu dinh dang traits/tiles bang tools/convert-trait-levels.py.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["t1_01","t6_01","t5_02",null] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["t5_04","t7_03","t4_03","t1_02"] },
+          { "slots": ["t6_03","t3_01","t7_04","t2_04"] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": [null,"t6_04","t5_01","t8_02"] }
+      ]},
+      { "pos": [1,1], "boxes": [
+          { "slots": [null,"t3_03","t7_01","t8_03"] }
+      ]},
+      { "pos": [2,0], "boxes": [
+          { "slots": [null,"t3_04","t4_04","t1_03"] }
+      ]},
+      { "pos": [2,1], "boxes": [
+          { "slots": ["t6_02","t5_03","t1_04",null] },
+          { "slots": ["t4_02","t3_02","t7_02","t8_04"] }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"g1", "text":"Greek Gods", "art":"6_1_0", "group":"g2", "cards": [
+          { "id":"t1_01", "art":"6_0_0" },
+          { "id":"t1_02", "art":"6_0_1" },
+          { "id":"t1_03", "art":"6_0_2" },
+          { "id":"t1_04", "art":"6_0_3" }
+      ]},
+      { "id":"g2", "text":"Ancient Buildings", "cards": [
+          { "id":"t2_04", "art":"6_1_3" }
+      ]},
+      { "id":"g3", "text":"Egypt", "art":"6_1_2", "group":"g2", "cards": [
+          { "id":"t3_01", "art":"6_2_0" },
+          { "id":"t3_02", "art":"6_2_1" },
+          { "id":"t3_03", "art":"6_2_2" },
+          { "id":"t3_04", "art":"6_2_3" }
+      ]},
+      { "id":"g4", "text":"Ancient Rome", "art":"6_1_1", "group":"g2", "cards": [
+          { "id":"t4_02", "art":"6_3_1" },
+          { "id":"t4_03", "art":"6_3_2" },
+          { "id":"t4_04", "art":"6_3_3" }
+      ]},
+      { "id":"g5", "text":"Armor", "art":"6_3_0", "group":"g4", "cards": [
+          { "id":"t5_01", "art":"6_4_0" },
+          { "id":"t5_02", "art":"6_4_1" },
+          { "id":"t5_03", "art":"6_4_2" },
+          { "id":"t5_04", "art":"6_4_3" }
+      ]},
+      { "id":"g6", "text":"Horses", "art":"6_7_0", "group":"g8", "cards": [
+          { "id":"t6_01", "art":"6_5_0" },
+          { "id":"t6_02", "art":"6_5_1" },
+          { "id":"t6_03", "art":"6_5_2" },
+          { "id":"t6_04", "art":"6_5_3" }
+      ]},
+      { "id":"g7", "text":"Cattles", "cards": [
+          { "id":"t7_01", "art":"6_6_0" },
+          { "id":"t7_02", "art":"6_6_1" },
+          { "id":"t7_03", "art":"6_6_2" },
+          { "id":"t7_04", "art":"6_6_3" }
+      ]},
+      { "id":"g8", "text":"Luck", "cards": [
+          { "id":"t8_02", "art":"6_7_1" },
+          { "id":"t8_03", "art":"6_7_2" },
+          { "id":"t8_04", "art":"6_7_3" }
+      ]}
+    ]
+  }
+}

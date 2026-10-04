@@ -1,0 +1,83 @@
+{
+  "id": "Level_4",
+  "title": "Level 4",
+  "note": "Chuyen tu dinh dang traits/tiles bang tools/convert-trait-levels.py.",
+
+  "layout": {
+    "stacks": [
+      { "pos": [0,0], "boxes": [
+          { "slots": ["t5_02",null,"t4_04","t1_02"] }
+      ]},
+      { "pos": [0,1], "boxes": [
+          { "slots": ["t8_01",null,"t4_01","t2_02"] }
+      ]},
+      { "pos": [0,2], "boxes": [
+          { "slots": ["t1_03",null,"t5_03","t2_03"] }
+      ]},
+      { "pos": [1,0], "boxes": [
+          { "slots": [null,"t3_02","t8_04","t5_04"] }
+      ]},
+      { "pos": [1,1], "boxes": [
+          { "slots": ["t4_03","t3_03",null,"t1_04"] }
+      ]},
+      { "pos": [1,2], "boxes": [
+          { "slots": ["t2_01","t3_04","t7_02",null] }
+      ]},
+      { "pos": [2,0], "boxes": [
+          { "slots": [null,"t1_01","t4_02","t8_03"] }
+      ]},
+      { "pos": [2,1], "boxes": [
+          { "slots": [null,"t7_01","t8_02","t5_01"] }
+      ]},
+      { "pos": [2,2], "boxes": [
+          { "slots": ["t7_04","t3_01",null,"t2_04"] }
+      ]}
+    ]
+  },
+
+  "meaning": {
+    "groups": [
+      { "id":"g1", "text":"Sports", "cards": [
+          { "id":"t1_01", "art":"4_0_0" },
+          { "id":"t1_02", "art":"4_0_1" },
+          { "id":"t1_03", "art":"4_0_2" },
+          { "id":"t1_04", "art":"4_0_3" }
+      ]},
+      { "id":"g2", "text":"Planets", "cards": [
+          { "id":"t2_01", "art":"4_1_0" },
+          { "id":"t2_02", "art":"4_1_1" },
+          { "id":"t2_03", "art":"4_1_2" },
+          { "id":"t2_04", "art":"4_1_3" }
+      ]},
+      { "id":"g3", "text":"Water Sports", "art":"4_6_2", "group":"g7", "cards": [
+          { "id":"t3_01", "art":"4_2_0" },
+          { "id":"t3_02", "art":"4_2_1" },
+          { "id":"t3_03", "art":"4_2_2" },
+          { "id":"t3_04", "art":"4_2_3" }
+      ]},
+      { "id":"g4", "text":"Camping", "cards": [
+          { "id":"t4_01", "art":"4_3_0" },
+          { "id":"t4_02", "art":"4_3_1" },
+          { "id":"t4_03", "art":"4_3_2" },
+          { "id":"t4_04", "art":"4_3_3" }
+      ]},
+      { "id":"g5", "text":"Scouts", "cards": [
+          { "id":"t5_01", "art":"4_4_0" },
+          { "id":"t5_02", "art":"4_4_1" },
+          { "id":"t5_03", "art":"4_4_2" },
+          { "id":"t5_04", "art":"4_4_3" }
+      ]},
+      { "id":"g7", "text":"Athletes", "cards": [
+          { "id":"t7_01", "art":"4_6_0" },
+          { "id":"t7_02", "art":"4_6_1" },
+          { "id":"t7_04", "art":"4_6_3" }
+      ]},
+      { "id":"g8", "text":"Fire", "cards": [
+          { "id":"t8_01", "art":"4_7_0" },
+          { "id":"t8_02", "art":"4_7_1" },
+          { "id":"t8_03", "art":"4_7_2" },
+          { "id":"t8_04", "art":"4_7_3" }
+      ]}
+    ]
+  }
+}

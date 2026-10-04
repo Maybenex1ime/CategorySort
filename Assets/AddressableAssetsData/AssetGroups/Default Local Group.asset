@@ -15,8 +15,23 @@ MonoBehaviour:
   m_GroupName: Default Local Group
   m_GUID: bf0a47c2d3ae701408ac12a11f369e7e
   m_SerializeEntries:
+  - m_GUID: 62e9412a35994698bebc85c4dca56efa
+    m_Address: Level_10
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 065534f68cf5c2049849187532f5cc36
+    m_Address: Level_2
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 07a340d7d4107544693db7abf9307cff
     m_Address: NoHeartsPopup
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 0f1fcac8cbd814b4bb7c5ed92ed97e7f
+    m_Address: Level_5
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -35,13 +50,38 @@ MonoBehaviour:
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 52ab00dc388120345af3560f9467d57a
+    m_Address: Level_3
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 5ce2c22845d64d81a872fc988b4ca938
+    m_Address: lv-010
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 74359281f9a304c0696cf8316ce4da52
     m_Address: BoosterPurchasePopup
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7d2c9e4a1f5b84e4c8a2d6b3e9f01a47
+    m_Address: lv-008
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 7e21bdd96ff4bb24481ff7fb1b446d79
+    m_Address: Level_1
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 86c1f004f62489f4a97d677763e98402
     m_Address: lv-002
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: 94179fd5969d9d14c9b7fe0b0c85036b
+    m_Address: Level_4
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
@@ -57,6 +97,16 @@ MonoBehaviour:
     FlaggedDuringContentUpdateRestriction: 0
   - m_GUID: 9f6072992646d42cebef96b1392294c5
     m_Address: MainMenuScreen
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: af3f9da9e92c772409fb87d41fb07287
+    m_Address: Level_6
+    m_ReadOnly: 0
+    m_SerializedLabels: []
+    FlaggedDuringContentUpdateRestriction: 0
+  - m_GUID: b76ed4280c0846bebf1a9c34af05e372
+    m_Address: lv-009
     m_ReadOnly: 0
     m_SerializedLabels: []
     FlaggedDuringContentUpdateRestriction: 0
