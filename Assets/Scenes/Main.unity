@@ -437,7 +437,9 @@ MonoBehaviour:
   ghostPrefab: {fileID: 7371472208493756918, guid: 1a8653ac5cf502f469803b39a6364ee4, type: 3}
   animSettings: {fileID: 11400000, guid: 226ee7bdb0844b2aafc095127171a1d5, type: 2}
   boosterBackdrop: {fileID: 0}
-  autoDebugBlockers: 1
+  backdropFadeIn: {fileID: 0}
+  backdropFadeOut: {fileID: 0}
+  autoDebugBlockers: 0
   flyDur: 0.16
   clearDur: 0.26
   clearStagger: 0.04
@@ -450,6 +452,12 @@ MonoBehaviour:
   mergeHold: 0.07
   mergeBloom: 0.3
   mergeSpin: 140
+  revealHolderDrop: 0.4
+  revealHolderDur: 0.3
+  revealTileDur: 0.32
+  revealTileStagger: 0.06
+  revealJump: 0.35
+  revealHolderFadeIn: 0.15
   drawZones: 1
 --- !u!4 &1107977327
 Transform:
@@ -955,19 +963,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 1437442845518685254, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1437442845518685254, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1437442845518685254, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 540
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1437442845518685254, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -100
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 1580586095094840397, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_Colors.m_DisabledColor.a
@@ -995,19 +1003,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 3062049934375910269, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3062049934375910269, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3062049934375910269, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 250.96666
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3062049934375910269, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -100
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 3386655873428242268, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_Pivot.x
@@ -1135,19 +1143,19 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 5236689825817473798, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchorMax.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5236689825817473798, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchorMin.y
-      value: 1
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5236689825817473798, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchoredPosition.x
-      value: 829.0333
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5236689825817473798, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -100
+      value: 0
       objectReference: {fileID: 0}
     - target: {fileID: 5291099633957980350, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_Colors.m_DisabledColor.a
