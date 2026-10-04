@@ -213,6 +213,9 @@ namespace WordStack.Board
             SetFixed(false);
         }
 
+        /// <summary>Bề ngang world của nền thẻ — RevealBox so với tile nhỏ để biết bắt đầu từ cỡ nào.</summary>
+        public float Width { get { return bg.bounds.size.x; } }
+
         public void SetFlying(bool flying)
         {
             bg.sortingOrder = flying ? FlyOrder : bgOrder;

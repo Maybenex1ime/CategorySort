@@ -105,6 +105,14 @@ namespace WordStack.Board
         [SerializeField] float mergeBloom = 0.30f;     // thẻ mới nở ra mất bao lâu
         [SerializeField] float mergeSpin = 140f;       // thẻ mới xoay bao nhiêu độ lúc nở (0 = tắt)
 
+        [Header("Lộ hộp mới (Tile Holder)")]
+        [SerializeField] float revealHolderDrop = 0.4f;    // Tile Holder tách ra trượt xuống bao nhiêu unit (world) trong lúc mờ
+        [SerializeField] float revealHolderDur = 0.3f;
+        [SerializeField] float revealTileDur = 0.32f;      // mỗi thẻ to lên + nhảy vào ô mất bao lâu
+        [SerializeField] float revealTileStagger = 0.06f;  // thẻ sau nhảy trễ thẻ trước bấy nhiêu — "lần lượt"
+        [SerializeField] float revealJump = 0.35f;         // đỉnh vòng cung khi nhảy (unit world, 0 = bay thẳng)
+        [SerializeField] float revealHolderFadeIn = 0.15f; // holder của hộp kế tiếp hiện lại sau khi holder cũ đi hết
+
 
         Game g;
         // Nội dung màn hiện tại — do BoardInitializer (DI, Meta) đưa qua LevelCommands
@@ -615,7 +623,8 @@ namespace WordStack.Board
         // Undo chỉ lùi nước KHÔNG nổ nhóm (SettleStep vứt ảnh chụp khi CLEAR), nên diff giữa
         // bàn cũ (prev, view đang hiện) và bàn khôi phục (g) chỉ có hai thứ: đúng một thẻ
         // đổi ô, và có thể một hộp từng lùi ra nay đứng lại. Diễn theo thứ tự đó: hộp cũ
-        // trượt từ trên xuống + hiện dần đè lên hộp vừa lộ, thẻ trong nó nở ra, rồi thẻ
+        // trượt từ trên xuống + hiện dần đè lên hộp vừa lộ (cùng lúc Tile Holder trồi lên lại
+        // chỗ cũ — tua ngược RevealBox, thẻ không bay về holder), thẻ trong nó nở ra, rồi thẻ
         // vừa kéo bay ngược về ô cũ. Xong Rebuild để view khớp g tuyệt đối.
         IEnumerator UndoAnimation(Game prev)
         {
@@ -659,6 +668,10 @@ namespace WordStack.Board
                 // Không SetEase ở bản cũ → OutQuad (ease mặc định trong config cũ).
                 slide.Insert(0f, LMotion.Create(0f, 1f, a.undoBoxSlideDur)
                                         .WithEase(Ease.OutQuad).WithCancelOnError().Bind(bv, (v, b) => b.SetAlpha(v)));
+                // Tile Holder (đã mang tile nhỏ của hộp vừa bị đè) trồi lên lại — tua ngược cú tụt lúc lộ hộp.
+                var holder = stackViews[s].NextHolder;
+                if (holder != null && holder.gameObject.activeInHierarchy)
+                    slide.Insert(0f, HolderDrop(holder, 1f, 0f, Ease.InCubic));
                 running.RemoveAll(mh => !mh.IsActive());
                 var slideH = slide.Run(SeqCfg).AddTo(bv.gameObject);
                 running.Add(slideH);
@@ -1299,7 +1312,7 @@ namespace WordStack.Board
                 if (ev.BoxRemoved)
                 {
                     yield return LiftAwayBox(ev.Stack);
-                    RevealBox(ev.Stack);
+                    yield return RevealBox(ev.Stack);
                 }
 
                 RefreshZones();
@@ -1502,12 +1515,102 @@ namespace WordStack.Board
         // ------------------------------------------------- thao tác tăng dần
         // Thay cho Rebuild() của bản runtime: mỗi cái đụng đúng phần đã đổi.
 
-        void RevealBox(int s)
+        // Tile Holder tụt + mờ: k = 0 đứng đúng chỗ hiện tại, hiện đủ; k = 1 tụt xuống revealHolderDrop, mờ hẳn.
+        // Lộ hộp chạy 0 → 1 OutCubic; Undo chạy 1 → 0 InCubic — đúng đoạn phim cũ tua ngược.
+        // Đặt giá trị đầu ngay để không nháy một frame trước khi sequence chạy.
+        MotionHandle HolderDrop(Transform holder, float from, float to, Ease ease)
         {
+            var srs = holder.GetComponentsInChildren<SpriteRenderer>();
+            var a0 = srs.Select(r => r.color.a).ToArray();
+            var p0 = holder.position;
+            Action<float> set = k =>
+            {
+                holder.position = p0 + Vector3.down * (revealHolderDrop * k);
+                for (int i = 0; i < srs.Length; i++) { var c = srs[i].color; c.a = a0[i] * (1f - k); srs[i].color = c; }
+            };
+            set(from);
+            return LMotion.Create(from, to, revealHolderDur).WithEase(ease).WithCancelOnError().Bind(set);
+        }
+
+        // Hộp dưới lộ lên. Tile Holder của Peek1 đang mang tile nhỏ của chính hộp này: một bản sao
+        // tách ra trượt xuống + mờ đi, còn thẻ thật dựng sẵn ngay chỗ tile nhỏ, cỡ tile nhỏ, rồi lần
+        // lượt to lên bằng thẻ thật và nhảy vòng cung vào ô. Holder thật đã mang tile nhỏ của hộp kế
+        // tiếp (ShowDepth) nên ẩn đi, chờ bản sao đi hết mới hiện lại.
+        IEnumerator RevealBox(int s)
+        {
+            var sv = stackViews[s];
+            var holder = sv.NextHolder;
+            // Chụp tile nhỏ TRƯỚC ShowDepth — nó bật/tắt marker theo hộp kế tiếp. Trái → phải.
+            var minis = holder != null && holder.gameObject.activeInHierarchy
+                ? sv.NextTileMarkers.Where(m => m != null && m.activeInHierarchy)
+                    .Select(m => m.GetComponent<SpriteRenderer>()).OrderBy(r => r.transform.position.x)
+                    .Select(r => (pos: r.transform.position, width: r.bounds.size.x)).ToList()
+                : new List<(Vector3 pos, float width)>();
+
+            GameObject leaving = null;
+            if (minis.Count > 0)
+            {
+                // ponytail: scale đều — holder/stack không scale lệch trục.
+                leaving = Instantiate(holder.gameObject, sv.transform);
+                leaving.transform.SetPositionAndRotation(holder.position, holder.rotation);
+                leaving.transform.localScale = holder.lossyScale / sv.transform.lossyScale.x;
+                foreach (Transform c in leaving.transform) c.gameObject.SetActive(false);   // tile nhỏ đã thành thẻ thật
+            }
+
             boxViews[s].ResetVisual();
-            stackViews[s].ShowDepth(g.Stacks[s].Boxes.Count - 1, TilesInSecondBox(g.Stacks[s]));
+            sv.ShowDepth(g.Stacks[s].Boxes.Count - 1, TilesInSecondBox(g.Stacks[s]));
             SpawnTiles(s);                                 // thẻ của hộp vừa lộ
             RefreshBlockerVisuals();                       // hộp vừa lộ có thể đang khoá
+            if (leaving == null) yield break;
+
+            var seq = LSequence.Create();
+
+            seq.Insert(0f, HolderDrop(leaving.transform, 0f, 1f, Ease.OutCubic));
+
+            // Holder thật (đã mang tile nhỏ của hộp kế tiếp) — Peek1 tắt thì khỏi diễn.
+            if (holder.gameObject.activeInHierarchy)
+            {
+                var srs = holder.GetComponentsInChildren<SpriteRenderer>();
+                var a0 = srs.Select(r => r.color.a).ToArray();
+                Action<float> setA = k => { for (int i = 0; i < srs.Length; i++) { var c = srs[i].color; c.a = a0[i] * k; srs[i].color = c; } };
+                setA(0f);
+                seq.Insert(revealHolderDur, LMotion.Create(0f, 1f, Mathf.Max(revealHolderFadeIn, 0.01f)).WithCancelOnError().Bind(setA));
+            }
+
+            // Ghép tile nhỏ ↔ thẻ thật theo thứ tự trái → phải. Lệch số (không nên có) thì thẻ dư nằm yên trong ô.
+            var box = g.TopBox(s);
+            var landing = box.Slots.Where(t => t != null && tiles.ContainsKey(t.Uid)).Select(t => tiles[t.Uid])
+                             .OrderBy(tv => tv.transform.position.x).ToList();
+            int n = Mathf.Min(minis.Count, landing.Count);
+            for (int i = 0; i < n; i++)
+            {
+                var tv = landing[i];
+                var tr = tv.transform;
+                var to = tr.position;
+                var from = minis[i].pos;
+                var s1 = tr.localScale;
+                var s0 = s1 * (minis[i].width / Mathf.Max(tv.Width, 0.0001f));
+                tr.position = from;
+                tr.localScale = s0;
+                tv.SetFlying(true);                         // bay qua mép hộp thì nổi trên hộp
+                float at = i * revealTileStagger;
+                seq.Insert(at, LMotion.Create(0f, 1f, revealTileDur).WithEase(Ease.OutQuad).WithCancelOnError()
+                                      .Bind(k =>
+                                      {
+                                          var p = Vector3.LerpUnclamped(from, to, k);
+                                          p.y += revealJump * Mathf.Sin(k * Mathf.PI);
+                                          tr.position = p;
+                                      }));
+                seq.Insert(at, LMotion.Create(s0, s1, revealTileDur).WithEase(Ease.OutBack).WithCancelOnError().BindToLocalScale(tr));
+            }
+
+            running.RemoveAll(mh => !mh.IsActive());
+            var h = seq.Run(SeqCfg).AddTo(this);
+            running.Add(h);
+            yield return h.ToYieldInstruction();
+
+            for (int i = 0; i < n; i++) if (landing[i] != null) landing[i].SetFlying(false);
+            if (leaving != null) Destroy(leaving);
         }
 
         void SpawnTiles(int s)

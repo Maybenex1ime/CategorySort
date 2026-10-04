@@ -11,8 +11,20 @@ namespace WordStack.Board
         [SerializeField] GameObject[] peekLayers = new GameObject[4];
         // Tile nhỏ ở mép Under Tray trên cùng — báo hộp ngay dưới đang chứa mấy thẻ.
         [SerializeField] GameObject[] nextTileMarkers = new GameObject[4];
+        [Tooltip("Tile Holder mang các tile nhỏ ở trên — lộ hộp mới thì nó tách ra trượt xuống (BoardController.RevealBox). Trống = Peek1/TileMarkerHolder")]
+        [SerializeField] Transform nextHolder;
 
         public Transform BoxAnchor { get { return boxAnchor; } }
+        public GameObject[] NextTileMarkers { get { return nextTileMarkers; } }
+        public Transform NextHolder
+        {
+            get
+            {
+                if (nextHolder == null && peekLayers.Length > 0 && peekLayers[0] != null)
+                    nextHolder = peekLayers[0].transform.Find("TileMarkerHolder");
+                return nextHolder;
+            }
+        }
 
         public void ShowDepth(int hidden, int tilesInNext)
         {
