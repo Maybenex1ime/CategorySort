@@ -21,8 +21,15 @@ namespace LogosSDK.Audio
         {
             if (_autoPlay != AutoPlay.OnEnable) return;
             // Lần bật đầu tiên chạy trước khi Reflex inject (scene load / Instantiate) → dời sang Start.
-            if (_audio != null) Play();
-            else _playOnStart = true;
+            if (_audio != null)
+            {
+                _playOnStart = false;
+                Play();
+            }
+            else
+            {
+                _playOnStart = true;
+            }
         }
 
         private void Start()
