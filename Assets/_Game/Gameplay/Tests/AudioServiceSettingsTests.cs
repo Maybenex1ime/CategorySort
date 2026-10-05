@@ -84,6 +84,17 @@ namespace WordStack.Meta.Tests
             var audio = new AudioService(_catalog, new FakeSave(new SettingsData { SoundVolume = 0f }));
 
             Assert.That(audio.PlaySFX("ui_button_click"), Is.EqualTo(0UL));
+            Assert.That(GameObject.Find("AudioRoot"), Is.Null);
+        }
+
+        [Test]
+        public void PlayMusic_MusicTat_KhongTaoAudioRoot()
+        {
+            var audio = new AudioService(_catalog, new FakeSave(new SettingsData { MusicVolume = 0f }));
+
+            audio.PlayMusic("bgm_main");
+
+            Assert.That(GameObject.Find("AudioRoot"), Is.Null);
         }
 
         // Load trả đúng instance Data nên AudioService sửa thẳng vào nó.
