@@ -2,6 +2,11 @@ namespace LogosSDK.Audio
 {
     public interface IAudioService
     {
+        // Sound (SFX) và Music bật/tắt riêng. IsMuted = cả hai tắt; SetMuted bật/tắt cả hai.
+        bool IsSoundEnabled { get; }
+        bool IsMusicEnabled { get; }
+        void SetSoundEnabled(bool enabled);
+        void SetMusicEnabled(bool enabled);
         bool IsMuted { get; }
         void SetMuted(bool muted);
 

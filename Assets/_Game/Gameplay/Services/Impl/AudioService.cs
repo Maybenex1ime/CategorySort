@@ -41,7 +41,8 @@ namespace LogosGame.Features.Gameplay.Services.Impl
         private float _sfxVolume = 1f;
         private float _musicVolume = 1f;
         private string _currentMusicId;
-        private bool _isMuted;
+        private bool _soundEnabled = true;
+        private bool _musicEnabled = true;
         private bool _disposed;
 
         public AudioService(AudioCatalog catalog, ISaveManager saveManager)
@@ -49,38 +50,45 @@ namespace LogosGame.Features.Gameplay.Services.Impl
             _catalog = catalog;
             _saveManager = saveManager;
             IndexCatalog();
-            LoadMutedFromSettings();
+            LoadSettings();
         }
 
-        public bool IsMuted => _isMuted;
+        public bool IsSoundEnabled => _soundEnabled;
+        public bool IsMusicEnabled => _musicEnabled;
+        public bool IsMuted => !_soundEnabled && !_musicEnabled;
 
         public void SetMuted(bool muted)
         {
-            if (_isMuted == muted) return;
-            _isMuted = muted;
+            SetSoundEnabled(!muted);
+            SetMusicEnabled(!muted);
+        }
 
-            if (_isMuted)
+        public void SetSoundEnabled(bool enabled)
+        {
+            if (_soundEnabled == enabled) return;
+            _soundEnabled = enabled;
+            if (!enabled) StopAllSFX();
+            PersistSettings();
+        }
+
+        public void SetMusicEnabled(bool enabled)
+        {
+            if (_musicEnabled == enabled) return;
+            _musicEnabled = enabled;
+            if (!enabled)
             {
                 if (_musicSource != null) _musicSource.Stop();
             }
             else if (!string.IsNullOrEmpty(_currentMusicId))
             {
-                EnsureRoot();
-                var clip = LoadClip(_currentMusicId, _musicRefs);
-                if (clip != null)
-                {
-                    _musicSource.clip = clip;
-                    _musicSource.volume = _musicVolume;
-                    _musicSource.Play();
-                }
+                StartMusic(_currentMusicId);
             }
-
-            PersistMuted();
+            PersistSettings();
         }
 
         public ulong PlaySFX(string clipId, bool loop = false)
         {
-            if (_disposed || _isMuted || string.IsNullOrEmpty(clipId)) return 0;
+            if (_disposed || !_soundEnabled || string.IsNullOrEmpty(clipId)) return 0;
             EnsureRoot();
             var clip = LoadClip(clipId, _sfxRefs);
             if (clip == null) return 0;
@@ -132,10 +140,15 @@ namespace LogosGame.Features.Gameplay.Services.Impl
         {
             if (_disposed || string.IsNullOrEmpty(clipId)) return;
             bool sameAsCurrent = string.Equals(_currentMusicId, clipId, StringComparison.Ordinal);
-            // Remember the request so we can resume on unmute, even if currently muted.
+            // Nhớ bài được yêu cầu để bật Music lại thì phát tiếp, kể cả khi đang tắt.
             _currentMusicId = clipId;
-            if (_isMuted) return;
+            if (!_musicEnabled) return;
             if (sameAsCurrent && _musicSource != null && _musicSource.isPlaying) return;
+            StartMusic(clipId);
+        }
+
+        private void StartMusic(string clipId)
+        {
             EnsureRoot();
             var clip = LoadClip(clipId, _musicRefs);
             if (clip == null) return;
@@ -151,30 +164,31 @@ namespace LogosGame.Features.Gameplay.Services.Impl
             _musicSource.Stop();
         }
 
-        private void LoadMutedFromSettings()
+        private void LoadSettings()
         {
             if (_saveManager == null) return;
             try
             {
                 var settings = _saveManager.Load<SettingsData>();
                 if (settings == null) return;
-                // Treat both volumes <= 0 as "muted" for backward compatibility.
-                _isMuted = settings.SoundVolume <= 0f && settings.MusicVolume <= 0f;
+                // Save cũ (mute chung) ghi cả hai = 0 → đọc ra tắt cả hai, tương thích ngược.
+                _soundEnabled = settings.SoundVolume > 0f;
+                _musicEnabled = settings.MusicVolume > 0f;
             }
             catch (Exception ex)
             {
-                Logger.Warn("Failed to load audio mute setting: " + ex.Message);
+                Logger.Warn("Failed to load audio settings: " + ex.Message);
             }
         }
 
-        private void PersistMuted()
+        private void PersistSettings()
         {
             if (_saveManager == null) return;
             try
             {
                 var settings = _saveManager.Load<SettingsData>() ?? new SettingsData();
-                settings.SoundVolume = _isMuted ? 0f : 1f;
-                settings.MusicVolume = _isMuted ? 0f : 1f;
+                settings.SoundVolume = _soundEnabled ? 1f : 0f;
+                settings.MusicVolume = _musicEnabled ? 1f : 0f;
                 _saveManager.Save(settings);
                 // Save() only marks dirty; force a flush so toggles survive app quit.
                 _saveManager.SaveAll();
@@ -182,7 +196,7 @@ namespace LogosGame.Features.Gameplay.Services.Impl
             }
             catch (Exception ex)
             {
-                Logger.Warn("Failed to persist audio mute setting: " + ex.Message);
+                Logger.Warn("Failed to persist audio settings: " + ex.Message);
             }
         }
 
