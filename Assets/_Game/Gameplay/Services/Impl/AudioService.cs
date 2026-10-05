@@ -214,6 +214,8 @@ namespace LogosGame.Features.Gameplay.Services.Impl
                 Object.Destroy(_root);
                 _root = null;
             }
+            _sfxSources = null;
+            _musicSource = null;
         }
 
         private void IndexCatalog()
