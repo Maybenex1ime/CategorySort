@@ -34,7 +34,10 @@ namespace LogosGame.Features.Gameplay.Services.Impl
         private GameObject _root;
         private AudioSource[] _sfxSources;
         private AudioSource _musicSource;
-        private int _sfxRoundRobin;
+        private bool[] _sfxBusy;
+        private ulong[] _sfxPlayOrder;   // handle của lượt phát đang giữ source; 0 = chưa phát
+        private string[] _sfxClipIds;
+        private ulong _nextHandle = 1;
         private float _sfxVolume = 1f;
         private float _musicVolume = 1f;
         private string _currentMusicId;
@@ -75,15 +78,54 @@ namespace LogosGame.Features.Gameplay.Services.Impl
             PersistMuted();
         }
 
-        public void PlaySFX(string clipId)
+        public ulong PlaySFX(string clipId, bool loop = false)
         {
-            if (_disposed || _isMuted || string.IsNullOrEmpty(clipId)) return;
+            if (_disposed || _isMuted || string.IsNullOrEmpty(clipId)) return 0;
             EnsureRoot();
             var clip = LoadClip(clipId, _sfxRefs);
-            if (clip == null) return;
-            var src = _sfxSources[_sfxRoundRobin];
-            _sfxRoundRobin = (_sfxRoundRobin + 1) % SfxSourceCount;
-            src.PlayOneShot(clip, _sfxVolume);
+            if (clip == null) return 0;
+
+            for (int i = 0; i < SfxSourceCount; i++) _sfxBusy[i] = _sfxSources[i].isPlaying;
+            int idx = SfxVoicePicker.Pick(_sfxBusy, _sfxPlayOrder);
+
+            var src = _sfxSources[idx];
+            src.Stop();
+            src.clip = clip;
+            src.loop = loop;
+            src.volume = _sfxVolume;
+            src.Play();
+
+            ulong handle = _nextHandle++;
+            _sfxPlayOrder[idx] = handle;
+            _sfxClipIds[idx] = clipId;
+            return handle;
+        }
+
+        public bool StopSFX(ulong handle)
+        {
+            if (handle == 0 || _sfxSources == null) return false;
+            for (int i = 0; i < SfxSourceCount; i++)
+            {
+                if (_sfxPlayOrder[i] != handle || !_sfxSources[i].isPlaying) continue;
+                _sfxSources[i].Stop();
+                return true;
+            }
+            return false;
+        }
+
+        public void StopSFX(string clipId)
+        {
+            if (string.IsNullOrEmpty(clipId) || _sfxSources == null) return;
+            for (int i = 0; i < SfxSourceCount; i++)
+            {
+                if (string.Equals(_sfxClipIds[i], clipId, StringComparison.Ordinal)) _sfxSources[i].Stop();
+            }
+        }
+
+        public void StopAllSFX()
+        {
+            if (_sfxSources == null) return;
+            for (int i = 0; i < SfxSourceCount; i++) _sfxSources[i].Stop();
         }
 
         public void PlayMusic(string clipId)
@@ -201,10 +243,14 @@ namespace LogosGame.Features.Gameplay.Services.Impl
             _root = new GameObject("AudioRoot");
             Object.DontDestroyOnLoad(_root);
             _sfxSources = new AudioSource[SfxSourceCount];
+            _sfxBusy = new bool[SfxSourceCount];
+            _sfxPlayOrder = new ulong[SfxSourceCount];
+            _sfxClipIds = new string[SfxSourceCount];
             for (int i = 0; i < SfxSourceCount; i++)
             {
                 var s = _root.AddComponent<AudioSource>();
                 s.playOnAwake = false;
+                s.loop = false;
                 s.volume = _sfxVolume;
                 _sfxSources[i] = s;
             }
