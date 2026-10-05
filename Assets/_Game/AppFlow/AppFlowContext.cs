@@ -383,9 +383,11 @@ namespace WordStack.Meta.AppFlow
 
             SettingsPopupArgs args = new SettingsPopupArgs
             {
-                InitialMusicEnabled = !_audioService.IsMuted,
+                InitialMusicEnabled = _audioService.IsMusicEnabled,
+                InitialSoundEnabled = _audioService.IsSoundEnabled,
                 InitialHapticEnabled = _hapticService.IsEnabled,
-                OnMusicSelected = ToggleAudioMute,
+                OnMusicSelected = ToggleMusic,
+                OnSoundSelected = ToggleSound,
                 OnHapticSelected = ToggleHaptic,
             };
 
@@ -604,9 +606,11 @@ namespace WordStack.Meta.AppFlow
 
             PausePopupArgs args = new PausePopupArgs
             {
-                InitialMusicEnabled = !_audioService.IsMuted,
+                InitialMusicEnabled = _audioService.IsMusicEnabled,
+                InitialSoundEnabled = _audioService.IsSoundEnabled,
                 InitialHapticEnabled = _hapticService.IsEnabled,
-                OnMusicSelected = ToggleAudioMute,
+                OnMusicSelected = ToggleMusic,
+                OnSoundSelected = ToggleSound,
                 OnHapticSelected = ToggleHaptic,
                 OnClose = () => LevelCommands.SetInputBlocked(false),
                 OnResumeSelected = () => LevelCommands.SetInputBlocked(false),
@@ -631,10 +635,9 @@ namespace WordStack.Meta.AppFlow
             await _uiManager.ShowPopupImmediate<PausePopup, PausePopupArgs>(args);
         }
 
-        private void ToggleAudioMute()
-        {
-            _audioService.SetMuted(!_audioService.IsMuted);
-        }
+        private void ToggleMusic() => _audioService.SetMusicEnabled(!_audioService.IsMusicEnabled);
+
+        private void ToggleSound() => _audioService.SetSoundEnabled(!_audioService.IsSoundEnabled);
 
         private void ToggleHaptic()
         {
