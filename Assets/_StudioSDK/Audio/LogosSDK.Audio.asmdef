@@ -2,7 +2,8 @@
     "name": "LogosSDK.Audio",
     "rootNamespace": "LogosSDK.Audio",
     "references": [
-        "LogosSDK.Core"
+        "LogosSDK.Core",
+        "Reflex"
     ],
     "includePlatforms": [],
     "excludePlatforms": [],
