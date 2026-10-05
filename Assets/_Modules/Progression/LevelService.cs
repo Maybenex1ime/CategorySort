@@ -9,8 +9,8 @@ namespace LogosMeta.Progression
     /// <see cref="LevelProgressData.CurrentLevel"/> from <see cref="ISaveManager"/>
     /// and looking it up in the <see cref="ILevelCatalog"/>.
     ///
-    /// Clamps the index so play never hard-crashes when CurrentLevel
-    /// exceeds the catalog length (e.g. during rapid iteration / QA).
+    /// Past the last level the catalog maps the index back into its loop
+    /// (<see cref="ILevelCatalog.ToCatalogIndex"/>), so play never runs out of levels.
     /// </summary>
     public class LevelService : ILevelService
     {
@@ -59,13 +59,12 @@ namespace LogosMeta.Progression
             }
 
             int index = GetCurrentIndex();
-            int last = _catalog.Count - 1;
-            int clamped = index < _catalog.Count ? index : last;
+            int looped = _catalog.ToCatalogIndex(index);
 
-            if (Logger.IsDebugEnabled && clamped != index)
-                Logger.Debug($"[LevelService] CurrentLevel={index} clamped → {clamped} (catalog has {_catalog.Count} entries)");
+            if (Logger.IsDebugEnabled && looped != index)
+                Logger.Debug($"[LevelService] CurrentLevel={index} looped → {looped} (catalog has {_catalog.Count} entries)");
 
-            return _catalog.TryGetEntry(clamped, out entry);
+            return _catalog.TryGetEntry(looped, out entry);
         }
 
         private int GetCurrentIndex()

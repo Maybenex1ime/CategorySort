@@ -244,7 +244,8 @@ namespace WordStack.Meta.AppFlow
             _logger.Info($"[AppFlow] Cheat: CurrentLevel = {progress.CurrentLevel}");
         }
 
-        // Clamp như aquapark: index vượt catalog thì lấy entry cuối, QA không crash.
+        // Cùng ánh xạ với LevelService (LevelCatalog.ToCatalogIndex) — file level và số nước / độ khó
+        // luôn là của cùng một màn, kể cả khi đã quay vòng.
         // false = chưa có catalog → bên gọi giữ nguyên mặc định của context.
         private bool TryGetLevelEntry(int index, out LevelCatalog.Entry entry)
         {
@@ -252,8 +253,7 @@ namespace WordStack.Meta.AppFlow
             if (_levelCatalog == null || _levelCatalog.Entries == null || _levelCatalog.Entries.Length == 0)
                 return false;
 
-            int count = _levelCatalog.Entries.Length;
-            entry = _levelCatalog.Entries[index < count ? (index < 0 ? 0 : index) : count - 1];
+            entry = _levelCatalog.Entries[_levelCatalog.ToCatalogIndex(index)];
             return true;
         }
 

@@ -31,6 +31,10 @@ namespace LogosGame.Features.Gameplay.Content
 
         [SerializeField] private Entry[] _entries = Array.Empty<Entry>();
 
+        [Tooltip("Chơi hết màn cuối thì quay lại từ màn này (đánh số như trong game, 1 = màn đầu). " +
+                 "Lớn hơn số màn thì lặp mỗi màn cuối.")]
+        [SerializeField, Min(1)] private int _loopFromLevel = 6;
+
         public Entry[] Entries => _entries;
 
         // ILevelCatalog — the game-agnostic slice LogosMeta.Progression consumes.
@@ -48,6 +52,18 @@ namespace LogosGame.Features.Gameplay.Content
             Entry source = _entries[index];
             entry = new LevelEntry(source.LevelId, source.AddressKey, source.DisplayName);
             return true;
+        }
+
+        public int ToCatalogIndex(int levelIndex) => ToCatalogIndex(levelIndex, Count, _loopFromLevel);
+
+        /// Màn 0..count-1 đi thẳng; từ count trở đi lặp vòng [loopFromLevel-1 .. count-1].
+        public static int ToCatalogIndex(int levelIndex, int count, int loopFromLevel)
+        {
+            if (count <= 0) return 0;
+            if (levelIndex < 0) levelIndex = 0;
+            if (levelIndex < count) return levelIndex;
+            int start = Mathf.Clamp(loopFromLevel - 1, 0, count - 1);
+            return start + (levelIndex - count) % (count - start);
         }
 
         public bool TryGetByLevelId(string levelId, out Entry entry)
