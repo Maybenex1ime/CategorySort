@@ -111,7 +111,7 @@ namespace LogosGame.Features.Gameplay.Services.Impl
 
         public bool StopSFX(ulong handle)
         {
-            if (handle == 0 || _sfxSources == null) return false;
+            if (handle == 0 || _sfxSources == null || _root == null) return false;
             for (int i = 0; i < SfxSourceCount; i++)
             {
                 if (_sfxPlayOrder[i] != handle || !_sfxSources[i].isPlaying) continue;
@@ -123,7 +123,7 @@ namespace LogosGame.Features.Gameplay.Services.Impl
 
         public void StopSFX(string clipId)
         {
-            if (string.IsNullOrEmpty(clipId) || _sfxSources == null) return;
+            if (string.IsNullOrEmpty(clipId) || _sfxSources == null || _root == null) return;
             for (int i = 0; i < SfxSourceCount; i++)
             {
                 if (string.Equals(_sfxClipIds[i], clipId, StringComparison.Ordinal)) _sfxSources[i].Stop();
@@ -132,7 +132,7 @@ namespace LogosGame.Features.Gameplay.Services.Impl
 
         public void StopAllSFX()
         {
-            if (_sfxSources == null) return;
+            if (_sfxSources == null || _root == null) return;
             for (int i = 0; i < SfxSourceCount; i++) _sfxSources[i].Stop();
         }
 
@@ -149,6 +149,7 @@ namespace LogosGame.Features.Gameplay.Services.Impl
 
         private void StartMusic(string clipId)
         {
+            if (_disposed) return;
             EnsureRoot();
             var clip = LoadClip(clipId, _musicRefs);
             if (clip == null) return;
