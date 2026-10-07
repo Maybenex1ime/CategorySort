@@ -119,6 +119,11 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
+--- !u!224 &79579813 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 9136407591666660033, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
+  m_PrefabInstance: {fileID: 1950749825}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &135489056
 GameObject:
   m_ObjectHideFlags: 0
@@ -402,6 +407,11 @@ Transform:
   m_Children: []
   m_Father: {fileID: 0}
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!224 &855302580 stripped
+RectTransform:
+  m_CorrespondingSourceObject: {fileID: 8258395723094447769, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
+  m_PrefabInstance: {fileID: 1950749825}
+  m_PrefabAsset: {fileID: 0}
 --- !u!1 &1107977325
 GameObject:
   m_ObjectHideFlags: 0
@@ -435,6 +445,12 @@ MonoBehaviour:
   boxPrefab: {fileID: 2026414635235279489, guid: 04533073cf0a2a04e87ec1e1e309885b, type: 3}
   tilePrefab: {fileID: 4861135893841585508, guid: 445cf073a5835f14ab672e87b9f37a21, type: 3}
   ghostPrefab: {fileID: 7371472208493756918, guid: 1a8653ac5cf502f469803b39a6364ee4, type: 3}
+  stackScale: 1.28
+  hudBlockers:
+  - {fileID: 855302580}
+  - {fileID: 79579813}
+  fitPadding: 0.2
+  fitExtraBelow: 0.5
   animSettings: {fileID: 11400000, guid: 226ee7bdb0844b2aafc095127171a1d5, type: 2}
   boosterBackdrop: {fileID: 0}
   backdropFadeIn: {fileID: 0}
@@ -452,6 +468,10 @@ MonoBehaviour:
   mergeHold: 0.07
   mergeBloom: 0.3
   mergeSpin: 140
+  groupCardScale: 1.8
+  groupCardHold: 0.45
+  groupCardOut: 0.22
+  groupCardToSlot: 0.25
   revealHolderDrop: 0.4
   revealHolderDur: 0.3
   revealTileDur: 0.32
@@ -1243,7 +1263,7 @@ PrefabInstance:
       objectReference: {fileID: 0}
     - target: {fileID: 9136407591666660033, guid: 39d2d48d265f64f6d8001e19d923b0d7, type: 3}
       propertyPath: m_AnchoredPosition.y
-      value: -1078
+      value: -270
       objectReference: {fileID: 0}
     m_RemovedComponents: []
     m_RemovedGameObjects: []

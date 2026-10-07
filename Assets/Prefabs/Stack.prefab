@@ -2392,7 +2392,7 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
-  m_LocalScale: {x: 1.15, y: 1.15, z: 1.15}
+  m_LocalScale: {x: 1.25, y: 1.25, z: 1.25}
   m_ConstrainProportionsScale: 1
   m_Children:
   - {fileID: 285900451296758547}
@@ -2425,6 +2425,7 @@ MonoBehaviour:
   - {fileID: 1740450942791479371}
   - {fileID: 124220877383634941}
   - {fileID: 9130789224181923764}
+  nextHolder: {fileID: 0}
 --- !u!1 &8542728776326173091
 GameObject:
   m_ObjectHideFlags: 0

@@ -11,6 +11,7 @@ GameObject:
   - component: {fileID: 3679167873827428555}
   - component: {fileID: 6746331021113025931}
   - component: {fileID: 4132702366659578888}
+  - component: {fileID: 3668664064737821637}
   m_Layer: 5
   m_Name: Slider
   m_TagString: Untagged
@@ -107,6 +108,18 @@ MonoBehaviour:
   _sprites:
   - {fileID: 7796736454178102455, guid: 02fef040017ba7f418da99231d2190c4, type: 3}
   - {fileID: 4628108369302119924, guid: b2d1de244ef1570449942859d3d07d9b, type: 3}
+--- !u!114 &3668664064737821637
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 481577790344873292}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05712231002629449af9044176a52b6a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.UI.SliderTapToggle
 --- !u!1 &647612424302538820
 GameObject:
   m_ObjectHideFlags: 0
@@ -2883,6 +2896,7 @@ GameObject:
   - component: {fileID: 2550751330404082380}
   - component: {fileID: 1737272009520720264}
   - component: {fileID: 4536666795469319738}
+  - component: {fileID: 3444749054997801369}
   m_Layer: 5
   m_Name: Slider
   m_TagString: Untagged
@@ -2979,6 +2993,18 @@ MonoBehaviour:
   _sprites:
   - {fileID: 7796736454178102455, guid: 02fef040017ba7f418da99231d2190c4, type: 3}
   - {fileID: 4628108369302119924, guid: b2d1de244ef1570449942859d3d07d9b, type: 3}
+--- !u!114 &3444749054997801369
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 8925439736702560793}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05712231002629449af9044176a52b6a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.UI.SliderTapToggle
 --- !u!1 &9196931297383152741
 GameObject:
   m_ObjectHideFlags: 0
@@ -2990,6 +3016,7 @@ GameObject:
   - component: {fileID: 6026723551239671951}
   - component: {fileID: 6976209402505294806}
   - component: {fileID: 4121135290655818359}
+  - component: {fileID: 7885117462716561997}
   m_Layer: 5
   m_Name: Slider
   m_TagString: Untagged
@@ -3086,3 +3113,15 @@ MonoBehaviour:
   _sprites:
   - {fileID: 7796736454178102455, guid: 02fef040017ba7f418da99231d2190c4, type: 3}
   - {fileID: 4628108369302119924, guid: b2d1de244ef1570449942859d3d07d9b, type: 3}
+--- !u!114 &7885117462716561997
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 9196931297383152741}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 05712231002629449af9044176a52b6a, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.UI.SliderTapToggle
