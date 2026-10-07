@@ -437,8 +437,8 @@ MonoBehaviour:
   m_fontMaterials: []
   m_fontColor32:
     serializedVersion: 2
-    rgba: 4294967295
-  m_fontColor: {r: 1, g: 1, b: 1, a: 1}
+    rgba: 4284273908
+  m_fontColor: {r: 0.9568628, g: 0.8313726, b: 0.36078432, a: 1}
   m_enableVertexGradient: 0
   m_colorMode: 3
   m_fontColorGradient:
@@ -843,8 +843,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0, y: 0}
   m_AnchorMax: {x: 1, y: 1}
-  m_AnchoredPosition: {x: 12, y: 143.57248}
-  m_SizeDelta: {x: -430.57, y: -789.345}
+  m_AnchoredPosition: {x: 12, y: 113.62251}
+  m_SizeDelta: {x: -430.57, y: -849.245}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &6115226080475412640
 CanvasRenderer:
@@ -2134,7 +2134,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 1
+  m_IsActive: 0
 --- !u!224 &4133277057988758262
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2273,7 +2273,7 @@ GameObject:
   m_Icon: {fileID: 0}
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
-  m_IsActive: 0
+  m_IsActive: 1
 --- !u!224 &3912183163165778209
 RectTransform:
   m_ObjectHideFlags: 0
@@ -2290,8 +2290,8 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -39.95, y: -54}
-  m_SizeDelta: {x: 200, y: 50}
+  m_AnchoredPosition: {x: -40.3, y: -79}
+  m_SizeDelta: {x: 369.6549, y: 50}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!222 &3946204725643028721
 CanvasRenderer:
@@ -2321,7 +2321,7 @@ MonoBehaviour:
   m_OnCullStateChanged:
     m_PersistentCalls:
       m_Calls: []
-  m_text: 'Time to next life '
+  m_text: Add 5 moves to keep playing
   m_isRightToLeft: 0
   m_fontAsset: {fileID: 11400000, guid: 23c5d7a52d2800a4186ec84b425964d2, type: 2}
   m_sharedMaterial: {fileID: 2100000, guid: 54e57aa150a947028a868fb134667ed9, type: 2}
@@ -2348,8 +2348,8 @@ MonoBehaviour:
   m_faceColor:
     serializedVersion: 2
     rgba: 4294967295
-  m_fontSize: 36
-  m_fontSizeBase: 36
+  m_fontSize: 29.6
+  m_fontSizeBase: 29.6
   m_fontWeight: 400
   m_enableAutoSizing: 0
   m_fontSizeMin: 18
