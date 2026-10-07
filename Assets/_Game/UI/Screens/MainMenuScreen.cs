@@ -1,5 +1,6 @@
 using LogosGame.Features.Currency;
 using LogosGame.Features.Currency.Services;
+using LogosGame.Features.UI.Common;
 using LogosMeta.Economy;
 using LogosSDK.Core.Logging;
 using LogosSDK.UI.Base;
@@ -55,6 +56,7 @@ namespace LogosGame.Features.UI.Screens
 
         private MainMenuScreenArgs _args;
         private DisposableBag _disposables;
+        private CountUpText _coinCount;
         private bool _isHeartUIBound;
         private bool _isCoinUIBound;
 
@@ -234,8 +236,9 @@ namespace LogosGame.Features.UI.Screens
         private void BindCoinUI()
         {
             if (_resources == null || _coinCountText == null) return;
+            _coinCount = new CountUpText(_coinCountText);
             _resources.Observe(ResourceType.Coin)
-                .Subscribe(value => _coinCountText.text = value.ToString())
+                .Subscribe(value => _coinCount.Set(value))
                 .AddTo(ref _disposables);
         }
 

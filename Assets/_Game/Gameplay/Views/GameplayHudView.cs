@@ -4,6 +4,7 @@ using LogosGame.Features.Currency;
 using LogosGame.Features.Currency.Services;
 using LogosGame.Features.Gameplay.Flow;
 using LogosGame.Features.Gameplay.Services;
+using LogosGame.Features.UI.Common;
 using R3;
 using Reflex.Attributes;
 using TMPro;
@@ -43,6 +44,7 @@ namespace LogosGame.Features.Gameplay.Views
         [SerializeField] private Sprite _crazySprite;
 
         private DisposableBag _disposables;
+        private CountUpText _coinCount;
         private MotionHandle _progressTween;
 
         private void Awake()
@@ -57,8 +59,9 @@ namespace LogosGame.Features.Gameplay.Views
         {
             if (_resources != null && _coinText != null)
             {
+                _coinCount = new CountUpText(_coinText);
                 _resources.Observe(ResourceType.Coin)
-                    .Subscribe(value => _coinText.text = value.ToString())
+                    .Subscribe(value => _coinCount.Set(value))
                     .AddTo(ref _disposables);
             }
 

@@ -3,6 +3,7 @@ using System.Collections.Generic;
 using LitMotion;
 using LitMotion.Extensions;
 using LogosGame.Features.Shop;
+using LogosGame.Features.UI.Common;
 using LogosMeta.Economy;
 using LogosSDK.Core.Logging;
 using R3;
@@ -56,6 +57,7 @@ namespace LogosGame.Features.UI.Popups
         private readonly List<Entry> _entries = new List<Entry>();
 
         private IDisposable _coinCounterSubscription;
+        private CountUpText _coinCounter;
         private IDisposable _noAdsSubscription;
         private MotionHandle _counterPunch;
         private MotionHandle _cellPunch;
@@ -87,8 +89,9 @@ namespace LogosGame.Features.UI.Popups
             if (_coinCounterSubscription != null) return;
             if (_currencyService == null || _coinCounterText == null) return;
 
+            _coinCounter = new CountUpText(_coinCounterText);
             _coinCounterSubscription = _currencyService.Coins
-                .Subscribe(coins => _coinCounterText.text = coins.ToString());
+                .Subscribe(coins => _coinCounter.Set(coins));
         }
 
         private void BindNoAds()
