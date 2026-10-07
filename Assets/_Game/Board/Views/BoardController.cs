@@ -53,6 +53,13 @@ namespace WordStack.Board
         [SerializeField] TileView tilePrefab;
         [SerializeField] GhostView ghostPrefab;
 
+        [Header("Fit bàn vào khoảng trống giữa HUD")]
+        // Ô HUD che bàn — trên: CoinArea, LevelBox, Settings, Progress Bar; dưới: Box BG + Booster Button.
+        // Rỗng = lề cố định kiểu cũ.
+        [SerializeField] RectTransform[] hudBlockers;
+        [SerializeField] float fitPadding = 0.15f;      // world unit, mỗi cạnh
+        [SerializeField] float fitExtraBelow = 1.0f;    // chỗ cho lớp lấp ló + Tile Holder dưới hộp hàng cuối — núm chỉnh tay
+
         [Header("Booster")]
         // SO_BoosterAnim — thông số animation Nam châm + Xáo + Undo. Chưa gán thì dùng giá trị
         // mặc định khai trong class, bàn không sập.
@@ -125,6 +132,9 @@ namespace WordStack.Board
 
         Camera cam;
         Transform root;
+        bool fitDirty;                     // HUD có thể layout xong muộn một frame sau khi dựng màn
+        Vector2Int fittedScreen;
+        Rect fittedSafeArea;
         readonly Dictionary<string, Sprite> artCache = new Dictionary<string, Sprite>();
 
         StackView[] stackViews;
@@ -1859,6 +1869,7 @@ namespace WordStack.Board
             }
 
             FitCamera();
+            fitDirty = true;   // HUD có thể layout xong muộn một frame — fit lại ở LateUpdate
             RefreshZones();
             RefreshBlockerVisuals();
             ReportResultIfFinished();
@@ -1893,18 +1904,68 @@ namespace WordStack.Board
 
         void FitCamera()
         {
+            fitDirty = false;
+            fittedScreen = new Vector2Int(Screen.width, Screen.height);
+            fittedSafeArea = Screen.safeArea;
+
             // Union khung 3x3 với pos thực tế — level lỡ đặt ngoài lưới vẫn không bị cắt.
             float minX = Mathf.Min(0f, (float)g.Stacks.Min(s => s.X));
             float maxX = Mathf.Max(GridCols - 1f, (float)g.Stacks.Max(s => s.X));
             float minY = Mathf.Min(0f, (float)g.Stacks.Min(s => s.Y));
             float maxY = Mathf.Max(GridRows - 1f, (float)g.Stacks.Max(s => s.Y));
-            float cx = (minX + maxX) / 2f * PitchX;
-            float cy = -(minY + maxY) / 2f * PitchY + 0.5f;   // camera lên 0.5 → bàn hiện thấp xuống 0.5 (root phải ở gốc vì hit-test so world với local)
-            float halfW = (maxX - minX) / 2f * PitchX + BoxSize / 2f + 0.4f;
-            float halfH = (maxY - minY) / 2f * PitchY + BoxSize / 2f + 1.5f;   // chừa HUD trên + gợi ý dưới
-            cam.transform.position = new Vector3(cx, cy, -10f);
-            cam.orthographicSize = Mathf.Max(halfH, halfW / Mathf.Max(cam.aspect, 0.01f));
+
+            if (hudBlockers == null || hudBlockers.Length == 0)
+            {
+                float cx = (minX + maxX) / 2f * PitchX;
+                float cy = -(minY + maxY) / 2f * PitchY + 0.5f;   // camera lên 0.5 → bàn hiện thấp xuống 0.5 (root phải ở gốc vì hit-test so world với local)
+                float halfW = (maxX - minX) / 2f * PitchX + BoxSize / 2f + 0.4f;
+                float halfH = (maxY - minY) / 2f * PitchY + BoxSize / 2f + 1.5f;   // chừa HUD trên + gợi ý dưới
+                cam.transform.position = new Vector3(cx, cy, -10f);
+                cam.orthographicSize = Mathf.Max(halfH, halfW / Mathf.Max(cam.aspect, 0.01f));
+                return;
+            }
+
+            var board = Rect.MinMaxRect(
+                minX * PitchX - BoxSize / 2f - fitPadding,
+                -maxY * PitchY - BoxSize / 2f - fitExtraBelow - fitPadding,
+                maxX * PitchX + BoxSize / 2f + fitPadding,
+                -minY * PitchY + BoxSize / 2f + fitPadding);
+
+            Canvas.ForceUpdateCanvases();
+            var screen = new Vector2(Screen.width, Screen.height);
+            var free = BoardFit.FreeArea(Screen.safeArea, screen, BlockerRects());
+            BoardFit.FitOrtho(board, free, screen, out var pos, out var size);
+            // Chỉ camera di chuyển — root của bàn phải ở gốc vì hit-test so world với local.
+            cam.transform.position = new Vector3(pos.x, pos.y, -10f);
+            cam.orthographicSize = size;
         }
+
+        // Góc mỗi blocker đổi sang pixel màn hình. Canvas Overlay: camera null.
+        IEnumerable<Rect> BlockerRects()
+        {
+            var corners = new Vector3[4];
+            foreach (var rt in hudBlockers)
+            {
+                if (rt == null) continue;
+                var canvas = rt.GetComponentInParent<Canvas>(true);
+                Camera uiCam = canvas == null || canvas.rootCanvas.renderMode == RenderMode.ScreenSpaceOverlay
+                    ? null : canvas.rootCanvas.worldCamera;
+                rt.GetWorldCorners(corners);
+                Vector2 a = RectTransformUtility.WorldToScreenPoint(uiCam, corners[0]);
+                Vector2 b = RectTransformUtility.WorldToScreenPoint(uiCam, corners[2]);
+                yield return Rect.MinMaxRect(a.x, a.y, b.x, b.y);
+            }
+        }
+
+        // Đổi độ phân giải / safe area (xoay, Device Simulator, dropdown Cheat) → fit lại.
+        void LateUpdate()
+        {
+            if (g == null || cam == null || g.Stacks.Count == 0) return;
+            if (fitDirty || Screen.width != fittedScreen.x || Screen.height != fittedScreen.y || Screen.safeArea != fittedSafeArea)
+                FitCamera();
+        }
+
+        void OnValidate() { fitDirty = true; }   // chỉnh padding trong Inspector thấy ngay
 
         // Ruột hộp nằm dưới không bao giờ đổi khi đang nằm dưới (nước đi chỉ đụng top box),
         // nên chỉ cần tính ở đúng 2 chỗ gọi ShowDepth: dựng bàn + lộ hộp mới.
