@@ -28,6 +28,8 @@ namespace LogosGame.Features.UI.Popups
 
         [Header("Header (không cuộn)")]
         [SerializeField] private TextMeshProUGUI _coinCounterText;
+        // Coin bay từ ô vừa mua về counter khi mua coin. Bỏ trống = chỉ nảy như cũ.
+        [SerializeField] private CoinFly _coinFly;
 
         [Header("Special Offer — gói special_offer")]
         [SerializeField] private Transform _specialOfferRoot;
@@ -222,11 +224,20 @@ namespace LogosGame.Features.UI.Popups
             }
         }
 
-        // Ô coin header nảy (chỉ khi có coin) + ô vừa mua nảy. Coin đã cộng qua subscribe; banner Remove Ads tự ẩn.
+        // Coin đã cộng qua subscribe (counter tự đếm dần). Có CoinFly: coin bay từ ô vừa mua về counter,
+        // mỗi coin tới thì counter nảy. Không có: counter nảy một lần như cũ. Ô vừa mua nảy; banner Remove Ads tự ẩn.
         private void PlayPurchasedFeedback(Transform cell, ShopPurchaseResult result)
         {
-            if (_coinCounterText != null && result.CoinsGranted > 0) _counterPunch = Punch(_coinCounterText.transform, _counterPunch);
-            if (cell != null && cell.gameObject.activeInHierarchy) _cellPunch = Punch(cell, _cellPunch);
+            bool cellAlive = cell != null && cell.gameObject.activeInHierarchy;
+            if (_coinCounterText != null && result.CoinsGranted > 0)
+            {
+                if (_coinFly != null && cellAlive)
+                    _coinFly.Play(cell.position, _coinCounterText.transform.position, null, null,
+                        () => _counterPunch = Punch(_coinCounterText.transform, _counterPunch));
+                else
+                    _counterPunch = Punch(_coinCounterText.transform, _counterPunch);
+            }
+            if (cellAlive) _cellPunch = Punch(cell, _cellPunch);
         }
 
         private static MotionHandle Punch(Transform target, MotionHandle previous)
