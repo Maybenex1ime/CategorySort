@@ -39,6 +39,18 @@ Trạng thái: `[ ]` chưa làm · `[x]` xong.
   - `MainMenuScreen.prefab` ▸ `SafeArea/SetttingsPanel` — 4 công tắc
 - [ ] File mới cần `.meta`: `Assets/_Game/UI/SliderTapToggle.cs`, `Assets/_Game/Gameplay/Tests/SliderTapToggleTests.cs`; chạy `SliderTapToggleTests`.
 
+## Feedback #4 — đi tiếp trong lúc hộp đang nổ (spec `docs/superpowers/specs/2026-10-07-input-during-cascade-design.md`)
+
+- [ ] File mới cần `.meta`: `Assets/_Game/Board/Tests/BoardSettleInputTests.cs`; chạy `BoardSettleInputTests` + `WordStackGameplayViewModelTests`.
+- [ ] Kiểm `GameplayBlockInputOverlayView` (bật trong lúc cascade): phải trong suốt — nếu có màu thì bàn tối đi khi người chơi đang thao tác.
+- [ ] Play mode, kiểm tay:
+  - Trong lúc một hộp đang nổ, kéo thẻ giữa hai hộp khác → được.
+  - Thả thẻ vào hộp đang nổ → thẻ bay về chỗ cũ, hộp không rung, số nước không đổi.
+  - Không nhấc được thẻ trong hộp đang nổ, cũng như hộp đã đủ 4 đang chờ lượt.
+  - Tạo nhóm thứ hai giữa chuỗi → nổ nối luôn; số đếm hộp khoá giảm theo từng bước.
+  - Dùng nước cuối giữa chuỗi → không đi thêm được, hết chuỗi thì thua vì hết nước.
+  - Nút booster tắt suốt chuỗi; Magnet / Shuffle / Undo vẫn khoá cả bàn khi đang diễn.
+
 ## Feedback #7 — Cheat bật/tắt tô màu thẻ cùng nhóm
 
 - [ ] `Assets/_Game/Art/Prefabs/UI/Cheat/CheatRoot.prefab`: thêm một hàng có `Toggle` (nhãn ví dụ "Màu thẻ cùng nhóm") + component `CheatBoardSectionView`, kéo Toggle vào `_matchColorsToggle`.

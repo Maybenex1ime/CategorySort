@@ -142,7 +142,7 @@ namespace WordStack.Board
         readonly Dictionary<string, TileView> tiles = new Dictionary<string, TileView>();
 
         enum ZoneKind { Tile, Stack }
-        struct Zone { public Rect Rect; public ZoneKind Kind; public int Stack; public string Uid; public bool Fixed; }
+        struct Zone { public Rect Rect; public ZoneKind Kind; public int Stack; public string Uid; public bool Fixed; public bool Busy; }
         readonly List<Zone> zones = new List<Zone>();
 
         GhostView ghost;
@@ -150,6 +150,11 @@ namespace WordStack.Board
         string dragUid;
         TileView hoverTile;
         bool locked;
+        // Cascade cho đi tiếp ở hộp khác (spec 2026-10-07-input-during-cascade): locked chỉ còn cho
+        // booster/Undo/Revive; Settle() thường chỉ khoá các hộp đang diễn + hộp chờ lượt.
+        bool settling;                     // Settle() đang chạy — booster từ chối
+        int landing;                       // thẻ đang bay về slot — cascade đợi hạ cánh hết mới SettleStep tiếp
+        readonly HashSet<int> busyStacks = new HashSet<int>();   // stack đang diễn bước cascade hiện tại
 
         MotionHandle hoverPunch;           // cú giật hover đang chạy — TryComplete trước khi giật cú mới
         readonly Dictionary<int, MotionHandle> shakes = new Dictionary<int, MotionHandle>();   // stack → cú rung đang chạy
@@ -244,7 +249,7 @@ namespace WordStack.Board
         void OnReviveRequested()
         {
             LevelSignals.SetReviveAvailable(false);
-            if (g == null || locked)
+            if (g == null || locked || settling)
             {
                 Debug.Log("[Revive] bàn chưa nạp hoặc đang chạy cascade — bỏ qua.");
                 return;
@@ -807,7 +812,7 @@ namespace WordStack.Board
         bool BoosterGateOpen(string name)
         {
             if (g == null) { Debug.Log("[" + name + "] chưa nạp màn nào."); return false; }
-            if (locked) { Debug.Log("[" + name + "] bàn đang chạy cascade."); return false; }
+            if (locked || settling) { Debug.Log("[" + name + "] bàn đang chạy cascade."); return false; }
             if (LevelCommands.InputBlocked) { Debug.Log("[" + name + "] popup meta đang mở."); return false; }
             if (g.Status != GameStatus.Playing) { Debug.Log("[" + name + "] màn đã kết thúc: " + g.Status); return false; }
             if (ghost != null) { Debug.Log("[" + name + "] đang kéo thẻ."); return false; }
@@ -877,6 +882,9 @@ namespace WordStack.Board
             StopAllCoroutines();
             DestroyBoard();
             locked = false;
+            settling = false;
+            landing = 0;
+            busyStacks.Clear();
             LevelSignals.SetMagnetAvailable(false);
             LevelSignals.SetShuffleAvailable(false);  // Settle() cuối Load() đặt lại giá trị thật
             LevelSignals.SetUndoAvailable(false);     // màn mới thì không có nước nào để lùi
@@ -906,7 +914,7 @@ namespace WordStack.Board
             firstInteractionRaised = false;
             LevelSignals.SetReviveAvailable(false);
             LevelSignals.RaiseStarted(levelIndex, g.TotalGroups);
-            StartCoroutine(Settle());          // hộp nạp sẵn nhóm đủ phải nổ ngay lúc load
+            StartCoroutine(Settle(0f, allowMoves: true));   // hộp nạp sẵn nhóm đủ phải nổ ngay lúc load
         }
 
         // --------------------------------------------------------------- input
@@ -926,6 +934,9 @@ namespace WordStack.Board
             if (g.Status != GameStatus.Playing) return;
 
             if (locked) return;
+
+            // Dùng hết nước (có thể ngay giữa cascade) — chờ EvaluationCompleted cuối chuỗi chốt thua.
+            if (LevelSignals.OutOfMoves) return;
 
             // Popup meta đang mở (settings...) — board đọc raw Pointer nên phải tự
             // nhường, uGUI không chặn hộ. Ghost đang kéo (nếu có) đứng im tới khi mở lại.
@@ -1125,11 +1136,14 @@ namespace WordStack.Board
             dragFrom = -1;
             dragUid = null;
 
+            bool toBusy = false;
             foreach (var z in zones)
-                if (z.Kind == ZoneKind.Stack && z.Rect.Contains(pt)) { to = z.Stack; break; }
+                if (z.Kind == ZoneKind.Stack && z.Rect.Contains(pt)) { to = z.Stack; toBusy = z.Busy; break; }
 
             // Thả ra ngoài, hoặc về chính stack cũ = huỷ thao tác (§R1).
             if (to < 0 || to == from) { SnapBack(uid, dropPos); return; }
+            // Hộp đang diễn / chờ nổ: thẻ về chỗ cũ, không rung hộp (feedback #4).
+            if (toBusy) { SnapBack(uid, dropPos); return; }
             if (!g.MoveTile(from, uid, to, SlotAt(to, pt)))
             {
                 Shake(to);                                  // box đích đầy (§E1)
@@ -1159,7 +1173,9 @@ namespace WordStack.Board
             RefreshBlockerVisuals();   // băng đếm ở MỌI stack, không riêng from/to
             ReportResultIfFinished();
             LevelSignals.RaiseMoveCommitted(g.Moves);       // tầng meta: vào phase Evaluating
-            StartCoroutine(Settle(flyDur));                 // để thẻ hạ cánh rồi mới cascade
+            // Đang cascade thì vòng đang chạy tự gặp nước này ở SettleStep kế — không mở vòng thứ hai.
+            // Thẻ hạ cánh rồi mới nổ: Settle đợi landing về 0 (WaitLanding).
+            if (!settling) StartCoroutine(Settle(0f, allowMoves: true));
         }
 
 #if UNITY_EDITOR
@@ -1198,9 +1214,11 @@ namespace WordStack.Board
             tv.transform.position = fromWorld;
             tv.transform.localScale = Vector3.one;
             tv.SetFlying(true);
+            landing++;
             LMotion.Create(tv.transform.localPosition, Vector3.zero, flyDur)
                    .WithEase(Ease.OutCubic)
-                   .WithOnComplete(() => { if (tv != null) tv.SetFlying(false); })
+                   .WithOnComplete(() => { landing = Mathf.Max(0, landing - 1); if (tv != null) tv.SetFlying(false); })
+                   .WithOnCancel(() => landing = Mathf.Max(0, landing - 1))
                    .WithCancelOnError()
                    .BindToLocalPosition(tv.transform)
                    .AddTo(tv.gameObject);
@@ -1287,9 +1305,12 @@ namespace WordStack.Board
             foreach (var tv in breaking) if (tv != null) tv.EndFixedBreak();
         }
 
-        IEnumerator Settle(float delay = 0f)
+        // allowMoves = false (booster, Undo, Revive): khoá cả bàn tới hết chuỗi như trước.
+        // allowMoves = true (nước đi thường, lúc nạp màn): chỉ khoá hộp đang diễn + hộp chờ lượt.
+        IEnumerator Settle(float delay = 0f, bool allowMoves = false)
         {
-            locked = true;
+            settling = true;
+            if (!allowMoves) locked = true;
             // Tắt nút booster suốt cascade. Không tắt thì cờ giữ giá trị cũ, nút vẫn
             // sáng, người chơi bấm được → BoosterManager trừ lượt xong handler lại drop
             // vì locked = mất lượt đã mua bằng coin.
@@ -1300,18 +1321,22 @@ namespace WordStack.Board
             if (delay > 0f) yield return new WaitForSeconds(delay);
             for (;;)
             {
+                yield return WaitLanding();   // không hộp nào nổ khi thẻ còn giữa đường bay vào nó
+
                 // Chụp group lock đang đóng TRƯỚC khi domain mutate: lock Group suy từ bàn, thẻ
                 // vừa bị xoá là IsOpen đổi ngay, không còn dấu vết "vừa mở bởi nhóm này".
                 var wasLocked = ClosedGroupLocks();
                 var ev = g.SettleStep(Rules.RemoveEmptyNonBottomBox);
                 if (ev.Kind == SettleKind.None) break;
                 hadCascade = true;
+                // Domain vừa đi trước view một bước: khoá hộp này (+ hộp khoá sắp mở) NGAY, trước animation.
+                var opened = NowOpen(wasLocked);
+                MarkBusy(ev.Stack, opened);
                 if (ev.Kind == SettleKind.Clear || ev.Kind == SettleKind.Collapse)
                     yield return BreakFixed(ev.DoomedUids);   // tháo đinh trước khi gộp
 
                 if (ev.Kind == SettleKind.Clear)
                 {
-                    var opened = NowOpen(wasLocked);
                     if (opened.Count > 0)
                         yield return ClearIntoLock(ev.Stack, ev.GroupId, ev.DoomedUids, opened);   // gộp giữa hộp → bay vào icon → lồng mở
                     else
@@ -1324,7 +1349,6 @@ namespace WordStack.Board
                     yield return MergeTiles(ev.Stack, ev.DoomedUids, ev.NewTileUid);
                     // COLLAPSE cũng xoá 4 thẻ của một nhóm nên có thể mở luôn group lock — nhưng
                     // 4 thẻ đó đã bay chụm vào ô gộp rồi (MergeTiles), không bay lại vào icon nữa.
-                    var opened = NowOpen(wasLocked);
                     if (opened.Count > 0) yield return OpenLocks(opened);
                     RefreshTileVisuals(ev.Stack);
                 }
@@ -1334,13 +1358,14 @@ namespace WordStack.Board
                     yield return RevealBox(ev.Stack);
                 }
 
-                RefreshZones();
+                ReleaseBusy();   // bước này diễn xong: nhả hộp, vẽ lại số đếm / hộp khoá theo từng bước
                 ReportResultIfFinished();
                 yield return new WaitForSeconds(cascadeGap);
             }
             RefreshZones();
             ReportResultIfFinished();
             CheckInvariant("settle");
+            settling = false;
             locked = false;
             RefreshBoosterAvailability();
             RefreshBlockerVisuals();   // một lần gom có thể vừa mở hộp khoá hoặc hộp có ổ
@@ -1356,6 +1381,40 @@ namespace WordStack.Board
                 groupsCleared: g != null ? g.Cleared : 0);
 
             LevelSignals.RaiseAnimationCompleted();
+        }
+
+        // Đợi thẻ của nước vừa đi hạ cánh. Trần thời gian: motion bị huỷ mà không gọi OnCancel thì
+        // landing kẹt > 0 — thà nổ sớm một nhịp còn hơn treo cả cascade.
+        IEnumerator WaitLanding()
+        {
+            float t = 0f;
+            while (landing > 0 && t < flyDur * 4f) { t += Time.deltaTime; yield return null; }
+            landing = 0;
+        }
+
+        void MarkBusy(int s, List<int> opened)
+        {
+            busyStacks.Add(s);
+            foreach (int o in opened) busyStacks.Add(o);
+            if (dragFrom >= 0 && busyStacks.Contains(dragFrom)) CancelDrag();   // lưới an toàn: hộp chờ lượt đã không cho nhấc
+            RefreshZones();
+        }
+
+        void ReleaseBusy()
+        {
+            busyStacks.Clear();
+            RefreshBlockerVisuals();
+            RefreshZones();
+        }
+
+        // Bỏ thẻ đang kéo, trả nó về hình dạng cũ tại slot (BeginDrag đã thu scale về 0).
+        void CancelDrag()
+        {
+            if (ghost != null) { Destroy(ghost.gameObject); ghost = null; }
+            TileView tv;
+            if (dragUid != null && tiles.TryGetValue(dragUid, out tv) && tv != null) tv.transform.localScale = Vector3.one;
+            dragFrom = -1;
+            dragUid = null;
         }
 
         // Stack có hộp trên cùng khoá theo nhóm và còn đóng. Gọi trước SettleStep (xem Settle).
@@ -1772,7 +1831,10 @@ namespace WordStack.Board
             {
                 var pos = StackWorldPos(g.Stacks[s]);
                 var box = g.TopBox(s);
-                if (box != null)
+                // Hộp đang diễn bước cascade hoặc đang chờ lượt nổ: không zone thẻ (không hover/nhấc),
+                // zone hộp gắn Busy để Drop trả thẻ về chỗ cũ.
+                bool busy = busyStacks.Contains(s) || g.SettlePending(s, Rules.RemoveEmptyNonBottomBox);
+                if (box != null && !busy)
                     for (int i = 0; i < box.Slots.Length; i++)
                     {
                         var t = box.Slots[i];
@@ -1791,7 +1853,7 @@ namespace WordStack.Board
                 zones.Add(new Zone
                 {
                     Rect = RectAt(pos, Vector2.one * BoxSize),
-                    Kind = ZoneKind.Stack, Stack = s
+                    Kind = ZoneKind.Stack, Stack = s, Busy = busy
                 });
             }
         }
@@ -1805,6 +1867,7 @@ namespace WordStack.Board
             if (g == null || boxViews == null) return;
             for (int s = 0; s < g.Stacks.Count; s++)
             {
+                if (busyStacks.Contains(s)) continue;   // view của nó đang đi sau domain — vẽ lại khi nhả
                 var box = g.TopBox(s);
                 if (box == null) continue;
 
