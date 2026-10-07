@@ -57,6 +57,7 @@ namespace LogosGame.Features.Gameplay.Flow
             _levelIndex = evt.LevelIndex;
             _outOfMovesReported = false;
             _lastMovesUsed = 0;
+            LevelSignals.SetOutOfMoves(false);
 
             // Mẫu số progress bar — chỉ board biết (parse JSON), nên đi đường này.
             Fire(() => _flow.NotifyLevelContentReadyAsync(evt.TotalGroups));
@@ -66,6 +67,8 @@ namespace LogosGame.Features.Gameplay.Flow
 
         private void OnMoveCommitted(int movesUsed)
         {
+            // Bàn nhận nước cả trong lúc cascade — chặn ngay khi dùng nước cuối, đừng đợi EvaluationCompleted.
+            LevelSignals.SetOutOfMoves(_startingMoves > 0 && Remaining(movesUsed) <= 0);
             Fire(() => _flow.NotifyPlayerActionCommittedAsync(new GameplayActionContext
             {
                 RemainingMoves = Remaining(movesUsed),
@@ -81,6 +84,7 @@ namespace LogosGame.Features.Gameplay.Flow
             if (extraMoves <= 0) return;
             _startingMoves += extraMoves;
             _outOfMovesReported = false;
+            LevelSignals.SetOutOfMoves(false);
             Fire(() => _flow.ResetOutcomeStateForReviveAsync(Remaining(_lastMovesUsed)));
         }
 

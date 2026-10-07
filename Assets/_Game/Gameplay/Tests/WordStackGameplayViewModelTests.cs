@@ -36,5 +36,20 @@ namespace WordStack.Meta.Tests
             Assert.AreEqual(0, vm.GroupsCleared.CurrentValue, "chơi lại: cleared về 0");
             Assert.AreEqual(0, vm.TotalGroups.CurrentValue, "chơi lại: total về 0 (bar ẩn) tới khi board báo");
         }
+
+        [Test]
+        public void MoveDuringCascade_UpdatesMovesWithoutChangingPhase()
+        {
+            var vm = new WordStackGameplayViewModel();
+            _ = vm.StartLevelAsync(new GameplayStartContext { StartingMoves = 10 });
+            _ = vm.NotifyFirstInteractionAsync();
+            _ = vm.NotifyPlayerActionCommittedAsync(new GameplayActionContext { RemainingMoves = 9 });
+            Assert.AreEqual(GameplayPhase.Evaluating, vm.CurrentPhase.CurrentValue);
+
+            // Nước thứ hai đi trong lúc bàn đang cascade.
+            _ = vm.NotifyPlayerActionCommittedAsync(new GameplayActionContext { RemainingMoves = 8 });
+            Assert.AreEqual(8, vm.RemainingMoves.CurrentValue, "HUD đếm nước phải tụt ngay");
+            Assert.AreEqual(GameplayPhase.Evaluating, vm.CurrentPhase.CurrentValue, "phase giữ nguyên");
+        }
     }
 }

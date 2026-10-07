@@ -130,7 +130,17 @@ namespace LogosGame.Features.Gameplay.Flow
 
         public Awaitable NotifyPlayerActionCommittedAsync(GameplayActionContext context)
         {
-            if (_currentPhase.Value != GameplayPhase.Playing || context == null)
+            if (context == null) return Completed();
+
+            // Bàn cho đi tiếp trong lúc cascade (feedback #4): chỉ cập nhật số nước, phase giữ nguyên —
+            // EvaluationCompleted cuối chuỗi vẫn là chỗ duy nhất chốt kết quả.
+            if (_currentPhase.Value is GameplayPhase.Evaluating or GameplayPhase.Animating)
+            {
+                _remainingMoves.Value = context.RemainingMoves;
+                return Completed();
+            }
+
+            if (_currentPhase.Value != GameplayPhase.Playing)
                 return Completed();
 
             _remainingMoves.Value = context.RemainingMoves;

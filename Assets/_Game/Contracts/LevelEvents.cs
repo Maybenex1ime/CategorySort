@@ -152,6 +152,15 @@ namespace WordStack.Contracts
             UndoAvailabilityChanged?.Invoke(available);
         }
 
+        /// <summary>
+        /// Đã dùng hết nước (màn có giới hạn nước). GameplayFlowAdapter đặt mỗi lần có nước đi; bàn
+        /// thấy cờ bật thì thôi nhận nước mới — cần vì bàn cho đi tiếp trong lúc cascade, mà thua vì
+        /// hết nước chỉ chốt ở EvaluationCompleted cuối chuỗi.
+        /// </summary>
+        public static bool OutOfMoves { get; private set; }
+
+        public static void SetOutOfMoves(bool outOfMoves) => OutOfMoves = outOfMoves;
+
         public static void RaiseStarted(int levelIndex, int totalGroups)
             => Started?.Invoke(new LevelStartedEvent(levelIndex, totalGroups));
 
@@ -188,6 +197,7 @@ namespace WordStack.Contracts
             UndoAvailabilityChanged = null;
             UndoAvailable = false;
             ReviveAvailable = false;
+            OutOfMoves = false;
         }
     }
 }
