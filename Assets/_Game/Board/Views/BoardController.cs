@@ -32,12 +32,21 @@ namespace WordStack.Board
         // Kích thước bên trong hộp (viền, slot) author trong Box.prefab. Hit-test ô THẺ (Tile)
         // giờ lấy từ bounds sprite Shadow của từng slot (BoxView.SlotRect qua SlotZone bên dưới),
         // không còn tính từ hằng ở đây — chỉ zone STACK (BoxSize) còn dùng mấy hằng này.
-        const float BoxSize = 1.6f;
+        //
+        // Bố cục chuẩn đo ở Stack.prefab scale 1.15: hộp 1.6, tâm–tâm 1.88 ngang / 2.92 dọc. Đổi scale
+        // Stack thì bố cục tự theo (đọc scale thật của prefab): khe NGANG giữa hai hộp giữ nguyên 0.12
+        // (khay Tray.png rộng 1.531 ở scale 1), khe DỌC giãn theo tỉ lệ vì dưới mỗi hộp là lớp lấp ló +
+        // Tile Holder — chúng to theo Stack. Vị trí trong level là ô lưới, không phải sửa.
+        // Scale Stack đặt ở field stackScale (Inspector), áp lên mọi Stack lúc dựng bàn — scale gốc
+        // của Stack.prefab bị ghi đè lúc chạy.
+        const float RefStackScale = 1.15f;
+        const float TrayWidth = 1.531f;
         const float BoxPad = 0.09f;
         const float SlotGap = 0.08f;
-        static float SlotSize { get { return (BoxSize - 2f * BoxPad - SlotGap) / 2f; } }
-        static float PitchX { get { return BoxSize + 0.28f; } }
-        static float PitchY { get { return BoxSize + 1.32f; } }   // chừa chỗ cho lớp lấp ló + tile marker
+        float BoxSize { get { return 1.6f * StackScale / RefStackScale; } }
+        float SlotSize { get { return (BoxSize - 2f * BoxPad - SlotGap) / 2f; } }
+        float PitchX { get { return 1.88f + TrayWidth * (StackScale - RefStackScale); } }
+        float PitchY { get { return 2.92f * StackScale / RefStackScale; } }   // chừa chỗ cho lớp lấp ló + tile marker
 
         // Sorting order KHÔNG set từ code nữa — author hết trong prefab
         // (Tile.prefab bg 10 / art 11, Ghost.prefab, Stack.prefab...).
@@ -52,6 +61,11 @@ namespace WordStack.Board
         [SerializeField] BoxView boxPrefab;
         [SerializeField] TileView tilePrefab;
         [SerializeField] GhostView ghostPrefab;
+
+        [Header("Cỡ hộp trên bàn")]
+        [Tooltip("Scale của mỗi Stack (hộp + lớp lấp ló). Khoảng cách giữa các hộp tự giãn theo — xem PitchX/PitchY")]
+        [SerializeField, Min(0.1f)] float stackScale = 1.25f;
+        float StackScale { get { return stackScale; } }
 
         [Header("Fit bàn vào khoảng trống giữa HUD")]
         // Ô HUD che bàn — trên: CoinArea, LevelBox, Settings, Progress Bar; dưới: Box BG + Booster Button.
@@ -112,6 +126,12 @@ namespace WordStack.Board
         [SerializeField] float mergeBloom = 0.30f;     // thẻ mới nở ra mất bao lâu
         [SerializeField] float mergeSpin = 140f;       // thẻ mới xoay bao nhiêu độ lúc nở (0 = tắt)
 
+        [Header("Thẻ nhóm to giữa hộp (feedback #5, #6)")]
+        [SerializeField] float groupCardScale = 1.8f;  // 4 thẻ gộp thành thẻ to cỡ bấy nhiêu lần thẻ thường
+        [SerializeField] float groupCardHold = 0.45f;  // đứng yên cho kịp đọc tên nhóm
+        [SerializeField] float groupCardOut = 0.22f;   // CLEAR: thẻ to co về 0
+        [SerializeField] float groupCardToSlot = 0.25f; // COLLAPSE: thẻ to thu về ô của thẻ nhóm
+
         [Header("Lộ hộp mới (Tile Holder)")]
         [SerializeField] float revealHolderDrop = 0.4f;    // Tile Holder tách ra trượt xuống bao nhiêu unit (world) trong lúc mờ
         [SerializeField] float revealHolderDur = 0.3f;
@@ -159,7 +179,7 @@ namespace WordStack.Board
         MotionHandle hoverPunch;           // cú giật hover đang chạy — TryComplete trước khi giật cú mới
         readonly Dictionary<int, MotionHandle> shakes = new Dictionary<int, MotionHandle>();   // stack → cú rung đang chạy
 
-        // MỌI LSequence mà controller này khởi động (Magnet, Vortex, Undo, RemoveTiles,
+        // MỌI LSequence mà controller này khởi động (Magnet, Shuffle, Undo, RemoveTiles,
         // MergeTiles, LiftAwayBox, SpawnCollapsedTile...) — DestroyBoard() phải huỷ hết trong
         // này TRƯỚC khi xoá GameObject bên dưới, vì target còn sống lúc Cancel mới an toàn.
         readonly List<MotionHandle> running = new List<MotionHandle>();
@@ -510,108 +530,62 @@ namespace WordStack.Board
             LevelSignals.RaiseMoveCommitted(g.Moves);
 
             yield return Backdrop(true);
-            yield return ShuffleAnimation(r);   // tự RebuildBoardViews giữa hai pha xoáy
+            yield return ShuffleAnimation(r);   // tự RebuildBoardViews sau khi thẻ bay xong
             yield return Backdrop(false);
 
             yield return Settle();   // dọn hộp rỗng, chạy cascade, chốt thắng/kẹt
         }
 
-        // Xoáy ốc hai pha: hút cả bàn vào tâm → rebuild → bung ra ô mới.
-        // Hai pha vì Shuffle có move dính hộp chôn (From.Box > 0 / To.Box > 0) — thẻ đó
-        // KHÔNG có view thật. Cho nó biến mất trong xoáy rồi thẻ khác bung ra là khớp,
-        // khỏi phải dựng tile tạm ở peek layer.
+        // Xáo (feedback #11 — bỏ xoáy hai pha cho đơn giản): thẻ nào đổi chỗ thì bay vòng cung thẳng từ ô
+        // cũ tới ô mới, lần lượt; thẻ đứng yên (khoá / băng / đinh / không bị xáo) không nhúc nhích.
+        // Move dính hộp chôn không có view thật ở đầu kia: thẻ chui xuống hộp dưới thì co mất tại chỗ,
+        // thẻ từ hộp dưới lên thì pop ra ở ô mới sau khi rebuild.
         IEnumerator ShuffleAnimation(ShuffleResult r)
         {
             if (r.Moves.Length == 0) { RebuildBoardViews(); yield break; }
-            HashSet<string> stay = PinnedTopTiles();
-            yield return Vortex(true, A.shuffleInDur, stay);
-            RebuildBoardViews();
-            yield return Vortex(false, A.shuffleOutDur, stay);
-        }
-
-        // Thẻ băng / đóng đinh ở lớp trên và mọi thẻ trong hộp đang khoá: Shuffle không dời
-        // chúng nên chúng đứng yên, không bay vào xoáy (spec 2026-10-02-shuffle-redesign
-        // Mục 7). Đọc sau ApplyShuffle cũng đúng — chúng chưa hề đổi chỗ.
-        HashSet<string> PinnedTopTiles()
-        {
-            var stay = new HashSet<string>();
-            for (int s = 0; s < g.Stacks.Count; s++)
-            {
-                Box top = g.TopBox(s);
-                if (top == null) continue;
-                bool locked = !g.IsOpen(top.Lock);
-                foreach (Tile t in top.Slots)
-                    if (t != null && (locked || Game.IsFrozen(t) || Game.IsFixed(t))) stay.Add(t.Uid);
-            }
-            return stay;
-        }
-
-        // ponytail: một pivot cho cả bàn — pivot XOAY tạo đường xoáy, mỗi thẻ tự bay về
-        // tâm pivot (local zero). Không co pivot: co pivot thì thẻ chỉ gặp nhau đúng lúc
-        // size về 0, mắt không bao giờ thấy chúng hội tụ.
-        IEnumerator Vortex(bool inward, float dur, HashSet<string> stay)
-        {
-            var pivot = new GameObject("shuffleVortex").transform;
-            pivot.position = BoardCenter();
-
-            var kids = new List<Transform>(tiles.Count);
-            var homes = new List<Transform>(tiles.Count);
-            foreach (var kv in tiles)
-            {
-                TileView tv = kv.Value;
-                if (tv == null || stay.Contains(kv.Key)) continue;
-                tv.SetFlying(true);                    // bay trên hộp, như MergeTiles
-                kids.Add(tv.transform); homes.Add(tv.transform.parent);
-                tv.transform.SetParent(pivot, true);   // giữ world pos → chưa nhúc nhích
-            }
-
-            float spin = 360f * A.shuffleTurns;
-            if (!inward) pivot.localEulerAngles = new Vector3(0f, 0f, -spin);
-
-            // Góc đầu đọc từ eulerAngles NGAY lúc tạo motion — đã chuẩn hoá về [0,360), đúng như
-            // RotateMode.FastBeyond360 bản cũ làm. Hệ quả giữ nguyên từ bản cũ: pha ra có
-            // shuffleTurns nguyên (asset đang là 3) thì pivot đọc được 0 → không xoáy, thẻ tự quay.
+            var a = A;
             var seq = LSequence.Create();
-            seq.Insert(0f, LMotion.Create(pivot.eulerAngles.z, inward ? spin : 0f, dur)
-                                  .WithEase(A.shuffleSpinEase).WithCancelOnError().BindToEulerAnglesZ(pivot));
-            for (int i = 0; i < kids.Count; i++)
+            var popIn = new List<string>();
+            int n = 0;
+            foreach (var m in r.Moves)
             {
-                Transform k = kids[i];
-                Vector3 slot = k.localPosition;        // ô của thẻ trong hệ pivot (đã tính rotation)
-                // Cỡ thật của thẻ trong hệ pivot — ô trong hộp có scale riêng (vd 0.76), nên mọi
-                // scale ở đây phải là bội của cỡ này. Đặt tuyệt đối 1 thì về ô xong thẻ to ra 1/0.76.
-                Vector3 size = k.localScale;
-                Vector3 gathered = size * A.shuffleGatherScale;
-                if (!inward) { k.localPosition = Vector3.zero; k.localScale = gathered; }
-
-                seq.Insert(0f, LMotion.Create(k.localPosition, inward ? Vector3.zero : slot, dur)
-                                      .WithEase(inward ? A.shuffleMoveInEase : A.shuffleMoveOutEase)
-                                      .WithCancelOnError().BindToLocalPosition(k));
-                seq.Insert(0f, LMotion.Create(k.localScale, inward ? gathered : size, dur)
-                                      .WithEase(inward ? A.shuffleScaleInEase : A.shuffleScaleOutEase)
-                                      .WithCancelOnError().BindToLocalScale(k));
-                // Giữ thẻ thẳng: quay ngược -spin CÙNG ease với pivot, tổng góc ≡ 0.
-                seq.Insert(0f, LMotion.Create(k.localEulerAngles.z, -spin, dur)
-                                      .WithEase(A.shuffleSpinEase).WithCancelOnError().BindToLocalEulerAnglesZ(k));
+                bool fromTop = m.From.Box == 0, toTop = m.To.Box == 0;
+                if (!fromTop) { if (toTop) popIn.Add(m.Uid); continue; }
+                TileView tv;
+                if (!tiles.TryGetValue(m.Uid, out tv) || tv == null) continue;
+                tv.SetFlying(true);
+                var tr = tv.transform;
+                float at = n++ * a.shuffleStagger;
+                if (toTop)
+                {
+                    Vector3 from = tr.position, to = boxViews[m.To.Stack].Slot(m.To.Slot).position;
+                    seq.Insert(at, LMotion.Create(0f, 1f, a.shuffleFlyDur).WithEase(a.shuffleFlyEase).WithCancelOnError()
+                                          .Bind(k => tr.position = Vector3.LerpUnclamped(from, to, k) + Vector3.up * (a.shuffleArc * Mathf.Sin(k * Mathf.PI))));
+                }
+                else
+                    seq.Insert(at, LMotion.Create(tr.localScale, Vector3.zero, a.shuffleFlyDur * 0.6f)
+                                          .WithEase(Ease.InBack).WithCancelOnError().BindToLocalScale(tr));
             }
-            running.RemoveAll(mh => !mh.IsActive());
-            var h = seq.Run(SeqCfg).AddTo(pivot.gameObject);
-            running.Add(h);
-            yield return h.ToYieldInstruction();
+            if (n > 0) yield return RunAndWait(seq, gameObject);
+            else seq.Dispose();
 
-            // Pha vào không cần trả parent (rebuild xoá sạch), pha ra thì BẮT BUỘC: thẻ
-            // phải nằm lại dưới hộp của nó, không thì Settle sau tween sai gốc toạ độ.
-            for (int i = 0; i < kids.Count; i++)
-                if (kids[i] != null) { kids[i].SetParent(homes[i], true); }
-            if (!inward) foreach (var tv in tiles.Values) if (tv != null) tv.SetFlying(false);
-            Destroy(pivot.gameObject);
-        }
+            RebuildBoardViews();   // view khớp g tuyệt đối: thẻ vừa bay đã nằm đúng ô mới
 
-        Vector3 BoardCenter()
-        {
-            var c = Vector3.zero;
-            for (int s = 0; s < boxViews.Length; s++) c += boxViews[s].transform.position;
-            return c / Mathf.Max(1, boxViews.Length);
+            if (popIn.Count == 0) yield break;
+            var pop = LSequence.Create();
+            int p = 0;
+            foreach (var uid in popIn)
+            {
+                TileView tv;
+                if (!tiles.TryGetValue(uid, out tv) || tv == null) continue;
+                var tr = tv.transform;
+                var size = tr.localScale;
+                tr.localScale = Vector3.zero;
+                pop.Insert(p++ * a.shuffleStagger, LMotion.Create(Vector3.zero, size, a.shufflePopDur)
+                                                       .WithEase(Ease.OutBack).WithCancelOnError().BindToLocalScale(tr));
+            }
+            if (p > 0) yield return RunAndWait(pop, gameObject);
+            else pop.Dispose();
         }
 
         // Khoá HAI vế y như hai booster kia. Mượn MoveCommitted được vì g đã là bàn khôi
@@ -1340,13 +1314,13 @@ namespace WordStack.Board
                     if (opened.Count > 0)
                         yield return ClearIntoLock(ev.Stack, ev.GroupId, ev.DoomedUids, opened);   // gộp giữa hộp → bay vào icon → lồng mở
                     else
-                        // 4 thẻ bay chụm về tâm hộp rồi nén mất — cùng nhịp với COLLAPSE và mở khoá nhóm.
-                        yield return GatherTiles(ev.DoomedUids, boxViews[ev.Stack].transform.position);
+                        // 4 thẻ chụm về tâm hộp thành thẻ to mang tên nhóm, rồi thẻ to biến mất (feedback #5).
+                        yield return ClearIntoCard(ev.Stack, ev.GroupId, ev.DoomedUids);
                     RefreshTileVisuals(ev.Stack);
                 }
                 if (ev.Kind == SettleKind.Collapse)
                 {
-                    yield return MergeTiles(ev.Stack, ev.DoomedUids, ev.NewTileUid);
+                    yield return MergeTiles(ev.Stack, ev.GroupId, ev.DoomedUids, ev.NewTileUid);
                     // COLLAPSE cũng xoá 4 thẻ của một nhóm nên có thể mở luôn group lock — nhưng
                     // 4 thẻ đó đã bay chụm vào ô gộp rồi (MergeTiles), không bay lại vào icon nữa.
                     if (opened.Count > 0) yield return OpenLocks(opened);
@@ -1455,7 +1429,7 @@ namespace WordStack.Board
             var card = SpawnGroupCard(s, gid, center);
             if (card != null)
             {
-                yield return Bloom(card).ToYieldInstruction();
+                yield return ShowGroupCard(card);
                 var go = card.gameObject;
                 var tr = card.transform;
                 var fly = LSequence.Create();
@@ -1473,18 +1447,19 @@ namespace WordStack.Board
             yield return OpenLocks(opened);
         }
 
-        // Thẻ tạm đại diện nhóm gid (text/art lấy từ GroupDef như thẻ collapse), nền "thẻ lẻ". Làm con
+        // Thẻ tạm đại diện nhóm gid: nền "đủ bộ" + tên nhóm (GroupDef.Text), không art. Làm con
         // của Slot(0) hộp s để ăn đúng scale thẻ trong hộp, đặt tại worldPos. Không vào sổ tiles —
         // bên gọi tự huỷ. null khi level không có def của nhóm (không diễn gộp, lồng vẫn mở).
         TileView SpawnGroupCard(int s, string gid, Vector3 worldPos)
         {
             GroupDef def;
             if (g.GroupDefs == null || gid == null || !g.GroupDefs.TryGetValue(gid, out def)) return null;
-            var t = new Tile { Uid = "lock:" + gid, CardId = gid, GroupId = gid, Text = def.Text, Art = def.Art };
+            var t = new Tile { Uid = "card:" + gid, CardId = gid, GroupId = gid, Text = def.Text, Art = def.Art };
             var tv = Instantiate(tilePrefab, boxViews[s].Slot(0), false);
             tv.transform.position = worldPos;
-            tv.Bind(t, ArtOf(t));
-            tv.SetMatchState(1, 0);
+            tv.Bind(t, null);                              // thẻ to chỉ mang TÊN nhóm; hình nhóm để dành lúc pop (#6)
+            tv.ShowGroupName(def.Text);
+            tv.SetMatchState(Rules.BoxCapacity, 0);        // nền "đủ bộ"
             tv.SetFlying(true);   // nổi trên hộp và lồng (sorting 90 > lồng 14–16)
             return tv;
         }
@@ -1524,7 +1499,7 @@ namespace WordStack.Board
         // đúng ô mà domain đã đặt thẻ mới, nén về 0 ở đó, rồi thẻ mới bung ra từ chính điểm ấy.
         // Domain đã mutate xong trước khi hàm này chạy, nên thẻ mới đã nằm sẵn trong Slots — tra
         // ra ô của nó chính là cách biết điểm hội tụ.
-        IEnumerator MergeTiles(int s, string[] doomedUids, string newUid)
+        IEnumerator MergeTiles(int s, string gid, string[] doomedUids, string newUid)
         {
             var box = g.TopBox(s);
             int dest = box == null ? -1 : Array.FindIndex(box.Slots, t => t != null && t.Uid == newUid);
@@ -1536,8 +1511,54 @@ namespace WordStack.Board
                 yield break;
             }
 
-            yield return GatherTiles(doomedUids, boxViews[s].Slot(dest).position);
+            // Feedback #5/#6: chụm về TÂM hộp thành thẻ to mang tên nhóm, thẻ to thu về ô của thẻ nhóm,
+            // rồi thẻ nhóm thật pop ra ở đó với hình của nhóm (SpawnCollapsedTile → Bloom).
+            var center = boxViews[s].transform.position;
+            yield return GatherTiles(doomedUids, center);
+            var card = SpawnGroupCard(s, gid, center);
+            if (card != null)
+            {
+                yield return ShowGroupCard(card);
+                var tr = card.transform;
+                var seq = LSequence.Create();
+                seq.Insert(0f, LMotion.Create(tr.position, boxViews[s].Slot(dest).position, groupCardToSlot)
+                                      .WithEase(Ease.InCubic).WithCancelOnError().BindToPosition(tr));
+                seq.Insert(0f, LMotion.Create(tr.localScale, Vector3.one * 0.4f, groupCardToSlot)
+                                      .WithEase(Ease.InQuad).WithCancelOnError().BindToLocalScale(tr));
+                yield return RunAndWait(seq, card.gameObject);
+                Destroy(card.gameObject);
+            }
             SpawnCollapsedTile(s, newUid);
+        }
+
+        // CLEAR thường (feedback #5): 4 thẻ chụm về tâm hộp → thẻ to mang tên nhóm → co về 0 rồi huỷ.
+        IEnumerator ClearIntoCard(int s, string gid, string[] uids)
+        {
+            var center = boxViews[s].transform.position;
+            yield return GatherTiles(uids, center);
+            var card = SpawnGroupCard(s, gid, center);
+            if (card == null) yield break;
+            yield return ShowGroupCard(card);
+            var seq = LSequence.Create();
+            seq.Insert(0f, LMotion.Create(card.transform.localScale, Vector3.zero, groupCardOut)
+                                  .WithEase(Ease.InBack).WithCancelOnError().BindToLocalScale(card.transform));
+            yield return RunAndWait(seq, card.gameObject);
+            Destroy(card.gameObject);
+        }
+
+        // Thẻ nhóm to nở ra ở tâm hộp rồi đứng yên groupCardHold cho kịp đọc tên.
+        IEnumerator ShowGroupCard(TileView card)
+        {
+            yield return Bloom(card, groupCardScale).ToYieldInstruction();
+            if (groupCardHold > 0f) yield return new WaitForSeconds(groupCardHold);
+        }
+
+        IEnumerator RunAndWait(MotionSequenceBuilder seq, GameObject owner)
+        {
+            running.RemoveAll(mh => !mh.IsActive());
+            var h = seq.Run(SeqCfg).AddTo(owner);
+            running.Add(h);
+            yield return h.ToYieldInstruction();
         }
 
         // Các thẻ bay chụm về destPos, co còn mergeShrink trên đường, tới nơi nén nốt về 0, rồi huỷ
@@ -1729,12 +1750,12 @@ namespace WordStack.Board
         }
 
         // Thẻ mới nở từ 0 (OutBack), kèm xoay mergeSpin về 0. Dùng cho thẻ collapse và thẻ nhóm mở khoá.
-        MotionHandle Bloom(TileView tv)
+        MotionHandle Bloom(TileView tv, float scale = 1f)
         {
             var go = tv.gameObject;
             tv.transform.localScale = Vector3.zero;   // motion chỉ ghi từ frame sau — đừng để lộ thẻ cỡ 1
             var seq = LSequence.Create();
-            seq.Insert(0f, LMotion.Create(Vector3.zero, Vector3.one, mergeBloom)
+            seq.Insert(0f, LMotion.Create(Vector3.zero, Vector3.one * scale, mergeBloom)
                                   .WithEase(Ease.OutBack).WithCancelOnError().BindToLocalScale(tv.transform));
             if (Mathf.Abs(mergeSpin) > 0.01f)
             {
@@ -1928,6 +1949,7 @@ namespace WordStack.Board
             {
                 var st = g.Stacks[s];
                 var sv = Instantiate(stackPrefab, root, false);
+                sv.transform.localScale = Vector3.one * stackScale;
                 var wp = StackWorldPos(st);
                 sv.transform.localPosition = new Vector3(wp.x, wp.y, 0f);
                 stackViews[s] = sv;
@@ -2046,13 +2068,13 @@ namespace WordStack.Board
             return st.Boxes.Count > 1 ? Rules.BoxCapacity - Game.FreeCount(st.Boxes[1]) : 0;
         }
 
-        static Vector2 StackWorldPos(Stack st)
+        Vector2 StackWorldPos(Stack st)
         {
             // data y đi XUỐNG (cùng chiều đọc slot), Unity y đi LÊN → đảo dấu.
             return new Vector2((float)st.X * PitchX, -(float)st.Y * PitchY);
         }
 
-        static Vector2 SlotOffset(int slot)
+        Vector2 SlotOffset(int slot)
         {
             int c = slot % 2, r = slot / 2;
             float step = SlotSize + SlotGap;

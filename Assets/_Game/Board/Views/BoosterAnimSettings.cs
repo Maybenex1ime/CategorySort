@@ -37,21 +37,16 @@ namespace WordStack.Board
         public float magnetParentFlyDur = 0.35f;
         public Ease magnetParentFlyEase = Ease.InOutCubic;
 
-        [Header("Xáo — cả lớp trên xoáy vào tâm bàn rồi bung ra ô mới")]
-        [Tooltip("Pha hút vào tâm — chậm để đọc được xoáy (giây)")]
-        public float shuffleInDur = 1.1f;
-        [Tooltip("Pha bung ra ô mới")]
-        public float shuffleOutDur = 0.55f;
-        [Tooltip("Số vòng xoáy mỗi pha")]
-        public float shuffleTurns = 2f;
-        [Tooltip("Cỡ thẻ lúc dồn về tâm — 0 thì không thấy hội tụ")]
-        public float shuffleGatherScale = 0.4f;
-        [Tooltip("Xoay pivot; thẻ quay ngược dùng CÙNG ease này để luôn thẳng")]
-        public Ease shuffleSpinEase = Ease.OutCubic;
-        public Ease shuffleMoveInEase = Ease.InBack;
-        public Ease shuffleMoveOutEase = Ease.OutBack;
-        public Ease shuffleScaleInEase = Ease.InQuad;
-        public Ease shuffleScaleOutEase = Ease.OutQuad;
+        [Header("Xáo — thẻ đổi chỗ bay vòng cung thẳng tới ô mới (feedback #11)")]
+        [Tooltip("Mỗi thẻ bay từ ô cũ tới ô mới (giây)")]
+        public float shuffleFlyDur = 0.45f;
+        public Ease shuffleFlyEase = Ease.InOutCubic;
+        [Tooltip("Thẻ sau cất cánh trễ thẻ trước bấy nhiêu giây — \"lần lượt\"")]
+        public float shuffleStagger = 0.03f;
+        [Tooltip("Đỉnh vòng cung khi bay (unit world, 0 = bay thẳng)")]
+        public float shuffleArc = 0.6f;
+        [Tooltip("Thẻ từ hộp chôn lên lớp trên: nở ra ở ô mới (giây)")]
+        public float shufflePopDur = 0.3f;
 
         [Header("Undo — thẻ bay ngược về ô cũ")]
         public float undoPopScale = 1.10f;

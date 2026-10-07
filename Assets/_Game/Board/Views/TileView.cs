@@ -214,6 +214,39 @@ namespace WordStack.Board
             SetFixed(false);
         }
 
+        TextMeshPro groupName;
+
+        /// <summary>
+        /// Thẻ nhóm to lúc gộp 4 thẻ (feedback #5): tên nhóm nằm giữa nền, thay cho art (gọi sau Bind(t, null)).
+        /// Prefab không có label chữ nên dựng tạm ở đây, mượn font/màu của số băng (iceCountText).
+        /// </summary>
+        public void ShowGroupName(string text)
+        {
+            if (groupName == null)
+            {
+                groupName = new GameObject("Group Name").AddComponent<TextMeshPro>();
+                var tr = groupName.transform;
+                tr.SetParent(bg.transform.parent, false);
+                tr.localPosition = bg.transform.localPosition;
+                if (iceCountText != null)
+                {
+                    groupName.font = iceCountText.font;
+                    groupName.fontSharedMaterial = iceCountText.fontSharedMaterial;
+                    groupName.color = iceCountText.color;
+                }
+                // Khung chữ = 86% nền thẻ (đơn vị local của cha nền), chữ tự co cho vừa.
+                var size = Vector2.Scale(bg.sprite.bounds.size, bg.transform.localScale) * 0.86f;
+                groupName.rectTransform.sizeDelta = size;
+                groupName.alignment = TextAlignmentOptions.Center;
+                groupName.enableAutoSizing = true;
+                groupName.fontSizeMin = 0.5f;
+                groupName.fontSizeMax = 6f;
+                groupName.sortingOrder = FlyOrder + 2;   // trên nền thẻ đang bay (FlyOrder)
+            }
+            groupName.text = text;
+            groupName.gameObject.SetActive(!string.IsNullOrEmpty(text));
+        }
+
         /// <summary>Bề ngang world của nền thẻ — RevealBox so với tile nhỏ để biết bắt đầu từ cỡ nào.</summary>
         public float Width { get { return bg.bounds.size.x; } }
 
