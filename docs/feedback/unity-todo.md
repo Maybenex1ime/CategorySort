@@ -7,7 +7,7 @@ Trạng thái: `[ ]` chưa làm · `[x]` xong.
 
 ## Chung
 
-- [ ] Mở Unity cho nó sinh `.meta` rồi commit các file mới:
+- [x] Mở Unity cho nó sinh `.meta` rồi commit các file mới (đã commit 2026-10-07):
   - `Assets/_Game/UI/Common/` (folder) + `CountUpText.cs`, `CoinFly.cs`
   - `Assets/_Game/Board/Views/BoardFit.cs`
   - `Assets/_Game/Cheat/Views/CheatBoardSectionView.cs`
@@ -58,6 +58,7 @@ Trạng thái: `[ ]` chưa làm · `[x]` xong.
 ## Feedback #8 — "+" coin ở Home mở thẳng Coin Packs
 
 - [ ] `MainMenuScreen.prefab`: kéo Button `SafeArea/HomePanel/CoinArea/Box/More coins` vào `MainMenuScreen._moreCoinsButton`.
+  GameObject `More coins` đang **tắt** trong prefab — bật lên, không thì nút không hiện.
 - [ ] (Tuỳ chọn) GameObject `Shop Panel/Scroll` ▸ `ShopPopup._coinPacksTitle` = `Viewport/Content/Coin Packs`. Bỏ trống thì cuộn tới lưới coin (tiêu đề nằm ngay trên, bị che).
 
 ## Feedback khác cần làm tay
