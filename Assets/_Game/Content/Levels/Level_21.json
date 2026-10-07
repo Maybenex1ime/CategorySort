@@ -1,0 +1,234 @@
+{
+  "id": "Level_21",
+  "title": "Level 21",
+  "difficulty": "Hard",
+  "moves": 29,
+  "layout": {
+    "stacks": [
+      {
+        "pos": [0, 0],
+        "boxes": [
+          {
+            "slots": [null, "21_1_3", "21_6_3", null],
+            "blockers": {
+              "locked": 1
+            }
+          },
+          {
+            "slots": ["21_1_0", "21_2_3", null, "21_4_0"]
+          }
+        ]
+      },
+      {
+        "pos": [0, 1],
+        "boxes": [
+          {
+            "slots": [null, "21_6_1", "21_3_3", null],
+            "blockers": {
+              "locked": 2
+            }
+          }
+        ]
+      },
+      {
+        "pos": [0, 2],
+        "boxes": [
+          {
+            "slots": [null, "21_4_2", null, "21_5_2"],
+            "blockers": {
+              "locked": 3
+            }
+          },
+          {
+            "slots": [null, "21_5_3", null, "21_3_2"]
+          }
+        ]
+      },
+      {
+        "pos": [1.5, 0],
+        "boxes": [
+          {
+            "slots": ["21_1_2", null, null, "21_0_1"]
+          },
+          {
+            "slots": [null, "21_5_0", "21_4_1", "21_2_2"]
+          }
+        ]
+      },
+      {
+        "pos": [1.5, 1],
+        "boxes": [
+          {
+            "slots": ["21_0_0", null, "21_6_2", null]
+          },
+          {
+            "slots": [null, "21_2_1", "21_0_2", null]
+          }
+        ]
+      },
+      {
+        "pos": [1.5, 2],
+        "boxes": [
+          {
+            "slots": [null, null, "21_0_3", "21_4_3"]
+          },
+          {
+            "slots": ["21_5_1", "21_6_0", null, "21_3_1"]
+          }
+        ]
+      }
+    ]
+  },
+  "meaning": {
+    "groups": [
+      {
+        "id": "g_natural_water",
+        "text": "Natural Water",
+        "art": "21_1_1",
+        "group": "g_potions",
+        "cards": [
+          {
+            "id": "21_0_0",
+            "art": "21_0_0"
+          },
+          {
+            "id": "21_0_1",
+            "art": "21_0_1"
+          },
+          {
+            "id": "21_0_2",
+            "art": "21_0_2"
+          },
+          {
+            "id": "21_0_3",
+            "art": "21_0_3"
+          }
+        ]
+      },
+      {
+        "id": "g_potions",
+        "text": "Potions",
+        "art": "21_2_0",
+        "group": "g_message_bottles",
+        "cards": [
+          {
+            "id": "21_1_0",
+            "art": "21_1_0"
+          },
+          {
+            "id": "21_1_2",
+            "art": "21_1_2"
+          },
+          {
+            "id": "21_1_3",
+            "art": "21_1_3"
+          }
+        ]
+      },
+      {
+        "id": "g_message_bottles",
+        "text": "Message Bottles",
+        "cards": [
+          {
+            "id": "21_2_1",
+            "art": "21_2_1"
+          },
+          {
+            "id": "21_2_2",
+            "art": "21_2_2"
+          },
+          {
+            "id": "21_2_3",
+            "art": "21_2_3"
+          }
+        ]
+      },
+      {
+        "id": "g_things_that_swing",
+        "text": "Things that Swing",
+        "cards": [
+          {
+            "id": "21_3_1",
+            "art": "21_3_1"
+          },
+          {
+            "id": "21_3_2",
+            "art": "21_3_2"
+          },
+          {
+            "id": "21_3_3",
+            "art": "21_3_3"
+          }
+        ]
+      },
+      {
+        "id": "g_laughing_kids_in_blue",
+        "text": "Laughing Kids in Blue",
+        "art": "21_3_0",
+        "group": "g_things_that_swing",
+        "cards": [
+          {
+            "id": "21_4_0",
+            "art": "21_4_0"
+          },
+          {
+            "id": "21_4_1",
+            "art": "21_4_1"
+          },
+          {
+            "id": "21_4_2",
+            "art": "21_4_2"
+          },
+          {
+            "id": "21_4_3",
+            "art": "21_4_3"
+          }
+        ]
+      },
+      {
+        "id": "g_cleaning_items",
+        "text": "Cleaning Items",
+        "cards": [
+          {
+            "id": "21_5_0",
+            "art": "21_5_0"
+          },
+          {
+            "id": "21_5_1",
+            "art": "21_5_1"
+          },
+          {
+            "id": "21_5_2",
+            "art": "21_5_2"
+          },
+          {
+            "id": "21_5_3",
+            "art": "21_5_3"
+          }
+        ]
+      },
+      {
+        "id": "g_carpentry_items",
+        "text": "Carpentry Items",
+        "cards": [
+          {
+            "id": "21_6_0",
+            "art": "21_6_0"
+          },
+          {
+            "id": "21_6_1",
+            "art": "21_6_1"
+          },
+          {
+            "id": "21_6_2",
+            "art": "21_6_2"
+          },
+          {
+            "id": "21_6_3",
+            "art": "21_6_3"
+          }
+        ]
+      }
+    ]
+  }
+}

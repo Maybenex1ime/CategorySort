@@ -1,0 +1,244 @@
+{
+  "id": "Level_19",
+  "title": "Level 19",
+  "difficulty": "Normal",
+  "moves": 40,
+  "layout": {
+    "stacks": [
+      {
+        "pos": [0, 0],
+        "boxes": [
+          {
+            "slots": [null, "19_5_0", "19_6_3", null],
+            "blockers": {
+              "locked": 1
+            }
+          },
+          {
+            "slots": [null, "19_0_3", null, "19_2_3"]
+          }
+        ]
+      },
+      {
+        "pos": [0, 1],
+        "boxes": [
+          {
+            "slots": ["19_6_1", null, null, "19_0_0"]
+          },
+          {
+            "slots": ["19_1_0", null, "19_4_2", null]
+          }
+        ]
+      },
+      {
+        "pos": [0, 2],
+        "boxes": [
+          {
+            "slots": ["19_5_1", "19_4_1", null, null]
+          },
+          {
+            "slots": [null, "19_6_2", null, "19_3_0"]
+          }
+        ]
+      },
+      {
+        "pos": [1, 1],
+        "boxes": [
+          {
+            "slots": [null, "19_3_2", "19_2_2", null]
+          }
+        ]
+      },
+      {
+        "pos": [2, 0],
+        "boxes": [
+          {
+            "slots": ["19_2_0", null, null, "19_5_2"]
+          },
+          {
+            "slots": [null, "19_5_3", "19_3_3", null]
+          }
+        ]
+      },
+      {
+        "pos": [2, 1],
+        "boxes": [
+          {
+            "slots": ["19_1_1", null, "19_3_1", null]
+          },
+          {
+            "slots": ["19_4_0", "19_0_2", null, null]
+          }
+        ]
+      },
+      {
+        "pos": [2, 2],
+        "boxes": [
+          {
+            "slots": ["19_1_2", null, null, "19_0_1"],
+            "blockers": {
+              "locked": 2
+            }
+          },
+          {
+            "slots": ["19_2_1", null, "19_4_3", null]
+          }
+        ]
+      }
+    ]
+  },
+  "meaning": {
+    "groups": [
+      {
+        "id": "g_slow_animals",
+        "text": "Slow Animals",
+        "art": "19_1_3",
+        "group": "g_bunnies",
+        "cards": [
+          {
+            "id": "19_0_0",
+            "art": "19_0_0"
+          },
+          {
+            "id": "19_0_1",
+            "art": "19_0_1"
+          },
+          {
+            "id": "19_0_2",
+            "art": "19_0_2"
+          },
+          {
+            "id": "19_0_3",
+            "art": "19_0_3"
+          }
+        ]
+      },
+      {
+        "id": "g_bunnies",
+        "text": "Bunnies",
+        "cards": [
+          {
+            "id": "19_1_0",
+            "art": "19_1_0"
+          },
+          {
+            "id": "19_1_1",
+            "art": "19_1_1"
+          },
+          {
+            "id": "19_1_2",
+            "art": "19_1_2"
+          }
+        ]
+      },
+      {
+        "id": "g_rugs",
+        "text": "Rugs",
+        "cards": [
+          {
+            "id": "19_2_0",
+            "art": "19_2_0"
+          },
+          {
+            "id": "19_2_1",
+            "art": "19_2_1"
+          },
+          {
+            "id": "19_2_2",
+            "art": "19_2_2"
+          },
+          {
+            "id": "19_2_3",
+            "art": "19_2_3"
+          }
+        ]
+      },
+      {
+        "id": "g_animal_huts",
+        "text": "Animal Huts",
+        "cards": [
+          {
+            "id": "19_3_0",
+            "art": "19_3_0"
+          },
+          {
+            "id": "19_3_1",
+            "art": "19_3_1"
+          },
+          {
+            "id": "19_3_2",
+            "art": "19_3_2"
+          },
+          {
+            "id": "19_3_3",
+            "art": "19_3_3"
+          }
+        ]
+      },
+      {
+        "id": "g_animals_with_mustaches",
+        "text": "Animals with Mustaches",
+        "cards": [
+          {
+            "id": "19_4_0",
+            "art": "19_4_0"
+          },
+          {
+            "id": "19_4_1",
+            "art": "19_4_1"
+          },
+          {
+            "id": "19_4_2",
+            "art": "19_4_2"
+          },
+          {
+            "id": "19_4_3",
+            "art": "19_4_3"
+          }
+        ]
+      },
+      {
+        "id": "g_curtains",
+        "text": "Curtains",
+        "art": "19_6_0",
+        "group": "g_stained_glass",
+        "cards": [
+          {
+            "id": "19_5_0",
+            "art": "19_5_0"
+          },
+          {
+            "id": "19_5_1",
+            "art": "19_5_1"
+          },
+          {
+            "id": "19_5_2",
+            "art": "19_5_2"
+          },
+          {
+            "id": "19_5_3",
+            "art": "19_5_3"
+          }
+        ]
+      },
+      {
+        "id": "g_stained_glass",
+        "text": "Stained Glass",
+        "cards": [
+          {
+            "id": "19_6_1",
+            "art": "19_6_1"
+          },
+          {
+            "id": "19_6_2",
+            "art": "19_6_2"
+          },
+          {
+            "id": "19_6_3",
+            "art": "19_6_3"
+          }
+        ]
+      }
+    ]
+  }
+}
