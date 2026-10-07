@@ -197,6 +197,7 @@ namespace WordStack.Board
             LevelCommands.ShuffleRequested += OnShuffleRequested;
             LevelCommands.UndoRequested += OnUndoRequested;
             LevelCommands.ReviveRequested += OnReviveRequested;
+            LevelCommands.MatchColorsChanged += OnMatchColorsChanged;
         }
 
         void OnDestroy()
@@ -206,6 +207,14 @@ namespace WordStack.Board
             LevelCommands.ShuffleRequested -= OnShuffleRequested;
             LevelCommands.UndoRequested -= OnUndoRequested;
             LevelCommands.ReviveRequested -= OnReviveRequested;
+            LevelCommands.MatchColorsChanged -= OnMatchColorsChanged;
+        }
+
+        // Cheat bật/tắt tô màu thẻ cùng nhóm: vẽ lại nền mọi hộp, không nạp lại màn.
+        void OnMatchColorsChanged(bool on)
+        {
+            if (g == null || boxViews == null) return;
+            for (int s = 0; s < g.Stacks.Count; s++) RefreshTileVisuals(s);
         }
 
         void OnLoadRequested(int index, string json)

@@ -66,6 +66,20 @@ namespace WordStack.Contracts
 
         public static void RequestRevive() => ReviveRequested?.Invoke();
 
+        /// <summary>
+        /// Cheat: tô nền thẻ cùng nhóm trong hộp (cặp / bộ ba / đủ bộ — TileView.SetMatchState).
+        /// Tắt = mọi thẻ nền trơn. Bàn nghe MatchColorsChanged để vẽ lại ngay.
+        /// </summary>
+        public static bool MatchColors { get; private set; } = true;
+        public static event Action<bool> MatchColorsChanged;
+
+        public static void SetMatchColors(bool on)
+        {
+            if (on == MatchColors) return;
+            MatchColors = on;
+            MatchColorsChanged?.Invoke(on);
+        }
+
         // Event static sống sót qua lần Play kế tiếp khi Domain Reload tắt —
         // cùng lý do với LevelSignals.ResetStaticState.
         [RuntimeInitializeOnLoadMethod(RuntimeInitializeLoadType.SubsystemRegistration)]
@@ -77,6 +91,8 @@ namespace WordStack.Contracts
             UndoRequested = null;
             ReviveRequested = null;
             InputBlocked = false;
+            MatchColorsChanged = null;
+            MatchColors = true;
         }
     }
 }

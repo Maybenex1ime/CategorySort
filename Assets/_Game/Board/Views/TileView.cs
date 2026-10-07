@@ -8,6 +8,7 @@ using LitMotion.Animation;
 using LitMotion.Extensions;
 using TMPro;
 using UnityEngine;
+using WordStack.Contracts;
 
 namespace WordStack.Board
 {
@@ -102,7 +103,7 @@ namespace WordStack.Board
         public void SetMatchState(int groupCountInBox, int groupOrdinal)
         {
             Sprite next =
-                groupCountInBox <= 1 ? bgAlone
+                groupCountInBox <= 1 || !LevelCommands.MatchColors ? bgAlone   // cheat tắt tô màu = nền trơn
                 : groupCountInBox == 2 ? (groupOrdinal == 0 ? bgPairFirst : bgPairSecond)
                 : groupCountInBox == 3 ? bgTriple
                 : bgFull;
