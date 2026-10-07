@@ -243,6 +243,17 @@ namespace WordStack.Board
             return new SettleEvent { Kind = SettleKind.None };
         }
 
+        /// Hộp trên cùng của stack s đang chờ SettleStep xử lý: đủ nhóm (sẽ CLEAR/COLLAPSE) hoặc
+        /// rỗng sắp bị lấy đi. CÙNG điều kiện với SettleStep — sửa một chỗ thì sửa cả hai. View dùng
+        /// để khoá hộp đang chờ lượt trong lúc cascade (spec 2026-10-07-input-during-cascade).
+        public bool SettlePending(int s, bool drain)
+        {
+            var box = TopBox(s);
+            if (box == null || !IsOpen(box.Lock)) return false;
+            return CompletedGroupIn(box) != null
+                || (!box.IsBottom && IsEmpty(box) && (drain || box.HadCollapse));
+        }
+
         public Game Settle(bool drain)
         {
             while (SettleStep(drain).Kind != SettleKind.None) { }
