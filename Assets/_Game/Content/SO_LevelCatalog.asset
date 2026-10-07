@@ -20,13 +20,6 @@ MonoBehaviour:
     Moves: 0
     HideSettingsButton: 0
     HideCoinBox: 0
-  - LevelId: Level_10
-    AddressKey: Level_10
-    DisplayName: Level 10
-    Difficulty: 0
-    Moves: 200
-    HideSettingsButton: 0
-    HideCoinBox: 0
   - LevelId: Level_2
     AddressKey: Level_2
     DisplayName: Level 2
@@ -62,38 +55,108 @@ MonoBehaviour:
     Moves: 0
     HideSettingsButton: 0
     HideCoinBox: 0
-  - LevelId: lv-001
-    AddressKey: lv-001
-    DisplayName: Hobbies
+  - LevelId: Level_7
+    AddressKey: Level_7
+    DisplayName: Level 7
     Difficulty: 0
     Moves: 30
     HideSettingsButton: 0
     HideCoinBox: 0
-  - LevelId: lv-002
-    AddressKey: lv-002
-    DisplayName: The world around me
+  - LevelId: Level_8
+    AddressKey: Level_8
+    DisplayName: Level 8
+    Difficulty: 0
+    Moves: 38
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_9
+    AddressKey: Level_9
+    DisplayName: Level 9
+    Difficulty: 0
+    Moves: 32
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_10
+    AddressKey: Level_10
+    DisplayName: Level 10
     Difficulty: 0
     Moves: 200
     HideSettingsButton: 0
     HideCoinBox: 0
-  - LevelId: lv-008
-    AddressKey: lv-008
-    DisplayName: The gioi quanh ta
-    Difficulty: 2
-    Moves: 0
+  - LevelId: Level_11
+    AddressKey: Level_11
+    DisplayName: Level 11
+    Difficulty: 0
+    Moves: 40
     HideSettingsButton: 0
     HideCoinBox: 0
-  - LevelId: lv-009
-    AddressKey: lv-009
-    DisplayName: Blocker test
+  - LevelId: Level_12
+    AddressKey: Level_12
+    DisplayName: Level 12
+    Difficulty: 0
+    Moves: 26
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_13
+    AddressKey: Level_13
+    DisplayName: Level 13
     Difficulty: 0
     Moves: 30
     HideSettingsButton: 0
     HideCoinBox: 0
-  - LevelId: lv-010
-    AddressKey: lv-010
-    DisplayName: Blocker Box test
+  - LevelId: Level_14
+    AddressKey: Level_14
+    DisplayName: Level 14
     Difficulty: 0
-    Moves: 30
+    Moves: 38
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_15
+    AddressKey: Level_15
+    DisplayName: Level 15
+    Difficulty: 0
+    Moves: 40
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_16
+    AddressKey: Level_16
+    DisplayName: Level 16
+    Difficulty: 1
+    Moves: 36
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_17
+    AddressKey: Level_17
+    DisplayName: Level 17
+    Difficulty: 0
+    Moves: 50
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_18
+    AddressKey: Level_18
+    DisplayName: Level 18
+    Difficulty: 0
+    Moves: 40
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_19
+    AddressKey: Level_19
+    DisplayName: Level 19
+    Difficulty: 0
+    Moves: 40
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_20
+    AddressKey: Level_20
+    DisplayName: Level 20
+    Difficulty: 0
+    Moves: 40
+    HideSettingsButton: 0
+    HideCoinBox: 0
+  - LevelId: Level_21
+    AddressKey: Level_21
+    DisplayName: Level 21
+    Difficulty: 1
+    Moves: 29
     HideSettingsButton: 0
     HideCoinBox: 0

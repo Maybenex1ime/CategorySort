@@ -1,6 +1,7 @@
 using System;
 using System.Collections.Generic;
 using System.IO;
+using System.Text.RegularExpressions;
 using LogosGame.Features.Gameplay.Content;
 using UnityEditor;
 using UnityEditor.AddressableAssets;
@@ -53,7 +54,8 @@ namespace WordStack.Meta.Editor
             }
 
             string[] guids = AssetDatabase.FindAssets("t:TextAsset", new[] { LevelsFolder });
-            Array.Sort(guids, (a, b) => string.CompareOrdinal(
+            // Thứ tự catalog = số "Level N" trong game, nên phải sắp theo số: Level_2 trước Level_10.
+            Array.Sort(guids, (a, b) => NaturalCompare(
                 AssetDatabase.GUIDToAssetPath(a), AssetDatabase.GUIDToAssetPath(b)));
 
             if (guids.Length == 0)
@@ -96,6 +98,14 @@ namespace WordStack.Meta.Editor
             AssetDatabase.SaveAssets();
 
             Debug.Log($"[LevelCatalogBuilder] Xong: {rows.Count} level → '{CatalogPath}', address = id, group '{settings.DefaultGroup.Name}'.");
+        }
+
+        /// <summary>So chuỗi kiểu "số tự nhiên": mỗi cụm chữ số so theo giá trị (Level_2 &lt; Level_10).</summary>
+        public static int NaturalCompare(string a, string b)
+        {
+            // ponytail: đệm cụm số lên 10 chữ số rồi so ordinal — đủ cho số level < 10 tỉ.
+            static string Pad(string s) => Regex.Replace(s, @"\d+", m => m.Value.PadLeft(10, '0'));
+            return string.CompareOrdinal(Pad(a), Pad(b));
         }
 
         private static LevelCatalog LoadOrCreateCatalog()
