@@ -32,6 +32,13 @@ Trạng thái: `[ ]` chưa làm · `[x]` xong.
 - [ ] `GamePlayUIRoot .prefab`: đổi neo Progress Bar về `(0.5, 1)` (đang neo giữa + đẩy lên ~786, màn 4:3 bị ra ngoài mép trên).
 - [ ] Soi 9:16, 20:9, 4:3 bằng dropdown screen size của Cheat; chỉnh `fitExtraBelow` / `fitPadding` trên `BoardController` nếu sát quá.
 
+## Feedback #1 — bấm đâu trên công tắc Settings cũng đảo on/off
+
+- [ ] Thêm component `SliderTapToggle` lên 7 GameObject `Slider` đang có `SliderHandleSprite`:
+  - `PausePopup.prefab` ▸ `Pause UI/Settings/Notification Settings`, `(1)`, `(2)` ▸ `Slider` (3 cái)
+  - `MainMenuScreen.prefab` ▸ `SafeArea/SetttingsPanel` — 4 công tắc
+- [ ] File mới cần `.meta`: `Assets/_Game/UI/SliderTapToggle.cs`, `Assets/_Game/Gameplay/Tests/SliderTapToggleTests.cs`; chạy `SliderTapToggleTests`.
+
 ## Feedback #7 — Cheat bật/tắt tô màu thẻ cùng nhóm
 
 - [ ] `Assets/_Game/Art/Prefabs/UI/Cheat/CheatRoot.prefab`: thêm một hàng có `Toggle` (nhãn ví dụ "Màu thẻ cùng nhóm") + component `CheatBoardSectionView`, kéo Toggle vào `_matchColorsToggle`.
