@@ -40,4 +40,4 @@ MonoBehaviour:
     Price: 900
     Items:
     - ItemId: heart
-      Amount: 1
+      Amount: 5

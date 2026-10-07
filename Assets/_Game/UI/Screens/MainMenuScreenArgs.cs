@@ -9,5 +9,7 @@ namespace LogosGame.Features.UI.Screens
         public LevelDifficulty Difficulty { get; set; } = LevelDifficulty.Normal;
         public Action OnStartLevel { get; set; }
         public Action OnOpenSettings { get; set; }
+        /// <summary>Nút "+" ở ô tim: mở NoHeartsPopup (chỉ hiện khi tim chưa đầy).</summary>
+        public Action OnOpenHearts { get; set; }
     }
 }

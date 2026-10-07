@@ -70,7 +70,7 @@ namespace LogosGame.Features.UI.Popups
             {
                 bool hasReward = args.RewardCoinAmount > 0;
                 _rewardAmountText.gameObject.SetActive(hasReward);
-                if (hasReward) _rewardAmountText.text = "+" + args.RewardCoinAmount;
+                if (hasReward) _rewardAmountText.text = args.RewardCoinAmount.ToString();
             }
 
             if (_doubleRewardButton != null)

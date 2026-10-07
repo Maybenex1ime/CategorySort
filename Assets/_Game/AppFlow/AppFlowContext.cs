@@ -275,6 +275,8 @@ namespace WordStack.Meta.AppFlow
                 OnStartLevel = () => RunGatedByHearts(
                     () => TriggerDeferred(new StartGameplayTrigger()), returnToMenuOnClose: false),
                 OnOpenSettings = OnOpenSettingsRequested,
+                // Ở menu thì đóng popup là đứng yên tại chỗ; nhận tim xong cũng chỉ đóng (không tự vào màn).
+                OnOpenHearts = () => ShowNoHeartsPopupInBackground(returnToMenuOnClose: false, onHeartGranted: null),
             };
 
             return _uiManager.PushScreen<MainMenuScreen>(args);

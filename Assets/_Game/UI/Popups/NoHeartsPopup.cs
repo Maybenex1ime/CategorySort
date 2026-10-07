@@ -148,6 +148,14 @@ namespace LogosGame.Features.UI.Popups
         {
             // BoosterPurchaseFlow nghe va mua dong bo (tru coin → cong tim), nen doc lai
             // so tim ngay sau Fire la biet mua duoc chua.
+            // Mở từ nút "+" ở menu thì tim có thể hồi đầy trong lúc popup đang mở: mua lúc đó là mất coin
+            // không được gì (HeartService.Add bỏ qua khi đầy) — đóng luôn.
+            if (_heartService != null && _heartService.IsFull.CurrentValue)
+            {
+                OnCloseClicked();
+                return;
+            }
+
             int before = _heartService != null ? _heartService.Current.CurrentValue : 0;
             Bus.Global.Fire(new PurchaseRequestedEvent(TransactionIds.For(ResourceType.Heart)));
             int after = _heartService != null ? _heartService.Current.CurrentValue : 0;

@@ -38,6 +38,8 @@ namespace LogosGame.Features.UI.Screens
         [SerializeField] private TextMeshProUGUI _heartCountText;
         [SerializeField] private TextMeshProUGUI _heartCountdownText;
         [SerializeField] private GameObject _heartFullLabel;
+        [Tooltip("Nút \"+\" ở ô tim — chỉ hiện khi tim chưa đầy, bấm mở NoHeartsPopup (feedback #12). Trống = Button nằm cạnh Heart Icon")]
+        [SerializeField] private Button _addHeartsButton;
 
         [Header("Coins UI")]
         [SerializeField] private TextMeshProUGUI _coinCountText;
@@ -93,6 +95,16 @@ namespace LogosGame.Features.UI.Screens
                 _moreCoinsButton.onClick.AddListener(OnMoreCoinsClicked);
             }
 
+            if (_addHeartsButton == null && _heartIcon != null)
+            {
+                _addHeartsButton = _heartIcon.transform.parent.GetComponentInChildren<Button>(true);
+            }
+
+            if (_addHeartsButton != null)
+            {
+                _addHeartsButton.onClick.AddListener(OnAddHeartsClicked);
+            }
+
             ShowSelectedBg(_homeSelectedBg);
             ShowPanel(null);
         }
@@ -122,6 +134,11 @@ namespace LogosGame.Features.UI.Screens
             if (_moreCoinsButton != null)
             {
                 _moreCoinsButton.onClick.RemoveListener(OnMoreCoinsClicked);
+            }
+
+            if (_addHeartsButton != null)
+            {
+                _addHeartsButton.onClick.RemoveListener(OnAddHeartsClicked);
             }
 
             _disposables.Dispose();
@@ -166,6 +183,14 @@ namespace LogosGame.Features.UI.Screens
             OnShopClicked();
             var shop = _shopPanel != null ? _shopPanel.GetComponentInChildren<ShopPopup>(true) : null;
             if (shop != null) shop.ScrollToCoinPacks();
+        }
+
+        private void OnAddHeartsClicked()
+        {
+            if (_args != null && _args.OnOpenHearts != null)
+            {
+                _args.OnOpenHearts();
+            }
         }
 
         private void OnHomeClicked()
@@ -268,6 +293,7 @@ namespace LogosGame.Features.UI.Screens
             // Countdown shows only when not full; "Full" label shows only when full.
             if (_heartCountdownText != null) _heartCountdownText.gameObject.SetActive(!isFull);
             if (_heartFullLabel != null)     _heartFullLabel.SetActive(isFull);
+            if (_addHeartsButton != null)    _addHeartsButton.gameObject.SetActive(!isFull);   // đầy tim thì không cho mở popup mua
         }
     }
 }
