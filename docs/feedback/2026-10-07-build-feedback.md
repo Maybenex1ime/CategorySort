@@ -17,6 +17,7 @@ Trạng thái: `[ ]` chưa xử lý · `[~]` đang làm · `[x]` xong.
 | 8 | Main Menu | Bấm "+" coin ở Main Menu thì mở thẳng tới coin pack trong Shop | `UI/Screens/MainMenuScreen.cs` (nút `More coins`), `UI/Popups/ShopPopup.cs` | [ ] |
 | 9 | Main Menu | Lower banner: width căn theo màn hình | `MainMenuScreen.prefab` | [ ] |
 | 10 | Ingame | Căn lại layout board cho đầy + UI ingame: phóng to hộp, thu nhỏ button Booster | `BoardController.FitCamera` / `BoxSize`, `Gameplay/Boosters/Views/BoosterButtonView.cs`, `GamePlayUIRoot .prefab` | [ ] |
+| 11 | Booster | Sửa lại animation Shuffle cho đơn giản hơn | `Board/Views/BoardController.cs` — `ShuffleAnimation` / `Vortex`, `BoosterAnimSettings` (`shuffleInDur`, `shuffleOutDur`) | [ ] |
 
 ## Nguyên văn
 
@@ -31,6 +32,7 @@ Settings On/Off xếp hai tile cùng nhóm sẽ đổi màu trong Cheat
 Click + coin ngoài main thì sẽ bắn thẳng vào coin pack ở trong shop
 Lower banner trong Main Menu width căn theo
 Căn lại layout board cho đầy + UI Ingame ( Phóng to hộp lên và cho nhỏ button Booster xuống)
+Sửa lại animation của Shuffle cho đơn giản hơn
 ```
 
 ## Câu hỏi cần chốt trước khi làm
