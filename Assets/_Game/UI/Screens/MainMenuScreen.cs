@@ -1,5 +1,6 @@
 using LogosGame.Features.Currency;
 using LogosGame.Features.Currency.Services;
+using LogosGame.Features.UI.Popups;
 using LogosGame.Features.UI.Common;
 using LogosMeta.Economy;
 using LogosSDK.Core.Logging;
@@ -22,6 +23,8 @@ namespace LogosGame.Features.UI.Screens
         [SerializeField] private Button _playButton;
         [SerializeField] private Button _settingsButton;
         [SerializeField] private Button _shopButton;
+        [Tooltip("Nút + cạnh số coin ở Home — mở Shop và cuộn thẳng tới Coin Packs.")]
+        [SerializeField] private Button _moreCoinsButton;
         [SerializeField] private Button _homeButton;
 
         [Header("Play Button Difficulty Sprites")]
@@ -85,6 +88,11 @@ namespace LogosGame.Features.UI.Screens
                 _homeButton.onClick.AddListener(OnHomeClicked);
             }
 
+            if (_moreCoinsButton != null)
+            {
+                _moreCoinsButton.onClick.AddListener(OnMoreCoinsClicked);
+            }
+
             ShowSelectedBg(_homeSelectedBg);
             ShowPanel(null);
         }
@@ -109,6 +117,11 @@ namespace LogosGame.Features.UI.Screens
             if (_homeButton != null)
             {
                 _homeButton.onClick.RemoveListener(OnHomeClicked);
+            }
+
+            if (_moreCoinsButton != null)
+            {
+                _moreCoinsButton.onClick.RemoveListener(OnMoreCoinsClicked);
             }
 
             _disposables.Dispose();
@@ -146,6 +159,13 @@ namespace LogosGame.Features.UI.Screens
         {
             ShowSelectedBg(_shopSelectedBg);
             ShowPanel(_shopPanel);
+        }
+
+        private void OnMoreCoinsClicked()
+        {
+            OnShopClicked();
+            var shop = _shopPanel != null ? _shopPanel.GetComponentInChildren<ShopPopup>(true) : null;
+            if (shop != null) shop.ScrollToCoinPacks();
         }
 
         private void OnHomeClicked()

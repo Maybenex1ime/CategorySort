@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using LitMotion;
 using LitMotion.Extensions;
@@ -10,6 +11,7 @@ using R3;
 using Reflex.Attributes;
 using TMPro;
 using UnityEngine;
+using UnityEngine.UI;
 using ILogger = LogosSDK.Core.Logging.ILogger;
 
 namespace LogosGame.Features.UI.Popups
@@ -42,6 +44,8 @@ namespace LogosGame.Features.UI.Popups
         [Header("Coin Packs — gói coin thường")]
         [SerializeField] private Transform _coinGridRoot;
         [SerializeField] private ShopCoinCellView _coinCellPrefab;
+        [Tooltip("Tiêu đề Coin Packs — nút + coin ở Home cuộn tới đây. Trống = cuộn tới lưới coin.")]
+        [SerializeField] private RectTransform _coinPacksTitle;
 
         [Inject] private IShopService _shopService;
         [Inject] private ICurrencyService _currencyService;
@@ -94,6 +98,41 @@ namespace LogosGame.Features.UI.Popups
             _coinCounter = new CountUpText(_coinCounterText);
             _coinCounterSubscription = _currencyService.Coins
                 .Subscribe(coins => _coinCounter.Set(coins));
+        }
+
+        /// Cuộn để tiêu đề Coin Packs chạm mép trên khung cuộn (nút + coin ở Home gọi).
+        public void ScrollToCoinPacks()
+        {
+            if (isActiveAndEnabled) StartCoroutine(ScrollToCoinPacksAfterLayout());
+        }
+
+        private IEnumerator ScrollToCoinPacksAfterLayout()
+        {
+            yield return null;   // OnEnable vừa dựng ô — đợi một frame cho layout có kích thước thật
+            var scroll = GetComponent<ScrollRect>();
+            var target = _coinPacksTitle != null ? _coinPacksTitle : _coinGridRoot as RectTransform;
+            if (scroll == null || scroll.content == null || target == null) yield break;
+
+            Canvas.ForceUpdateCanvases();
+            RectTransform content = scroll.content;
+            RectTransform view = scroll.viewport != null ? scroll.viewport : (RectTransform)scroll.transform;
+            var corners = new Vector3[4];
+            target.GetWorldCorners(corners);
+            float itemTop = corners[1].y;
+            view.GetWorldCorners(corners);
+            float viewTop = corners[1].y;
+
+            scroll.StopMovement();
+            Vector2 p = content.anchoredPosition;
+            content.anchoredPosition = new Vector2(p.x,
+                ScrollYToShow(p.y, itemTop, viewTop, content.lossyScale.y, content.rect.height - view.rect.height));
+        }
+
+        // Content neo mép trên: anchoredPosition.y = quãng đã cuộn xuống. Kéo thêm đúng khoảng
+        // mép trên mục còn cách mép trên khung (đổi world → đơn vị content), kẹp trong vùng cuộn được.
+        public static float ScrollYToShow(float contentY, float itemTopWorld, float viewTopWorld, float worldPerUnit, float maxY)
+        {
+            return Mathf.Clamp(contentY + (viewTopWorld - itemTopWorld) / worldPerUnit, 0f, Mathf.Max(0f, maxY));
         }
 
         private void BindNoAds()
