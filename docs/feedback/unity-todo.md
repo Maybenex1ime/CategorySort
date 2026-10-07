@@ -53,7 +53,7 @@ Trạng thái: `[ ]` chưa làm · `[x]` xong.
 
 ## Feedback #7 — Cheat bật/tắt tô màu thẻ cùng nhóm
 
-- [ ] `Assets/_Game/Art/Prefabs/UI/Cheat/CheatRoot.prefab`: thêm một hàng có `Toggle` (nhãn ví dụ "Màu thẻ cùng nhóm") + component `CheatBoardSectionView`, kéo Toggle vào `_matchColorsToggle`.
+- [x] `Assets/_Game/Art/Prefabs/UI/Cheat/CheatRoot.prefab`: thêm một hàng có `Toggle` (nhãn ví dụ "Màu thẻ cùng nhóm") + component `CheatBoardSectionView`, kéo Toggle vào `_matchColorsToggle`.
 
 ## Feedback #8 — "+" coin ở Home mở thẳng Coin Packs
 
