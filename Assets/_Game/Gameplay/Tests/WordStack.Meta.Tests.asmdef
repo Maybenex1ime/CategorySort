@@ -13,7 +13,9 @@
         "UnityEditor.TestRunner",
         "WordStack.Meta.Editor",
         "LitMotion",
-        "LitMotion.Animation"
+        "LitMotion.Animation",
+        "Unity.TextMeshPro",
+        "Unity.ugui"
     ],
     "includePlatforms": [
         "Editor"
