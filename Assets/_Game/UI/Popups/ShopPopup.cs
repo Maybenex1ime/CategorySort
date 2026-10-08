@@ -123,10 +123,16 @@ namespace LogosGame.Features.UI.Popups
             float viewTop = corners[1].y;
 
             scroll.StopMovement();
-            Vector2 p = content.anchoredPosition;
-            content.anchoredPosition = new Vector2(p.x,
-                ScrollYToShow(p.y, itemTop, viewTop, content.lossyScale.y, content.rect.height - view.rect.height));
+            float from = content.anchoredPosition.y;
+            float to = ScrollYToShow(from, itemTop, viewTop, content.lossyScale.y, content.rect.height - view.rect.height);
+            _scrollTween.TryCancel();
+            _scrollTween = LMotion.Create(from, to, ScrollDuration).WithEase(Ease.OutQuad).WithCancelOnError()
+                .Bind(content, (y, c) => c.anchoredPosition = new Vector2(c.anchoredPosition.x, y))
+                .AddTo(content);
         }
+
+        private const float ScrollDuration = 0.35f;
+        private MotionHandle _scrollTween;
 
         // Content neo mép trên: anchoredPosition.y = quãng đã cuộn xuống. Kéo thêm đúng khoảng
         // mép trên mục còn cách mép trên khung (đổi world → đơn vị content), kẹp trong vùng cuộn được.
