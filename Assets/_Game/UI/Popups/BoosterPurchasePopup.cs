@@ -1,4 +1,6 @@
 using LogosGame.Features.UI.Popups.Args;
+using LitMotion;
+using LogosGame.Features.UI.Common;
 using LogosSDK.UI.Base;
 using R3;
 using TMPro;
@@ -27,6 +29,16 @@ namespace LogosGame.Features.UI.Popups
             base.Awake();
             if (_buyButton != null) _buyButton.onClick.AddListener(OnBuyClicked);
             if (_closeButton != null) _closeButton.onClick.AddListener(OnCloseClicked);
+        }
+
+        private MotionHandle _closeDrop;
+
+        // Nút X ẩn tới khi popup mở xong rồi mới rơi xuống nảy (UIDrop).
+        public override async Awaitable Show()
+        {
+            Vector3 scale = UIDrop.Hide(_closeButton);
+            await base.Show();
+            _closeDrop = UIDrop.Play(_closeButton, scale, _closeDrop);
         }
 
         private void OnDestroy()
