@@ -425,14 +425,14 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.UI.Popups.ShopPopup
   _coinCounterText: {fileID: 6109500798033403896}
-  _coinFly: {fileID: 0}
+  _coinFly: {fileID: 8134775052418208533}
   _specialOfferRoot: {fileID: 4099615375374595984}
   _removeAdsView: {fileID: 0}
   _comboListRoot: {fileID: 3501211819497809052}
   _comboCellPrefab: {fileID: 4324139376704656943, guid: 26935361c6282fd4da9329547ce248fd, type: 3}
   _coinGridRoot: {fileID: 201928256753787917}
   _coinCellPrefab: {fileID: 5809560722701093709, guid: a06abb8ec14a699428ebf6f6e3df8be5, type: 3}
-  _coinPacksTitle: {fileID: 0}
+  _coinPacksTitle: {fileID: 8973926345841506258}
 --- !u!1 &775850604779566889
 GameObject:
   m_ObjectHideFlags: 0
@@ -4942,6 +4942,7 @@ GameObject:
   - component: {fileID: 6586903631776476571}
   - component: {fileID: 7850987049273391493}
   - component: {fileID: 1177513956757553552}
+  - component: {fileID: 4287176601740623206}
   m_Layer: 0
   m_Name: Play Button
   m_TagString: Untagged
@@ -7641,6 +7642,7 @@ GameObject:
   serializedVersion: 6
   m_Component:
   - component: {fileID: 2535474255224171468}
+  - component: {fileID: 8134775052418208533}
   m_Layer: 0
   m_Name: Shop Panel
   m_TagString: Untagged
@@ -10940,3 +10942,30 @@ RectTransform:
   m_CorrespondingSourceObject: {fileID: 4366730404025918929, guid: a06abb8ec14a699428ebf6f6e3df8be5, type: 3}
   m_PrefabInstance: {fileID: 7651147613787215852}
   m_PrefabAsset: {fileID: 0}
+--- !u!114 &8134775052418208533
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 7537257650613939587}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ec5977559d65eb8468d21e0c41819fb0, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: WordStack.Meta::LogosGame.Features.UI.Common.CoinFly
+  _coinSprite: {fileID: 7986564825855337457, guid: c83e8c06300f11045b2fb751348bc3aa, type: 3}
+--- !u!114 &4287176601740623206
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 5270072475967161526}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 1f44f4b58a9ea45adb5f4c036f92c33d, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: LogosSDK.UI::LogosSDK.UI.Components.UIIdlePulseDriver
+  _profile: {fileID: 11400000, guid: ca1b011c0dd994144b737800217c6f37, type: 2}
+  _target: {fileID: 0}
