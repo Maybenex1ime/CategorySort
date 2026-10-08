@@ -59,7 +59,7 @@ namespace LogosGame.Features.Gameplay.Views
         {
             if (_resources != null && _coinText != null)
             {
-                _coinCount = new CountUpText(_coinText);
+                _coinCount = new CountUpText(_coinText, onDecrease: spent => FloatingText.Spawn(_coinText, "-" + spent));
                 _resources.Observe(ResourceType.Coin)
                     .Subscribe(value => _coinCount.Set(value))
                     .AddTo(ref _disposables);

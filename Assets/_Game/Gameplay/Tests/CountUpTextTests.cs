@@ -1,4 +1,5 @@
 // CountUpText: số coin đếm dần thay vì nhảy (report UI animation #2).
+using System.Collections.Generic;
 using LitMotion;
 using LogosGame.Features.UI.Common;
 using NUnit.Framework;
@@ -59,6 +60,20 @@ namespace WordStack.Meta.Tests
             Assert.AreEqual(mid, _count.Shown, "đổi đích không được nhảy số");
             _clock.Update(1.1);
             Assert.AreEqual("50", _text.text);
+        }
+
+        [Test]
+        public void DecreaseReportsTheAmountSpent()
+        {
+            var spent = new List<int>();
+            var count = new CountUpText(_text, 1f, _clock.Scheduler, spent.Add);
+            count.Set(500);        // lần đầu: gán ngay, không báo
+            count.Set(800);        // tăng: không báo
+            count.Set(650);        // giảm 150
+            count.SetImmediate(100);
+            count.Set(40);         // giảm 60
+            CollectionAssert.AreEqual(new[] { 150, 60 }, spent);
+            count.Dispose();
         }
 
         [Test]

@@ -3,6 +3,8 @@ using LogosGame.Features.Currency.Services;
 using LogosGame.Features.UI.Popups;
 using LogosGame.Features.UI.Common;
 using LogosMeta.Economy;
+using LitMotion;
+using LitMotion.Extensions;
 using LogosSDK.Core.Logging;
 using LogosSDK.UI.Base;
 using R3;
@@ -62,6 +64,7 @@ namespace LogosGame.Features.UI.Screens
         private MainMenuScreenArgs _args;
         private DisposableBag _disposables;
         private CountUpText _coinCount;
+        private MotionHandle _panelFade, _panelScale;
         private bool _isHeartUIBound;
         private bool _isCoinUIBound;
 
@@ -201,9 +204,29 @@ namespace LogosGame.Features.UI.Screens
 
         private void ShowPanel(GameObject panel)
         {
-            if (_settingsPanel != null) _settingsPanel.SetActive(_settingsPanel == panel);
-            if (_shopPanel != null)     _shopPanel.SetActive(_shopPanel == panel);
+            SetPanel(_settingsPanel, panel);
+            SetPanel(_shopPanel, panel);
         }
+
+        // Tab vừa bật thì diễn vào (report UI animation, BasePanel: fade + scale Y lớn hơn → 1, OutBack); tab tắt thì tắt ngay.
+        private void SetPanel(GameObject p, GameObject shown)
+        {
+            if (p == null) return;
+            if (p != shown) { p.SetActive(false); return; }
+            if (p.activeSelf) return;
+            p.SetActive(true);
+
+            _panelFade.TryComplete();
+            _panelScale.TryComplete();
+            var group = p.GetComponent<CanvasGroup>();
+            if (group == null) group = p.AddComponent<CanvasGroup>();
+            _panelFade = LMotion.Create(0f, 1f, PanelFadeDuration).WithEase(Ease.OutQuad).WithCancelOnError()
+                .Bind(group, (a, g) => g.alpha = a).AddTo(p);
+            _panelScale = LMotion.Create(new Vector3(1f, PanelStartScaleY, 1f), Vector3.one, PanelScaleDuration)
+                .WithEase(Ease.OutBack).WithCancelOnError().BindToLocalScale(p.transform).AddTo(p);
+        }
+
+        private const float PanelFadeDuration = 0.25f, PanelScaleDuration = 0.3f, PanelStartScaleY = 1.15f;
 
         private void ShowSelectedBg(GameObject selected)
         {
@@ -281,7 +304,7 @@ namespace LogosGame.Features.UI.Screens
         private void BindCoinUI()
         {
             if (_resources == null || _coinCountText == null) return;
-            _coinCount = new CountUpText(_coinCountText);
+            _coinCount = new CountUpText(_coinCountText, onDecrease: spent => FloatingText.Spawn(_coinCountText, "-" + spent));
             _resources.Observe(ResourceType.Coin)
                 .Subscribe(value => _coinCount.Set(value))
                 .AddTo(ref _disposables);

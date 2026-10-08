@@ -1,3 +1,4 @@
+using System;
 using LitMotion;
 using TMPro;
 
@@ -10,16 +11,18 @@ namespace LogosGame.Features.UI.Common
         private readonly TMP_Text _text;
         private readonly float _duration;
         private readonly IMotionScheduler _scheduler;   // null = mặc định; test truyền ManualMotionDispatcher
+        private readonly Action<int> _onDecrease;        // số giảm (vd tiêu coin) → bên gọi hiện "-N"
         private MotionHandle _handle;
         private int _shown;
         private int _target;
         private bool _hasValue;
 
-        public CountUpText(TMP_Text text, float duration = 0.5f, IMotionScheduler scheduler = null)
+        public CountUpText(TMP_Text text, float duration = 0.5f, IMotionScheduler scheduler = null, Action<int> onDecrease = null)
         {
             _text = text;
             _duration = duration;
             _scheduler = scheduler;
+            _onDecrease = onDecrease;
         }
 
         public int Shown => _shown;
@@ -28,6 +31,7 @@ namespace LogosGame.Features.UI.Common
         {
             if (!_hasValue) { SetImmediate(value); return; }
             if (value == _target) return;   // đang đếm tới đúng số này, hoặc đã hiện nó
+            if (value < _target) _onDecrease?.Invoke(_target - value);
             _target = value;
             _handle.TryCancel();
             _handle = LMotion.Create(_shown, value, _duration)
