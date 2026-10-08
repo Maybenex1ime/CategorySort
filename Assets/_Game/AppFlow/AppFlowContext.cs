@@ -1,6 +1,7 @@
 using System;
 using LogosGame.Features.Gameplay.Content;
 using LogosGame.Features.Gameplay.Flow;
+using LogosGame.Features.UI.Common;
 using LogosGame.Features.UI.Popups;
 using LogosGame.Features.UI.Popups.Args;
 using LogosGame.Features.UI.Screens;
@@ -112,6 +113,13 @@ namespace WordStack.Meta.AppFlow
         public float MinLoadingSeconds => _minLoadingSeconds;
 
         public void SetPhase(AppFlowPhase phase) => _manager.SetPhase(phase);
+
+        /// Đang ở trong màn chơi (bàn hoặc popup kết quả) — MainMenuState chỉ fade khi đi ra từ đây.
+        public bool IsInGame => _manager.CurrentPhase == AppFlowPhase.Gameplay || _manager.CurrentPhase == AppFlowPhase.Result;
+
+        // Tấm đen che lúc đổi màn hình (ScreenFader).
+        public Awaitable CoverScreenAsync() => ScreenFader.Cover();
+        public Awaitable RevealScreenAsync() => ScreenFader.Reveal();
 
         // --- Level ------------------------------------------------------------
 

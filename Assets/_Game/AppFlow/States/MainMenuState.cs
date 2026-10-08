@@ -17,8 +17,19 @@ namespace WordStack.Meta.AppFlow.States
         public override async Awaitable OnEnterAsync()
         {
             _logger.Info("[AppFlow] Enter MainMenu");
-            Context.SetPhase(AppFlowPhase.MainMenu);
-            await Context.ShowMainMenuScreenAsync();
+
+            // Từ màn chơi về thì che màn; từ Splash vào thì không (loading đã tự đóng, che thêm là chớp đen).
+            bool fade = Context.IsInGame;
+            if (fade) await Context.CoverScreenAsync();
+            try
+            {
+                Context.SetPhase(AppFlowPhase.MainMenu);
+                await Context.ShowMainMenuScreenAsync();
+            }
+            finally
+            {
+                if (fade) await Context.RevealScreenAsync();
+            }
         }
     }
 }

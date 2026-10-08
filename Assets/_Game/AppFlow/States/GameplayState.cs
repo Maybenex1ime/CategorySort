@@ -30,15 +30,26 @@ namespace WordStack.Meta.AppFlow.States
         public override async Awaitable OnEnterAsync()
         {
             _logger.Info("[AppFlow] Enter Gameplay");
-            Context.SetPhase(AppFlowPhase.Gameplay);
 
-            // Gỡ màn hình menu để lộ bàn chơi. Gameplay nằm cùng scene nên
-            // không có gì để nạp — khác aquapark (nó load GameplayScene qua Addressables).
-            await Context.RemoveCurrentScreenAsync();
+            // Che màn trước: menu / popup kết quả tắt và bàn mới dựng sau tấm đen. finally: lỗi giữa chừng
+            // cũng phải mở lại, không thì kẹt màn đen.
+            await Context.CoverScreenAsync();
+            try
+            {
+                Context.SetPhase(AppFlowPhase.Gameplay);
 
-            // Đây là NƠI DUY NHẤT ra lệnh nạp màn — cả vào lần đầu, chơi lại,
-            // lẫn sang màn kế đều đi qua đây.
-            await Context.StartCurrentLevelAsync();
+                // Gỡ màn hình menu để lộ bàn chơi. Gameplay nằm cùng scene nên
+                // không có gì để nạp — khác aquapark (nó load GameplayScene qua Addressables).
+                await Context.RemoveCurrentScreenAsync();
+
+                // Đây là NƠI DUY NHẤT ra lệnh nạp màn — cả vào lần đầu, chơi lại,
+                // lẫn sang màn kế đều đi qua đây.
+                await Context.StartCurrentLevelAsync();
+            }
+            finally
+            {
+                await Context.RevealScreenAsync();
+            }
         }
     }
 }
